@@ -6,7 +6,6 @@ import (
 	"github.com/root-gg/plik/server/utils"
 )
 
-var shortenBackendType string = ""
 var shortenBackend Shorten
 
 type Shorten interface {
@@ -14,18 +13,14 @@ type Shorten interface {
 }
 
 func GetShortenBackend() Shorten {
-	if shortenBackendType != "" {
-		if shortenBackend == nil {
-			switch shortenBackendType {
-			case "ovh.to":
-				shortenBackend = ovhto.NewOvhToShortenBackend(utils.Config.ShortenBackendConfig)
+	if shortenBackend == nil {
+		switch utils.Config.ShortenBackend {
+		case "ovh.to":
+			shortenBackend = ovhto.NewOvhToShortenBackend(utils.Config.ShortenBackendConfig)
 
-			case "w000t.me":
-				shortenBackend = w000t.NewW000tMeShortenBackend(utils.Config.ShortenBackendConfig)
-			}
+		case "w000t.me":
+			shortenBackend = w000t.NewW000tMeShortenBackend(utils.Config.ShortenBackendConfig)
 		}
-		return shortenBackend
-	} else {
-		return nil
 	}
+	return shortenBackend
 }
