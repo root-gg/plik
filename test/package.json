@@ -1,0 +1,9 @@
+{
+  "name": "plik-test",
+  "description": "plik-test",
+  "version": "1.0.0",
+  "dependencies": {
+    "form-data": "^0.2.0",
+    "frisby": "^0.8.5"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "name": "demo",
+  "version": "0.0.1",
+  "authors": [
+    "Charles-Antoine Mathieu <skatkatt@root.gg>"
+  ],
+  "description": "secure file upload",
+  "main": "js/app.js",
+  "license": "MIT",
+  "homepage": "http://demo.root.gg",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "angular": "~1.2.20",
+    "bootstrap": "~3.2.0",
+    "fontawesome": "~4.1.0",
+    "underscore": "~1.6.0",
+    "angular-bootstrap": "~0.11.0",
+    "filesize": "~2.0.3",
+    "angular-contenteditable": "~0.3.7",
+    "zeroclipboard": "~2.1.5",
+    "ng-clip": "~0.2.1",
+    "showdown": "~0.3.1",
+    "danialfarid-angular-file-upload": "1.6.5",
+    "angular-route": "~1.2.21",
+    "angular-sanitize": "~1.2.21",
+    "angular-markdown-directive": "~0.3.0",
+    "angular-bootstrap-switch": "~0.3.0"
+  },
+  "resolutions": {
+    "zeroclipboard": "~2.2.0",
+    "angular": "~1.2.20"
+  }
+}

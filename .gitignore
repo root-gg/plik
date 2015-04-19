@@ -1,0 +1,17 @@
+plik
+plikd
+clients
+server/files
+server/public/public
+clients
+client/client
+server/server
+release
+plik_*.cfg
+*bower_components
+*node_modules
+*.log
+
+plik_refactor
+
+.idea

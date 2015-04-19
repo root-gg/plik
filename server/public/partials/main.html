@@ -1,0 +1,224 @@
+<div class="col-md-10 col-md-offset-1" xmlns="http://www.w3.org/1999/html">
+    <div class="panel panel-default">
+        <!-- HEADER -->
+        <div class="panel-heading">
+            <h3 class="panel-title"><a href="/" class="glyphicon glyphicon-refresh"></a>
+                <span ng-show="!upload.uploadId">Upload your files</span>
+                <span ng-show="upload.uploadId">Download your files</span>
+            </h3>
+        </div>
+        <!-- BODY -->
+        <div class="panel-body main">
+            <!-- COMMENTS -->
+            <div class="row">
+                <div class="col-md-10 col-md-offset-1">
+                    <div class="form-group comments">
+                        <div class="row">
+                            <div class="col-md-8 col-md-offset-2">
+                                <div btf-markdown="upload.comments">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- UPLOAD -->
+            <div ng-if="!upload.id">
+                <div class="row">
+                    <div class="col-md-4 col-md-offset-2">
+                        <div class="optionSelect">
+                            <!-- ONE SHOT -->
+                            <div class="row">
+                                <div class="col-md-8 col-md-offset-2">
+                                    <input id="checkbox-destruct" type="checkbox"  ng-model="upload.oneShot" style="display:inline-block">
+                                    <label for="checkbox-destruct" style="font-weight:normal;">Destruct after the first download</label>
+                                    <a tooltip-placement="right" tooltip="The files will be removed from the server right after the first download.">?</a>
+                                </div>
+                            </div>
+                            <!-- REMOVABLE -->
+                            <div class="row">
+                                <div class="col-md-8 col-md-offset-2">
+                                    <input id="checkbox-removable" type="checkbox"  ng-model="upload.removable">
+                                    <label for="checkbox-removable" style="font-weight:normal;">Removable</label>
+                                    <a tooltip-placement="right" tooltip="Allow to manually remove the uploaded files from the server at any moment.">?</a>
+                                </div>
+                            </div>
+                            <!-- PASSWORD -->
+                            <div class="row">
+                                <div class="col-md-8 col-md-offset-2">
+                                    <input id="checkbox-password" type="checkbox"  ng-model="$parent.password">
+                                    <label for="checkbox-password" style="font-weight:normal;">Password</label>
+                                    <a tooltip-placement="right" tooltip="Protect you upload with credentials. You will be prompted for them before the upload and before the download.">?</a>
+                                </div>
+                            </div>
+                            <!-- YUBIKEY -->
+                            <div class="row">
+                                <div class="col-md-8 col-md-offset-2">
+                                    <input id="checkbox-yubikey" type="checkbox"  ng-model="$parent.yubikey">
+                                    <label for="checkbox-yubikey" style="font-weight:normal;">Yubikey</label>
+                                    <a tooltip-placement="right" tooltip="Protect you upload with a Yubikey. You will be prompted for OTP before the upload and before the download.">?</a>
+                                </div>
+                            </div>
+                            <!-- COMMENTS -->
+                            <div class="row">
+                                <div class="col-md-8 col-md-offset-2">
+                                    <input id="checkbox-comments" type="checkbox"  ng-model="enableComments">
+                                    <label for="checkbox-comments" style="font-weight:normal;">Comments (<a href="http://daringfireball.net/projects/markdown/syntax" target="_blank">Markdown</a>):</label>
+                                    <a tooltip-placement="right" tooltip="Add some comments to the upload. Markdown language supported and live preview.">?</a>
+                                    <textarea class="form-control" ng-model="upload.comments" ng-show="enableComments=='1'"></textarea>
+                                </div>
+                            </div>
+                            <div class="row"><p><!-- nastiest separator ever seen --></p></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-md-offset-1">
+                        <form class="form-inline">
+                            <div class="form-group">
+                                <div class="input-group">Expire in : </div>
+                                <div class="input-group col-sm-5">
+                                    <input type="number" ng-model="ttl.value" class="form-control input-sm">
+                                    <div class="input-group-addon" ng-click="switchTimeUnit()">
+                                        <span class="noselect">{{ttl.unit}}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <!-- FILE LIST -->
+                <div class="row">
+                    <div class="col-md-10 col-md-offset-1">
+                        <div class="form-group list">
+                            <table class="table" ng-show="files.length">
+                                <tr>
+                                    <th class="col-md-5" ng-click="sortField='metadata.fileName';sortOrder=!sortOrder">name (editable)</th>
+                                    <th class="col-md-2" ng-click="sortField='metadata.fileSize';sortOrder=!sortOrder">size</th>
+                                    <th class="col-md-5" >action</th>
+                                </tr>
+                                <tr ng-repeat="file in files | orderBy:sortField:sortOrder">
+                                    <td ng-model="file.uploadName" contenteditable="true" strip-br="true" select-non-editable="true"></td>
+                                    <td>{{humanReadableSize(file.size)}}</td>
+                                    <td ng-show="!file.progress">
+                                        <button class="btn btn-danger" ng-click="removeFile(file)"><span class="glyphicon glyphicon-remove"></span> Remove</button>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <!-- ADD FILE / UPLOAD BUTTONS -->
+                <div class="row">
+                    <div class="col-md-10 col-md-offset-1">
+                        <div class="form-group browse">
+                            <div class="row">
+                                <div class="col-md-3 col-md-offset-2">
+                                    <span class="btn  btn-lg btn-primary btn-block btn-file">
+                                        <i class="fa fa-file"></i> Add files <input type="file" ng-file-select="onFileSelect($files)" multiple>
+                                    </span>
+                                </div>
+                                <div class="col-md-3 col-md-offset-2">
+                                    <button type="button" class="btn btn-lg btn-success btn-block" ng-click="newUpload()">
+                                        <i class="fa fa-cloud-upload"></i> Upload
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- DOWNLOAD -->
+        <div ng-if="upload.id">
+            <!-- SHORT UPLOAD LINK -->
+            <div class="row">
+                <div class="col-md-10 col-md-offset-1">
+                    <div ng-show="upload.shortUrl != ''">
+                        <center>
+                            <h4><a style="text-align:center;" href="{{ upload.shortUrl }}">{{ upload.shortUrl }}</a></h4>
+                            <br />
+                        </center>
+                    </div>
+                </div>
+            </div>
+            <!-- FILE LIST -->
+            <div class="row">
+                <div class="col-md-10 col-md-offset-1">
+                    <div class="form-group list">
+                        <table class="table" ng-show="files.length">
+                            <tr>
+                                <th class="col-md-5" ng-click="sortField='metadata.fileName';sortOrder=!sortOrder">name <span ng-show="!upload.uploadId">(editable)</span></th>
+                                <th class="col-md-2" ng-click="sortField='metadata.fileSize';sortOrder=!sortOrder">size</th>
+                                <th class="col-md-5" >action</th>
+                            </tr>
+                            <tr ng-repeat="file in files | orderBy:sortField:sortOrder">
+                                <td ng-show="!file.metadata"
+                                    ng-model="file.uploadName"
+                                    contenteditable="true"
+                                    strip-br="true"
+                                    select-non-editable="true">
+                                </td>
+                                <td ng-show="file.metadata">{{file.metadata.fileName}}</td>
+                                <td ng-show="!file.metadata">{{humanReadableSize(file.size)}}</td>
+                                <td ng-show="file.metadata">{{humanReadableSize(file.metadata.fileSize)}}</td>
+                                <td ng-show="!file.metadata && !file.progress">
+                                    <button class="btn btn-danger" ng-click="removeFile(file)"><span class="glyphicon glyphicon-remove"></span> Remove</button>
+                                </td>
+                                <td ng-show="!file.metadata && file.progress">
+                                    <div class="progress">
+                                        <div class="progress-bar progress-bar-striped active" role="progressbar"
+                                             aria-valuenow="{{file.progress}}" aria-valuemin="0" aria-valuemax="100"
+                                             style="width: {{file.progress}}%; min-width:25px;">
+                                            <span style="min-width:25px;">{{file.progress}}%</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td ng-show="file.metadata">
+                                    <div ng-show="file.metadata.status == 'uploaded'">
+                                        <!-- DOWNLOAD WITHOUT YUBIKEY -->
+                                        <a href="{{getFileUrl(file,1)}}" ng-show="!upload.protectedByYubikey">
+                                            <button title="Download" type="button" class="btn btn-success"><span class="glyphicon glyphicon-cloud-download"></span>  Download</button>
+                                        </a>
+                                        <!-- DOWNLOAD WITH YUBIKEY -->
+                                        <button title="Download" type="button" class="btn btn-success" ng-show="upload.protectedByYubikey" ng-click="downloadWithYubikey(getFileUrl(file))"><span class="glyphicon glyphicon-cloud-download"></span>  Download</button>
+                                        <button title="Copy to clipboard" type="button" class="btn btn-success" clip-copy="getFileUrl(file)">
+                                            <span class="glyphicon glyphicon-paperclip"></span>  Copy to clipboard
+                                        </button>
+                                        <button title="Delete File" type="button" class="btn btn-danger" ng-click="delete(file)" ng-show="upload.removable == '1'">
+                                            <span class="glyphicon glyphicon-remove"></span> Remove
+                                        </button>
+                                    </div>
+                                    <div ng-show="file.metadata.status != 'uploaded'">
+                                        <span class="fileStatus">{{file.metadata.status.toUpperCase()}}</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!-- LINK LIST -->
+            <div class="row" ng-show="files.length">
+                <div class="col-md-10 col-md-offset-1">
+                    <div class="row">
+                        <div class="col-md-10 col-md-offset-1">
+                            <div class="well linkSummary"  style="text-align:center">
+                                <div ng-repeat="file in files" ng-show="file.metadata.status == 'uploaded'">
+                                    <a href="{{getFileUrl(file)}}"> {{getFileUrl(file)}}</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- FOOTER -->
+        <div class="panel-footer">
+            &nbsp;
+            <a href="#/clients" tooltip-placement="bottom" tooltip="You really should">Download the command line client</a>
+            &nbsp;
+            <a href="mailto:mathieu.bodjikian@ovh.net" class="pull-right" tooltip-placement="bottom" tooltip="We pay with beer and cookies">HTML/CSS Warrior ? &nbsp;</a>
+            <a href="https://git.spinoff.ovh.net/plik/plik/tree/master" class="pull-right" tooltip-placement="bottom" tooltip="Feel free to submit PR">Browse the source code ? &nbsp;</a>
+            &nbsp;
+        </div>
+    </div>
+</div>

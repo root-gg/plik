@@ -1,0 +1,20 @@
+<div class="modal-header">
+    <h1>{{title}}</h1>
+</div>
+<div class="modal-body">
+    <div class="row">
+        <div class="col-sm-12 col-sm-offset-2">
+            <form class="form-horizontal">
+                <div class="form-group">
+                    <div class="col-sm-8">
+                        <input id="yubikey" type="text" ng-model="token" ng-change="check(token)" class="form-control" placeholder="Yubikey OTP"></input>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<div class="modal-footer">
+    <button ng-click="dismiss()" class="btn btn-danger">Cancel</button>
+    <button ng-click="check(token)" class="btn btn-primary">Close</button>
+</div>

@@ -1,0 +1,23 @@
+<div class="modal-header">
+    <h1>{{title}} ({{data.status}})</h1>
+</div>
+<div class="modal-body">
+    <p>{{data.message}}</p>
+
+    <p>
+    <pre ng-show="data.value" ng-bind-html-unsafe="data.value | toStr"></pre>
+    </p>
+    <div ng-repeat="error in data.errors">
+        <ul class="nav nav-list">
+            <li class="divider"></li>
+        </ul>
+        <p><strong>{{error.code}} : {{error.message}}</strong></p>
+
+        <p>
+        <pre ng-show="error.value" ng-bind-html-unsafe='error.value | toStr'></pre>
+        </p>
+    </div>
+</div>
+<div class="modal-footer">
+    <button ng-click="close(result)" class="btn btn-primary">Close</button>
+</div>
