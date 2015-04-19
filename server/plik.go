@@ -588,12 +588,13 @@ func httpBasicAuth(req *http.Request, resp http.ResponseWriter, upload *utils.Up
 			if auth[0] != "Basic" {
 				err = errors.New(fmt.Sprintf("Inavlid http authorization scheme : %s", auth[0]))
 			}
-			md5sum, err := utils.Md5sum(auth[1])
+			var md5sum string
+			md5sum, err = utils.Md5sum(auth[1])
 			if err != nil {
 				err = errors.New(fmt.Sprintf("Unable to hash credentials : %s", err))
 			}
 			if md5sum != upload.Password {
-				err = errors.New(fmt.Sprintf("Invalid credentials : %s", err))
+				err = errors.New(fmt.Sprintf("Invalid credentials"))
 			}
 		}
 		if err != nil {
