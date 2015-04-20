@@ -146,10 +146,28 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 
 	upload.Create()
 
-	// TODO
-	if utils.Config.MaxTtl != 0 && upload.Ttl > utils.Config.MaxTtl {
-		http.Error(resp, utils.NewResult(fmt.Sprintf("Cannot set ttl to %d (maximum allowed is : %d)", upload.Ttl, utils.Config.MaxTtl), nil).ToJsonString(), 500)
-		return
+	// Handle TTL
+	// 0 	-> No ttl specified : we set default value from configuration
+	// -1	-> User wants no expiration : checking with configuration if that's ok
+	// >0	-> User wants specific ttl  : checking with configuration if that's ok
+
+	switch upload.Ttl {
+	case 0:
+		upload.Ttl = utils.Config.DefaultTtl
+	case -1:
+		if utils.Config.MaxTtl != 0 {
+			http.Error(resp, utils.NewResult(fmt.Sprintf("Cannot set infinite ttl (maximum allowed is : %d)", utils.Config.MaxTtl), nil).ToJsonString(), 500)
+			return
+		}
+	default:
+		if upload.Ttl < 0 {
+			http.Error(resp, utils.NewResult(fmt.Sprintf("Invalid value for ttl : %d", upload.Ttl), nil).ToJsonString(), 500)
+			return
+		}
+		if utils.Config.MaxTtl != 0 && upload.Ttl > utils.Config.MaxTtl {
+			http.Error(resp, utils.NewResult(fmt.Sprintf("Cannot set ttl to %d (maximum allowed is : %d)", upload.Ttl, utils.Config.MaxTtl), nil).ToJsonString(), 500)
+			return
+		}
 	}
 
 	// Password
