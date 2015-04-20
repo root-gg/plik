@@ -51,7 +51,7 @@ import (
 
 func main() {
 	// Misc
-	log.Printf("Starting plikd server v1.0 RC1")
+	log.Printf("Starting plikd server ##VERSION##")
 	rand.Seed(time.Now().UTC().UnixNano())
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
