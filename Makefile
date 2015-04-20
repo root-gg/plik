@@ -14,9 +14,9 @@ build:
 	@cd server/public && bower install
 	@cd server/public && grunt
 	@cd server && go get -v
-	@sed -i -e "s/##VERSION##/$(RELEASE_VERSION)/g" server/plik.go
+	@sed -i -e "s/##VERSION##/$(RELEASE_VERSION)/g" server/utils/utils.go
 	@cd server && go build -o plikd ./
-	@git checkout server/plik.go
+	@git checkout server/utils/utils.go
 
 clean:
 	@rm -rf server/public/bower_components

@@ -6,6 +6,10 @@ import (
 	"io"
 )
 
+var(
+	PlikVersion = "##VERSION##"
+)
+
 func Md5sum(str string) (md5sum string, err error) {
 	h := md5.New()
 	_, err = io.WriteString(h, str)
