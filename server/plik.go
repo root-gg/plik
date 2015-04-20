@@ -51,15 +51,22 @@ import (
 
 func main() {
 	// Misc
-	log.Printf("Starting plikd server v" + utils.PlikVersion )
 	rand.Seed(time.Now().UTC().UnixNano())
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// Read args
 	var configFile = flag.String("config", "plikd.cfg", "Configuration file (default: plikd.cfg")
+	var version = flag.Bool("version", false, "Show version of plikd")
 	flag.Parse()
 
+	// Show version if asked
+	if *version {
+		fmt.Printf("Plikd v%s\n", utils.PlikVersion)
+		os.Exit(0)
+	}
+
 	// Load configuration
+	log.Printf("Starting plikd server v" + utils.PlikVersion)
 	utils.LoadConfiguration(*configFile)
 
 	// Http router
