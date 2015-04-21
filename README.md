@@ -10,10 +10,10 @@ Installation
 
 For now, you must compile it yourself : 
 
-##### Clone the repository
+##### Get the sources via go get
 ```sh
-git clone git@git.spinoff.ovh.net:plik/plik.git
-cd plik/
+go get github.com/root-gg/plik/server
+cd $GOPATH/src/github.com/root-gg/plik/
 ```
 
 #### Install build dependencies
@@ -25,7 +25,7 @@ npm install -g grunt-cli bower
 ##### Build it and run it
 ```sh
 make
-./plikd
+cd server && ./plikd
 ```
 
 #### Run functional test
