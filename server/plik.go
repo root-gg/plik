@@ -1,6 +1,9 @@
 /* The MIT License (MIT)
 
-Copyright (c) <2014> <mathieu@bodjikian.fr>
+Copyright (c) <2015>
+	- Mathieu Bodjikian <mathieu@bodjikian.fr> : core, file (data/metadata) backend, shorten backends
+	- Charles-Antoine Mathieu <skatkatt@root.gg> : core, frontend, mongo metadata backend, cli client
+	- Loïc Porte <bewiwi@bibabox.fr> : swift databackend, tests
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -69,25 +72,24 @@ func main() {
 	log.Printf("Starting plikd server v" + utils.PlikVersion)
 	utils.LoadConfiguration(*configFile)
 
-	// Http router
+	// Here are all the plikd REST api calls
 	r := mux.NewRouter()
 	r.HandleFunc("/upload", createUploadHandler).Methods("POST")
 	r.HandleFunc("/upload/{uploadid}", getUploadHandler).Methods("GET")
 	r.HandleFunc("/upload/{uploadid}/file", addFileHandler).Methods("POST")
 	r.HandleFunc("/upload/{uploadid}/file/{fileid}", getFileHandler).Methods("GET")
 	r.HandleFunc("/upload/{uploadid}/file/{fileid}", removeFileHandler).Methods("DELETE")
-	// Pretty DL links
-	r.HandleFunc("/file/{uploadid}/{fileid}/{filename}", getFileHandler).Methods("GET")
-	r.HandleFunc("/file/{uploadid}/{fileid}/{filename}", getFileHandler).Methods("HEAD")
+	r.HandleFunc("/file/{uploadid}/{fileid}/{filename}", getFileHandler).Methods("GET", "HEAD")
 	r.HandleFunc("/file/{uploadid}/{fileid}/{filename}/yubikey/{yubikey}", getFileHandler).Methods("GET")
 	r.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
-
 	http.Handle("/", r)
 
 	// Remove expired uploads routine
+	//  -> Will remove periodicaly expired uploads
 	go UploadsCleaningRoutine()
 
+	// Http router spawning
 	go func() {
 
 		var err error
@@ -140,7 +142,7 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	log.Println(string(body))
+	// Deserialize body into newly created upload object
 	if len(body) > 0 {
 		// Parse Json
 		err = json.Unmarshal(body, upload)
@@ -151,6 +153,8 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// After deserialization, we can init upload
+	// This will set upload id, upload token, ...
 	upload.Create()
 
 	// Handle TTL
@@ -177,7 +181,10 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Password
+	// If user want a password, we set this setting in upload informations
+	// Default login is "plik"
+	// We add Authorization header to the response for convenience
+
 	if upload.Password != "" {
 		upload.ProtectedByPassword = true
 		if upload.Login == "" {
@@ -193,7 +200,11 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 		resp.Header().Add("Authorization", "Basic "+b64str)
 	}
 
-	// Yubikey
+	// Handle Yubikiey
+	// If user specified a yubikey token :
+	// 	-> We check the token validity in api.yubico.com
+	// 	-> If the token is ok, we store the yubikey id in upload (12 first characters in token)
+
 	if upload.Yubikey != "" {
 		upload.ProtectedByYubikey = true
 		ok, err := utils.YubikeyCheckToken(upload.Yubikey)
@@ -212,7 +223,11 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 		upload.Yubikey = upload.Yubikey[:12]
 	}
 
-	// Short url
+	// We create a short url for upload with the backend specified in configuration.
+	//	  -> We use Referer to get the fqdn of incoming request.
+	//	  -> The Shorten() method will return the short link
+	//	  -> We store it in upload informations
+
 	shortenBackend := shorten_backend.GetShortenBackend()
 	if shortenBackend != nil {
 		if req.Header.Get("Referer") != "" {
@@ -230,7 +245,7 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Create metadatas
+	// We must now save the upload informations in the metadata backend
 	err = metadata_backend.GetMetadataBackend().Create(upload)
 	if err != nil {
 		log.Printf("Create new upload error : %s", err)
@@ -238,8 +253,11 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Before sending back upload informations to client, we remove
+	// some sensible informations (ip, data backend details, ...)
 	upload.Sanitize()
 
+	// We can print upload to client using json library.
 	var json []byte
 	if json, err = utils.ToJson(upload); err == nil {
 		resp.Write(json)
@@ -249,8 +267,12 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 }
 
 func getUploadHandler(resp http.ResponseWriter, req *http.Request) {
+
+	// Get the upload id in url from mux router
 	vars := mux.Vars(req)
 	uploadId := vars["uploadid"]
+
+	// Get the upload informations from the metadata backend
 	upload, err := metadata_backend.GetMetadataBackend().Get(uploadId)
 	if err != nil {
 		log.Printf("Upload %s not found : %s", uploadId, err)
@@ -258,14 +280,17 @@ func getUploadHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Handle basic auth if upload is password protected
 	err = httpBasicAuth(req, resp, upload)
 	if err != nil {
 		log.Printf("Unauthorized %s : %s", upload.Id, err)
 		return
 	}
 
+	// Do not show some sensible informations to client
 	upload.Sanitize()
 
+	// Show upload using json
 	var json []byte
 	if json, err = utils.ToJson(upload); err == nil {
 		resp.Write(json)
@@ -275,28 +300,20 @@ func getUploadHandler(resp http.ResponseWriter, req *http.Request) {
 }
 
 func getFileHandler(resp http.ResponseWriter, req *http.Request) {
-	// Get vars
+
+	// Get the upload id and file id in the url from mux variables
+	// If we don't have both, request is aborting now
 	vars := mux.Vars(req)
 	uploadId := vars["uploadid"]
 	fileId := vars["fileid"]
 
-	// Do we have an upload id ?
-	if uploadId == "" {
+	if uploadId == "" || fileId == "" {
 		http.Redirect(resp, req, "/", 301)
-		redirect(req, resp, errors.New("Missing upload id"), 404)
+		redirect(req, resp, errors.New("Missing upload or file id"), 404)
 		return
 	}
 
-	// Do we have a file id ?
-	if fileId == "" {
-		http.Redirect(resp, req, "/", 301)
-		redirect(req, resp, errors.New("Missing file id"), 404)
-		return
-	}
-
-	log.Printf("Got a %s on url %s", req.Method, req.URL)
-
-	// Retrieve Upload
+	// Get the upload informations from the metadata backend
 	upload, err := metadata_backend.GetMetadataBackend().Get(uploadId)
 	if err != nil {
 		log.Printf("Upload %s not found : %s", uploadId, err)
@@ -304,6 +321,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Handle basic auth if upload is password protected
 	err = httpBasicAuth(req, resp, upload)
 	if err != nil {
 		log.Printf("Unauthorized %s : %s", upload.Id, err)
@@ -319,7 +337,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Retrieve file
+	// Retrieve file using data backend
 	if _, ok := upload.Files[fileId]; !ok {
 		log.Printf("File %s not found in upload %s", fileId, upload.Id)
 		redirect(req, resp, errors.New(fmt.Sprintf("File %s not found", fileId)), 404)
@@ -328,12 +346,14 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	file := upload.Files[fileId]
 
+	// If upload has OneShot option, testing if file has not been already downloaded once
 	if upload.OneShot && file.Status == "downloaded" {
 		log.Printf("File %s has already been downloaded in upload %s", file.Name, upload.Id)
 		redirect(req, resp, errors.New(fmt.Sprintf("File %s has already been downloaded", file.Name)), 401)
 		return
 	}
 
+	// If the file is marked as deleted by a previous call, we abort request
 	if upload.Removable && file.Status == "removed" {
 		log.Printf("File %s has been removed", file.Name)
 		redirect(req, resp, errors.New(fmt.Sprintf("File %s has been removed", file.Name)), 401)
@@ -341,6 +361,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	// Check yubikey
+	// If upload is yubikey protected, user must send an OTP when he wants to get a file.
 	if upload.Yubikey != "" {
 		token := vars["yubikey"]
 
@@ -377,19 +398,23 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	resp.Header().Set("Content-Type", file.Type)
 	resp.Header().Set("Content-Length", strconv.Itoa(int(file.CurrentSize)))
 
-	// Download or print?
-	dl := req.URL.Query().Get("dl")
+	// If we have a dl variable in GET params
+	// -> We set attachement param in Content-Disposition header
+	// -> The navigator should download file instead of showing it in the view
 
+	dl := req.URL.Query().Get("dl")
 	if dl != "" {
 		resp.Header().Set("Content-Disposition", "attachement; filename="+file.Name)
 	} else {
 		resp.Header().Set("Content-Disposition", "filename="+file.Name)
 	}
 
-	// Write file if GET
+	// HEAD Request => Do not print file, user just wants http headers
+	// GET  Request => Print file content
+
 	if req.Method == "GET" {
 
-		// Get file
+		// Get file in data backend
 		fileReader, err := data_backend.GetDataBackend().GetFile(upload, file.Id)
 		if err != nil {
 			log.Printf("Failed to get file %s in upload %s : %s", file.Name, upload.Id, err)
@@ -422,6 +447,8 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 }
 
 func addFileHandler(resp http.ResponseWriter, req *http.Request) {
+
+	// Get the upload id in the url from mux variables
 	vars := mux.Vars(req)
 	uploadId := vars["uploadid"]
 
@@ -434,13 +461,15 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 	log.Printf(" - [META] Got metadatas from upload %s on backend %s", uploadId, utils.Config.MetadataBackend)
 
+	// Handle basic auth if upload is password protected
 	err = httpBasicAuth(req, resp, upload)
 	if err != nil {
 		log.Printf("Unauthorized %s : %s", upload.Id, err)
 		return
 	}
 
-	// Check token in http header
+	// Check if user has specify the upload token in http header
+	// Test if it's the right one from upload infos
 	if req.Header.Get("X-UploadToken") != upload.UploadToken {
 		http.Error(resp, utils.NewResult("Invalid upload token in X-UploadToken header", nil).ToJsonString(), 404)
 		return
@@ -457,6 +486,8 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Read multipart until find the "file" part, which contain uploaded data
+	// -> We have also the filename !
 	for {
 		part, err_part := multiPartReader.NextPart()
 		if err_part == io.EOF {
@@ -476,7 +507,12 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	newFile.Name = fileName
 	newFile.Type = "application/octet-stream"
 
-	// Go routine that check length
+	// Here, we create a pipe
+	// It will allow us to send file data throught it, and be able to :
+	//    -> Compute md5 of file
+	//    -> Determine size of file
+	//    -> Determine content type of file (by reading 512 first bytes)
+
 	checkLenghtReader, checkLenghtWriter := io.Pipe()
 	md5Hash := md5.New()
 	totalBytes := 0
@@ -503,13 +539,14 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 			// Md5 stuff
 			md5Hash.Write(buf[:bytesRead])
 
-			// Check with config
+			// Check max size with config
 			if totalBytes > utils.Config.MaxFileSize {
 				maxSizeReachedError := errors.New(fmt.Sprintf("File too big (limit is set to %d bytes)", utils.Config.MaxFileSize))
 				checkLenghtWriter.CloseWithError(maxSizeReachedError)
 				return
 			}
 
+			// Writing buf to writer
 			checkLenghtWriter.Write(buf[:bytesRead])
 		}
 	}()
@@ -523,13 +560,14 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 	log.Printf(" - [MAIN] File saved to data backend %s", utils.Config.DataBackend)
 
+	// Fill-in file informations
 	newFile.CurrentSize = int64(totalBytes)
 	newFile.Status = "uploaded"
 	newFile.Md5 = fmt.Sprintf("%x", md5Hash.Sum(nil))
 	newFile.UploadDate = time.Now().Unix()
 	newFile.BackendDetails = backendDetails
 
-	// Add file to the upload metadata
+	// Save file to metadata backend
 	upload.Files[newFile.Id] = newFile
 	err = metadata_backend.GetMetadataBackend().AddOrUpdateFile(upload, newFile)
 	if err != nil {
@@ -552,6 +590,9 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 }
 
 func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
+
+	// Get the upload id and file id in the url from mux variables
+	// If we don't have both, request is aborting now
 	log.Println("Remove file")
 	vars := mux.Vars(req)
 	uploadId := vars["uploadid"]
@@ -565,12 +606,14 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Handle basic auth if upload is password protected
 	err = httpBasicAuth(req, resp, upload)
 	if err != nil {
 		log.Printf("Unauthorized %s : %s", upload.Id, err)
 		return
 	}
 
+	// Retrieve file informations in upload
 	file, ok := upload.Files[fileId]
 	if !ok {
 		log.Printf("File %s not found in upload %s", fileId, upload.Id)
@@ -578,6 +621,7 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Set status to removed, and save metadatas
 	file.Status = "removed"
 	if err := metadata_backend.GetMetadataBackend().AddOrUpdateFile(upload, file); err != nil {
 		log.Printf("Error while updating file %s metadata in upload %s : %s", file.Name, upload.Id, err)
@@ -601,6 +645,13 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 }
 
+//
+//// Misc functions
+//
+
+/*
+	Function that handle basic authentification
+*/
 func httpBasicAuth(req *http.Request, resp http.ResponseWriter, upload *utils.Upload) (err error) {
 	if upload.ProtectedByPassword {
 		if req.Header.Get("Authorization") == "" {
@@ -630,6 +681,10 @@ func httpBasicAuth(req *http.Request, resp http.ResponseWriter, upload *utils.Up
 	return
 }
 
+/*
+	No redirection if user agent is a CLI tool
+*/
+
 var userAgents []string = []string{"wget", "curl", "python-urllib", "libwwww-perl", "php", "pycurl"}
 
 func redirect(req *http.Request, resp http.ResponseWriter, err error, status int) {
@@ -644,9 +699,14 @@ func redirect(req *http.Request, resp http.ResponseWriter, err error, status int
 	return
 }
 
-//
-//// Cleaning
-//
+/*
+	Cleaning subroutine :
+		-> Ask metadata backend a list of expired upload
+		-> For each upload :
+			- Remove each Files
+			- Remove upload from metadatas
+		-> Sleep random amout of time
+*/
 
 func UploadsCleaningRoutine() {
 	for {
