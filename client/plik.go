@@ -4,7 +4,9 @@
 
 The MIT License (MIT)
 
-Copyright (c) <2014> <mathieu.bodjikian@ovh.net>
+Copyright (c) <2015>
+	- Mathieu Bodjikian <mathieu@bodjikian.fr>
+	- Charles-Antoine Mathieu <skatkatt@root.gg>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -56,7 +58,6 @@ import (
 
 // Vars
 var arguments map[string]interface{}
-var plikVersion string = "##VERSION##"
 
 var baseUrl string
 var transport = &http.Transport{
@@ -64,6 +65,7 @@ var transport = &http.Transport{
 }
 var client = http.Client{Transport: transport}
 var cryptoBackend crypto.CryptoBackend
+var archiveBackend archive.ArchiveBackend
 var basicAuth string
 
 // Main
@@ -103,7 +105,7 @@ Options:
   --passphrase PASSPHRASE   [openssl] Passphrase or '-' to be prompted for a passphrase
   --secure-options OPTIONS  [openssl|pgp] Additional command line options
 `
-	arguments, _ = docopt.Parse(usage, nil, true, "Autoroot v"+plikVersion, false)
+	arguments, _ = docopt.Parse(usage, nil, true, "", false)
 
 	if arguments["--debug"].(bool) {
 		config.Config.Debug = true
@@ -231,11 +233,12 @@ Options:
 	count := 0
 	totalSize := 0
 	if arguments["-a"].(bool) || arguments["--archive"] != nil {
-		archiveMethod := config.Config.ArchiveMethod
+		config.Config.Archive = true
+
 		if arguments["--archive"] != nil && arguments["--archive"] != "" {
-			archiveMethod = arguments["--archive"].(string)
+			config.Config.ArchiveMethod = arguments["--archive"].(string)
 		}
-		archiveBackend, err := archive.NewArchiveBackend(archiveMethod, config.Config.ArchiveOptions)
+		archiveBackend, err = archive.NewArchiveBackend(config.Config.ArchiveMethod, config.Config.ArchiveOptions)
 		if err != nil {
 			fmt.Printf("Invalid archive params : %s\n", err)
 			os.Exit(1)
@@ -268,6 +271,7 @@ Options:
 		fmt.Printf("    %s/file/%s/%s/%s\n", baseUrl, uploadInfo.Id, file.Id, file.Name)
 		count++
 		totalSize += int(file.CurrentSize)
+		uploadInfo.Files[file.Id] = file
 	} else {
 		if len(arguments["FILE"].([]string)) == 0 {
 			// Upload from STDIN
@@ -285,6 +289,7 @@ Options:
 			fmt.Printf("    %s/file/%s/%s/%s\n", baseUrl, uploadInfo.Id, file.Id, file.Name)
 			count++
 			totalSize += int(file.CurrentSize)
+			uploadInfo.Files[file.Id] = file
 		} else {
 			// Upload individual files
 			var wg sync.WaitGroup
@@ -327,11 +332,19 @@ Options:
 					fmt.Printf("    %s/file/%s/%s/%s\n", baseUrl, uploadInfo.Id, file.Id, file.Name)
 					count++
 					totalSize += int(file.CurrentSize)
+					uploadInfo.Files[file.Id] = file
 				}(path)
 			}
 			wg.Wait()
 		}
 	}
+
+	// Comments
+	fmt.Printf("\n\nCommands\n\n")
+	for _, file := range uploadInfo.Files {
+		fmt.Printf("%s\n", getFileCommand(uploadInfo, file))
+	}
+	fmt.Printf("\n")
 
 	// Upload files
 	fmt.Printf("\nTotal\n\n")
@@ -462,6 +475,39 @@ func upload(uploadInfo *utils.Upload, name string, size int64, reader io.Reader)
 	}
 
 	config.Debug(fmt.Sprintf("Uploaded %s : %s", name, config.Sdump(file)))
+	return
+}
+
+func getFileCommand(upload *utils.Upload, file *utils.File) (command string) {
+
+	// Step one - Downloading file
+	switch config.Config.DownloadBinary {
+	case "wget":
+		command += "wget -q -O-"
+	case "curl":
+		command += "curl -s"
+	default:
+		command += config.Config.DownloadBinary
+	}
+
+	command += fmt.Sprintf(" %s/file/%s/%s/%s", baseUrl, upload.Id, file.Id, file.Name)
+
+	// If Ssl
+	if config.Config.Secure {
+		command += fmt.Sprintf(" | %s", cryptoBackend.Comments())
+	}
+
+	// If archive
+	if config.Config.Archive {
+		if config.Config.ArchiveMethod == "zip" {
+			command += fmt.Sprintf(" > %s", file.Name)
+		} else {
+			command += fmt.Sprintf(" | %s", archiveBackend.Comments())
+		}
+	} else {
+		command += " > " + file.Name
+	}
+
 	return
 }
 

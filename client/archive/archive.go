@@ -10,6 +10,7 @@ import (
 type ArchiveBackend interface {
 	Configure(arguments map[string]interface{}) (err error)
 	Archive(files []string, writer io.WriteCloser) (name string, err error)
+	Comments() (comments string)
 }
 
 func NewArchiveBackend(name string, config map[string]interface{}) (backend ArchiveBackend, err error) {

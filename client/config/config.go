@@ -23,6 +23,7 @@ type UploadConfig struct {
 	Archive        bool
 	ArchiveMethod  string
 	ArchiveOptions map[string]interface{}
+	DownloadBinary string
 	Comments       string
 	Yubikey        bool
 	Password       string
@@ -46,6 +47,7 @@ func NewUploadConfig() (config *UploadConfig) {
 	config.SecureOptions = make(map[string]interface{})
 	config.SecureOptions["Openssl"] = "/usr/bin/openssl"
 	config.SecureOptions["Cipher"] = "aes256"
+	config.DownloadBinary = "curl"
 	config.Comments = ""
 	config.Yubikey = false
 	config.Password = ""

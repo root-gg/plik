@@ -117,3 +117,7 @@ func (this *TarBackend) Archive(files []string, writer io.WriteCloser) (name str
 	}()
 	return
 }
+
+func (this *TarBackend) Comments() string {
+	return this.Config.Tar + " zxvf -"
+}

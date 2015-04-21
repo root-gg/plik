@@ -99,3 +99,7 @@ func (this *OpenSSLBackend) Encrypt(reader io.Reader, writer io.Writer) (err err
 	}
 	return
 }
+
+func (this *OpenSSLBackend) Comments() string {
+	return fmt.Sprintf("%s %s -d -pass pass:%s", this.Config.Openssl, this.Config.Cipher, this.Config.Passphrase)
+}

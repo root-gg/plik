@@ -9,6 +9,7 @@ import (
 type CryptoBackend interface {
 	Configure(arguments map[string]interface{}) (err error)
 	Encrypt(reader io.Reader, writer io.Writer) (err error)
+	Comments() string
 }
 
 func NewCryptoBackend(name string, config map[string]interface{}) (backend CryptoBackend, err error) {

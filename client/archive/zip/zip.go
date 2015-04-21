@@ -90,3 +90,7 @@ func (this *ZipBackend) Archive(files []string, writer io.WriteCloser) (name str
 	}()
 	return
 }
+
+func (this *ZipBackend) Comments() string {
+	return ""
+}
