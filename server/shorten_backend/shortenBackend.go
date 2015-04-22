@@ -1,6 +1,7 @@
 package shorten_backend
 
 import (
+	"github.com/root-gg/plik/server/shorten_backend/isgd"
 	"github.com/root-gg/plik/server/shorten_backend/ovhto"
 	"github.com/root-gg/plik/server/shorten_backend/w000t"
 	"github.com/root-gg/plik/server/utils"
@@ -20,6 +21,9 @@ func GetShortenBackend() Shorten {
 
 		case "w000t.me":
 			shortenBackend = w000t.NewW000tMeShortenBackend(utils.Config.ShortenBackendConfig)
+
+		case "is.gd":
+			shortenBackend = isgd.NewIsGdShortenBackend(utils.Config.ShortenBackendConfig)
 		}
 	}
 	return shortenBackend
