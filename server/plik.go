@@ -424,11 +424,14 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 		defer fileReader.Close()
 
 		// Copy content to response
-		_, err = io.Copy(resp, fileReader)
-		if err != nil {
-			log.Printf("Error while copying file to response : %s", err)
-			return
-		}
+		resultChan := make(chan error)
+		go func() {
+			_, err = io.Copy(resp, fileReader)
+			if err != nil {
+				log.Printf("Error while copying file to response : %s", err)
+			}
+			resultChan <- err
+		}()
 
 		// Remove if oneShot
 		if upload.OneShot {
@@ -443,6 +446,10 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 				return
 			}
 		}
+
+		// Waiting for the write of the file
+		// to be finished before ending handler
+		<-resultChan
 	}
 }
 
