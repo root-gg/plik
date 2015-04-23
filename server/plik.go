@@ -306,6 +306,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	uploadId := vars["uploadid"]
 	fileId := vars["fileid"]
+	fileName := vars["filename"]
 
 	if uploadId == "" || fileId == "" {
 		http.Redirect(resp, req, "/", 301)
@@ -345,6 +346,13 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	file := upload.Files[fileId]
+
+	// Compare url filename with upload filename
+	if file.Name != fileName {
+		log.Printf("File %s not found in upload %s", fileName, upload.Id)
+		redirect(req, resp, errors.New(fmt.Sprintf("File %s not found", fileName)), 404)
+		return
+	}
 
 	// If upload has OneShot option, testing if file has not been already downloaded once
 	if upload.OneShot && file.Status == "downloaded" {
