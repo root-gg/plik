@@ -364,7 +364,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// If the file is marked as deleted by a previous call, we abort request
 	if upload.Removable && file.Status == "removed" {
 		log.Printf("File %s has been removed", file.Name)
-		redirect(req, resp, errors.New(fmt.Sprintf("File %s has been removed", file.Name)), 401)
+		redirect(req, resp, errors.New(fmt.Sprintf("File %s has been removed", file.Name)), 404)
 		return
 	}
 
@@ -618,6 +618,13 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Printf("Upload not %s found : %s", uploadId, err)
 		http.Error(resp, utils.NewResult(fmt.Sprintf("Upload not %s found", uploadId), nil).ToJsonString(), 404)
+		return
+	}
+
+	// Check if upload is removable
+	if !upload.Removable {
+		log.Printf("Can't remove files on upload %s", uploadId)
+		http.Error(resp, utils.NewResult("You can't remove files on this upload", nil).ToJsonString(), 401)
 		return
 	}
 
