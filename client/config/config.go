@@ -14,6 +14,7 @@ var Config *UploadConfig
 
 type UploadConfig struct {
 	Debug          bool
+	Quiet          bool
 	Url            string
 	OneShot        bool
 	Removable      bool
@@ -33,6 +34,7 @@ type UploadConfig struct {
 func NewUploadConfig() (config *UploadConfig) {
 	config = new(UploadConfig)
 	config.Debug = false
+	config.Quiet = false
 	config.Url = "http://127.0.0.1:8080"
 	config.OneShot = false
 	config.Removable = false

@@ -45,6 +45,7 @@ frisby.create('Multi file')
                 .afterJSON(function(file) {
                     //Get the file
                     file_id = file.id;
+                    file_name = file.fileName
 
                     frisby.create('Get file')
                         .get(commons.host+'/file/'+upload_id+'/'+file_id+'/'+file_name )
