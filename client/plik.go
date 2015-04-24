@@ -86,6 +86,7 @@ Usage:
 Options:
   -h --help                 Show this help
   -d --debug                Enable debug mode
+  -q --quiet                Enable quiet mode
   -v --version              Show plik version
   -o, --oneshot             Enable OneShot (Each file will be deleted on first download)
   -r, --removable           Enable Removable upload (Each file can be deleted by anyone at anymoment)
@@ -110,6 +111,10 @@ Options:
 	if arguments["--debug"].(bool) {
 		config.Config.Debug = true
 	}
+	if arguments["--quiet"].(bool) {
+		config.Config.Quiet = true
+	}
+
 	config.Debug("Arguments : " + config.Sdump(arguments))
 	config.Debug("Configuration : " + config.Sdump(config.Config))
 
@@ -222,13 +227,13 @@ Options:
 	var err error
 	uploadInfo, err = createUpload(uploadInfo)
 	if err != nil {
-		fmt.Printf("Unable to create upload : %s\n", err)
+		printf("Unable to create upload : %s\n", err)
 		os.Exit(1)
 	}
 	config.Debug("Got upload info : " + config.Sdump(uploadInfo))
 
-	fmt.Printf("Upload successfully created : \n\n")
-	fmt.Printf("    %s/#/?id=%s\n\n\n", baseUrl, uploadInfo.Id)
+	printf("Upload successfully created : \n\n")
+	printf("    %s/#/?id=%s\n\n\n", baseUrl, uploadInfo.Id)
 
 	count := 0
 	totalSize := 0
@@ -240,19 +245,19 @@ Options:
 		}
 		archiveBackend, err = archive.NewArchiveBackend(config.Config.ArchiveMethod, config.Config.ArchiveOptions)
 		if err != nil {
-			fmt.Printf("Invalid archive params : %s\n", err)
+			printf("Invalid archive params : %s\n", err)
 			os.Exit(1)
 		}
 		err = archiveBackend.Configure(arguments)
 		if err != nil {
-			fmt.Printf("Invalid archive params : %s\n", err)
+			printf("Invalid archive params : %s\n", err)
 			os.Exit(1)
 		}
 
 		pipeReader, pipeWriter := io.Pipe()
 		name, err := archiveBackend.Archive(arguments["FILE"].([]string), pipeWriter)
 		if err != nil {
-			fmt.Printf("Unable to archive files : %s\n", err)
+			printf("Unable to archive files : %s\n", err)
 			os.Exit(1)
 		}
 
@@ -262,13 +267,13 @@ Options:
 
 		file, err := upload(uploadInfo, name, int64(0), pipeReader)
 		if err != nil {
-			fmt.Printf("Unable to upload from STDIN : %s\n", err)
+			printf("Unable to upload from STDIN : %s\n", err)
 			return
 		}
 		pipeReader.CloseWithError(err)
 
 		//fmt.Println(utils.Dump(file))
-		fmt.Printf("    %s/file/%s/%s/%s\n", baseUrl, uploadInfo.Id, file.Id, file.Name)
+		printFileInformations(uploadInfo, file)
 		count++
 		totalSize += int(file.CurrentSize)
 		uploadInfo.Files[file.Id] = file
@@ -282,11 +287,11 @@ Options:
 
 			file, err := upload(uploadInfo, name, int64(0), os.Stdin)
 			if err != nil {
-				fmt.Printf("Unable to upload from STDIN : %s\n", err)
+				printf("Unable to upload from STDIN : %s\n", err)
 				return
 			}
-			//fmt.Println(utils.Dump(file))
-			fmt.Printf("    %s/file/%s/%s/%s\n", baseUrl, uploadInfo.Id, file.Id, file.Name)
+
+			printFileInformations(uploadInfo, file)
 			count++
 			totalSize += int(file.CurrentSize)
 			uploadInfo.Files[file.Id] = file
@@ -300,14 +305,14 @@ Options:
 
 					fileHandle, err := os.Open(path)
 					if err != nil {
-						fmt.Printf("    %s : Unable to open file : %s\n", path, err)
+						printf("    %s : Unable to open file : %s\n", path, err)
 						return
 					}
 
 					var fileInfo os.FileInfo
 					fileInfo, err = fileHandle.Stat()
 					if err != nil {
-						fmt.Printf("    %s : Unable to stat file : %s\n", path, err)
+						printf("    %s : Unable to stat file : %s\n", path, err)
 						return
 					}
 
@@ -315,21 +320,21 @@ Options:
 					if fileInfo.Mode().IsRegular() {
 						size = fileInfo.Size()
 					} else if fileInfo.Mode().IsDir() {
-						fmt.Printf("    %s : Uploading directories is not yet implemented\n", path)
+						printf("    %s : Uploading directories is not yet implemented\n", path)
 						return
 					} else {
-						fmt.Printf("    %s : Unknown file mode : %s\n", path, fileInfo.Mode())
+						printf("    %s : Unknown file mode : %s\n", path, fileInfo.Mode())
 						return
 					}
 
 					name := filepath.Base(path)
 					file, err := upload(uploadInfo, name, size, fileHandle)
 					if err != nil {
-						fmt.Printf("Unable upload file : %s\n", err)
+						printf("Unable upload file : %s\n", err)
 						return
 					}
 
-					fmt.Printf("    %s/file/%s/%s/%s\n", baseUrl, uploadInfo.Id, file.Id, file.Name)
+					printFileInformations(uploadInfo, file)
 					count++
 					totalSize += int(file.CurrentSize)
 					uploadInfo.Files[file.Id] = file
@@ -340,15 +345,15 @@ Options:
 	}
 
 	// Comments
-	fmt.Printf("\n\nCommands\n\n")
+	printf("\n\nCommands\n\n")
 	for _, file := range uploadInfo.Files {
-		fmt.Printf("%s\n", getFileCommand(uploadInfo, file))
+		printf("%s\n", getFileCommand(uploadInfo, file))
 	}
-	fmt.Printf("\n")
+	printf("\n")
 
 	// Upload files
-	fmt.Printf("\nTotal\n\n")
-	fmt.Printf("    %s (%d file(s)) \n\n", bytesToString(totalSize), count)
+	printf("\nTotal\n\n")
+	printf("    %s (%d file(s)) \n\n", bytesToString(totalSize), count)
 }
 
 func createUpload(uploadParams *utils.Upload) (upload *utils.Upload, err error) {
@@ -410,12 +415,18 @@ func upload(uploadInfo *utils.Upload, name string, size int64, reader io.Reader)
 			return pipeWriter.CloseWithError(err)
 		}
 
-		bar := pb.New64(size).SetUnits(pb.U_BYTES)
-		bar.ShowSpeed = true
-		defer bar.Finish()
+		var multiWriter io.Writer
 
-		multiWriter := io.MultiWriter(part, bar)
-		bar.Start()
+		if config.Config.Quiet {
+			multiWriter = part
+		} else {
+			bar := pb.New64(size).SetUnits(pb.U_BYTES)
+			bar.ShowSpeed = true
+
+			multiWriter = io.MultiWriter(part, bar)
+			bar.Start()
+			defer bar.Finish()
+		}
 
 		if config.Config.Secure {
 			err = cryptoBackend.Encrypt(reader, multiWriter)
@@ -511,6 +522,22 @@ func getFileCommand(upload *utils.Upload, file *utils.File) (command string) {
 	return
 }
 
+func printf(format string, args ...interface{}) {
+	if !config.Config.Quiet {
+		fmt.Printf(format, args...)
+	}
+}
+
+func printFileInformations(upload *utils.Upload, file *utils.File) {
+	var line string
+	if !config.Config.Quiet {
+		line += "    "
+	}
+
+	line += fmt.Sprintf("%s/file/%s/%s/%s", baseUrl, upload.Id, file.Id, file.Name)
+	fmt.Println(line)
+}
+
 func bytesToString(size int) string {
 	if size <= 1024 {
 		return fmt.Sprintf("%.2f B", float64(size))
@@ -523,56 +550,6 @@ func bytesToString(size int) string {
 	return fmt.Sprintf("%.2f GB", float64(size)/float64((1024*1024*1024)))
 }
 
-//	// DocOpt Args
-//	arguments, _ := docopt.Parse(usage, nil, true, "Autoroot v"+plikVersion, false)
-//
-//	for key, value := range arguments {
-//		if _, ok := value.(bool); ok {
-//			if key == "--oneshot" && value.(bool) {
-//				config.OneShot = true
-//			} else if key == "-s" {
-//				config.EncryptMethod = value.(bool)
-//
-//				if encryption {
-//					encryptionMethod = "symmetric"
-//				}
-//			} else if key == "--removable" && value.(bool) {
-//				config.Removable = value.(bool)
-//			} else if key == "--yubikey" {
-//				yubikey = value.(bool)
-//			}
-//		} else if _, ok := value.(string); ok {
-//			if key == "--key" {
-//				encryption = true
-//				encryptionPassphrase = value.(string)
-//			} else if key == "--comments" {
-//				comments = value.(string)
-//			} else if key == "--cipher" {
-//				encryptionCipher = value.(string)
-//			} else if key == "--server" {
-//				config.Url = value.(string)
-////			} else if key == "--gpg" {
-////				pgpSearchStr = value.(string)
-////				pgpEnabled = true
-////			} else if key == "--keyring" {
-////				pgpKeyringFile = value.(string)
-////			} else if key == "--search-keys" {
-////				searchGpgKeys(value.(string))
-////				return
-////			} else if key == "--email" {
-////				email = value.(string)
-//			} else if key == "--name" {
-//				fileNameParam = value.(string)
-//			}
-//		} else if _, ok := value.([]string); ok {
-//			if key == "FILE" {
-//				for _, value := range arguments[key].([]string) {
-//					filesList = append(filesList, value)
-//				}
-//			}
-//		}
-//	}
-//
 //	// PGP Stuff
 ////	if pgpEnabled {
 ////
@@ -644,339 +621,3 @@ func bytesToString(size int) string {
 ////			}
 ////		}
 ////	}
-//
-//	// Create the upload
-//	upload, err := createUpload()
-//	if err != nil {
-//		fmt.Printf("Error : %s\n", err)
-//		return
-//	}
-//
-//	fmt.Printf("Upload successfully created : \n\n")
-//	fmt.Printf("    %s/#/?id=%s\n\n\n", config.Url, upload.Id)
-//
-//	// Upload files...
-//	if len(filesList) == 0 {
-//		fmt.Printf("Read STDIN \n\n")
-//		url, err := addFileToUpload(uploadId, "")
-//		if err != nil {
-//			fmt.Printf("Error add stdin to upload : %s\n", err)
-//			return
-//		} else {
-//			fmt.Printf("    %s\n", url)
-//		}
-//	} else {
-//		fmt.Printf("Files : \n\n")
-//		for index := range filesList {
-//			url, err := addFileToUpload(uploadId, filesList[index])
-//
-//			if err != nil {
-//				fmt.Printf("Error adding file to upload : %s\n", err)
-//				return
-//			} else {
-//				fmt.Printf("    %s\n", url)
-//			}
-//		}
-//	}
-//	fmt.Printf("\n\nTotal\n\n")
-//	fmt.Printf("    %s (%d file(s)) \n\n", bytesToString(totalFilesSize), countUploadedFiles)
-//}
-//
-////
-////// Functions
-////
-//
-//func createUpload() (upload *utils.Upload, err error) {
-//
-//	// Enable insecure upload
-//	tr := &http.Transport{
-//		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-//	}
-//
-//	client := &http.Client{Transport: tr}
-//
-//	// Url
-//	var Url *url.URL
-//	Url, err := url.Parse(config.Url)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	// Params
-//	Url.Path += "/upload"
-//	upload = utils.NewUpload()
-//	upload.OneShot =
-//	upload.Removable = config.Removable
-//	upload.Comment = comments
-//	parameters.Add("oneShot", boolToString(config.OneShot))
-//	parameters.Add("removable", boolToString(config.Removable))
-//	parameters.Add("comments", comments)
-//	parameters.Add("email", email)
-//
-//	// Ask yubikey if enabled
-//	if yubikey {
-//		token := ""
-//		fmt.Printf("Yubikey token : ")
-//		_, err := fmt.Scanf("%s\n", &token)
-//		if err != nil {
-//		}
-//		parameters.Add("yubikeyToken", token)
-//		parameters.Add("yubikey", "1")
-//	}
-//
-//	// Specify GPG Key
-//	if pgpKeyId != "" {
-//		parameters.Add("pgpKeyId", pgpKeyId)
-//	}
-//
-//	// First, we create a http requestuest
-//	resp, err := client.PostForm(Url.String(), parameters)
-//
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	defer resp.Body.Close()
-//	body, err := ioutil.ReadAll(resp.Body)
-//
-//	// Parse Json
-//	js, err := simplejson.NewJson(body)
-//	if err != nil {
-//		return "", err
-//	} else {
-//		status, _ := js.Get("status").Int()
-//
-//		if status == 100 {
-//			uploadId, _ := js.Get("value").Get("id").String()
-//			return uploadId, nil
-//		} else {
-//			message, _ := js.Get("message").String()
-//
-//			return "", errors.New(message)
-//		}
-//	}
-//
-//	return "", nil
-//}
-//
-//func addFileToUpload(uploadId string, fileName string) (string, error) {
-//	var file *os.File
-//	var fsize int64 = 0
-//
-//	if fileName == "" {
-//		fileName = fileNameParam
-//		file = os.Stdin
-//	} else {
-//		//Open file
-//		var err error
-//		file, err = os.Open(fileName)
-//		if err != nil {
-//			return "", err
-//		}
-//		stat, err := file.Stat()
-//		if err != nil {
-//			return "", err
-//		}
-//		fsize = stat.Size()
-//	}
-//
-//	pipeReader, pipeWriter := io.Pipe()
-//
-//	// Create http requestuest
-//	response := multipart.NewWriter(pipeWriter)
-//
-//	go func() error {
-//		part, err := response.CreateFormFile("file", filepath.Base(fileName))
-//
-//		if err != nil {
-//			return pipeWriter.CloseWithError(err)
-//		}
-//
-//		bar := pb.New64(fsize).SetUnits(pb.U_BYTES)
-//		bar.ShowSpeed = true
-//		defer bar.Finish()
-//
-//		multiWriter := io.MultiWriter(part, bar)
-//		bar.Start()
-//
-//		if pgpEntity != nil {
-//			w, _ := armor.Encode(multiWriter, "PGP MESSAGE", nil)
-//			plaintext, _ := openpgp.Encrypt(w, []*openpgp.Entity{pgpEntity}, nil, nil, nil)
-//
-//			_, err = io.Copy(plaintext, file)
-//			if err != nil {
-//				return pipeWriter.CloseWithError(err)
-//			}
-//
-//			plaintext.Close()
-//			w.Close()
-//
-//		} else {
-//			_, err = io.Copy(multiWriter, file)
-//			if err != nil {
-//				return pipeWriter.CloseWithError(err)
-//			}
-//		}
-//
-//		// POST variables
-//		_ = response.WriteField("action", "addFile")
-//		_ = response.WriteField("uploadId", uploadId)
-//		_ = response.WriteField("oneShot", boolToString(config.OneShot))
-//		_ = response.WriteField("removable", boolToString(config.Removable))
-//		_ = response.WriteField("encryptMethod", encryptionMethod)
-//		_ = response.WriteField("encryptPassphrase", encryptionPassphrase)
-//		_ = response.WriteField("encryptCipher", encryptionCipher)
-//
-//		// Close Writer
-//		err = response.Close()
-//		return pipeWriter.CloseWithError(err)
-//	}()
-//	// Create and execute requestuest
-//	requestuest, err := http.NewRequest("POST", config.Url+"/auto", pipeReader)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	// Add right header
-//	requestuest.Header.Add("Content-Type", response.FormDataContentType())
-//
-//	// Enable insecure upload
-//	tr := &http.Transport{
-//		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-//	}
-//
-//	// Go go go
-//	client := &http.Client{Transport: tr}
-//	resp, err := client.Do(requestuest)
-//	if err != nil {
-//		return "", err
-//	} else {
-//		body, err := ioutil.ReadAll(resp.Body)
-//
-//		resp.Body.Close()
-//
-//		// Parse Json
-//		js, err := simplejson.NewJson(body)
-//		if err != nil {
-//			return "", err
-//		} else {
-//
-//			// Get status
-//			status, _ := js.Get("status").Int()
-//
-//			if status == 100 {
-//				url, _ := js.Get("value").Get("fileUrl").String()
-//				size, _ := js.Get("value").Get("fileSize").Int()
-//
-//				countUploadedFiles += 1
-//				totalFilesSize += size
-//
-//				return url, nil
-//			} else {
-//				message, _ := js.Get("message").String()
-//				return message, nil
-//			}
-//		}
-//	}
-//
-//	return fileName, nil
-//}
-//
-//func searchGpgKeys(input string) (string, error) {
-//
-//	// Enable insecure upload
-//	tr := &http.Transport{
-//		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-//	}
-//
-//	client := &http.Client{Transport: tr}
-//
-//	// Url
-//	var Url *url.URL
-//	Url, err := url.Parse(config.Url)
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	// Params
-//	Url.Path += "/auto"
-//	parameters := url.Values{}
-//	parameters.Add("action", "getPgpPublicKeys")
-//	parameters.Add("input", input)
-//	Url.RawQuery = parameters.Encode()
-//
-//	// First, we create a http requestuest
-//	resp, err := client.Get(Url.String())
-//
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	defer resp.Body.Close()
-//	body, err := ioutil.ReadAll(resp.Body)
-//
-//	// Parse Json
-//	js, err := simplejson.NewJson(body)
-//	if err != nil {
-//		return "", err
-//	} else {
-//		status, _ := js.Get("status").Int()
-//
-//		if status == 100 {
-//			for _, value := range js.Get("value").MustArray() {
-//				keyDetail := value.(map[string]interface{})
-//
-//				keyId := keyDetail["id"].(string)
-//				keyEmail := keyDetail["email"].(string)
-//				keyName := keyDetail["name"].(string)
-//				keyDate := keyDetail["dateCreated"].(string)
-//
-//				fmt.Printf("%40.40s\t%35.35s\t%30.30s\t%32.32s\n", keyId, keyEmail, keyName, keyDate)
-//			}
-//		} else {
-//			message, _ := js.Get("message").String()
-//
-//			return "", errors.New(message)
-//		}
-//	}
-//
-//	return "", nil
-//}
-//
-//// Misc
-//
-//func boolToString(b bool) string {
-//	if b {
-//		return "1"
-//	}
-//	return "0"
-//}
-//
-//func bytesToString(size int) string {
-//	if size <= 1024 {
-//		return fmt.Sprintf("%.2f B", float64(size))
-//	} else if size <= 1024*1024 {
-//		return fmt.Sprintf("%.2f kB", float64(size)/float64(1024))
-//	} else {
-//		return fmt.Sprintf("%.2f MB", float64(size)/float64((1024*1024)))
-//	}
-//
-//	return fmt.Sprintf("%.2f GB", float64(size)/float64((1024*1024*1024)))
-//}
-//
-//func UserHomeDir() string {
-//	if runtime.GOOS == "windows" {
-//		home := os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
-//		if home == "" {
-//			home = os.Getenv("USERPROFILE")
-//		}
-//		return home
-//	}
-//	return os.Getenv("HOME")
-//}
-//
-//func GeneratePassphrase() string {
-//	rb := make([]byte, 32)
-//	rand.Read(rb)
-//	return base64.URLEncoding.EncodeToString(rb)
-//}
