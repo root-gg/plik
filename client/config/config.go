@@ -8,6 +8,7 @@ import (
 	"github.com/BurntSushi/toml"
 	homedir "github.com/mitchellh/go-homedir"
 	"os"
+	"strings"
 )
 
 var Config *UploadConfig
@@ -73,7 +74,17 @@ func Load() (err error) {
 	configFile := home + "/.plikrc"
 	_, err = os.Stat(configFile)
 	if err != nil {
-		// File not present
+		// File not present. Ask for domain
+		var domain string
+		fmt.Printf("Please enter your plik domain [default:http://127.0.0.1:8080] : ")
+		_, err := fmt.Scanf("%s", &domain)
+		if err == nil {
+			Config.Url = domain
+			if !strings.HasPrefix(domain, "http") {
+				Config.Url = "http://" + domain
+			}
+		}
+
 		// Encode in toml
 		buf := new(bytes.Buffer)
 		if err = toml.NewEncoder(buf).Encode(Config); err != nil {
