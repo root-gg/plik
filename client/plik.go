@@ -105,6 +105,7 @@ Options:
   --cipher CIPHER           [openssl] Openssl cipher to use ( see openssl help )
   --passphrase PASSPHRASE   [openssl] Passphrase or '-' to be prompted for a passphrase
   --secure-options OPTIONS  [openssl|pgp] Additional command line options
+  --recipient RECIPIENT     [pgp] Set recipient for pgp backend ( example : --recipient Bob )
 `
 	arguments, _ = docopt.Parse(usage, nil, true, "", false)
 
@@ -167,7 +168,7 @@ Options:
 		config.Config.Secure = true
 		secureMethod := config.Config.SecureMethod
 		if arguments["--secure"] != nil && arguments["--secure"].(string) != "" {
-			secureMethod = arguments["--secure-method"].(string)
+			secureMethod = arguments["--secure"].(string)
 		}
 		var err error
 		cryptoBackend, err = crypto.NewCryptoBackend(secureMethod, config.Config.SecureOptions)
@@ -550,74 +551,3 @@ func bytesToString(size int) string {
 	return fmt.Sprintf("%.2f GB", float64(size)/float64((1024*1024*1024)))
 }
 
-//	// PGP Stuff
-////	if pgpEnabled {
-////
-////		// Stat default keyring
-////		_, err := os.Stat(pgpKeyringFile)
-////		if err != nil {
-////			fmt.Printf("GnuPG Keyring not found on your system ! (%s)\n", pgpKeyringFile)
-////			os.Exit(1)
-////		}
-////
-////		// Open it
-////		pubringFile, err := os.Open(pgpKeyringFile)
-////		if err != nil {
-////			fmt.Printf("Fail to open your GnuPG keyring : %s\n", err)
-////			os.Exit(1)
-////		}
-////
-////		// Read it
-////		pubring, err := openpgp.ReadKeyRing(pubringFile)
-////		if err != nil {
-////			fmt.Printf("Fail to read your GnuPG keyring : %s\n", err)
-////			os.Exit(1)
-////		}
-////
-////		// Search for key
-////		entitiesFound := make(map[uint64]*openpgp.Entity)
-////		intToEntity := make(map[int]uint64)
-////		countEntitiesFound := 0
-////
-////		for _, entity := range pubring {
-////			for _, ident := range entity.Identities {
-////				if strings.Contains(ident.UserId.Email, pgpSearchStr) {
-////					if _, ok := entitiesFound[entity.PrimaryKey.KeyId]; !ok {
-////						entitiesFound[entity.PrimaryKey.KeyId] = entity
-////						intToEntity[countEntitiesFound] = entity.PrimaryKey.KeyId
-////						countEntitiesFound++
-////					}
-////				}
-////			}
-////		}
-////
-////		if countEntitiesFound == 0 {
-////			fmt.Printf("No key found for input : %s in your keyring !\n", pgpSearchStr)
-////			os.Exit(1)
-////		} else if countEntitiesFound == 1 {
-////			pgpEntity = entitiesFound[intToEntity[0]]
-////		} else if countEntitiesFound > 1 {
-////
-////			fmt.Printf("Found %d identities corresponding your search : \n\n", countEntitiesFound)
-////			for i, v := range intToEntity {
-////
-////				fmt.Printf("\t%d : %s\n", i, entitiesFound[v].PrimaryKey.CreationTime)
-////
-////				for _, ident := range entitiesFound[v].Identities {
-////					fmt.Printf("\t\t%-25s -> %s - %s\n", ident.UserId.Email, ident.UserId.Id, ident.UserId.Comment)
-////				}
-////
-////				fmt.Printf("\n")
-////			}
-////
-////			choosenIdentityInteger := 0
-////			fmt.Printf("Which one do you choose ? [default=0] : ")
-////			fmt.Scanf("%d", &choosenIdentityInteger)
-////			if _, ok := intToEntity[choosenIdentityInteger]; ok {
-////				pgpEntity = entitiesFound[intToEntity[choosenIdentityInteger]]
-////			} else {
-////				fmt.Printf("No identity matching number %d ! \n", choosenIdentityInteger)
-////				os.Exit(1)
-////			}
-////		}
-////	}
