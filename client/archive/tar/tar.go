@@ -119,5 +119,9 @@ func (this *TarBackend) Archive(files []string, writer io.WriteCloser) (name str
 }
 
 func (this *TarBackend) Comments() string {
-	return this.Config.Tar + " zxvf -"
+	if this.Config.Compress != "no" {
+		return "tar zxvf -"
+	} else {
+		return "tar xvf -"
+	}
 }

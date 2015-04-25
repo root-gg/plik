@@ -80,7 +80,7 @@ func (this *OpenSSLBackend) Encrypt(reader io.Reader, writer io.Writer) (err err
 		os.Exit(1)
 		return
 	}
-	cmd := exec.Command(this.Config.Openssl, "aes256", "-pass", fmt.Sprintf("fd:3"))
+	cmd := exec.Command(this.Config.Openssl, this.Config.Cipher, "-pass", fmt.Sprintf("fd:3"))
 	cmd.Stdin = reader                                  // fd:0
 	cmd.Stdout = writer                                 // fd:1
 	cmd.Stderr = os.Stderr                              // fd:2
@@ -101,5 +101,5 @@ func (this *OpenSSLBackend) Encrypt(reader io.Reader, writer io.Writer) (err err
 }
 
 func (this *OpenSSLBackend) Comments() string {
-	return fmt.Sprintf("%s %s -d -pass pass:%s", this.Config.Openssl, this.Config.Cipher, this.Config.Passphrase)
+	return fmt.Sprintf("openssl %s -d -pass pass:%s", this.Config.Cipher, this.Config.Passphrase)
 }
