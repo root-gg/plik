@@ -15,6 +15,7 @@ var Config *UploadConfig
 type UploadConfig struct {
 	Debug          bool
 	Quiet          bool
+	HomeDir        string
 	Url            string
 	OneShot        bool
 	Removable      bool
@@ -59,10 +60,13 @@ func NewUploadConfig() (config *UploadConfig) {
 
 func Load() (err error) {
 	Config = NewUploadConfig()
+
 	// Detect home dir
 	home, err := homedir.Dir()
 	if err != nil {
-		home = os.Getenv("HOME")
+		Config.HomeDir = os.Getenv("HOME")
+	} else {
+		Config.HomeDir = home
 	}
 
 	// Stat file

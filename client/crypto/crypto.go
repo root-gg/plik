@@ -3,6 +3,7 @@ package crypto
 import (
 	"errors"
 	"github.com/root-gg/plik/client/crypto/openssl"
+	"github.com/root-gg/plik/client/crypto/pgp"
 	"io"
 )
 
@@ -16,6 +17,8 @@ func NewCryptoBackend(name string, config map[string]interface{}) (backend Crypt
 	switch name {
 	case "openssl":
 		backend = openssl.NewOpenSSLBackend(config)
+	case "pgp":
+		backend = pgp.NewPgpBackend(config)
 	default:
 		err = errors.New("Invalid crypto backend")
 	}
