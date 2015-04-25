@@ -120,5 +120,5 @@ func (this *PgpBackend) Encrypt(reader io.Reader, writer io.Writer) (err error) 
 }
 
 func (this *PgpBackend) Comments() string {
-	return this.Config.Gpg + " -d"
+	return "gpg -d"
 }

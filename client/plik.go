@@ -550,4 +550,3 @@ func bytesToString(size int) string {
 
 	return fmt.Sprintf("%.2f GB", float64(size)/float64((1024*1024*1024)))
 }
-
