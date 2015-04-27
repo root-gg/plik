@@ -5,6 +5,7 @@ Plik is an simple and powerful file uploading system written in golang.
 ### Main features
    - Multiple data backends : File, OpenStack Swift, WeedFS
    - Multiple metadata backends : File, MongoDB
+   - Shorten backends : Recuce your uploads urls (is.gd && w000t.me available)
    - OneShot : Files are destructed after first download
    - Removable : Give the hability to uploader to remove files from upload
    - TTL : Option to set upload expiration
@@ -63,3 +64,7 @@ $ plik -s file.doc
 
 ```
 
+### Participate
+
+You are free to implement other data/metadata/shorten backends and submit them via
+pull requests. We will be happy to add them in the future releases.
