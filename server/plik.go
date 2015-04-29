@@ -432,6 +432,8 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// HEAD Request => Do not print file, user just wants http headers
 	// GET  Request => Print file content
+	ctx.Infof("Got a %s request", req.Method)
+
 	if req.Method == "GET" {
 		// Get file in data backend
 		fileReader, err := data_backend.GetDataBackend().GetFile(ctx.Fork("get file"), upload, file.Id)
@@ -550,7 +552,10 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 			buf := make([]byte, 1024)
 			bytesRead, err := file.Read(buf)
 			if err != nil {
-				ctx.Warningf("Unable to read data from request body : %s", err)
+				if err != io.EOF {
+					ctx.Warningf("Unable to read data from request body : %s", err)
+				}
+
 				preprocessWriter.Close()
 				return
 			}
