@@ -1,13 +1,13 @@
 package zip
 
 import (
-	"github.com/root-gg/plik/server/utils"
 	"io"
 	"os/exec"
 	//	"strings"
 	"errors"
 	"fmt"
 	"github.com/root-gg/plik/client/config"
+	"github.com/root-gg/utils"
 	"os"
 	"path/filepath"
 	"strings"

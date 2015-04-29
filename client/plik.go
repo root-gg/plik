@@ -40,7 +40,7 @@ import (
 	"github.com/root-gg/plik/client/archive"
 	"github.com/root-gg/plik/client/config"
 	"github.com/root-gg/plik/client/crypto"
-	"github.com/root-gg/plik/server/utils"
+	"github.com/root-gg/plik/server/common"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -124,7 +124,7 @@ Options:
 		baseUrl = arguments["--server"].(string)
 	}
 
-	uploadInfo := new(utils.Upload)
+	uploadInfo := new(common.Upload)
 
 	uploadInfo.OneShot = config.Config.OneShot
 	if arguments["--oneshot"].(bool) {
@@ -357,7 +357,7 @@ Options:
 	printf("    %s (%d file(s)) \n\n", bytesToString(totalSize), count)
 }
 
-func createUpload(uploadParams *utils.Upload) (upload *utils.Upload, err error) {
+func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error) {
 	var Url *url.URL
 	Url, err = url.Parse(baseUrl + "/upload")
 	if err != nil {
@@ -395,7 +395,7 @@ func createUpload(uploadParams *utils.Upload) (upload *utils.Upload, err error) 
 	basicAuth = resp.Header.Get("Authorization")
 
 	// Parse Json
-	upload = new(utils.Upload)
+	upload = new(common.Upload)
 	err = json.Unmarshal(body, upload)
 	if err != nil {
 		return
@@ -404,7 +404,7 @@ func createUpload(uploadParams *utils.Upload) (upload *utils.Upload, err error) 
 	return
 }
 
-func upload(uploadInfo *utils.Upload, name string, size int64, reader io.Reader) (file *utils.File, err error) {
+func upload(uploadInfo *common.Upload, name string, size int64, reader io.Reader) (file *common.File, err error) {
 	pipeReader, pipeWriter := io.Pipe()
 	multipartWriter := multipart.NewWriter(pipeWriter)
 
@@ -480,7 +480,7 @@ func upload(uploadInfo *utils.Upload, name string, size int64, reader io.Reader)
 	}
 
 	// Parse Json
-	file = new(utils.File)
+	file = new(common.File)
 	err = json.Unmarshal(responseBody, file)
 	if err != nil {
 		return
@@ -490,7 +490,7 @@ func upload(uploadInfo *utils.Upload, name string, size int64, reader io.Reader)
 	return
 }
 
-func getFileCommand(upload *utils.Upload, file *utils.File) (command string) {
+func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 
 	// Step one - Downloading file
 	switch config.Config.DownloadBinary {
@@ -529,7 +529,7 @@ func printf(format string, args ...interface{}) {
 	}
 }
 
-func printFileInformations(upload *utils.Upload, file *utils.File) {
+func printFileInformations(upload *common.Upload, file *common.File) {
 	var line string
 	if !config.Config.Quiet {
 		line += "    "

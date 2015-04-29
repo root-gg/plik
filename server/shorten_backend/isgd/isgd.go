@@ -5,8 +5,8 @@ package isgd
 //
 
 import (
+	"github.com/root-gg/plik/server/common"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -27,26 +27,30 @@ func NewIsGdShortenBackend(_ map[string]interface{}) *ShortenBackendIsGd {
 	return isgd
 }
 
-func (sb *ShortenBackendIsGd) Shorten(longUrl string) (string, error) {
+func (sb *ShortenBackendIsGd) Shorten(ctx *common.PlikContext, longUrl string) (shortUrl string, err error) {
+	defer ctx.Finalize(err)
 
+	// Request short url
 	resp, err := client.Get(sb.Url + "&url=" + url.QueryEscape(longUrl))
 	if err != nil {
-		return "", err
+		err = ctx.EWarningf("Unable to request short url from is.gd : %s", err)
+		return
 	}
-
 	defer resp.Body.Close()
 
-	// Get body
-	bodyStr, err := ioutil.ReadAll(resp.Body)
+	// Read response body
+	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		err = ctx.EWarningf("Unable to read response from is.gd : %s", err)
+		return
 	}
 
 	// Got url ? :)
-	if strings.HasPrefix(string(bodyStr), "http") {
-		log.Printf(" - [SHORT] Shortlink successfully created : %s", string(bodyStr))
-		return string(bodyStr), nil
+	if !strings.HasPrefix(string(respBody), "http") {
+		err = ctx.EWarningf("Invalid response from is.gd")
+		return
 	}
 
-	return longUrl, nil
+	ctx.Infof("Shortlink successfully created : %s", string(respBody))
+	return string(respBody), nil
 }

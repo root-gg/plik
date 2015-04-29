@@ -1,31 +1,38 @@
 package metadata_backend
 
 import (
+	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadata_backend/file"
 	"github.com/root-gg/plik/server/metadata_backend/mongo"
-	"github.com/root-gg/plik/server/utils"
 )
 
 var metadataBackend MetadataBackend
 
 type MetadataBackend interface {
-	Create(u *utils.Upload) (err error)
-	Get(id string) (u *utils.Upload, err error)
-	AddOrUpdateFile(u *utils.Upload, file *utils.File) (err error)
-	RemoveFile(u *utils.Upload, file *utils.File) (err error)
-	Remove(u *utils.Upload) (err error)
-	GetUploadsToRemove() (ids []string, err error)
+	Create(ctx *common.PlikContext, u *common.Upload) (err error)
+	Get(ctx *common.PlikContext, id string) (u *common.Upload, err error)
+	AddOrUpdateFile(ctx *common.PlikContext, u *common.Upload, file *common.File) (err error)
+	RemoveFile(ctx *common.PlikContext, u *common.Upload, file *common.File) (err error)
+	Remove(ctx *common.PlikContext, u *common.Upload) (err error)
+	GetUploadsToRemove(ctx *common.PlikContext) (ids []string, err error)
 }
 
-func GetMetadataBackend() MetadataBackend {
+func GetMetaDataBackend() MetadataBackend {
 	if metadataBackend == nil {
-		switch utils.Config.MetadataBackend {
+		Initialize()
+	}
+	return metadataBackend
+}
+
+func Initialize() {
+	if metadataBackend == nil {
+		switch common.Config.MetadataBackend {
 		case "file":
-			metadataBackend = file.NewFileMetadataBackend(utils.Config.MetadataBackendConfig)
+			metadataBackend = file.NewFileMetadataBackend(common.Config.MetadataBackendConfig)
 		case "mongo":
-			metadataBackend = mongo.NewMongoMetadataBackend(utils.Config.MetadataBackendConfig)
+			metadataBackend = mongo.NewMongoMetadataBackend(common.Config.MetadataBackendConfig)
+		default:
+			common.Log().Fatalf("Invalid metadata backend %s", common.Config.DataBackend)
 		}
 	}
-
-	return metadataBackend
 }
