@@ -1,9 +1,9 @@
 package file
 
 import (
-	"github.com/root-gg/plik/server/utils"
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 	"io"
-	"log"
 	"os"
 )
 
@@ -13,7 +13,7 @@ type FileBackendConfig struct {
 
 func NewFileBackendConfig(config map[string]interface{}) (this *FileBackendConfig) {
 	this = new(FileBackendConfig)
-	this.Directory = "files"
+	this.Directory = "files" // Default upload directory is ./files
 	utils.Assign(this, config)
 	return
 }
@@ -28,87 +28,100 @@ func NewFileBackend(config map[string]interface{}) (this *FileBackend) {
 	return
 }
 
-func (this *FileBackend) GetFile(upload *utils.Upload, id string) (io.ReadCloser, error) {
-	log.Printf(" - [FILE] Try to get file %s on upload %s", id, upload.Id)
+func (this *FileBackend) GetFile(ctx *common.PlikContext, upload *common.Upload, id string) (file io.ReadCloser, err error) {
+	defer ctx.Finalize(err)
 
-	// Get paths
+	// Get file path
 	directory := this.getDirectoryFromUploadId(upload.Id)
 	fullPath := directory + "/" + id
 
-	// Stat
-	file, err := os.Open(fullPath)
+	// The file content will be piped directly
+	// to the client response body
+	file, err = os.Open(fullPath)
 	if err != nil {
-		return nil, err
+		err = ctx.EWarningf("Unable to open file %s : %s", fullPath, err)
+		return
 	}
 
-	return file, nil
+	return
 }
 
-func (this *FileBackend) AddFile(upload *utils.Upload, file *utils.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
-	log.Println(" - [FILE] Begin upload of file on upload %s", upload.Id)
+func (this *FileBackend) AddFile(ctx *common.PlikContext, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
+	defer ctx.Finalize(err)
 
-	// Get paths
+	// Get file path
 	directory := this.getDirectoryFromUploadId(upload.Id)
 	fullPath := directory + "/" + file.Id
 
 	// Create directory
-	if _, err := os.Stat(directory); err != nil {
-		if err := os.MkdirAll(directory, 0777); err != nil {
-			return backendDetails, err
+	_, err = os.Stat(directory)
+	if err != nil {
+		err = os.MkdirAll(directory, 0777)
+		if err != nil {
+			err = ctx.EWarningf("Unable to create upload directory %s : %s", directory, err)
+			return
 		}
-
-		log.Printf(" - [FILE] Folder %s successfully created", directory)
+		ctx.Infof("Folder %s successfully created", directory)
 	}
 
-	// Open
+	// Create file
 	out, err := os.Create(fullPath)
 	if err != nil {
-		return backendDetails, err
+		err = ctx.EWarningf("Unable to create file %s : %s", fullPath, err)
+		return
 	}
 
-	// Save file
+	// Copy file data from the client request body
+	// to the file system
 	_, err = io.Copy(out, fileReader)
 	if err != nil {
-		return backendDetails, err
+		err = ctx.EWarningf("Unable to save file %s : %s", fullPath, err)
+		return
 	}
+	ctx.Infof("File %s successfully saved", fullPath)
 
-	log.Printf(" - [FILE] File %s successfully created on disk", fullPath)
-	return backendDetails, nil
+	return
 }
 
-func (this *FileBackend) RemoveFile(upload *utils.Upload, id string) error {
+func (this *FileBackend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, id string) (err error) {
+	defer ctx.Finalize(err)
 
-	// Get upload path
+	// Get file path
 	fullPath := this.getDirectoryFromUploadId(upload.Id) + "/" + id
 
-	// Remove
-	err := os.Remove(fullPath)
+	// Remove file
+	err = os.Remove(fullPath)
 	if err != nil {
-		return err
+		err = ctx.EWarningf("Unable to remove %s : %s", fullPath, err)
+		return
 	}
+	ctx.Infof("File %s successfully saved", fullPath)
 
-	return nil
+	return
 }
 
-func (this *FileBackend) RemoveUpload(upload *utils.Upload) error {
+func (this *FileBackend) RemoveUpload(ctx *common.PlikContext, upload *common.Upload) (err error) {
+	defer ctx.Finalize(err)
 
-	// Get upload path
+	// Get upload directory
 	fullPath := this.getDirectoryFromUploadId(upload.Id)
 
-	// Remove
-	err := os.RemoveAll(fullPath)
+	// Remove everything at once
+	err = os.RemoveAll(fullPath)
 	if err != nil {
-		return err
+		err = ctx.EWarningf("Unable to remove %s : %s", fullPath, err)
+		return
 	}
 
-	return nil
+	return
 }
 
 func (this *FileBackend) getDirectoryFromUploadId(uploadId string) string {
+	// To avoid too many files in the same directory
+	// data directory is splitted in two levels the
+	// first level is the 2 first chars from the upload id
+	// it gives 3844 possibilities reaching 65535 files per
+	// directory at ~250.000.000 files uploaded.
 
-	if len(uploadId) > 2 {
-		return this.Config.Directory + "/" + uploadId[:2] + "/" + uploadId
-	}
-
-	return this.Config.Directory + "/" + uploadId + "/" + uploadId
+	return this.Config.Directory + "/" + uploadId[:2] + "/" + uploadId
 }

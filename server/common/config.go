@@ -1,32 +1,14 @@
-package utils
+package common
 
 import (
-	"bytes"
-	"encoding/json"
 	"github.com/BurntSushi/toml"
-	"log"
-	"reflect"
+	"github.com/root-gg/logger"
 )
 
-/*
- * Assign a map[string]interface{} to a struct mapping the map pairs to
- * the structure members by name using reflexion.
- */
-func Assign(config interface{}, values map[string]interface{}) {
-	s := reflect.ValueOf(config).Elem()
-	t := reflect.TypeOf(config)
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	for key, val := range values {
-		if typ, ok := t.FieldByName(key); ok {
-			s.FieldByName(key).Set(reflect.ValueOf(val).Convert(typ.Type))
-		}
-	}
-}
+var PlikVersion = "##VERSION##"
 
 type Configuration struct {
-	Debug         bool
+	LogLevel      string
 	ListenAddress string
 	ListenPort    int
 	MaxFileSize   int
@@ -59,6 +41,7 @@ var Config *Configuration
 
 func NewConfiguration() (this *Configuration) {
 	this = new(Configuration)
+	this.LogLevel = "INFO"
 	this.ListenAddress = "0.0.0.0"
 	this.ListenPort = 8080
 	this.UploadIpRestriction = false
@@ -75,35 +58,8 @@ func NewConfiguration() (this *Configuration) {
 func LoadConfiguration(file string) {
 	Config = NewConfiguration()
 	if _, err := toml.DecodeFile(file, Config); err != nil {
-		log.Println(err)
+		Log().Warningf("Unable to load config file %s : %s", file, err)
 	}
-	Config.Dump()
-}
-
-/*
- * Display configuration
- */
-func (this *Configuration) Dump() {
-	Sdump(this)
-}
-
-func Debug(message string) {
-	if Config.Debug {
-		log.Println(message)
-	}
-}
-
-func Dump(data interface{}) {
-	log.Println(Sdump(data))
-}
-
-func Sdump(data interface{}) string {
-	buf := new(bytes.Buffer)
-	if json, err := json.Marshal(data); err != nil {
-		log.Printf("Unable to dump data %v : %s", data, err)
-	} else {
-		buf.Write(json)
-		buf.WriteString("\n")
-	}
-	return string(buf.Bytes())
+	Log().SetMinLevelFromString(Config.LogLevel)
+	Log().Dump(logger.DEBUG, Config)
 }

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/root-gg/plik/client/config"
-	"github.com/root-gg/plik/server/utils"
+	"github.com/root-gg/utils"
 	"io"
 	"os"
 	"os/exec"

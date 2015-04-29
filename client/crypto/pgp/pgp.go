@@ -1,12 +1,12 @@
 package pgp
 
 import (
-	"code.google.com/p/go.crypto/openpgp"
-	"code.google.com/p/go.crypto/openpgp/armor"
 	"errors"
 	"fmt"
 	"github.com/root-gg/plik/client/config"
-	"github.com/root-gg/plik/server/utils"
+	"github.com/root-gg/utils"
+	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/armor"
 	"io"
 	"os"
 	"strings"
