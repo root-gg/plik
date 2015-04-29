@@ -321,7 +321,7 @@ Options:
 					if fileInfo.Mode().IsRegular() {
 						size = fileInfo.Size()
 					} else if fileInfo.Mode().IsDir() {
-						printf("    %s : Uploading directories is not yet implemented\n", path)
+						printf("    %s : Uploading directories is only supported in archive mode\n", path)
 						return
 					} else {
 						printf("    %s : Unknown file mode : %s\n", path, fileInfo.Mode())
