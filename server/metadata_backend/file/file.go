@@ -2,16 +2,15 @@ package file
 
 import (
 	"encoding/json"
-	"github.com/root-gg/plik/server/utils"
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
 
 type FileMetadataBackendConfig struct {
@@ -20,6 +19,10 @@ type FileMetadataBackendConfig struct {
 
 func NewFileMetadataBackendConfig(config map[string]interface{}) (this *FileMetadataBackendConfig) {
 	this = new(FileMetadataBackendConfig)
+	// Default upload directory is ./files
+	// this is the same as the default file
+	// data backend so by default files and
+	// metadata are colocated
 	this.Directory = "files"
 	utils.Assign(this, config)
 	return
@@ -34,258 +37,237 @@ var locks map[string]*sync.RWMutex
 func NewFileMetadataBackend(config map[string]interface{}) (this *FileMetadataBackend) {
 	this = new(FileMetadataBackend)
 	this.Config = NewFileMetadataBackendConfig(config)
+	locks = make(map[string]*sync.RWMutex)
 	return
 }
 
-func (this *FileMetadataBackend) Create(upload *utils.Upload) (err error) {
+func (this *FileMetadataBackend) Create(ctx *common.PlikContext, upload *common.Upload) (err error) {
+	defer ctx.Finalize(err)
 
-	// Get Splice
-	splice := upload.Id
-	if len(upload.Id) > 2 {
-		splice = upload.Id[:2]
-	}
+	// Get metadata file path
+	directory := this.Config.Directory + "/" + upload.Id[:2] + "/" + upload.Id
+	metadataFile := directory + "/.config"
 
-	directory := this.Config.Directory + "/" + splice + "/" + upload.Id
-	metadatasFile := directory + "/.config"
-
-	// Get json
+	// Serialize metadata to json
 	b, err := json.MarshalIndent(upload, "", "    ")
 	if err != nil {
-		return err
+		err = ctx.EWarningf("Unable to serialize metadata to json : %s", err)
+		return
 	}
 
-	// Create upload dir if not exists
-	if _, err := os.Stat(directory); err != nil {
-		if err := os.MkdirAll(directory, 0777); err != nil {
-			return err
+	// Create upload directory if needed
+	if _, err = os.Stat(directory); err != nil {
+		if err = os.MkdirAll(directory, 0777); err != nil {
+			err = ctx.EWarningf("Unable to create upload directory %s : %s", directory, err)
+			return
 		}
-
-		log.Printf(" - [META] Folder %s successfully created", directory)
+		ctx.Infof("Upload directory %s successfully created", directory)
 	}
 
-	// Open metadatas files
-	f, err := os.OpenFile(metadatasFile, os.O_RDWR|os.O_CREATE, os.FileMode(0666))
+	// Create metadata file
+	f, err := os.OpenFile(metadataFile, os.O_RDWR|os.O_CREATE, os.FileMode(0666))
 	if err != nil {
-		log.Printf(" - [META] Failed to open metadatas : %s", err)
-		return err
+		err = ctx.EWarningf("Unable to create metadata file %s : %s", metadataFile, err)
+		return
 	}
+	defer f.Close()
 
 	// Print content
 	_, err = f.Write(b)
 	if err != nil {
-		log.Printf(" - [META] Failed to write metadatas : %s", err)
-		return err
+		err = ctx.EWarningf("Unable to write metadata file %s : %s", metadataFile, err)
+		return
 	}
 
 	// Sync on disk
 	err = f.Sync()
 	if err != nil {
-		log.Printf(" - [META] Failed to sync metadatas : %s", err)
-		return err
+		err = ctx.EWarningf("Unable to sync metadata file %s : %s", metadataFile, err)
+		return
 	}
 
-	log.Printf(" - [META] Metadatas file %s for upload %s successfully writed on disk", metadatasFile, upload.Id)
-	return nil
+	ctx.Infof("Metadata file successfully saved %s", metadataFile)
+	return
 }
 
-func (this *FileMetadataBackend) Get(id string) (upload *utils.Upload, err error) {
+func (this *FileMetadataBackend) Get(ctx *common.PlikContext, id string) (upload *common.Upload, err error) {
+	defer ctx.Finalize(err)
 
-	// Get Splice
-	splice := id
-	if len(id) > 2 {
-		splice = id[:2]
-	}
-	metadatasFile := this.Config.Directory + "/" + splice + "/" + id + "/.config"
+	// Get metadata file path
+	metadataFile := this.Config.Directory + "/" + id[:2] + "/" + id + "/.config"
 
-	// Open & Read metadatas
-	by := make([]byte, 0)
-	by, err = ioutil.ReadFile(metadatasFile)
+	// Open and read metadata
+	buffer := make([]byte, 0)
+	buffer, err = ioutil.ReadFile(metadataFile)
 	if err != nil {
-		return nil, err
+		err = ctx.EWarningf("Unable read metadata file %s : %s", metadataFile, err)
+		return
 	}
 
-	// Unmarshal
-	upload = new(utils.Upload)
-	if err := json.Unmarshal(by, upload); err != nil {
-		return nil, err
+	// Unserialize metadata from json
+	upload = new(common.Upload)
+	if err = json.Unmarshal(buffer, upload); err != nil {
+		err = ctx.EWarningf("Unable to unserialize metadata from json \"%s\" : %s", string(buffer), err)
+		return
 	}
 
-	return upload, nil
+	return
 }
 
-func (this *FileMetadataBackend) AddOrUpdateFile(upload *utils.Upload, file *utils.File) (err error) {
+func (this *FileMetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
+	defer ctx.Finalize(err)
 
-	// Lock
+	// avoid race condition
 	Lock(upload.Id)
 	defer Unlock(upload.Id)
 
-	// Reload
-	upload, err = this.Get(upload.Id)
+	// The first thing to do is to reload the file from disk
+	upload, err = this.Get(ctx.Fork("reload metadata"), upload.Id)
 
-	// Add file to metadata
+	// Add file metadata to upload metadata
 	upload.Files[file.Id] = file
 
-	// Get json
+	// Serialize metadata to json
 	b, err := json.MarshalIndent(upload, "", "    ")
 	if err != nil {
-		return err
+		err = ctx.EWarningf("Unable to serialize metadata to json : %s", err)
+		return
 	}
 
-	// Get splice
-	splice := upload.Id
-	if len(upload.Id) > 2 {
-		splice = upload.Id[:2]
-	}
+	// Get metadata file path
+	directory := this.Config.Directory + "/" + upload.Id[:2] + "/" + upload.Id
+	metadataFile := directory + "/.config"
 
-	// Create directory if not exist
-	directory := this.Config.Directory + "/" + splice + "/" + upload.Id
-	metadatas := directory + "/.config"
-
-	if _, err := os.Stat(directory); err != nil {
-		if err := os.MkdirAll(directory, 0777); err != nil {
-			return err
+	// Create directory if needed
+	if _, err = os.Stat(directory); err != nil {
+		if err = os.MkdirAll(directory, 0777); err != nil {
+			err = ctx.EWarningf("Unable to create upload directory %s : %s", directory, err)
+			return
 		}
-
-		log.Printf(" - [META] Folder %s successfully created", directory)
+		ctx.Infof("Upload directory %s successfully created", directory)
 	}
 
-	// Truncate
-	err = os.Truncate(metadatas, 0)
+	// Override metadata file
+	f, err := os.OpenFile(metadataFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0666))
 	if err != nil {
-		log.Printf(" - [META] Failed to truncate metadatas : %s", err)
-		return err
-	}
-
-	// Open metadatas files
-	f, err := os.OpenFile(metadatas, os.O_RDWR|os.O_CREATE, os.FileMode(0666))
-	if err != nil {
-		log.Printf(" - [META] Failed to open metadatas : %s", err)
-		return err
+		err = ctx.EWarningf("Unable to create metadata file %s : %s", metadataFile, err)
+		return
 	}
 
 	// Print content
 	_, err = f.Write(b)
 	if err != nil {
-		log.Printf(" - [META] Failed to write metadatas : %s", err)
-		return err
+		err = ctx.EWarningf("Unable to write metadata file %s : %s", metadataFile, err)
+		return
 	}
 
 	// Sync on disk
 	err = f.Sync()
 	if err != nil {
-		log.Printf(" - [META] Failed to sync metadatas : %s", err)
-		return err
+		err = ctx.EWarningf("Unable to sync metadata file %s : %s", metadataFile, err)
+		return
 	}
 
-	log.Printf(" - [META] Metadatas file %s for upload %s successfully writed on disk", metadatas, upload.Id)
-
-	return nil
+	ctx.Infof("Metadata file successfully updated %s", metadataFile)
+	return
 }
 
-func (this *FileMetadataBackend) RemoveFile(upload *utils.Upload, file *utils.File) (err error) {
+func (this *FileMetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
+	defer ctx.Finalize(err)
 
-	// Lock
+	// avoid race condition
 	Lock(upload.Id)
 	defer Unlock(upload.Id)
 
-	// Reload
-	upload, err = this.Get(upload.Id)
+	// The first thing to do is to reload the file from disk
+	upload, err = this.Get(ctx.Fork("reload metadata"), upload.Id)
 
-	// Remove file frome metadata
+	// Remove file metadata from upload metadata
 	delete(upload.Files, file.Name)
 
-	// Get json
+	// Serialize metadata to json
 	b, err := json.MarshalIndent(upload, "", "    ")
 	if err != nil {
-		return err
+		err = ctx.EWarningf("Unable to serialize metadata to json : %s", err)
+		return
 	}
 
-	// Get splice
-	splice := upload.Id
-	if len(upload.Id) > 2 {
-		splice = upload.Id[:2]
-	}
+	// Get metadata file path
+	directory := this.Config.Directory + "/" + upload.Id[:2] + "/" + upload.Id
+	metadataFile := directory + "/.config"
 
-	// Truncate first
-	directory := this.Config.Directory + "/" + splice + "/" + upload.Id
-	metadatas := directory + "/.config"
-
-	// Truncate
-	err = os.Truncate(metadatas, 0)
+	// Override metadata file
+	f, err := os.OpenFile(metadataFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0666))
 	if err != nil {
-		log.Printf(" - [META] Failed to truncate metadatas : %s", err)
-		return err
-	}
-
-	// Open metadatas files
-	f, err := os.OpenFile(metadatas, os.O_RDWR, os.FileMode(0666))
-	if err != nil {
-		log.Printf(" - [META] Failed to open metadatas : %s", err)
-		return err
+		err = ctx.EWarningf("Unable to create metadata file %s : %s", metadataFile, err)
+		return
 	}
 
 	// Print content
 	_, err = f.Write(b)
 	if err != nil {
-		log.Printf(" - [META] Failed to write metadatas : %s", err)
-		return err
+		err = ctx.EWarningf("Unable to write metadata file %s : %s", metadataFile, err)
+		return
 	}
 
 	// Sync on disk
 	err = f.Sync()
 	if err != nil {
-		log.Printf(" - [META] Failed to sync metadatas : %s", err)
-		return err
+		err = ctx.EWarningf("Unable to sync metadata file %s : %s", metadataFile, err)
+		return
 	}
 
+	ctx.Infof("Metadata file successfully updated %s", metadataFile)
 	return nil
 }
 
-func (this *FileMetadataBackend) Remove(upload *utils.Upload) (err error) {
+func (this *FileMetadataBackend) Remove(ctx *common.PlikContext, upload *common.Upload) (err error) {
 
-	// Splice
-	splice := upload.Id
-	if len(upload.Id) > 2 {
-		splice = upload.Id[:2]
-	}
+	// Get metadata file path
+	directory := this.Config.Directory + "/" + upload.Id[:2] + "/" + upload.Id
+	metadataFile := directory + "/.config"
 
-	directory := this.Config.Directory + "/" + splice + "/" + upload.Id
-	fullPath := directory + "/.config"
-
-	// Remove
-	err = os.Remove(fullPath)
+	// Remove all metadata at once
+	err = os.Remove(metadataFile)
 	if err != nil {
-		return err
+		err = ctx.EWarningf("Unable to remove upload directory %s : %s", metadataFile, err)
+		return
 	}
 
-	return nil
+	return
 }
 
-func (this *FileMetadataBackend) GetUploadsToRemove() (ids []string, err error) {
+func (this *FileMetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []string, err error) {
+	defer ctx.Finalize(err)
 
-	if utils.Config.MaxTtl > 0 {
+	// Look for uploads older than MaxTTL to schedule them for removal ( defaults to 30 days )
+	// This is suboptimal as some of them might have an inferior TTL but it's
+	// a lot cheaper than opening and deserializing each metadata file.
+	if common.Config.MaxTtl > 0 {
 		ids = make([]string, 0)
 
 		// Let's call our friend find
 		args := make([]string, 0)
 		args = append(args, this.Config.Directory)
-		args = append(args, "-mindepth", "2")
-		args = append(args, "-maxdepth", "2")
+		args = append(args, "-mindepth", "2") // Remember that the upload directory
+		args = append(args, "-maxdepth", "2") // structure is splitted in two
 		args = append(args, "-type", "d")
-		args = append(args, "-cmin", "+"+strconv.Itoa(utils.Config.MaxTtl))
+		args = append(args, "-cmin", "+"+strconv.Itoa(common.Config.MaxTtl))
+		ctx.Debugf("Executing command : %s", strings.Join(args, " "))
 
-		// Exec
+		// Exec find command
 		cmd := exec.Command("find", args...)
-		o, err := cmd.Output()
+		var o []byte
+		o, err = cmd.Output()
 		if err != nil {
-			return ids, err
+			err = ctx.EWarningf("Unable to get find output : %s", err)
+			return
 		}
 
-		// Split
 		pathsToRemove := strings.Split(string(o), "\n")
-
 		for _, pathToRemove := range pathsToRemove {
 			if pathToRemove != "" {
+				// Extract upload id from path
 				uploadId := filepath.Base(pathToRemove)
 				ids = append(ids, uploadId)
 			}
@@ -295,26 +277,20 @@ func (this *FileMetadataBackend) GetUploadsToRemove() (ids []string, err error) 
 	return ids, nil
 }
 
-//
-//// Lock for file this (to avoid problems on concurrent access)
-//
-
+// /!\ There is a race condition to avoid /!\
+// If a client add/remove many files of the same upload
+// in parallel the associated metadata file
+// might be read by many goroutine at the same time,
+// then every of them will override the file with
+// their own possibly incomplete/invalid version.
 func Lock(uploadId string) {
-	if locks == nil {
-		locks = make(map[string]*sync.RWMutex)
-	}
 	if locks[uploadId] == nil {
 		locks[uploadId] = new(sync.RWMutex)
-
-		go func() {
-			time.Sleep(time.Hour)
-			delete(locks, uploadId)
-		}()
 	}
-
 	locks[uploadId].Lock()
 }
 
 func Unlock(uploadId string) {
 	locks[uploadId].Unlock()
+	delete(locks, uploadId)
 }

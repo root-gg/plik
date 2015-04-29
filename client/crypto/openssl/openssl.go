@@ -3,7 +3,8 @@ package openssl
 import (
 	"fmt"
 	"github.com/root-gg/plik/client/config"
-	"github.com/root-gg/plik/server/utils"
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 	"io"
 	"os"
 	"os/exec"
@@ -51,7 +52,7 @@ func (this *OpenSSLBackend) Configure(arguments map[string]interface{}) (err err
 			}
 		}
 	} else {
-		this.Config.Passphrase = utils.GenerateRandomId(25)
+		this.Config.Passphrase = common.GenerateRandomId(25)
 		fmt.Println("Passphrase : " + this.Config.Passphrase)
 	}
 	if arguments["--secure-options"] != nil && arguments["--secure-options"].(string) != "" {
@@ -80,7 +81,7 @@ func (this *OpenSSLBackend) Encrypt(reader io.Reader, writer io.Writer) (err err
 		os.Exit(1)
 		return
 	}
-	cmd := exec.Command(this.Config.Openssl, "aes256", "-pass", fmt.Sprintf("fd:3"))
+	cmd := exec.Command(this.Config.Openssl, this.Config.Cipher, "-pass", fmt.Sprintf("fd:3"))
 	cmd.Stdin = reader                                  // fd:0
 	cmd.Stdout = writer                                 // fd:1
 	cmd.Stderr = os.Stderr                              // fd:2
@@ -98,4 +99,8 @@ func (this *OpenSSLBackend) Encrypt(reader io.Reader, writer io.Writer) (err err
 		return
 	}
 	return
+}
+
+func (this *OpenSSLBackend) Comments() string {
+	return fmt.Sprintf("openssl %s -d -pass pass:%s", this.Config.Cipher, this.Config.Passphrase)
 }

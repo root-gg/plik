@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/root-gg/plik/client/config"
-	"github.com/root-gg/plik/server/utils"
+	"github.com/root-gg/utils"
 	"io"
 	"os"
 	"os/exec"
@@ -116,4 +116,8 @@ func (this *TarBackend) Archive(files []string, writer io.WriteCloser) (name str
 		}
 	}()
 	return
+}
+
+func (this *TarBackend) Comments() string {
+	return "tar xvf -"
 }

@@ -8,12 +8,15 @@ import (
 	"github.com/BurntSushi/toml"
 	homedir "github.com/mitchellh/go-homedir"
 	"os"
+	"strings"
 )
 
 var Config *UploadConfig
 
 type UploadConfig struct {
 	Debug          bool
+	Quiet          bool
+	HomeDir        string
 	Url            string
 	OneShot        bool
 	Removable      bool
@@ -23,6 +26,7 @@ type UploadConfig struct {
 	Archive        bool
 	ArchiveMethod  string
 	ArchiveOptions map[string]interface{}
+	DownloadBinary string
 	Comments       string
 	Yubikey        bool
 	Password       string
@@ -32,6 +36,7 @@ type UploadConfig struct {
 func NewUploadConfig() (config *UploadConfig) {
 	config = new(UploadConfig)
 	config.Debug = false
+	config.Quiet = false
 	config.Url = "http://127.0.0.1:8080"
 	config.OneShot = false
 	config.Removable = false
@@ -45,7 +50,8 @@ func NewUploadConfig() (config *UploadConfig) {
 	config.SecureMethod = "openssl"
 	config.SecureOptions = make(map[string]interface{})
 	config.SecureOptions["Openssl"] = "/usr/bin/openssl"
-	config.SecureOptions["Cipher"] = "aes256"
+	config.SecureOptions["Cipher"] = "aes-256-cbc"
+	config.DownloadBinary = "curl"
 	config.Comments = ""
 	config.Yubikey = false
 	config.Password = ""
@@ -55,17 +61,30 @@ func NewUploadConfig() (config *UploadConfig) {
 
 func Load() (err error) {
 	Config = NewUploadConfig()
+
 	// Detect home dir
 	home, err := homedir.Dir()
 	if err != nil {
-		home = os.Getenv("HOME")
+		Config.HomeDir = os.Getenv("HOME")
+	} else {
+		Config.HomeDir = home
 	}
 
 	// Stat file
 	configFile := home + "/.plikrc"
 	_, err = os.Stat(configFile)
 	if err != nil {
-		// File not present
+		// File not present. Ask for domain
+		var domain string
+		fmt.Printf("Please enter your plik domain [default:http://127.0.0.1:8080] : ")
+		_, err := fmt.Scanf("%s", &domain)
+		if err == nil {
+			Config.Url = domain
+			if !strings.HasPrefix(domain, "http") {
+				Config.Url = "http://" + domain
+			}
+		}
+
 		// Encode in toml
 		buf := new(bytes.Buffer)
 		if err = toml.NewEncoder(buf).Encode(Config); err != nil {
