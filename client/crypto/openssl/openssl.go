@@ -3,7 +3,8 @@ package openssl
 import (
 	"fmt"
 	"github.com/root-gg/plik/client/config"
-	"github.com/root-gg/plik/server/utils"
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 	"io"
 	"os"
 	"os/exec"
@@ -51,7 +52,7 @@ func (this *OpenSSLBackend) Configure(arguments map[string]interface{}) (err err
 			}
 		}
 	} else {
-		this.Config.Passphrase = utils.GenerateRandomId(25)
+		this.Config.Passphrase = common.GenerateRandomId(25)
 		fmt.Println("Passphrase : " + this.Config.Passphrase)
 	}
 	if arguments["--secure-options"] != nil && arguments["--secure-options"].(string) != "" {

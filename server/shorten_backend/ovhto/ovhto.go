@@ -6,9 +6,9 @@ package ovhto
 
 import (
 	"encoding/json"
-	"github.com/root-gg/plik/server/utils"
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -28,33 +28,39 @@ func NewOvhToShortenBackend(config map[string]interface{}) *ShortenBackendOvhTo 
 	return ovhtobackend
 }
 
-func (sb *ShortenBackendOvhTo) Shorten(longUrl string) (string, error) {
+func (sb *ShortenBackendOvhTo) Shorten(ctx *common.PlikContext, longUrl string) (shortUrl string, err error) {
+	defer ctx.Finalize(err)
+
+	// Request short url
 	b := strings.NewReader(`{"longURL":"` + longUrl + `"}`)
 	resp, err := client.Post(sb.Url, "application/json", b)
 	if err != nil {
-		return "", err
+		err = ctx.EWarningf("Unable to request short url from ovh.to : %s", err)
+		return
 	}
-
 	defer resp.Body.Close()
 
-	// Get body
+	// Read response body
 	bodyStr, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		err = ctx.EWarningf("Unable to read response from ovh.to : %s", err)
+		return
 	}
 
-	// Decode it
+	// Deserialize json response
 	responseMap := make(map[string]string)
 	err = json.Unmarshal(bodyStr, &responseMap)
 	if err != nil {
-		return "", err
+		err = ctx.EWarningf("Unable to deserialize json response \"%s\" from ovh.to : %s", bodyStr, err)
+		return
 	}
 
 	// Got url ? :)
-	if responseMap["shortURL"] != "" {
-		log.Printf(" - [SHORT] Shortlink successfully created : %s", responseMap["shortURL"])
-		return responseMap["shortURL"], nil
+	if responseMap["shortURL"] == "" {
+		err = ctx.EWarningf("Invalid response from ovh.to")
+		return
 	}
 
-	return longUrl, nil
+	ctx.Infof("Shortlink successfully created : %s", responseMap["shortURL"])
+	return responseMap["shortURL"], nil
 }

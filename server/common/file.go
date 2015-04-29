@@ -1,4 +1,4 @@
-package utils
+package common
 
 type File struct {
 	Id             string                 `json:"id" bson:"fileId"`
@@ -18,6 +18,5 @@ func NewFile() (file *File) {
 }
 
 func (file *File) Sanitize() {
-
 	file.BackendDetails = nil
 }
