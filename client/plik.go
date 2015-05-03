@@ -37,10 +37,9 @@ import (
 	"github.com/cheggaaa/pb"
 	docopt "github.com/docopt/docopt-go"
 	"github.com/olekukonko/ts"
-	"github.com/root-gg/plik/client/archive"
 	"github.com/root-gg/plik/client/config"
-	"github.com/root-gg/plik/client/crypto"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -48,25 +47,18 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
 
 // Vars
 var arguments map[string]interface{}
-
-var baseUrl string
-var transport = &http.Transport{
-	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-}
+var transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 var client = http.Client{Transport: transport}
-var cryptoBackend crypto.CryptoBackend
-var archiveBackend archive.ArchiveBackend
 var basicAuth string
+var err error
 
 // Main
 func main() {
@@ -107,126 +99,19 @@ Options:
   --secure-options OPTIONS  [openssl|pgp] Additional command line options
   --recipient RECIPIENT     [pgp] Set recipient for pgp backend ( example : --recipient Bob )
 `
+	// Parse command line arguments
 	arguments, _ = docopt.Parse(usage, nil, true, "", false)
 
-	if arguments["--debug"].(bool) {
-		config.Config.Debug = true
-	}
-	if arguments["--quiet"].(bool) {
-		config.Config.Quiet = true
-	}
-
-	config.Debug("Arguments : " + config.Sdump(arguments))
-	config.Debug("Configuration : " + config.Sdump(config.Config))
-
-	baseUrl = config.Config.Url
-	if arguments["--server"] != nil && arguments["--server"].(string) != "" {
-		baseUrl = arguments["--server"].(string)
+	// Unmarshal arguments in configuration
+	err = config.UnmarshalArgs(arguments)
+	if err != nil {
+		fmt.Printf("%s", err)
+		os.Exit(1)
 	}
 
-	uploadInfo := new(common.Upload)
-
-	uploadInfo.OneShot = config.Config.OneShot
-	if arguments["--oneshot"].(bool) {
-		uploadInfo.OneShot = true
-	}
-
-	uploadInfo.Removable = config.Config.Removable
-	if arguments["--removable"].(bool) {
-		uploadInfo.OneShot = true
-	}
-
-	// TODO Generate comments if encrypted
-	uploadInfo.Comments = config.Config.Comments
-	if arguments["--comments"] != nil && arguments["--comments"].(string) != "" {
-		uploadInfo.Comments = arguments["--comments"].(string)
-	}
-
-	uploadInfo.Ttl = config.Config.Ttl
-	if arguments["--ttl"] != nil && arguments["--ttl"].(string) != "" {
-		ttlStr := arguments["--ttl"].(string)
-		mul := 1
-		if string(ttlStr[len(ttlStr)-1]) == "m" {
-			mul = 60
-		} else if string(ttlStr[len(ttlStr)-1]) == "h" {
-			mul = 3600
-		} else if string(ttlStr[len(ttlStr)-1]) == "d" {
-			mul = 86400
-		}
-		if mul != 1 {
-			ttlStr = ttlStr[:len(ttlStr)-1]
-		}
-		ttl, err := strconv.Atoi(ttlStr)
-		if err != nil {
-			fmt.Println("Invalid TTL %s", arguments["--ttl"].(string))
-			os.Exit(1)
-		}
-		uploadInfo.Ttl = ttl * mul
-	}
-
-	if arguments["-s"].(bool) || arguments["--secure"] != nil {
-		config.Config.Secure = true
-		secureMethod := config.Config.SecureMethod
-		if arguments["--secure"] != nil && arguments["--secure"].(string) != "" {
-			secureMethod = arguments["--secure"].(string)
-		}
-		var err error
-		cryptoBackend, err = crypto.NewCryptoBackend(secureMethod, config.Config.SecureOptions)
-		if err != nil {
-			fmt.Printf("Invalid secure params : %s\n", err)
-			os.Exit(1)
-		}
-		err = cryptoBackend.Configure(arguments)
-		if err != nil {
-			fmt.Printf("Invalid secure params : %s\n", err)
-			os.Exit(1)
-		}
-	}
-
-	if arguments["-p"].(bool) {
-		fmt.Printf("Login [plik]: ")
-		var err error
-		_, err = fmt.Scanln(&uploadInfo.Login)
-		if err != nil && err.Error() != "unexpected newline" {
-			fmt.Printf("Unable to get login : %s", err)
-			os.Exit(1)
-		}
-		if uploadInfo.Login == "" {
-			uploadInfo.Login = "plik"
-		}
-		fmt.Printf("Password: ")
-		_, err = fmt.Scanln(&uploadInfo.Password)
-		if err != nil {
-			fmt.Printf("Unable to get password : %s", err)
-			os.Exit(1)
-		}
-	} else if arguments["--password"] != nil && arguments["--password"].(string) != "" {
-		credentials := arguments["--password"].(string)
-		sepIndex := strings.Index(credentials, ":")
-		var login, password string
-		if sepIndex > 0 {
-			login = credentials[:sepIndex]
-			password = credentials[sepIndex+1:]
-		} else {
-			login = "plik"
-			password = credentials
-		}
-		uploadInfo.Login = login
-		uploadInfo.Password = password
-	}
-
-	if config.Config.Yubikey || arguments["--yubikey"].(bool) {
-		fmt.Printf("Yubikey token : ")
-		_, err := fmt.Scanln(&uploadInfo.Yubikey)
-		if err != nil {
-			fmt.Println("Unable to get yubikey token : %s", err)
-			os.Exit(1)
-		}
-	}
-
-	config.Debug("Sending upload params : " + config.Sdump(uploadInfo))
-	var err error
-	uploadInfo, err = createUpload(uploadInfo)
+	// Creating upload on plik
+	config.Debug("Sending upload params : " + config.Sdump(config.Upload))
+	uploadInfo, err := createUpload(config.Upload)
 	if err != nil {
 		printf("Unable to create upload : %s\n", err)
 		os.Exit(1)
@@ -234,29 +119,12 @@ Options:
 	config.Debug("Got upload info : " + config.Sdump(uploadInfo))
 
 	printf("Upload successfully created : \n\n")
-	printf("    %s/#/?id=%s\n\n\n", baseUrl, uploadInfo.Id)
+	printf("    %s/#/?id=%s\n\n\n", config.Config.Url, uploadInfo.Id)
 
-	count := 0
-	totalSize := 0
-	if arguments["-a"].(bool) || arguments["--archive"] != nil {
-		config.Config.Archive = true
-
-		if arguments["--archive"] != nil && arguments["--archive"] != "" {
-			config.Config.ArchiveMethod = arguments["--archive"].(string)
-		}
-		archiveBackend, err = archive.NewArchiveBackend(config.Config.ArchiveMethod, config.Config.ArchiveOptions)
-		if err != nil {
-			printf("Invalid archive params : %s\n", err)
-			os.Exit(1)
-		}
-		err = archiveBackend.Configure(arguments)
-		if err != nil {
-			printf("Invalid archive params : %s\n", err)
-			os.Exit(1)
-		}
+	if config.Config.Archive {
 
 		pipeReader, pipeWriter := io.Pipe()
-		name, err := archiveBackend.Archive(arguments["FILE"].([]string), pipeWriter)
+		name, err := config.ArchiveBackend.Archive(arguments["FILE"].([]string), pipeWriter)
 		if err != nil {
 			printf("Unable to archive files : %s\n", err)
 			os.Exit(1)
@@ -273,13 +141,9 @@ Options:
 		}
 		pipeReader.CloseWithError(err)
 
-		//fmt.Println(utils.Dump(file))
-		printFileInformations(uploadInfo, file)
-		count++
-		totalSize += int(file.CurrentSize)
 		uploadInfo.Files[file.Id] = file
 	} else {
-		if len(arguments["FILE"].([]string)) == 0 {
+		if len(config.Files) == 0 {
 			// Upload from STDIN
 			name := "STDIN"
 			if arguments["--name"] != nil && arguments["--name"].(string) != "" {
@@ -292,74 +156,53 @@ Options:
 				return
 			}
 
-			printFileInformations(uploadInfo, file)
-			count++
-			totalSize += int(file.CurrentSize)
 			uploadInfo.Files[file.Id] = file
 		} else {
 			// Upload individual files
 			var wg sync.WaitGroup
-			for _, path := range arguments["FILE"].([]string) {
+			for _, fileToUpload := range config.Files {
 				wg.Add(1)
-				go func(path string) {
+				go func(fileToUpload *config.FileToUpload) {
 					defer wg.Done()
 
-					fileHandle, err := os.Open(path)
-					if err != nil {
-						printf("    %s : Unable to open file : %s\n", path, err)
-						return
-					}
-
-					var fileInfo os.FileInfo
-					fileInfo, err = fileHandle.Stat()
-					if err != nil {
-						printf("    %s : Unable to stat file : %s\n", path, err)
-						return
-					}
-
-					size := int64(0)
-					if fileInfo.Mode().IsRegular() {
-						size = fileInfo.Size()
-					} else if fileInfo.Mode().IsDir() {
-						printf("    %s : Uploading directories is only supported in archive mode\n", path)
-						return
-					} else {
-						printf("    %s : Unknown file mode : %s\n", path, fileInfo.Mode())
-						return
-					}
-
-					name := filepath.Base(path)
-					file, err := upload(uploadInfo, name, size, fileHandle)
+					file, err := upload(uploadInfo, fileToUpload.Base, fileToUpload.Size, fileToUpload.FileHandle)
 					if err != nil {
 						printf("Unable upload file : %s\n", err)
 						return
 					}
 
-					printFileInformations(uploadInfo, file)
-					count++
-					totalSize += int(file.CurrentSize)
 					uploadInfo.Files[file.Id] = file
-				}(path)
+				}(fileToUpload)
 			}
 			wg.Wait()
 		}
 	}
 
 	// Comments
+	var totalSize int64
 	printf("\n\nCommands\n\n")
 	for _, file := range uploadInfo.Files {
-		printf("%s\n", getFileCommand(uploadInfo, file))
+
+		// Increment size
+		totalSize += file.CurrentSize
+
+		// Print file informations (only url if quiet mode enabled)
+		if config.Config.Quiet {
+			fmt.Println(getFileUrl(uploadInfo, file))
+		} else {
+			fmt.Println(getFileCommand(uploadInfo, file))
+		}
 	}
 	printf("\n")
 
 	// Upload files
 	printf("\nTotal\n\n")
-	printf("    %s (%d file(s)) \n\n", bytesToString(totalSize), count)
+	printf("    %s (%d file(s)) \n\n", utils.BytesToString(int(totalSize)), len(uploadInfo.Files))
 }
 
 func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error) {
 	var Url *url.URL
-	Url, err = url.Parse(baseUrl + "/upload")
+	Url, err = url.Parse(config.Config.Url + "/upload")
 	if err != nil {
 		return
 	}
@@ -422,7 +265,11 @@ func upload(uploadInfo *common.Upload, name string, size int64, reader io.Reader
 			multiWriter = part
 		} else {
 			bar := pb.New64(size).SetUnits(pb.U_BYTES)
+			bar.Prefix(fmt.Sprintf("%-"+strconv.Itoa(config.LongestFilenameSize)+"s : ", name))
 			bar.ShowSpeed = true
+			bar.ShowFinalTime = false
+			bar.SetWidth(100)
+			bar.SetMaxWidth(100)
 
 			multiWriter = io.MultiWriter(part, bar)
 			bar.Start()
@@ -430,7 +277,7 @@ func upload(uploadInfo *common.Upload, name string, size int64, reader io.Reader
 		}
 
 		if config.Config.Secure {
-			err = cryptoBackend.Encrypt(reader, multiWriter)
+			err = config.CryptoBackend.Encrypt(reader, multiWriter)
 			if err != nil {
 				fmt.Println(err)
 				return pipeWriter.CloseWithError(err)
@@ -448,7 +295,7 @@ func upload(uploadInfo *common.Upload, name string, size int64, reader io.Reader
 	}()
 
 	var Url *url.URL
-	Url, err = url.Parse(baseUrl + "/upload/" + uploadInfo.Id + "/file")
+	Url, err = url.Parse(config.Config.Url + "/upload/" + uploadInfo.Id + "/file")
 	if err != nil {
 		return
 	}
@@ -502,11 +349,11 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 		command += config.Config.DownloadBinary
 	}
 
-	command += fmt.Sprintf(" %s/file/%s/%s/%s", baseUrl, upload.Id, file.Id, file.Name)
+	command += fmt.Sprintf(" %s/file/%s/%s/%s", config.Config.Url, upload.Id, file.Id, file.Name)
 
 	// If Ssl
 	if config.Config.Secure {
-		command += fmt.Sprintf(" | %s", cryptoBackend.Comments())
+		command += fmt.Sprintf(" | %s", config.CryptoBackend.Comments())
 	}
 
 	// If archive
@@ -514,7 +361,7 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 		if config.Config.ArchiveMethod == "zip" {
 			command += fmt.Sprintf(" > %s", file.Name)
 		} else {
-			command += fmt.Sprintf(" | %s", archiveBackend.Comments())
+			command += fmt.Sprintf(" | %s", config.ArchiveBackend.Comments())
 		}
 	} else {
 		command += " > " + file.Name
@@ -523,30 +370,13 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 	return
 }
 
+func getFileUrl(upload *common.Upload, file *common.File) (fileUrl string) {
+	fileUrl += fmt.Sprintf("%s/file/%s/%s/%s", config.Config.Url, upload.Id, file.Id, file.Name)
+	return
+}
+
 func printf(format string, args ...interface{}) {
 	if !config.Config.Quiet {
 		fmt.Printf(format, args...)
 	}
-}
-
-func printFileInformations(upload *common.Upload, file *common.File) {
-	var line string
-	if !config.Config.Quiet {
-		line += "    "
-	}
-
-	line += fmt.Sprintf("%s/file/%s/%s/%s", baseUrl, upload.Id, file.Id, file.Name)
-	fmt.Println(line)
-}
-
-func bytesToString(size int) string {
-	if size <= 1024 {
-		return fmt.Sprintf("%.2f B", float64(size))
-	} else if size <= 1024*1024 {
-		return fmt.Sprintf("%.2f kB", float64(size)/float64(1024))
-	} else {
-		return fmt.Sprintf("%.2f MB", float64(size)/float64((1024*1024)))
-	}
-
-	return fmt.Sprintf("%.2f GB", float64(size)/float64((1024*1024*1024)))
 }
