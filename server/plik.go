@@ -211,7 +211,14 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	// The 32 lasts characters are the actual OTP
 	if upload.Yubikey != "" {
 		upload.ProtectedByYubikey = true
-		ok, err := common.YubikeyCheckToken(ctx.Fork("check yubikey"), upload.Yubikey)
+
+		if !common.Config.YubikeyEnabled {
+			ctx.Warningf("Got a yubikey upload but Yubikey backend is disabled")
+			http.Error(resp, common.NewResult("Yubikey are disabled on this server", nil).ToJsonString(), 500)
+			return
+		}
+
+		_, ok, err := common.Config.YubiAuth.Verify(upload.Yubikey)
 		if err != nil {
 			ctx.Warningf("Unable to validate yubikey token : %s", err)
 			http.Error(resp, common.NewResult("Unable to validate yubikey token", nil).ToJsonString(), 500)
@@ -408,7 +415,14 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		isValid, err := common.YubikeyCheckToken(ctx.Fork("check yubikey"), token)
+		// Error if yubikey is disabled on server, and enabled on upload
+		if !common.Config.YubikeyEnabled {
+			ctx.Warningf("Got a yubikey upload but Yubikey backend is disabled")
+			redirect(req, resp, errors.New("Yubikey are disabled on this server"), 500)
+			return
+		}
+
+		_, isValid, err := common.Config.YubiAuth.Verify(token)
 		if err != nil {
 			ctx.Warningf("Failed to validate yubikey token : %s", err)
 			redirect(req, resp, errors.New("Invalid yubikey token"), 401)

@@ -31,6 +31,7 @@ package common
 
 import (
 	"github.com/BurntSushi/toml"
+	"github.com/GeertJohan/yubigo"
 	"github.com/root-gg/logger"
 )
 
@@ -51,6 +52,11 @@ type Configuration struct {
 
 	UploadIdLength int
 	FileIdLength   int
+
+	YubikeyEnabled   bool
+	YubikeyApiKey    string
+	YubikeyApiSecret string
+	YubiAuth         *yubigo.YubiAuth
 
 	MetadataBackend       string
 	MetadataBackendConfig map[string]interface{}
@@ -92,5 +98,16 @@ func LoadConfiguration(file string) {
 		Log().SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel | logger.FshortFile | logger.FshortFunction)
 	} else {
 		Log().SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel)
+	}
+
+	// Do user specified a ApiKey and ApiSecret for Yubikey
+	if Config.YubikeyEnabled {
+		yubiAuth, err := yubigo.NewYubiAuth(Config.YubikeyApiKey, Config.YubikeyApiSecret)
+		if err != nil {
+			Log().Warningf("Failed to load yubikey backend : %s", err)
+			Config.YubikeyEnabled = false
+		} else {
+			Config.YubiAuth = yubiAuth
+		}
 	}
 }
