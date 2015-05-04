@@ -411,6 +411,12 @@ func test(action string, upload *common.Upload, file *common.File, expectedHttpC
 			} else {
 				t.Logf(" -> Got content : %s. Good", contentToUpload)
 			}
+		} else {
+
+			// On a non 200 expected code, it MUST NOT contain file data
+			if strings.Contains(content, contentToUpload) {
+				t.Fatalf("Warning. Got file content on a 404 upload : %s", content)
+			}
 		}
 
 	case "removeFile":
