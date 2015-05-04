@@ -265,7 +265,7 @@ function UploadCtrl($scope, $dialog, $route, $location, $api) {
 
     $scope.humanReadableSize = function(size){
         if(_.isUndefined(size)) return;
-        return filesize(size);
+        return filesize(size, { base : 2 });
     };
 
     $scope.getFileUrl = function(file,dl) {

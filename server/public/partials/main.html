@@ -157,7 +157,17 @@
                                     strip-br="true"
                                     select-non-editable="true">
                                 </td>
-                                <td ng-show="file.metadata">{{file.metadata.fileName}}</td>
+                                <td ng-show="file.metadata">
+                                    <span class="glyphicon glyphicon-collapse-down" ng-click="file.showdetails = !file.showdetails"/>
+                                    {{file.metadata.fileName}}
+
+                                    <div ng-show="file.showdetails">
+                                        <br />
+                                        <strong>md5 :</strong> {{file.metadata.fileMd5}}<br />
+                                        <strong>type :</strong> {{file.metadata.fileType}}<br />
+                                        <br />
+                                    </div>
+                                </td>
                                 <td ng-show="!file.metadata">{{humanReadableSize(file.size)}}</td>
                                 <td ng-show="file.metadata">{{humanReadableSize(file.metadata.fileSize)}}</td>
                                 <td ng-show="!file.metadata && !file.progress">
