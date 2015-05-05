@@ -1,7 +1,5 @@
 {
-  "name": "demo",
-  "description": "Demo",
-  "version": "0.0.1",
+  "name": "plik-webapp",
   "devDependencies": {
     "grunt": "^0.4.5",
     "grunt-contrib-clean": "^0.6.0",

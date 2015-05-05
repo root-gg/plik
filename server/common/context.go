@@ -4,7 +4,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) <2015>
+Copyright (c) <2015> Copyright holders list can be found in AUTHORS file
 	- Mathieu Bodjikian <mathieu@bodjikian.fr>
 	- Charles-Antoine Mathieu <skatkatt@root.gg>
 
