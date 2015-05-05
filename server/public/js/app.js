@@ -1,3 +1,27 @@
+/* The MIT License (MIT)
+
+Copyright (c) <2015>
+	- Mathieu Bodjikian <mathieu@bodjikian.fr>
+	- Charles-Antoine Mathieu <skatkatt@root.gg>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE. */
+
 angular.module('dialog', ['ui.bootstrap']).
     factory('$dialog', function ($rootScope, $modal) {
 
@@ -38,8 +62,8 @@ angular.module('dialog', ['ui.bootstrap']).
         return module;
     });
 
-angular.module('api', ['angularFileUpload']).
-    factory('$api', function ($http, $q, $upload) {
+angular.module('api', ['ngFileUpload']).
+    factory('$api', function ($http, $q, Upload) {
         var api = { base : '' };
 
         api.call = function(url,method,params){
@@ -64,7 +88,7 @@ angular.module('api', ['angularFileUpload']).
             var headers = {};
             if (basicAuth) headers['Authorization'] = "Basic " + basicAuth;
             if (uploadToken) headers['X-UploadToken'] = uploadToken;
-            $upload
+            Upload
                 .upload({
                     url: url,
                     method: 'POST',
@@ -114,7 +138,7 @@ angular.module('api', ['angularFileUpload']).
         return api;
     });
 
-angular.module('autoroot', ['ngRoute', 'api', 'dialog','contenteditable','ngClipboard','ngSanitize', 'btford.markdown'])
+angular.module('plik', ['ngRoute', 'api', 'dialog','contenteditable','ngClipboard','ngSanitize', 'btford.markdown'])
 	.config(function($routeProvider) {
 		$routeProvider
 			.when('/', { controller:UploadCtrl, templateUrl:'partials/main.html', reloadOnSearch: false})
@@ -126,7 +150,13 @@ angular.module('autoroot', ['ngRoute', 'api', 'dialog','contenteditable','ngClip
     }])
     .config(['ngClipProvider', function(ngClipProvider) {
         ngClipProvider.setPath("bower_components/zeroclipboard/dist/ZeroClipboard.swf");
-    }]);
+    }])
+    .filter('collapseClass',function(){
+        return function(opened){
+            if(opened) return "fa fa-caret-down";
+            return "fa fa-caret-right";
+        }
+    });
 
 
 function UploadCtrl($scope, $dialog, $route, $location, $api) {
@@ -144,8 +174,9 @@ function UploadCtrl($scope, $dialog, $route, $location, $api) {
         var err = $location.search().err;
         if ( ! _.isUndefined(err) ) {
             if ( err == "Invalid yubikey token" && $location.search().uri ) {
-                $scope.load($location.search().uri.substr(6,16))
-                $scope.downloadWithYubikey(location.origin + $location.search().uri)
+                var uri = $location.search().uri.split("/");
+                $scope.load(uri[2]);
+                $scope.downloadWithYubikey(location.origin + "/file/" + uri[2] + "/" + uri[3] + "/" + uri[4]);
             } else {
                 var code = $location.search().errcode;
                 $dialog.alert({ status: code, message: err });
@@ -270,7 +301,6 @@ function UploadCtrl($scope, $dialog, $route, $location, $api) {
 
     $scope.getFileUrl = function(file,dl) {
         if(!file || !file.metadata) return;
-
         var url = location.origin + '/file/' + $scope.upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName
         if(dl) {
             url += "?dl=1";
@@ -372,8 +402,8 @@ function UploadCtrl($scope, $dialog, $route, $location, $api) {
 function ClientListCtrl($scope, $location) {
     $scope.clients = []
     
-    $scope.addClient = function(name,arch,exe) {
-        var binary = exe ? "plik.exe" : "plik"
+    $scope.addClient = function(name,arch,binary) {
+        if(!binary) binary = "plik";
         $scope.clients.push({name : name, url : location.origin + "/clients/" + arch + "/" + binary });
     }
     
@@ -387,8 +417,9 @@ function ClientListCtrl($scope, $location) {
     $scope.addClient("Freebsd ARM","freebsd-arm");
     $scope.addClient("Openbsd 64bit","openbsd-amd64");
     $scope.addClient("Openbsd 32bit","openbsd-386");
-    $scope.addClient("Windows 64bit","windows-amd64",true);
-    $scope.addClient("Windows 32bit","windows-386",true);
+    $scope.addClient("Windows 64bit","windows-amd64","plik.exe");
+    $scope.addClient("Windows 32bit","windows-386","plik.exe");
+    $scope.addClient("Bash (curl)","bash","plik.sh");
 }
 
 function AlertDialogController($rootScope, $scope, $modalInstance, args) {

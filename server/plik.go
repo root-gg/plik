@@ -1,9 +1,8 @@
 /* The MIT License (MIT)
 
 Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr> : core, file (data/metadata) backend, shorten backends
-	- Charles-Antoine Mathieu <skatkatt@root.gg> : core, frontend, mongo metadata backend, cli client
-	- Loïc Porte <bewiwi@bibabox.fr> : swift databackend, tests
+	- Mathieu Bodjikian <mathieu@bodjikian.fr>
+	- Charles-Antoine Mathieu <skatkatt@root.gg>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
