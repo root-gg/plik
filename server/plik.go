@@ -167,18 +167,18 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	case -1:
 		if common.Config.MaxTtl != 0 {
 			ctx.Warningf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTtl)
-			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTtl), nil).ToJsonString(), 500)
+			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTtl), nil).ToJsonString(), 400)
 			return
 		}
 	default:
 		if upload.Ttl < 0 {
 			ctx.Warningf("Invalid value for ttl : %d", upload.Ttl)
-			http.Error(resp, common.NewResult(fmt.Sprintf("Invalid value for ttl : %d", upload.Ttl), nil).ToJsonString(), 500)
+			http.Error(resp, common.NewResult(fmt.Sprintf("Invalid value for ttl : %d", upload.Ttl), nil).ToJsonString(), 400)
 			return
 		}
 		if common.Config.MaxTtl != 0 && upload.Ttl > common.Config.MaxTtl {
 			ctx.Warningf("Cannot set ttl to %d (maximum allowed is : %d)", upload.Ttl, common.Config.MaxTtl)
-			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set ttl to %d (maximum allowed is : %d)", upload.Ttl, common.Config.MaxTtl), nil).ToJsonString(), 500)
+			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set ttl to %d (maximum allowed is : %d)", upload.Ttl, common.Config.MaxTtl), nil).ToJsonString(), 400)
 			return
 		}
 	}
@@ -212,7 +212,7 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 		upload.ProtectedByYubikey = true
 
 		if !common.Config.YubikeyEnabled {
-			ctx.Warningf("Got a yubikey upload but Yubikey backend is disabled")
+			ctx.Warningf("Got a Yubikey upload but Yubikey backend is disabled")
 			http.Error(resp, common.NewResult("Yubikey are disabled on this server", nil).ToJsonString(), 500)
 			return
 		}
@@ -226,7 +226,7 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 
 		if !ok {
 			ctx.Warningf("Invalid yubikey token")
-			http.Error(resp, common.NewResult("Invalid yubikey token", nil).ToJsonString(), 500)
+			http.Error(resp, common.NewResult("Invalid yubikey token", nil).ToJsonString(), 401)
 			return
 		}
 
@@ -256,7 +256,7 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	err = metadata_backend.GetMetaDataBackend().Create(ctx.Fork("create metadata"), upload)
 	if err != nil {
 		ctx.Warningf("Create new upload error : %s", err)
-		http.Error(resp, common.NewResult("Invalid yubikey token", nil).ToJsonString(), 500)
+		http.Error(resp, common.NewResult("Unable to create new upload", nil).ToJsonString(), 500)
 		return
 	}
 
@@ -416,7 +416,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 		// Error if yubikey is disabled on server, and enabled on upload
 		if !common.Config.YubikeyEnabled {
-			ctx.Warningf("Got a yubikey upload but Yubikey backend is disabled")
+			ctx.Warningf("Got a Yubikey upload but Yubikey backend is disabled")
 			redirect(req, resp, errors.New("Yubikey are disabled on this server"), 500)
 			return
 		}
