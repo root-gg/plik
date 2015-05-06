@@ -50,9 +50,6 @@ type Configuration struct {
 	SslCert    string
 	SslKey     string
 
-	UploadIdLength int
-	FileIdLength   int
-
 	YubikeyEnabled   bool
 	YubikeyApiKey    string
 	YubikeyApiSecret string
