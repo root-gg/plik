@@ -165,7 +165,6 @@ function UploadCtrl($scope, $dialog, $route, $location, $api) {
 
     $scope.upload = {};
     $scope.files = [];
-    $scope.ttl = { value : 30, unit : "day", units : ["min","hour","day"] };
     $scope.yubikey = false;
     $scope.password = false;
 
@@ -382,14 +381,17 @@ function UploadCtrl($scope, $dialog, $route, $location, $api) {
         $scope.ttl.unit = $scope.ttl.units[index];
     }
 
+    $scope.ttlUnits = ["days","hours","minutes"];
+    $scope.ttlUnit = "days";
+    $scope.ttlValue = 30;
     $scope.getTTL = function() {
-        var ttl = $scope.ttl.value
-        if ( ttl > 0) {
-            if ($scope.ttl.unit == "min") {
+        var ttl = $scope.ttlValue;
+        if (ttl > 0) {
+            if ($scope.ttlUnit == "minutes") {
                 ttl = ttl * 60;
-            } else if ($scope.ttl.unit == "hour") {
+            } else if ($scope.ttlUnit == "hours") {
                 ttl = ttl * 3600;
-            } else if ($scope.ttl.unit == "day") {
+            } else if ($scope.ttlUnit == "days") {
                 ttl = ttl * 86400;
             }
         }

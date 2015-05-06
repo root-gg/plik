@@ -1,5 +1,4 @@
 .area{
-
     position: absolute;
     top:15%;
     bottom: 0;
@@ -46,16 +45,11 @@
     user-select: none;
 }
 
-.main {
-    /*text-align: center;*/
-}
-
 .table td,th {
     text-align: center;
 }
 
 .table {
-    table-layout: fixed;
     word-wrap: break-word;
 }
 
