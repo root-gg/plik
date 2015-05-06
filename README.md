@@ -14,7 +14,7 @@ Plik is an simple and powerful file uploading system written in golang.
    - Yubikey : Protect the upload with your yubikey. You'll need an OTP per download
 
 ### Version
-1.0-RC2
+1.0-RC3
 
 
 ### Installation
@@ -22,9 +22,9 @@ Plik is an simple and powerful file uploading system written in golang.
 ##### From release
 To run plik, it's very simple :
 ```sh
-$ wget https://github.com/root-gg/plik/releases/download/1.0-RC2/plik-1.0-RC2.tar.gz
-$ tar xvf plik-1.0-RC2.tar.gz
-$ cd plik-1.0-RC2/server
+$ wget https://github.com/root-gg/plik/releases/download/1.0-RC3/plik-1.0-RC3.tar.gz
+$ tar xvf plik-1.0-RC3.tar.gz
+$ cd plik-1.0-RC3/server
 $ ./plikd
 ```
 Et voilà ! You have how a fully functionnal instance of plik ruuning on http://127.0.0.1:8080. You can edit server/plikd.cfg to adapt the params to your needs (ports, ssl, ttl, backends params,...)

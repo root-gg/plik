@@ -1,9 +1,8 @@
 /* The MIT License (MIT)
 
 Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr> : core, file (data/metadata) backend, shorten backends
-	- Charles-Antoine Mathieu <skatkatt@root.gg> : core, frontend, mongo metadata backend, cli client
-	- Loïc Porte <bewiwi@bibabox.fr> : swift databackend, tests
+	- Mathieu Bodjikian <mathieu@bodjikian.fr>
+	- Charles-Antoine Mathieu <skatkatt@root.gg>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -69,8 +68,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	log.Infof("Starting plikd server v" + common.PlikVersion)
 	common.LoadConfiguration(*configFile)
+	log.Infof("Starting plikd server v" + common.PlikVersion)
 
 	// Initialize all backends
 	metadata_backend.Initialize()
@@ -95,7 +94,7 @@ func main() {
 	// Start HTTP server
 	go func() {
 		var err error
-		if common.Config.SslCert != "" && common.Config.SslKey != "" {
+		if common.Config.SslEnabled {
 			address := common.Config.ListenAddress + ":" + strconv.Itoa(common.Config.ListenPort)
 			tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10}
 			server := &http.Server{Addr: address, Handler: r, TLSConfig: tlsConfig}
@@ -134,8 +133,8 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	ctx.SetUpload(upload.Id)
 
 	// Read request body
-	// TODO Limit body size
 	defer req.Body.Close()
+	req.Body = http.MaxBytesReader(resp, req.Body, 1048576)
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		ctx.Warningf("Unable to read request body : %s", err)
@@ -157,6 +156,7 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	upload.Create()
 	ctx.SetUpload(upload.Id)
 	upload.RemoteIp = req.RemoteAddr
+	uploadToken := upload.UploadToken
 
 	// TTL = Time in second before the upload expiration
 	// 0 	-> No ttl specified : default value from configuration
@@ -167,18 +167,18 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	case -1:
 		if common.Config.MaxTtl != 0 {
 			ctx.Warningf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTtl)
-			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTtl), nil).ToJsonString(), 500)
+			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTtl), nil).ToJsonString(), 400)
 			return
 		}
 	default:
 		if upload.Ttl < 0 {
 			ctx.Warningf("Invalid value for ttl : %d", upload.Ttl)
-			http.Error(resp, common.NewResult(fmt.Sprintf("Invalid value for ttl : %d", upload.Ttl), nil).ToJsonString(), 500)
+			http.Error(resp, common.NewResult(fmt.Sprintf("Invalid value for ttl : %d", upload.Ttl), nil).ToJsonString(), 400)
 			return
 		}
 		if common.Config.MaxTtl != 0 && upload.Ttl > common.Config.MaxTtl {
 			ctx.Warningf("Cannot set ttl to %d (maximum allowed is : %d)", upload.Ttl, common.Config.MaxTtl)
-			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set ttl to %d (maximum allowed is : %d)", upload.Ttl, common.Config.MaxTtl), nil).ToJsonString(), 500)
+			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set ttl to %d (maximum allowed is : %d)", upload.Ttl, common.Config.MaxTtl), nil).ToJsonString(), 400)
 			return
 		}
 	}
@@ -210,7 +210,14 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	// The 32 lasts characters are the actual OTP
 	if upload.Yubikey != "" {
 		upload.ProtectedByYubikey = true
-		ok, err := common.YubikeyCheckToken(upload.Yubikey)
+
+		if !common.Config.YubikeyEnabled {
+			ctx.Warningf("Got a Yubikey upload but Yubikey backend is disabled")
+			http.Error(resp, common.NewResult("Yubikey are disabled on this server", nil).ToJsonString(), 500)
+			return
+		}
+
+		_, ok, err := common.Config.YubiAuth.Verify(upload.Yubikey)
 		if err != nil {
 			ctx.Warningf("Unable to validate yubikey token : %s", err)
 			http.Error(resp, common.NewResult("Unable to validate yubikey token", nil).ToJsonString(), 500)
@@ -219,7 +226,7 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 
 		if !ok {
 			ctx.Warningf("Invalid yubikey token")
-			http.Error(resp, common.NewResult("Invalid yubikey token", nil).ToJsonString(), 500)
+			http.Error(resp, common.NewResult("Invalid yubikey token", nil).ToJsonString(), 401)
 			return
 		}
 
@@ -249,13 +256,16 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	err = metadata_backend.GetMetaDataBackend().Create(ctx.Fork("create metadata"), upload)
 	if err != nil {
 		ctx.Warningf("Create new upload error : %s", err)
-		http.Error(resp, common.NewResult("Invalid yubikey token", nil).ToJsonString(), 500)
+		http.Error(resp, common.NewResult("Unable to create new upload", nil).ToJsonString(), 500)
 		return
 	}
 
 	// Remove all private informations (ip, data backend details, ...) before
 	// sending metadata back to the client
 	upload.Sanitize()
+
+	// Show upload token since its an upload creation
+	upload.UploadToken = uploadToken
 
 	// Print upload metadata in the json response.
 	var json []byte
@@ -284,6 +294,8 @@ func getUploadHandler(resp http.ResponseWriter, req *http.Request) {
 		http.Error(resp, common.NewResult(fmt.Sprintf("Upload %s not found", uploadId), nil).ToJsonString(), 404)
 		return
 	}
+
+	ctx.Infof("Got upload from metadata backend")
 
 	// Handle basic auth if upload is password protected
 	err = httpBasicAuth(req, resp, upload)
@@ -339,15 +351,14 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	err = httpBasicAuth(req, resp, upload)
 	if err != nil {
 		ctx.Warningf("Unauthorized : %s", err)
-		redirect(req, resp, errors.New(fmt.Sprintf("Unauthorized", uploadId)), 401)
 		return
 	}
 
 	// Test if upload is not expired
 	if upload.Ttl != 0 {
-		if time.Now().Unix() > (upload.Creation + int64(upload.Ttl)) {
+		if time.Now().Unix() >= (upload.Creation + int64(upload.Ttl)) {
 			ctx.Warningf("Upload is expired since %s", time.Since(time.Unix(upload.Creation, int64(0)).Add(time.Duration(upload.Ttl)*time.Second)).String())
-			redirect(req, resp, errors.New(fmt.Sprintf("Upload %s is expired", upload.Id)), 403)
+			redirect(req, resp, errors.New(fmt.Sprintf("Upload %s is expired", upload.Id)), 404)
 			return
 		}
 	}
@@ -403,7 +414,14 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		isValid, err := common.YubikeyCheckToken(token)
+		// Error if yubikey is disabled on server, and enabled on upload
+		if !common.Config.YubikeyEnabled {
+			ctx.Warningf("Got a Yubikey upload but Yubikey backend is disabled")
+			redirect(req, resp, errors.New("Yubikey are disabled on this server"), 500)
+			return
+		}
+
+		_, isValid, err := common.Config.YubiAuth.Verify(token)
 		if err != nil {
 			ctx.Warningf("Failed to validate yubikey token : %s", err)
 			redirect(req, resp, errors.New("Invalid yubikey token"), 401)
@@ -466,6 +484,12 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 				ctx.Warningf("Error while deleting file %s from upload %s : %s", file.Name, upload.Id, err)
 				return
 			}
+		}
+
+		// Remove upload if no files are available
+		err = RemoveUploadIfNoFileAvailable(ctx, upload)
+		if err != nil {
+			ctx.Warningf("Error while checking if upload can be removed : %s", err)
 		}
 	}
 }
@@ -654,7 +678,13 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	err = httpBasicAuth(req, resp, upload)
 	if err != nil {
 		ctx.Warningf("Unauthorized : %s", err)
-		redirect(req, resp, errors.New(fmt.Sprintf("Unauthorized", uploadId)), 401)
+		return
+	}
+
+	// Test if upload is removable
+	if !upload.Removable {
+		ctx.Warningf("User tried to remove file %s of an non removeable upload", fileId)
+		redirect(req, resp, errors.New(fmt.Sprintf("Can't remove files on this upload", uploadId)), 401)
 		return
 	}
 
@@ -681,7 +711,11 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// TODO Remove upload if there is no more files available
+	// Remove upload if no files anymore
+	err = RemoveUploadIfNoFileAvailable(ctx, upload)
+	if err != nil {
+		ctx.Warningf("Error occured when checking if upload can be removed : %s", err)
+	}
 
 	// Print upload metadata in the json response.
 	var json []byte
@@ -798,4 +832,32 @@ func UploadsCleaningRoutine() {
 			}
 		}
 	}
+}
+
+// Removing upload if there is no available files
+func RemoveUploadIfNoFileAvailable(ctx *common.PlikContext, upload *common.Upload) (err error) {
+
+	// Test if there are remaining files
+	filesInUpload := len(upload.Files)
+	for _, f := range upload.Files {
+		if f.Status == "downloaded" {
+			filesInUpload--
+		}
+	}
+
+	if filesInUpload == 0 {
+
+		ctx.Debugf("No more files in upload. Removing all informations.")
+
+		err = data_backend.GetDataBackend().RemoveUpload(ctx, upload)
+		if err != nil {
+			return
+		}
+		err = metadata_backend.GetMetaDataBackend().Remove(ctx, upload)
+		if err != nil {
+			return
+		}
+	}
+
+	return
 }

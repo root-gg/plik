@@ -8,10 +8,10 @@ module.exports = function(grunt) {
                 src: [
                     "bower_components/jquery/dist/jquery.js",
                     "bower_components/bootstrap/dist/js/bootstrap.js",
-                    "bower_components/danialfarid-angular-file-upload/dist/angular-file-upload-html5-shim.js",
                     "bower_components/angular/angular.js",
+                    "bower_components/danialfarid-angular-file-upload/dist/ng-file-upload-shim.js",
+                    "bower_components/danialfarid-angular-file-upload/dist/ng-file-upload.js",
                     "bower_components/angular-sanitize/angular-sanitize.min.js",
-                    "bower_components/danialfarid-angular-file-upload/dist/angular-file-upload.js",
                     "bower_components/angular-route/angular-route.js",
                     "bower_components/angular-bootstrap/ui-bootstrap-tpls.js",
                     "bower_components/ng-clip/dest/ng-clip.min.js",
@@ -28,8 +28,7 @@ module.exports = function(grunt) {
             css_vendors: {
                 src: [
                     "bower_components/bootstrap/dist/css/bootstrap.css",
-                    "bower_components/fontawesome/css/font-awesome.css",
-                    "bower_components/bootstrap-switch/dist/css/bootstrap3/bootstrap-switch.css",
+                    "bower_components/fontawesome/css/font-awesome.css"
                 ],
                 dest: 'public/css/vendor.css'
             }
