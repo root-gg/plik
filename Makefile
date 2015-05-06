@@ -27,6 +27,7 @@ clean:
 clients:
 	@cd client && go get -v
 	@client/build.sh clients
+	@mkdir -p clients/bash && cp client/plik.sh clients/bash
 
 release: clean build clients
 	@mkdir -p $(RELEASE_DIR)/server/public
