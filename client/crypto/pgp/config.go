@@ -27,35 +27,30 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package archive
+package pgp
 
 import (
-	"errors"
-	"io"
+	"os"
 
-	"github.com/root-gg/plik/client/archive/tar"
-	"github.com/root-gg/plik/client/archive/zip"
+	"github.com/root-gg/utils"
+	"golang.org/x/crypto/openpgp"
 )
 
-// Backend interface describe methods that the different
-// types of archive backend must implement to work.
-type Backend interface {
-	Configure(arguments map[string]interface{}) (err error)
-	Archive(files []string, writer io.WriteCloser) (name string, err error)
-	Comments() (comments string)
-	GetConfiguration() interface{}
+// BackendConfig object
+type BackendConfig struct {
+	Gpg       string
+	Keyring   string
+	Recipient string
+	Email     string
+	Entity    *openpgp.Entity
 }
 
-// NewArchiveBackend instantiate the wanted archive backend with the name provided in configuration file
-// We are passing its configuration found in .plikrc file or arguments
-func NewArchiveBackend(name string, config map[string]interface{}) (backend Backend, err error) {
-	switch name {
-	case "tar":
-		backend, err = tar.NewTarBackend(config)
-	case "zip":
-		backend, err = zip.NewZipBackend(config)
-	default:
-		err = errors.New("Invalid archive backend")
-	}
+// NewPgpBackendConfig instantiate a new Backend Configuration
+// from config map passed as argument
+func NewPgpBackendConfig(config map[string]interface{}) (pb *BackendConfig) {
+	pb = new(BackendConfig)
+	pb.Gpg = "/usr/bin/gpg"
+	pb.Keyring = os.Getenv("HOME") + "/.gnupg/pubring.gpg"
+	utils.Assign(pb, config)
 	return
 }

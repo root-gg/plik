@@ -36,35 +36,23 @@ import (
 	"os/exec"
 
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 )
 
-type OpenSSLBackendConfig struct {
-	Openssl    string
-	Cipher     string
-	Passphrase string
-	Options    string
+// Backend object
+type Backend struct {
+	Config *BackendConfig
 }
 
-func NewOpenSSLBackendConfig(config map[string]interface{}) (ob *OpenSSLBackendConfig) {
-	ob = new(OpenSSLBackendConfig)
-	ob.Openssl = "/usr/bin/openssl"
-	ob.Cipher = "aes256"
-	utils.Assign(ob, config)
-	return
-}
-
-type OpenSSLBackend struct {
-	Config *OpenSSLBackendConfig
-}
-
-func NewOpenSSLBackend(config map[string]interface{}) (ob *OpenSSLBackend) {
-	ob = new(OpenSSLBackend)
+// NewOpenSSLBackend instantiate a new PGP Crypto Backend
+// and configure it from config map
+func NewOpenSSLBackend(config map[string]interface{}) (ob *Backend) {
+	ob = new(Backend)
 	ob.Config = NewOpenSSLBackendConfig(config)
 	return
 }
 
-func (ob *OpenSSLBackend) Configure(arguments map[string]interface{}) (err error) {
+// Configure implementation for OpenSSL Crypto Backend
+func (ob *Backend) Configure(arguments map[string]interface{}) (err error) {
 	if arguments["--openssl"] != nil && arguments["--openssl"].(string) != "" {
 		ob.Config.Openssl = arguments["--openssl"].(string)
 	}
@@ -81,7 +69,7 @@ func (ob *OpenSSLBackend) Configure(arguments map[string]interface{}) (err error
 			}
 		}
 	} else {
-		ob.Config.Passphrase = common.GenerateRandomId(25)
+		ob.Config.Passphrase = common.GenerateRandomID(25)
 		fmt.Println("Passphrase : " + ob.Config.Passphrase)
 	}
 	if arguments["--secure-options"] != nil && arguments["--secure-options"].(string) != "" {
@@ -91,7 +79,8 @@ func (ob *OpenSSLBackend) Configure(arguments map[string]interface{}) (err error
 	return
 }
 
-func (ob *OpenSSLBackend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
+// Encrypt implementation for OpenSSL Crypto Backend
+func (ob *Backend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
 	passReader, passWriter, err := os.Pipe()
 	if err != nil {
 		fmt.Printf("Unable to make pipe : %s\n", err)
@@ -130,10 +119,12 @@ func (ob *OpenSSLBackend) Encrypt(reader io.Reader, writer io.Writer) (err error
 	return
 }
 
-func (ob *OpenSSLBackend) Comments() string {
+// Comments implementation for OpenSSL Crypto Backend
+func (ob *Backend) Comments() string {
 	return fmt.Sprintf("openssl %s -d -pass pass:%s", ob.Config.Cipher, ob.Config.Passphrase)
 }
 
-func (ob *OpenSSLBackend) GetConfiguration() interface{} {
+// GetConfiguration implementation for OpenSSL Crypto Backend
+func (ob *Backend) GetConfiguration() interface{} {
 	return ob.Config
 }

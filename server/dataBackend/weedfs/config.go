@@ -1,6 +1,6 @@
 /**
 
-    Plik upload server
+    Plik upload client
 
 The MIT License (MIT)
 
@@ -27,38 +27,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package shorten_backend
+package weedfs
 
 import (
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/shorten_backend/isgd"
-	"github.com/root-gg/plik/server/shorten_backend/w000t"
+	"github.com/root-gg/utils"
 )
 
-var shortenBackend ShortenBackend
-
-type ShortenBackend interface {
-	Shorten(ctx *common.PlikContext, longUrl string) (string, error)
+// BackendConfig describes configuration for WeedFS Databackend
+type BackendConfig struct {
+	MasterURL          string
+	ReplicationPattern string
 }
 
-func GetShortenBackend() ShortenBackend {
-	if shortenBackend == nil {
-		Initialize()
-	}
-	return shortenBackend
-}
-
-func Initialize() {
-	if common.Config.ShortenBackend != "" {
-		if shortenBackend == nil {
-			switch common.Config.ShortenBackend {
-			case "w000t.me":
-				shortenBackend = w000t.NewW000tMeShortenBackend(common.Config.ShortenBackendConfig)
-			case "is.gd":
-				shortenBackend = isgd.NewIsGdShortenBackend(common.Config.ShortenBackendConfig)
-			default:
-				common.Log().Fatalf("Invalid shorten backend %s", common.Config.DataBackend)
-			}
-		}
-	}
+// NewWeedFsBackendConfig instantiate a new default configuration
+// and override it with configuration passed as argument
+func NewWeedFsBackendConfig(config map[string]interface{}) (weedFs *BackendConfig) {
+	weedFs = new(BackendConfig)
+	weedFs.MasterURL = "http://127.0.0.1:9333"
+	weedFs.ReplicationPattern = "000"
+	utils.Assign(weedFs, config)
+	return
 }

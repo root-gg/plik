@@ -34,15 +34,20 @@ import (
 	"time"
 )
 
+var (
+	randRunes = []rune("abcdefghijklmnopqrstABCDEFGHIJKLMNOP0123456789")
+)
+
+// Upload object
 type Upload struct {
-	Id          string           `json:"id" bson:"id"`
+	ID          string           `json:"id" bson:"id"`
 	Creation    int64            `json:"uploadDate" bson:"uploadDate"`
 	Comments    string           `json:"comments" bson:"comments"`
 	Files       map[string]*File `json:"files" bson:"files"`
-	RemoteIp    string           `json:"uploadIp,omitempty" bson:"uploadIp"`
-	ShortUrl    string           `json:"shortUrl" bson:"shortUrl"`
+	RemoteIP    string           `json:"uploadIp,omitempty" bson:"uploadIp"`
+	ShortURL    string           `json:"shortUrl" bson:"shortUrl"`
 	UploadToken string           `json:"uploadToken,omitempty" bson:"uploadToken"`
-	Ttl         int              `json:"ttl" bson:"ttl"`
+	TTL         int              `json:"ttl" bson:"ttl"`
 
 	OneShot   bool `json:"oneShot" bson:"oneShot"`
 	Removable bool `json:"removable" bson:"removable"`
@@ -55,21 +60,27 @@ type Upload struct {
 	Yubikey            string `json:"yubikey,omitempty" bson:"yubikey"`
 }
 
+// NewUpload instantiate a new upload object
 func NewUpload() (upload *Upload) {
 	upload = new(Upload)
 	upload.Files = make(map[string]*File)
 	return
 }
 
+// Create fills token, id, date
+// We have split in two functions because, the unmarshalling made
+// in http handlers would erase the fields
 func (upload *Upload) Create() {
-	upload.Id = GenerateRandomId(16)
+	upload.ID = GenerateRandomID(16)
 	upload.Creation = time.Now().Unix()
 	upload.Files = make(map[string]*File)
-	upload.UploadToken = GenerateRandomId(32)
+	upload.UploadToken = GenerateRandomID(32)
 }
 
+// Sanitize removes sensible information from
+// object. Used to hide information in API.
 func (upload *Upload) Sanitize() {
-	upload.RemoteIp = ""
+	upload.RemoteIP = ""
 	upload.Password = ""
 	upload.Yubikey = ""
 	upload.UploadToken = ""
@@ -78,9 +89,9 @@ func (upload *Upload) Sanitize() {
 	}
 }
 
-var randRunes = []rune("abcdefghijklmnopqrstABCDEFGHIJKLMNOP0123456789")
-
-func GenerateRandomId(length int) string {
+// GenerateRandomID generates a random string with specified length.
+// Used to generate upload id, tokens, ...
+func GenerateRandomID(length int) string {
 	b := make([]rune, length)
 	for i := range b {
 		b[i] = randRunes[rand.Intn(len(randRunes))]

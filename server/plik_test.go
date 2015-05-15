@@ -45,7 +45,7 @@ import (
 )
 
 var (
-	plikUrl         = "http://127.0.0.1:8080"
+	plikURL         = "http://127.0.0.1:8080"
 	basicAuth       = ""
 	client          = &http.Client{}
 	contentToUpload = "PLIK"
@@ -80,7 +80,7 @@ func TestMultipleFilesUploadAndGet(t *testing.T) {
 
 func TestNonExistingUpload(t *testing.T) {
 	fake := common.NewUpload()
-	fake.Id = "f4s6f4sd4f56sd4f64sd6f4s64f6sd4f4s56df4s"
+	fake.ID = "f4s6f4sd4f56sd4f64sd6f4s64f6sd4f4s56df4s"
 	test("getUpload", fake, nil, 404, t)
 }
 
@@ -92,13 +92,13 @@ func TestNonExistingFile(t *testing.T) {
 	test("getUpload", upload, nil, 200, t)
 
 	// Good file id, bad file name
-	test("getFile", upload, &common.File{Id: file.Id, Name: "plop"}, 404, t)
+	test("getFile", upload, &common.File{ID: file.ID, Name: "plop"}, 404, t)
 
 	// Bad file id, bad file name
-	test("getFile", upload, &common.File{Id: "dfsmlkdsflmks", Name: "plop"}, 404, t)
+	test("getFile", upload, &common.File{ID: "dfsmlkdsflmks", Name: "plop"}, 404, t)
 
 	// Bad file id, good file name
-	test("getFile", upload, &common.File{Id: "dfsmlkdsflmks", Name: file.Name}, 404, t)
+	test("getFile", upload, &common.File{ID: "dfsmlkdsflmks", Name: file.Name}, 404, t)
 }
 
 func TestOneShot(t *testing.T) {
@@ -141,7 +141,7 @@ func TestBasicAuth(t *testing.T) {
 }
 
 func TestTtl(t *testing.T) {
-	upload := createUpload(&common.Upload{Ttl: 1}, t)
+	upload := createUpload(&common.Upload{TTL: 1}, t)
 	file := uploadFile(upload, "test", readerForUpload, t)
 
 	// Should work
@@ -159,8 +159,8 @@ func TestTtl(t *testing.T) {
 //
 
 func createUpload(uploadParams *common.Upload, t *testing.T) (upload *common.Upload) {
-	var Url *url.URL
-	Url, err = url.Parse(plikUrl + "/upload")
+	var URL *url.URL
+	URL, err = url.Parse(plikURL + "/upload")
 	if err != nil {
 		t.Fatalf("Error parsing url : %s", err)
 	}
@@ -172,14 +172,14 @@ func createUpload(uploadParams *common.Upload, t *testing.T) (upload *common.Upl
 	}
 
 	var req *http.Request
-	req, err = http.NewRequest("POST", Url.String(), bytes.NewBuffer(j))
+	req, err = http.NewRequest("POST", URL.String(), bytes.NewBuffer(j))
 	if err != nil {
 		t.Fatalf("Error creating request : %s", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-ClientApp", "go_test")
-	req.Header.Set("Referer", plikUrl)
+	req.Header.Set("Referer", plikURL)
 
 	var resp *http.Response
 	resp, err = client.Do(req)
@@ -224,14 +224,14 @@ func uploadFile(uploadInfo *common.Upload, name string, reader *strings.Reader, 
 		return pipeWriter.CloseWithError(err)
 	}()
 
-	var Url *url.URL
-	Url, err = url.Parse(plikUrl + "/upload/" + uploadInfo.Id + "/file")
+	var URL *url.URL
+	URL, err = url.Parse(plikURL + "/upload/" + uploadInfo.ID + "/file")
 	if err != nil {
 		t.Fatalf("Error parsing url : %s", err)
 	}
 
 	var req *http.Request
-	req, err = http.NewRequest("POST", Url.String(), pipeReader)
+	req, err = http.NewRequest("POST", URL.String(), pipeReader)
 	if err != nil {
 		t.Fatalf("Error creating file upload request : %s", err)
 	}
@@ -264,7 +264,7 @@ func uploadFile(uploadInfo *common.Upload, name string, reader *strings.Reader, 
 	}
 
 	// Put it in upload infos
-	uploadInfo.Files[file.Id] = file
+	uploadInfo.Files[file.ID] = file
 
 	// Rewind reader
 	reader.Seek(0, 0)
@@ -272,16 +272,16 @@ func uploadFile(uploadInfo *common.Upload, name string, reader *strings.Reader, 
 	return
 }
 
-func getUpload(uploadId string) (httpCode int, upload *common.Upload, err error) {
+func getUpload(uploadID string) (httpCode int, upload *common.Upload, err error) {
 
-	var Url *url.URL
-	Url, err = url.Parse(plikUrl + "/upload/" + uploadId)
+	var URL *url.URL
+	URL, err = url.Parse(plikURL + "/upload/" + uploadID)
 	if err != nil {
 		return
 	}
 
 	var req *http.Request
-	req, err = http.NewRequest("GET", Url.String(), nil)
+	req, err = http.NewRequest("GET", URL.String(), nil)
 	if err != nil {
 		return
 	}
@@ -311,14 +311,14 @@ func getUpload(uploadId string) (httpCode int, upload *common.Upload, err error)
 
 func getFile(upload *common.Upload, file *common.File) (httpCode int, content string, err error) {
 
-	var Url *url.URL
-	Url, err = url.Parse(plikUrl + "/file/" + upload.Id + "/" + file.Id + "/" + file.Name)
+	var URL *url.URL
+	URL, err = url.Parse(plikURL + "/file/" + upload.ID + "/" + file.ID + "/" + file.Name)
 	if err != nil {
 		return
 	}
 
 	var req *http.Request
-	req, err = http.NewRequest("GET", Url.String(), nil)
+	req, err = http.NewRequest("GET", URL.String(), nil)
 	if err != nil {
 		return
 	}
@@ -347,14 +347,14 @@ func getFile(upload *common.Upload, file *common.File) (httpCode int, content st
 
 func removeFile(upload *common.Upload, file *common.File) (httpCode int, err error) {
 
-	var Url *url.URL
-	Url, err = url.Parse(plikUrl + "/upload/" + upload.Id + "/file/" + file.Id)
+	var URL *url.URL
+	URL, err = url.Parse(plikURL + "/upload/" + upload.ID + "/file/" + file.ID)
 	if err != nil {
 		return
 	}
 
 	var req *http.Request
-	req, err = http.NewRequest("DELETE", Url.String(), nil)
+	req, err = http.NewRequest("DELETE", URL.String(), nil)
 	if err != nil {
 		return
 	}
@@ -371,22 +371,22 @@ func removeFile(upload *common.Upload, file *common.File) (httpCode int, err err
 	return
 }
 
-func test(action string, upload *common.Upload, file *common.File, expectedHttpCode int, t *testing.T) {
+func test(action string, upload *common.Upload, file *common.File, expectedHTTPCode int, t *testing.T) {
 
-	t.Logf("Try to %s on upload %s. We should get a %d : ", action, upload.Id, expectedHttpCode)
+	t.Logf("Try to %s on upload %s. We should get a %d : ", action, upload.ID, expectedHTTPCode)
 
 	switch action {
 
 	case "getUpload":
 
-		code, upload, err := getUpload(upload.Id)
+		code, upload, err := getUpload(upload.ID)
 		if err != nil {
 			t.Fatalf("Failed to get upload : %s", err)
 		}
 
 		// Test code
-		if code != expectedHttpCode {
-			t.Fatalf("We got http code %d on action %s on upload %s. We expected %d", code, action, upload.Id, expectedHttpCode)
+		if code != expectedHTTPCode {
+			t.Fatalf("We got http code %d on action %s on upload %s. We expected %d", code, action, upload.ID, expectedHTTPCode)
 		} else {
 			t.Logf(" -> Got a %d. Good", code)
 		}
@@ -395,20 +395,20 @@ func test(action string, upload *common.Upload, file *common.File, expectedHttpC
 
 		code, content, err := getFile(upload, file)
 		if err != nil {
-			t.Fatalf("Failed to execute action %s on file %s from upload %s : %s", action, file.Id, upload.Id, err)
+			t.Fatalf("Failed to execute action %s on file %s from upload %s : %s", action, file.ID, upload.ID, err)
 		}
 
 		// Test code
-		if code != expectedHttpCode {
-			t.Fatalf("We got http code %d on action %s on upload %s. We expected %d", code, action, upload.Id, expectedHttpCode)
+		if code != expectedHTTPCode {
+			t.Fatalf("We got http code %d on action %s on upload %s. We expected %d", code, action, upload.ID, expectedHTTPCode)
 		} else {
 			t.Logf(" -> Got a %d. Good", code)
 		}
 
 		// Test content
-		if expectedHttpCode == 200 {
+		if expectedHTTPCode == 200 {
 			if content != contentToUpload {
-				t.Fatalf("Did not get expected content (%s) on getting file %s on upload %s. We expected %s", content, file.Id, upload.Id, contentToUpload)
+				t.Fatalf("Did not get expected content (%s) on getting file %s on upload %s. We expected %s", content, file.ID, upload.ID, contentToUpload)
 			} else {
 				t.Logf(" -> Got content : %s. Good", contentToUpload)
 			}
@@ -424,11 +424,11 @@ func test(action string, upload *common.Upload, file *common.File, expectedHttpC
 
 		code, err := removeFile(upload, file)
 		if err != nil {
-			t.Fatalf("Failed to execute action %s on file %s from upload %s : %s", action, file.Id, upload.Id, err)
+			t.Fatalf("Failed to execute action %s on file %s from upload %s : %s", action, file.ID, upload.ID, err)
 		}
 
-		if code != expectedHttpCode {
-			t.Fatalf("We got http code %d on action %s on upload %s. We expected %d", code, action, upload.Id, expectedHttpCode)
+		if code != expectedHTTPCode {
+			t.Fatalf("We got http code %d on action %s on upload %s. We expected %d", code, action, upload.ID, expectedHTTPCode)
 		} else {
 			t.Logf(" -> Got a %d. Good", code)
 		}

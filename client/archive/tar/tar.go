@@ -37,30 +37,17 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/root-gg/utils"
 )
 
-type TarBackendConfig struct {
-	Tar      string
-	Compress string
-	Options  string
+// Backend object
+type Backend struct {
+	Config *BackendConfig
 }
 
-func NewTarBackendConfig(config map[string]interface{}) (tb *TarBackendConfig) {
-	tb = new(TarBackendConfig)
-	tb.Tar = "/bin/tar"
-	tb.Compress = "gzip"
-	utils.Assign(tb, config)
-	return
-}
-
-type TarBackend struct {
-	Config *TarBackendConfig
-}
-
-func NewTarBackend(config map[string]interface{}) (tb *TarBackend, err error) {
-	tb = new(TarBackend)
+// NewTarBackend instantiate a new Tar Archive Backend
+// and configure it from config map
+func NewTarBackend(config map[string]interface{}) (tb *Backend, err error) {
+	tb = new(Backend)
 	tb.Config = NewTarBackendConfig(config)
 	if _, err = os.Stat(tb.Config.Tar); os.IsNotExist(err) || os.IsPermission(err) {
 		if tb.Config.Tar, err = exec.LookPath("tar"); err != nil {
@@ -70,7 +57,8 @@ func NewTarBackend(config map[string]interface{}) (tb *TarBackend, err error) {
 	return
 }
 
-func (tb *TarBackend) Configure(arguments map[string]interface{}) (err error) {
+// Configure implementation for TAR Archive Backend
+func (tb *Backend) Configure(arguments map[string]interface{}) (err error) {
 	if arguments["--compress"] != nil && arguments["--compress"].(string) != "" {
 		tb.Config.Compress = arguments["--compress"].(string)
 	}
@@ -80,27 +68,8 @@ func (tb *TarBackend) Configure(arguments map[string]interface{}) (err error) {
 	return
 }
 
-func getCompressExtention(mode string) string {
-	switch mode {
-	case "gzip":
-		return ".gz"
-	case "bzip2":
-		return ".bz2"
-	case "xz":
-		return ".xz"
-	case "lzip":
-		return ".lz"
-	case "lzop":
-		return ".lzo"
-	case "lzma":
-		return ".lzma"
-	case "compres":
-		return ".Z"
-	default:
-		return ""
-	}
-}
-func (tb *TarBackend) Archive(files []string, writer io.WriteCloser) (name string, err error) {
+// Archive implementation for TAR Archive Backend
+func (tb *Backend) Archive(files []string, writer io.WriteCloser) (name string, err error) {
 	if len(files) == 0 {
 		fmt.Println("Unable to make a tar archive from STDIN")
 		os.Exit(1)
@@ -113,7 +82,7 @@ func (tb *TarBackend) Archive(files []string, writer io.WriteCloser) (name strin
 	}
 	name += ".tar" + getCompressExtention(tb.Config.Compress)
 
-	args := make([]string, 0)
+	var args []string
 	args = append(args, "--create")
 	if tb.Config.Compress != "no" {
 		args = append(args, "--"+tb.Config.Compress)
@@ -146,10 +115,33 @@ func (tb *TarBackend) Archive(files []string, writer io.WriteCloser) (name strin
 	return
 }
 
-func (tb *TarBackend) Comments() string {
+// Comments implementation for TAR Archive Backend
+func (tb *Backend) Comments() string {
 	return "tar xvf -"
 }
 
-func (tb *TarBackend) GetConfiguration() interface{} {
+// GetConfiguration implementation for TAR Archive Backend
+func (tb *Backend) GetConfiguration() interface{} {
 	return tb.Config
+}
+
+func getCompressExtention(mode string) string {
+	switch mode {
+	case "gzip":
+		return ".gz"
+	case "bzip2":
+		return ".bz2"
+	case "xz":
+		return ".xz"
+	case "lzip":
+		return ".lz"
+	case "lzop":
+		return ".lzo"
+	case "lzma":
+		return ".lzma"
+	case "compres":
+		return ".Z"
+	default:
+		return ""
+	}
 }

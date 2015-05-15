@@ -27,60 +27,43 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package isgd
-
-//
-//// IS.GD Shortening Backend
-//
+package shortenBackend
 
 import (
-	"io/ioutil"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
-
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/shortenBackend/isgd"
+	"github.com/root-gg/plik/server/shortenBackend/w000t"
 )
 
-var timeout = time.Duration(time.Second)
-var client = http.Client{Timeout: timeout}
+var shortenBackend ShortenBackend
 
-type ShortenBackendIsGd struct {
-	Url   string
-	Token string
+// ShortenBackend interface describes methods that shorten backends
+// must implements to be compatible with plik.
+type ShortenBackend interface {
+	Shorten(ctx *common.PlikContext, longURL string) (string, error)
 }
 
-func NewIsGdShortenBackend(_ map[string]interface{}) *ShortenBackendIsGd {
-	isgd := new(ShortenBackendIsGd)
-	isgd.Url = "http://is.gd/create.php?format=simple"
-	return isgd
+// GetShortenBackend is a singleton pattern.
+// Init static backend if not already and return it
+func GetShortenBackend() ShortenBackend {
+	if shortenBackend == nil {
+		Initialize()
+	}
+	return shortenBackend
 }
 
-func (sb *ShortenBackendIsGd) Shorten(ctx *common.PlikContext, longUrl string) (shortUrl string, err error) {
-	defer ctx.Finalize(err)
-
-	// Request short url
-	resp, err := client.Get(sb.Url + "&url=" + url.QueryEscape(longUrl))
-	if err != nil {
-		err = ctx.EWarningf("Unable to request short url from is.gd : %s", err)
-		return
+// Initialize backend from type found in configuration
+func Initialize() {
+	if common.Config.ShortenBackend != "" {
+		if shortenBackend == nil {
+			switch common.Config.ShortenBackend {
+			case "w000t.me":
+				shortenBackend = w000t.NewW000tMeShortenBackend(common.Config.ShortenBackendConfig)
+			case "is.gd":
+				shortenBackend = isgd.NewIsGdShortenBackend(common.Config.ShortenBackendConfig)
+			default:
+				common.Log().Fatalf("Invalid shorten backend %s", common.Config.DataBackend)
+			}
+		}
 	}
-	defer resp.Body.Close()
-
-	// Read response body
-	respBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		err = ctx.EWarningf("Unable to read response from is.gd : %s", err)
-		return
-	}
-
-	// Got url ? :)
-	if !strings.HasPrefix(string(respBody), "http") {
-		err = ctx.EWarningf("Invalid response from is.gd")
-		return
-	}
-
-	ctx.Infof("Shortlink successfully created : %s", string(respBody))
-	return string(respBody), nil
 }

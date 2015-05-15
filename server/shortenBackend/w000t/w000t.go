@@ -43,29 +43,35 @@ import (
 	"github.com/root-gg/utils"
 )
 
-var timeout = time.Duration(time.Second)
-var client = http.Client{Timeout: timeout}
+var (
+	timeout = time.Duration(time.Second)
+	client  = http.Client{Timeout: timeout}
+)
 
+// ShortenBackendW000t object
 type ShortenBackendW000t struct {
-	Url   string
+	URL   string
 	Token string
 }
 
+// NewW000tMeShortenBackend instantiate a shorten backend with
+// configuration passed as argument
 func NewW000tMeShortenBackend(config map[string]interface{}) *ShortenBackendW000t {
 	w000t := new(ShortenBackendW000t)
-	w000t.Url = "https://w000t.me/w000ts.text"
+	w000t.URL = "https://w000t.me/w000ts.text"
 	w000t.Token = ""
 	utils.Assign(w000t, config)
 	return w000t
 }
 
-func (sb *ShortenBackendW000t) Shorten(ctx *common.PlikContext, longUrl string) (shortUrl string, err error) {
+// Shorten implementation for w000t.me shorten backend
+func (sb *ShortenBackendW000t) Shorten(ctx *common.PlikContext, longURL string) (shortURL string, err error) {
 	defer ctx.Finalize(err)
 
 	// Request short url
-	str := `{"w000t":{"long_url":"` + longUrl + `", "status":"hidden"}, "token":"` + sb.Token + `" }`
+	str := `{"w000t":{"long_url":"` + longURL + `", "status":"hidden"}, "token":"` + sb.Token + `" }`
 	b := strings.NewReader(str)
-	resp, err := client.Post(sb.Url, "application/json", b)
+	resp, err := client.Post(sb.URL, "application/json", b)
 	if err != nil {
 		err = ctx.EWarningf("Unable to request short url from w000t.me : %s", err)
 		return

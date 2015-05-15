@@ -47,9 +47,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/data_backend"
-	"github.com/root-gg/plik/server/metadata_backend"
-	"github.com/root-gg/plik/server/shorten_backend"
+	"github.com/root-gg/plik/server/dataBackend"
+	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/plik/server/shortenBackend"
 	"github.com/root-gg/utils"
 )
 
@@ -65,27 +65,27 @@ func main() {
 	var version = flag.Bool("version", false, "Show version of plikd")
 	flag.Parse()
 	if *version {
-		fmt.Printf("Plikd v%s\n", common.PlikVersion)
+		fmt.Printf("Plikd v%s\n", common.GetVersion())
 		os.Exit(0)
 	}
 
 	common.LoadConfiguration(*configFile)
-	log.Infof("Starting plikd server v" + common.PlikVersion)
+	log.Infof("Starting plikd server v" + common.GetVersion())
 
 	// Initialize all backends
-	metadata_backend.Initialize()
-	data_backend.Initialize()
-	shorten_backend.Initialize()
+	metadataBackend.Initialize()
+	dataBackend.Initialize()
+	shortenBackend.Initialize()
 
 	// HTTP Api routes configuration
 	r := mux.NewRouter()
 	r.HandleFunc("/upload", createUploadHandler).Methods("POST")
-	r.HandleFunc("/upload/{uploadid}", getUploadHandler).Methods("GET")
-	r.HandleFunc("/upload/{uploadid}/file", addFileHandler).Methods("POST")
-	r.HandleFunc("/upload/{uploadid}/file/{fileid}", getFileHandler).Methods("GET")
-	r.HandleFunc("/upload/{uploadid}/file/{fileid}", removeFileHandler).Methods("DELETE")
-	r.HandleFunc("/file/{uploadid}/{fileid}/{filename}", getFileHandler).Methods("GET", "HEAD")
-	r.HandleFunc("/file/{uploadid}/{fileid}/{filename}/yubikey/{yubikey}", getFileHandler).Methods("GET")
+	r.HandleFunc("/upload/{uploadID}", getUploadHandler).Methods("GET")
+	r.HandleFunc("/upload/{uploadID}/file", addFileHandler).Methods("POST")
+	r.HandleFunc("/upload/{uploadID}/file/{fileID}", getFileHandler).Methods("GET")
+	r.HandleFunc("/upload/{uploadID}/file/{fileID}", removeFileHandler).Methods("DELETE")
+	r.HandleFunc("/file/{uploadID}/{fileID}/{filename}", getFileHandler).Methods("GET", "HEAD")
+	r.HandleFunc("/file/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", getFileHandler).Methods("GET")
 	r.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
 	http.Handle("/", r)
@@ -131,7 +131,7 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	defer ctx.Finalize(err)
 
 	upload := common.NewUpload()
-	ctx.SetUpload(upload.Id)
+	ctx.SetUpload(upload.ID)
 
 	// Read request body
 	defer req.Body.Close()
@@ -139,7 +139,7 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		ctx.Warningf("Unable to read request body : %s", err)
-		http.Error(resp, common.NewResult("Unable to read request body", nil).ToJsonString(), 500)
+		http.Error(resp, common.NewResult("Unable to read request body", nil).ToJSONString(), 500)
 		return
 	}
 
@@ -148,38 +148,38 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 		err = json.Unmarshal(body, upload)
 		if err != nil {
 			ctx.Warningf("Unable to deserialize request body : %s", err)
-			http.Error(resp, common.NewResult("Unable to deserialize json request body", nil).ToJsonString(), 500)
+			http.Error(resp, common.NewResult("Unable to deserialize json request body", nil).ToJSONString(), 500)
 			return
 		}
 	}
 
 	// Set upload id, creation date, upload token, ...
 	upload.Create()
-	ctx.SetUpload(upload.Id)
-	upload.RemoteIp = req.RemoteAddr
+	ctx.SetUpload(upload.ID)
+	upload.RemoteIP = req.RemoteAddr
 	uploadToken := upload.UploadToken
 
 	// TTL = Time in second before the upload expiration
 	// 0 	-> No ttl specified : default value from configuration
 	// -1	-> No expiration : checking with configuration if that's ok
-	switch upload.Ttl {
+	switch upload.TTL {
 	case 0:
-		upload.Ttl = common.Config.DefaultTtl
+		upload.TTL = common.Config.DefaultTTL
 	case -1:
-		if common.Config.MaxTtl != 0 {
-			ctx.Warningf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTtl)
-			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTtl), nil).ToJsonString(), 400)
+		if common.Config.MaxTTL != 0 {
+			ctx.Warningf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTTL)
+			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTTL), nil).ToJSONString(), 400)
 			return
 		}
 	default:
-		if upload.Ttl < 0 {
-			ctx.Warningf("Invalid value for ttl : %d", upload.Ttl)
-			http.Error(resp, common.NewResult(fmt.Sprintf("Invalid value for ttl : %d", upload.Ttl), nil).ToJsonString(), 400)
+		if upload.TTL < 0 {
+			ctx.Warningf("Invalid value for ttl : %d", upload.TTL)
+			http.Error(resp, common.NewResult(fmt.Sprintf("Invalid value for ttl : %d", upload.TTL), nil).ToJSONString(), 400)
 			return
 		}
-		if common.Config.MaxTtl != 0 && upload.Ttl > common.Config.MaxTtl {
-			ctx.Warningf("Cannot set ttl to %d (maximum allowed is : %d)", upload.Ttl, common.Config.MaxTtl)
-			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set ttl to %d (maximum allowed is : %d)", upload.Ttl, common.Config.MaxTtl), nil).ToJsonString(), 400)
+		if common.Config.MaxTTL != 0 && upload.TTL > common.Config.MaxTTL {
+			ctx.Warningf("Cannot set ttl to %d (maximum allowed is : %d)", upload.TTL, common.Config.MaxTTL)
+			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set ttl to %d (maximum allowed is : %d)", upload.TTL, common.Config.MaxTTL), nil).ToJSONString(), 400)
 			return
 		}
 	}
@@ -199,7 +199,7 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 		upload.Password, err = utils.Md5sum(b64str)
 		if err != nil {
 			ctx.Warningf("Unable to generate password hash : %s", err)
-			http.Error(resp, common.NewResult("Unable to generate password hash", nil).ToJsonString(), 500)
+			http.Error(resp, common.NewResult("Unable to generate password hash", nil).ToJSONString(), 500)
 			return
 		}
 		resp.Header().Add("Authorization", "Basic "+b64str)
@@ -214,20 +214,20 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 
 		if !common.Config.YubikeyEnabled {
 			ctx.Warningf("Got a Yubikey upload but Yubikey backend is disabled")
-			http.Error(resp, common.NewResult("Yubikey are disabled on this server", nil).ToJsonString(), 500)
+			http.Error(resp, common.NewResult("Yubikey are disabled on this server", nil).ToJSONString(), 500)
 			return
 		}
 
 		_, ok, err := common.Config.YubiAuth.Verify(upload.Yubikey)
 		if err != nil {
 			ctx.Warningf("Unable to validate yubikey token : %s", err)
-			http.Error(resp, common.NewResult("Unable to validate yubikey token", nil).ToJsonString(), 500)
+			http.Error(resp, common.NewResult("Unable to validate yubikey token", nil).ToJSONString(), 500)
 			return
 		}
 
 		if !ok {
 			ctx.Warningf("Invalid yubikey token")
-			http.Error(resp, common.NewResult("Invalid yubikey token", nil).ToJsonString(), 401)
+			http.Error(resp, common.NewResult("Invalid yubikey token", nil).ToJSONString(), 401)
 			return
 		}
 
@@ -237,27 +237,27 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	// A short url is created for each upload if a shorten backend is specified in the configuration.
 	// Referer header is used to get the url of incoming request, clients have to set it in order
 	// to get this feature working
-	if shorten_backend.GetShortenBackend() != nil {
+	if shortenBackend.GetShortenBackend() != nil {
 		if req.Header.Get("Referer") != "" {
 			u, err := url.Parse(req.Header.Get("Referer"))
 			if err != nil {
 				ctx.Warningf("Unable to parse referer url : %s", err)
 			}
-			longUrl := u.Scheme + "://" + u.Host + "#/?id=" + upload.Id
-			shortUrl, err := shorten_backend.GetShortenBackend().Shorten(ctx.Fork("shorten url"), longUrl)
+			longURL := u.Scheme + "://" + u.Host + "#/?id=" + upload.ID
+			shortURL, err := shortenBackend.GetShortenBackend().Shorten(ctx.Fork("shorten url"), longURL)
 			if err == nil {
-				upload.ShortUrl = shortUrl
+				upload.ShortURL = shortURL
 			} else {
-				ctx.Warningf("Unable to shorten url %s : %s", longUrl, err)
+				ctx.Warningf("Unable to shorten url %s : %s", longURL, err)
 			}
 		}
 	}
 
 	// Save the metadata
-	err = metadata_backend.GetMetaDataBackend().Create(ctx.Fork("create metadata"), upload)
+	err = metadataBackend.GetMetaDataBackend().Create(ctx.Fork("create metadata"), upload)
 	if err != nil {
 		ctx.Warningf("Create new upload error : %s", err)
-		http.Error(resp, common.NewResult("Unable to create new upload", nil).ToJsonString(), 500)
+		http.Error(resp, common.NewResult("Unable to create new upload", nil).ToJSONString(), 500)
 		return
 	}
 
@@ -272,7 +272,7 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	var json []byte
 	if json, err = utils.ToJson(upload); err != nil {
 		ctx.Warningf("Unable to serialize response body : %s", err)
-		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJsonString(), 500)
+		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
 	}
 
 	resp.Write(json)
@@ -285,14 +285,14 @@ func getUploadHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Get the upload id and file id from the url params
 	vars := mux.Vars(req)
-	uploadId := vars["uploadid"]
-	ctx.SetUpload(uploadId)
+	uploadID := vars["uploadID"]
+	ctx.SetUpload(uploadID)
 
 	// Retrieve upload metadata
-	upload, err := metadata_backend.GetMetaDataBackend().Get(ctx.Fork("get metadata"), uploadId)
+	upload, err := metadataBackend.GetMetaDataBackend().Get(ctx.Fork("get metadata"), uploadID)
 	if err != nil {
-		ctx.Warningf("Upload %s not found : %s", uploadId, err)
-		http.Error(resp, common.NewResult(fmt.Sprintf("Upload %s not found", uploadId), nil).ToJsonString(), 404)
+		ctx.Warningf("Upload %s not found : %s", uploadID, err)
+		http.Error(resp, common.NewResult(fmt.Sprintf("Upload %s not found", uploadID), nil).ToJSONString(), 404)
 		return
 	}
 
@@ -301,7 +301,7 @@ func getUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	// Handle basic auth if upload is password protected
 	err = httpBasicAuth(req, resp, upload)
 	if err != nil {
-		ctx.Warningf("Unauthorized %s : %s", upload.Id, err)
+		ctx.Warningf("Unauthorized %s : %s", upload.ID, err)
 		return
 	}
 
@@ -313,7 +313,7 @@ func getUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	var json []byte
 	if json, err = utils.ToJson(upload); err != nil {
 		ctx.Warningf("Unable to serialize response body : %s", err)
-		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJsonString(), 500)
+		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
 	}
 	resp.Write(json)
 }
@@ -325,26 +325,26 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Get the upload id and file id from the url params
 	vars := mux.Vars(req)
-	uploadId := vars["uploadid"]
-	fileId := vars["fileid"]
+	uploadID := vars["uploadID"]
+	fileID := vars["fileID"]
 	fileName := vars["filename"]
-	if uploadId == "" {
+	if uploadID == "" {
 		ctx.Warning("Missing upload id")
 		redirect(req, resp, errors.New("Missing upload id"), 404)
 		return
 	}
-	if fileId == "" {
+	if fileID == "" {
 		ctx.Warning("Missing file id")
 		redirect(req, resp, errors.New("Missing file id"), 404)
 		return
 	}
-	ctx.SetUpload(uploadId)
+	ctx.SetUpload(uploadID)
 
 	// Get the upload informations from the metadata backend
-	upload, err := metadata_backend.GetMetaDataBackend().Get(ctx.Fork("get metadata"), uploadId)
+	upload, err := metadataBackend.GetMetaDataBackend().Get(ctx.Fork("get metadata"), uploadID)
 	if err != nil {
-		ctx.Warningf("Upload %s not found : %s", uploadId, err)
-		redirect(req, resp, fmt.Errorf("Upload %s not found", uploadId), 404)
+		ctx.Warningf("Upload %s not found : %s", uploadID, err)
+		redirect(req, resp, fmt.Errorf("Upload %s not found", uploadID), 404)
 		return
 	}
 
@@ -356,22 +356,22 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	// Test if upload is not expired
-	if upload.Ttl != 0 {
-		if time.Now().Unix() >= (upload.Creation + int64(upload.Ttl)) {
-			ctx.Warningf("Upload is expired since %s", time.Since(time.Unix(upload.Creation, int64(0)).Add(time.Duration(upload.Ttl)*time.Second)).String())
-			redirect(req, resp, fmt.Errorf("Upload %s is expired", upload.Id), 404)
+	if upload.TTL != 0 {
+		if time.Now().Unix() >= (upload.Creation + int64(upload.TTL)) {
+			ctx.Warningf("Upload is expired since %s", time.Since(time.Unix(upload.Creation, int64(0)).Add(time.Duration(upload.TTL)*time.Second)).String())
+			redirect(req, resp, fmt.Errorf("Upload %s is expired", upload.ID), 404)
 			return
 		}
 	}
 
 	// Retrieve file using data backend
-	if _, ok := upload.Files[fileId]; !ok {
-		ctx.Warningf("File %s not found", fileId)
-		redirect(req, resp, fmt.Errorf("File %s not found", fileId), 404)
+	if _, ok := upload.Files[fileID]; !ok {
+		ctx.Warningf("File %s not found", fileID)
+		redirect(req, resp, fmt.Errorf("File %s not found", fileID), 404)
 		return
 	}
 
-	file := upload.Files[fileId]
+	file := upload.Files[fileID]
 	ctx.SetFile(file.Name)
 
 	// Compare url filename with upload filename
@@ -383,7 +383,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// If upload has OneShot option, test if file has not been already downloaded once
 	if upload.OneShot && file.Status == "downloaded" {
-		ctx.Warningf("File %s has already been downloaded in upload %s", file.Name, upload.Id)
+		ctx.Warningf("File %s has already been downloaded in upload %s", file.Name, upload.ID)
 		redirect(req, resp, fmt.Errorf("File %s has already been downloaded", file.Name), 401)
 		return
 	}
@@ -455,9 +455,9 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	if req.Method == "GET" {
 		// Get file in data backend
-		fileReader, err := data_backend.GetDataBackend().GetFile(ctx.Fork("get file"), upload, file.Id)
+		fileReader, err := dataBackend.GetDataBackend().GetFile(ctx.Fork("get file"), upload, file.ID)
 		if err != nil {
-			ctx.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.Id, err)
+			ctx.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.ID, err)
 			redirect(req, resp, fmt.Errorf("Failed to read file %s", file.Name), 404)
 			return
 		}
@@ -466,9 +466,9 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 		// Update metadata if oneShot option is set
 		if upload.OneShot {
 			file.Status = "downloaded"
-			err = metadata_backend.GetMetaDataBackend().AddOrUpdateFile(ctx.Fork("update metadata"), upload, file)
+			err = metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx.Fork("update metadata"), upload, file)
 			if err != nil {
-				ctx.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.Id, err)
+				ctx.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.ID, err)
 			}
 		}
 
@@ -480,9 +480,9 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 		// Remove file from data backend if oneShot option is set
 		if upload.OneShot {
-			err = data_backend.GetDataBackend().RemoveFile(ctx.Fork("remove file"), upload, file.Id)
+			err = dataBackend.GetDataBackend().RemoveFile(ctx.Fork("remove file"), upload, file.ID)
 			if err != nil {
-				ctx.Warningf("Error while deleting file %s from upload %s : %s", file.Name, upload.Id, err)
+				ctx.Warningf("Error while deleting file %s from upload %s : %s", file.Name, upload.ID, err)
 				return
 			}
 		}
@@ -502,14 +502,14 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Get the upload id from the url params
 	vars := mux.Vars(req)
-	uploadId := vars["uploadid"]
-	ctx.SetUpload(uploadId)
+	uploadID := vars["uploadID"]
+	ctx.SetUpload(uploadID)
 
 	// Get upload metadata
-	upload, err := metadata_backend.GetMetaDataBackend().Get(ctx.Fork("get metadata"), uploadId)
+	upload, err := metadataBackend.GetMetaDataBackend().Get(ctx.Fork("get metadata"), uploadID)
 	if err != nil {
 		ctx.Warningf("Upload metadata not found")
-		http.Error(resp, common.NewResult(fmt.Sprintf("Upload %s not found", uploadId), nil).ToJsonString(), 404)
+		http.Error(resp, common.NewResult(fmt.Sprintf("Upload %s not found", uploadID), nil).ToJSONString(), 404)
 		return
 	}
 
@@ -523,7 +523,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// Check upload token
 	if req.Header.Get("X-UploadToken") != upload.UploadToken {
 		ctx.Warningf("Invalid upload token %s", req.Header.Get("X-UploadToken"))
-		http.Error(resp, common.NewResult("Invalid upload token in X-UploadToken header", nil).ToJsonString(), 404)
+		http.Error(resp, common.NewResult("Invalid upload token in X-UploadToken header", nil).ToJSONString(), 404)
 		return
 	}
 
@@ -533,7 +533,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	multiPartReader, err := req.MultipartReader()
 	if err != nil {
 		ctx.Warningf("Failed to get file from multipart request : %s", err)
-		http.Error(resp, common.NewResult(fmt.Sprintf("Failed to get file from multipart request"), nil).ToJsonString(), 500)
+		http.Error(resp, common.NewResult(fmt.Sprintf("Failed to get file from multipart request"), nil).ToJSONString(), 500)
 		return
 	}
 
@@ -552,11 +552,11 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 	if file == nil {
 		ctx.Warning("Missing file from multipart request")
-		http.Error(resp, common.NewResult("Missing file from multipart request", nil).ToJsonString(), 400)
+		http.Error(resp, common.NewResult("Missing file from multipart request", nil).ToJSONString(), 400)
 	}
 	if fileName == "" {
 		ctx.Warning("Missing file name from multipart request")
-		http.Error(resp, common.NewResult("Missing file name from multipart request", nil).ToJsonString(), 400)
+		http.Error(resp, common.NewResult("Missing file name from multipart request", nil).ToJSONString(), 400)
 	}
 
 	// Create a new file object
@@ -610,10 +610,10 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}()
 
 	// Save file in the data backend
-	backendDetails, err := data_backend.GetDataBackend().AddFile(ctx.Fork("save file"), upload, newFile, preprocessReader)
+	backendDetails, err := dataBackend.GetDataBackend().AddFile(ctx.Fork("save file"), upload, newFile, preprocessReader)
 	if err != nil {
 		ctx.Warningf("Unable to save file : %s", err)
-		http.Error(resp, common.NewResult(fmt.Sprintf("Error saving file %s in upload %s : %s", newFile.Name, upload.Id, err), nil).ToJsonString(), 500)
+		http.Error(resp, common.NewResult(fmt.Sprintf("Error saving file %s in upload %s : %s", newFile.Name, upload.ID, err), nil).ToJSONString(), 500)
 		return
 	}
 
@@ -625,11 +625,11 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	newFile.BackendDetails = backendDetails
 
 	// Update upload metadata
-	upload.Files[newFile.Id] = newFile
-	err = metadata_backend.GetMetaDataBackend().AddOrUpdateFile(ctx.Fork("update metadata"), upload, newFile)
+	upload.Files[newFile.ID] = newFile
+	err = metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx.Fork("update metadata"), upload, newFile)
 	if err != nil {
 		ctx.Warningf("Unable to update metadata : %s", err)
-		http.Error(resp, common.NewResult(fmt.Sprintf("Error adding file %s to upload %s metadata : %s", newFile.Name, upload.Id, err), nil).ToJsonString(), 500)
+		http.Error(resp, common.NewResult(fmt.Sprintf("Error adding file %s to upload %s metadata : %s", newFile.Name, upload.ID, err), nil).ToJSONString(), 500)
 		return
 	}
 
@@ -642,7 +642,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	if json, err = utils.ToJson(newFile); err == nil {
 		resp.Write(json)
 	} else {
-		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJsonString(), 500)
+		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
 	}
 }
 
@@ -653,25 +653,25 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Get the upload id and file id from the url params
 	vars := mux.Vars(req)
-	uploadId := vars["uploadid"]
-	fileId := vars["fileid"]
-	if uploadId == "" {
+	uploadID := vars["uploadID"]
+	fileID := vars["fileID"]
+	if uploadID == "" {
 		ctx.Warning("Missing upload id")
 		redirect(req, resp, errors.New("Missing upload id"), 404)
 		return
 	}
-	if fileId == "" {
+	if fileID == "" {
 		ctx.Warning("Missing file id")
 		redirect(req, resp, errors.New("Missing file id"), 404)
 		return
 	}
-	ctx.SetUpload(uploadId)
+	ctx.SetUpload(uploadID)
 
 	// Retrieve Upload
-	upload, err := metadata_backend.GetMetaDataBackend().Get(ctx.Fork("get metadata"), uploadId)
+	upload, err := metadataBackend.GetMetaDataBackend().Get(ctx.Fork("get metadata"), uploadID)
 	if err != nil {
 		ctx.Warning("Upload not found")
-		http.Error(resp, common.NewResult(fmt.Sprintf("Upload not %s found", uploadId), nil).ToJsonString(), 404)
+		http.Error(resp, common.NewResult(fmt.Sprintf("Upload not %s found", uploadID), nil).ToJSONString(), 404)
 		return
 	}
 
@@ -684,31 +684,32 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Test if upload is removable
 	if !upload.Removable {
-		ctx.Warningf("User tried to remove file %s of an non removeable upload", fileId)
+		ctx.Warningf("User tried to remove file %s of an non removeable upload", fileID)
 		redirect(req, resp, errors.New("Can't remove files on this upload"), 401)
 		return
 	}
 
 	// Retrieve file informations in upload
-	file, ok := upload.Files[fileId]
+	file, ok := upload.Files[fileID]
 	if !ok {
 		ctx.Warningf("File not found")
-		http.Error(resp, common.NewResult(fmt.Sprintf("File %s not found in upload %s", fileId, upload.Id), nil).ToJsonString(), 404)
+		http.Error(resp, common.NewResult(fmt.Sprintf("File %s not found in upload %s", fileID, upload.ID), nil).ToJSONString(), 404)
 		return
 	}
 
 	// Set status to removed, and save metadatas
 	file.Status = "removed"
-	if err := metadata_backend.GetMetaDataBackend().AddOrUpdateFile(ctx.Fork("update metadata"), upload, file); err != nil {
+	if err := metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx.Fork("update metadata"), upload, file); err != nil {
 		ctx.Warningf("Error while updating file metadata : %s", err)
-		http.Error(resp, common.NewResult(fmt.Sprintf("Error while updating file %s metadata in upload %s", file.Name, upload.Id), nil).ToJsonString(), 500)
+		http.Error(resp, common.NewResult(fmt.Sprintf("Error while updating file %s metadata in upload %s", file.Name, upload.ID), nil).ToJSONString(), 500)
 		return
 	}
 
 	// Remove file from data backend
-	if err := data_backend.GetDataBackend().RemoveFile(ctx.Fork("remove file"), upload, file.Id); err != nil {
+	if err := dataBackend.GetDataBackend().RemoveFile(ctx.Fork("remove file"), upload, file.ID); err != nil {
+
 		ctx.Warningf("Error while deleting file : %s", err)
-		http.Error(resp, common.NewResult(fmt.Sprintf("Error while deleting file %s in upload %s", file.Name, upload.Id), nil).ToJsonString(), 500)
+		http.Error(resp, common.NewResult(fmt.Sprintf("Error while deleting file %s in upload %s", file.Name, upload.ID), nil).ToJSONString(), 500)
 		return
 	}
 
@@ -722,7 +723,7 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	var json []byte
 	if json, err = utils.ToJson(upload); err != nil {
 		ctx.Warningf("Unable to serialize response body : %s", err)
-		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJsonString(), 500)
+		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
 	}
 	resp.Write(json)
 }
@@ -781,7 +782,7 @@ func redirect(req *http.Request, resp http.ResponseWriter, err error, status int
 	return
 }
 
-// Periodicaly remove expired uploads
+// UploadsCleaningRoutine periodicaly remove expired uploads
 func UploadsCleaningRoutine() {
 	ctx := common.RootContext().Fork("clean expired uploads")
 
@@ -796,19 +797,19 @@ func UploadsCleaningRoutine() {
 		// Get uploads that needs to be removed
 		log.Infof("Cleaning expired uploads...")
 
-		uploadsId, err := metadata_backend.GetMetaDataBackend().GetUploadsToRemove(ctx)
+		uploadIds, err := metadataBackend.GetMetaDataBackend().GetUploadsToRemove(ctx)
 		if err != nil {
 			log.Warningf("Failed to get expired uploads : %s")
 		} else {
 
 			// Remove them
-			for _, uploadId := range uploadsId {
-				ctx.SetUpload(uploadId)
-				log.Infof("Removing expired upload %s", uploadId)
+			for _, uploadID := range uploadIds {
+				ctx.SetUpload(uploadID)
+				log.Infof("Removing expired upload %s", uploadID)
 				// Get upload metadata
 				childCtx := ctx.Fork("get metadata")
 				childCtx.AutoDetach()
-				upload, err := metadata_backend.GetMetaDataBackend().Get(childCtx, uploadId)
+				upload, err := metadataBackend.GetMetaDataBackend().Get(childCtx, uploadID)
 				if err != nil {
 					log.Warningf("Unable to get infos for upload: %s", err)
 					continue
@@ -817,7 +818,7 @@ func UploadsCleaningRoutine() {
 				// Remove from data backend
 				childCtx = ctx.Fork("remove upload data")
 				childCtx.AutoDetach()
-				err = data_backend.GetDataBackend().RemoveUpload(childCtx, upload)
+				err = dataBackend.GetDataBackend().RemoveUpload(childCtx, upload)
 				if err != nil {
 					log.Warningf("Unable to remove upload data : %s", err)
 					continue
@@ -826,7 +827,7 @@ func UploadsCleaningRoutine() {
 				// Remove from metadata backend
 				childCtx = ctx.Fork("remove upload metadata")
 				childCtx.AutoDetach()
-				err = metadata_backend.GetMetaDataBackend().Remove(childCtx, upload)
+				err = metadataBackend.GetMetaDataBackend().Remove(childCtx, upload)
 				if err != nil {
 					log.Warningf("Unable to remove upload metadata : %s", err)
 				}
@@ -851,11 +852,11 @@ func RemoveUploadIfNoFileAvailable(ctx *common.PlikContext, upload *common.Uploa
 
 		ctx.Debugf("No more files in upload. Removing all informations.")
 
-		err = data_backend.GetDataBackend().RemoveUpload(ctx, upload)
+		err = dataBackend.GetDataBackend().RemoveUpload(ctx, upload)
 		if err != nil {
 			return
 		}
-		err = metadata_backend.GetMetaDataBackend().Remove(ctx, upload)
+		err = metadataBackend.GetMetaDataBackend().Remove(ctx, upload)
 		if err != nil {
 			return
 		}
