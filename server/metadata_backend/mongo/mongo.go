@@ -31,13 +31,14 @@ package mongo
 
 import (
 	"crypto/tls"
+	"net"
+	"strconv"
+	"time"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/utils"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"net"
-	"strconv"
-	"time"
 )
 
 /*
@@ -54,12 +55,12 @@ type MongoMetadataBackendConfig struct {
 	Ssl        bool
 }
 
-func NewMongoMetadataBackendConfig(config map[string]interface{}) (this *MongoMetadataBackendConfig) {
-	this = new(MongoMetadataBackendConfig)
-	this.Url = "127.0.0.1:27017"
-	this.Database = "plik"
-	this.Collection = "meta"
-	utils.Assign(this, config)
+func NewMongoMetadataBackendConfig(config map[string]interface{}) (mmb *MongoMetadataBackendConfig) {
+	mmb = new(MongoMetadataBackendConfig)
+	mmb.Url = "127.0.0.1:27017"
+	mmb.Database = "plik"
+	mmb.Collection = "meta"
+	utils.Assign(mmb, config)
 	return
 }
 
@@ -68,40 +69,40 @@ type MongoMetadataBackend struct {
 	session *mgo.Session
 }
 
-func NewMongoMetadataBackend(config map[string]interface{}) (this *MongoMetadataBackend) {
-	this = new(MongoMetadataBackend)
-	this.config = NewMongoMetadataBackendConfig(config)
+func NewMongoMetadataBackend(config map[string]interface{}) (mmb *MongoMetadataBackend) {
+	mmb = new(MongoMetadataBackend)
+	mmb.config = NewMongoMetadataBackendConfig(config)
 
 	// Open connection
 	dialInfo := &mgo.DialInfo{}
-	dialInfo.Addrs = []string{this.config.Url}
-	dialInfo.Database = this.config.Database
-	if this.config.Username != "" && this.config.Password != "" {
-		dialInfo.Username = this.config.Username
-		dialInfo.Password = this.config.Password
+	dialInfo.Addrs = []string{mmb.config.Url}
+	dialInfo.Database = mmb.config.Database
+	if mmb.config.Username != "" && mmb.config.Password != "" {
+		dialInfo.Username = mmb.config.Username
+		dialInfo.Password = mmb.config.Password
 	}
-	if this.config.Ssl {
+	if mmb.config.Ssl {
 		dialInfo.DialServer = func(addr *mgo.ServerAddr) (net.Conn, error) {
 			return tls.Dial("tcp", addr.String(), &tls.Config{InsecureSkipVerify: true})
 		}
 	}
 	var err error
-	this.session, err = mgo.DialWithInfo(dialInfo)
+	mmb.session, err = mgo.DialWithInfo(dialInfo)
 	if err != nil {
-		common.Log().Fatalf("Unable to contact mongodb at %s : %s", this.config.Url, err.Error())
+		common.Log().Fatalf("Unable to contact mongodb at %s : %s", mmb.config.Url, err.Error())
 	}
 
 	// Ensure everything is persisted and replicated
-	this.session.SetMode(mgo.Strong, false)
-	this.session.SetSafe(&mgo.Safe{})
+	mmb.session.SetMode(mgo.Strong, false)
+	mmb.session.SetSafe(&mgo.Safe{})
 	return
 }
 
-func (this *MongoMetadataBackend) Create(ctx *common.PlikContext, upload *common.Upload) (err error) {
+func (mmb *MongoMetadataBackend) Create(ctx *common.PlikContext, upload *common.Upload) (err error) {
 	defer ctx.Finalize(err)
-	session := this.session.Copy()
+	session := mmb.session.Copy()
 	defer session.Close()
-	collection := session.DB(this.config.Database).C(this.config.Collection)
+	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 	err = collection.Insert(&upload)
 	if err != nil {
 		err = ctx.EWarningf("Unable to append metadata to mongodb : %s", err)
@@ -109,11 +110,11 @@ func (this *MongoMetadataBackend) Create(ctx *common.PlikContext, upload *common
 	return
 }
 
-func (this *MongoMetadataBackend) Get(ctx *common.PlikContext, id string) (u *common.Upload, err error) {
+func (mmb *MongoMetadataBackend) Get(ctx *common.PlikContext, id string) (u *common.Upload, err error) {
 	defer ctx.Finalize(err)
-	session := this.session.Copy()
+	session := mmb.session.Copy()
 	defer session.Close()
-	collection := session.DB(this.config.Database).C(this.config.Collection)
+	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 	u = &common.Upload{}
 	err = collection.Find(bson.M{"id": id}).One(u)
 	if err != nil {
@@ -122,11 +123,11 @@ func (this *MongoMetadataBackend) Get(ctx *common.PlikContext, id string) (u *co
 	return
 }
 
-func (this *MongoMetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
+func (mmb *MongoMetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
 	defer ctx.Finalize(err)
-	session := this.session.Copy()
+	session := mmb.session.Copy()
 	defer session.Close()
-	collection := session.DB(this.config.Database).C(this.config.Collection)
+	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 	err = collection.Update(bson.M{"id": upload.Id}, bson.M{"$set": bson.M{"files." + file.Id: file}})
 	if err != nil {
 		err = ctx.EWarningf("Unable to get metadata from mongodb : %s", err)
@@ -134,11 +135,11 @@ func (this *MongoMetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, uploa
 	return
 }
 
-func (this *MongoMetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
+func (mmb *MongoMetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
 	defer ctx.Finalize(err)
-	session := this.session.Copy()
+	session := mmb.session.Copy()
 	defer session.Close()
-	collection := session.DB(this.config.Database).C(this.config.Collection)
+	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 	err = collection.Update(bson.M{"id": upload.Id}, bson.M{"$unset": bson.M{"files." + file.Name: ""}})
 	if err != nil {
 		err = ctx.EWarningf("Unable to get remove file from mongodb : %s", err)
@@ -146,11 +147,11 @@ func (this *MongoMetadataBackend) RemoveFile(ctx *common.PlikContext, upload *co
 	return
 }
 
-func (this *MongoMetadataBackend) Remove(ctx *common.PlikContext, upload *common.Upload) (err error) {
+func (mmb *MongoMetadataBackend) Remove(ctx *common.PlikContext, upload *common.Upload) (err error) {
 	defer ctx.Finalize(err)
-	session := this.session.Copy()
+	session := mmb.session.Copy()
 	defer session.Close()
-	collection := session.DB(this.config.Database).C(this.config.Collection)
+	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 	err = collection.Remove(bson.M{"id": upload.Id})
 	if err != nil {
 		err = ctx.EWarningf("Unable to get remove file from mongodb : %s", err)
@@ -158,16 +159,16 @@ func (this *MongoMetadataBackend) Remove(ctx *common.PlikContext, upload *common
 	return
 }
 
-func (this *MongoMetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []string, err error) {
+func (mmb *MongoMetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []string, err error) {
 	defer ctx.Finalize(err)
-	session := this.session.Copy()
+	session := mmb.session.Copy()
 	defer session.Close()
-	collection := session.DB(this.config.Database).C(this.config.Collection)
+	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 
 	// Look for uploads older than MaxTTL to schedule them for removal
 	ids = make([]string, 0)
 	uploads := make([]*common.Upload, 0)
-	b := bson.M{"$where": strconv.Itoa(int(time.Now().Unix())) + " > this.uploadDate+this.ttl"}
+	b := bson.M{"$where": strconv.Itoa(int(time.Now().Unix())) + " > mmb.uploadDate+mmb.ttl"}
 
 	err = collection.Find(b).All(&uploads)
 	if err != nil {

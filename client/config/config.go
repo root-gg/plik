@@ -32,18 +32,18 @@ package config
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
 	"github.com/BurntSushi/toml"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/root-gg/plik/client/archive"
 	"github.com/root-gg/plik/client/crypto"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/utils"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
 )
 
 var Config *UploadConfig
@@ -139,13 +139,13 @@ func Load() (err error) {
 		// Encode in toml
 		buf := new(bytes.Buffer)
 		if err = toml.NewEncoder(buf).Encode(Config); err != nil {
-			return errors.New(fmt.Sprint("Failed to serialize ~/.plickrc : %s", err))
+			return fmt.Errorf("Failed to serialize ~/.plickrc : %s", err)
 		}
 
 		// Write file
 		f, err := os.OpenFile(configFile, os.O_CREATE|os.O_RDWR, 0700)
 		if err != nil {
-			return errors.New(fmt.Sprint("Failed to save ~/.plickrc : %s", err))
+			return fmt.Errorf("Failed to save ~/.plickrc : %s", err)
 		}
 
 		f.Write(buf.Bytes())
@@ -153,7 +153,7 @@ func Load() (err error) {
 	} else {
 		// Load toml
 		if _, err := toml.DecodeFile(configFile, &Config); err != nil {
-			return errors.New(fmt.Sprint("Failed to deserialize ~/.plickrc : %s", err))
+			return fmt.Errorf("Failed to deserialize ~/.plickrc : %s", err)
 		}
 	}
 	return
@@ -191,7 +191,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 
 			fileInfo, err := os.Stat(filePath)
 			if err != nil {
-				return errors.New(fmt.Sprintf("File %s not found", filePath))
+				return fmt.Errorf("File %s not found", filePath)
 			}
 
 			// Check file size (for displaying purpose later)
@@ -206,13 +206,13 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 			} else if fileInfo.Mode().IsRegular() {
 				fileToUpload.Size = fileInfo.Size()
 			} else {
-				return errors.New(fmt.Sprintf("Unhandled file mode %s for file %s", fileInfo.Mode().String(), filePath))
+				return fmt.Errorf("Unhandled file mode %s for file %s", fileInfo.Mode().String(), filePath)
 			}
 
 			Files = append(Files, fileToUpload)
 		}
 	} else {
-		return errors.New(fmt.Sprint("No files specified"))
+		return fmt.Errorf("No files specified")
 	}
 
 	// Upload options
@@ -246,7 +246,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		}
 		ttl, err := strconv.Atoi(ttlStr)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Invalid TTL %s", arguments["--ttl"].(string)))
+			return fmt.Errorf("Invalid TTL %s", arguments["--ttl"].(string))
 		}
 		Upload.Ttl = ttl * mul
 	}
@@ -261,11 +261,11 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		var err error
 		CryptoBackend, err = crypto.NewCryptoBackend(secureMethod, Config.SecureOptions)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Invalid secure params : %s\n", err))
+			return fmt.Errorf("Invalid secure params : %s\n", err)
 		}
 		err = CryptoBackend.Configure(arguments)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Invalid secure params : %s\n", err))
+			return fmt.Errorf("Invalid secure params : %s\n", err)
 		}
 
 		Debug("Crypto backend configuration : " + utils.Sdump(CryptoBackend.GetConfiguration()))
@@ -280,11 +280,11 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		}
 		ArchiveBackend, err = archive.NewArchiveBackend(Config.ArchiveMethod, Config.ArchiveOptions)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Invalid archive params : %s\n", err))
+			return fmt.Errorf("Invalid archive params : %s\n", err)
 		}
 		err = ArchiveBackend.Configure(arguments)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Invalid archive params : %s\n", err))
+			return fmt.Errorf("Invalid archive params : %s\n", err)
 		}
 
 		Debug("Archive backend configuration : " + utils.Sdump(ArchiveBackend.GetConfiguration()))
@@ -292,7 +292,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		for _, fileToUpload := range Files {
 			fh, err := os.Open(fileToUpload.Path)
 			if err != nil {
-				return errors.New(fmt.Sprintf("Unable to open %s : %s", fileToUpload.Path, err))
+				return fmt.Errorf("Unable to open %s : %s", fileToUpload.Path, err)
 			}
 
 			fileToUpload.FileHandle = fh
@@ -305,7 +305,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		var err error
 		_, err = fmt.Scanln(&Upload.Login)
 		if err != nil && err.Error() != "unexpected newline" {
-			return errors.New(fmt.Sprintf("Unable to get login : %s", err))
+			return fmt.Errorf("Unable to get login : %s", err)
 		}
 		if Upload.Login == "" {
 			Upload.Login = "plik"
@@ -313,7 +313,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		fmt.Printf("Password: ")
 		_, err = fmt.Scanln(&Upload.Password)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Unable to get password : %s", err))
+			return fmt.Errorf("Unable to get password : %s", err)
 		}
 	} else if arguments["--password"] != nil && arguments["--password"].(string) != "" {
 		credentials := arguments["--password"].(string)
@@ -335,7 +335,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		fmt.Printf("Yubikey token : ")
 		_, err := fmt.Scanln(&Upload.Yubikey)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Unable to get yubikey token : %s", err))
+			return fmt.Errorf("Unable to get yubikey token : %s", err)
 		}
 	}
 
@@ -355,7 +355,7 @@ func Dump(data interface{}) {
 func Sdump(data interface{}) string {
 	buf := new(bytes.Buffer)
 	if json, err := json.MarshalIndent(data, "", "    "); err != nil {
-		fmt.Println("Unable to dump data %v : %s", data, err)
+		fmt.Printf("Unable to dump data %v : %s", data, err)
 	} else {
 		buf.Write(json)
 		buf.WriteString("\n")

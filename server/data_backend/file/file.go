@@ -30,20 +30,21 @@ THE SOFTWARE.
 package file
 
 import (
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 	"io"
 	"os"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 )
 
 type FileBackendConfig struct {
 	Directory string
 }
 
-func NewFileBackendConfig(config map[string]interface{}) (this *FileBackendConfig) {
-	this = new(FileBackendConfig)
-	this.Directory = "files" // Default upload directory is ./files
-	utils.Assign(this, config)
+func NewFileBackendConfig(config map[string]interface{}) (fb *FileBackendConfig) {
+	fb = new(FileBackendConfig)
+	fb.Directory = "files" // Default upload directory is ./files
+	utils.Assign(fb, config)
 	return
 }
 
@@ -51,17 +52,17 @@ type FileBackend struct {
 	Config *FileBackendConfig
 }
 
-func NewFileBackend(config map[string]interface{}) (this *FileBackend) {
-	this = new(FileBackend)
-	this.Config = NewFileBackendConfig(config)
+func NewFileBackend(config map[string]interface{}) (fb *FileBackend) {
+	fb = new(FileBackend)
+	fb.Config = NewFileBackendConfig(config)
 	return
 }
 
-func (this *FileBackend) GetFile(ctx *common.PlikContext, upload *common.Upload, id string) (file io.ReadCloser, err error) {
+func (fb *FileBackend) GetFile(ctx *common.PlikContext, upload *common.Upload, id string) (file io.ReadCloser, err error) {
 	defer ctx.Finalize(err)
 
 	// Get file path
-	directory := this.getDirectoryFromUploadId(upload.Id)
+	directory := fb.getDirectoryFromUploadId(upload.Id)
 	fullPath := directory + "/" + id
 
 	// The file content will be piped directly
@@ -75,11 +76,11 @@ func (this *FileBackend) GetFile(ctx *common.PlikContext, upload *common.Upload,
 	return
 }
 
-func (this *FileBackend) AddFile(ctx *common.PlikContext, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
+func (fb *FileBackend) AddFile(ctx *common.PlikContext, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
 	defer ctx.Finalize(err)
 
 	// Get file path
-	directory := this.getDirectoryFromUploadId(upload.Id)
+	directory := fb.getDirectoryFromUploadId(upload.Id)
 	fullPath := directory + "/" + file.Id
 
 	// Create directory
@@ -112,11 +113,11 @@ func (this *FileBackend) AddFile(ctx *common.PlikContext, upload *common.Upload,
 	return
 }
 
-func (this *FileBackend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, id string) (err error) {
+func (fb *FileBackend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, id string) (err error) {
 	defer ctx.Finalize(err)
 
 	// Get file path
-	fullPath := this.getDirectoryFromUploadId(upload.Id) + "/" + id
+	fullPath := fb.getDirectoryFromUploadId(upload.Id) + "/" + id
 
 	// Remove file
 	err = os.Remove(fullPath)
@@ -129,11 +130,11 @@ func (this *FileBackend) RemoveFile(ctx *common.PlikContext, upload *common.Uplo
 	return
 }
 
-func (this *FileBackend) RemoveUpload(ctx *common.PlikContext, upload *common.Upload) (err error) {
+func (fb *FileBackend) RemoveUpload(ctx *common.PlikContext, upload *common.Upload) (err error) {
 	defer ctx.Finalize(err)
 
 	// Get upload directory
-	fullPath := this.getDirectoryFromUploadId(upload.Id)
+	fullPath := fb.getDirectoryFromUploadId(upload.Id)
 
 	// Remove everything at once
 	err = os.RemoveAll(fullPath)
@@ -145,12 +146,12 @@ func (this *FileBackend) RemoveUpload(ctx *common.PlikContext, upload *common.Up
 	return
 }
 
-func (this *FileBackend) getDirectoryFromUploadId(uploadId string) string {
+func (fb *FileBackend) getDirectoryFromUploadId(uploadId string) string {
 	// To avoid too many files in the same directory
 	// data directory is splitted in two levels the
 	// first level is the 2 first chars from the upload id
 	// it gives 3844 possibilities reaching 65535 files per
 	// directory at ~250.000.000 files uploaded.
 
-	return this.Config.Directory + "/" + uploadId[:2] + "/" + uploadId
+	return fb.Config.Directory + "/" + uploadId[:2] + "/" + uploadId
 }

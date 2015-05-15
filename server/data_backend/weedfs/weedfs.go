@@ -31,8 +31,6 @@ package weedfs
 
 import (
 	"encoding/json"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -40,6 +38,9 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 )
 
 var client = http.Client{}
@@ -268,7 +269,7 @@ func (weedFs *WeedFsBackend) RemoveFile(ctx *common.PlikContext, upload *common.
 func (weedFs *WeedFsBackend) RemoveUpload(ctx *common.PlikContext, upload *common.Upload) (err error) {
 	defer ctx.Finalize(err)
 
-	for fileId, _ := range upload.Files {
+	for fileId := range upload.Files {
 		err = weedFs.RemoveFile(ctx.Fork("remove file"), upload, fileId)
 		if err != nil {
 			return

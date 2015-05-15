@@ -31,11 +31,12 @@ package openssl
 
 import (
 	"fmt"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 	"io"
 	"os"
 	"os/exec"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 )
 
 type OpenSSLBackendConfig struct {
@@ -45,11 +46,11 @@ type OpenSSLBackendConfig struct {
 	Options    string
 }
 
-func NewOpenSSLBackendConfig(config map[string]interface{}) (this *OpenSSLBackendConfig) {
-	this = new(OpenSSLBackendConfig)
-	this.Openssl = "/usr/bin/openssl"
-	this.Cipher = "aes256"
-	utils.Assign(this, config)
+func NewOpenSSLBackendConfig(config map[string]interface{}) (ob *OpenSSLBackendConfig) {
+	ob = new(OpenSSLBackendConfig)
+	ob.Openssl = "/usr/bin/openssl"
+	ob.Cipher = "aes256"
+	utils.Assign(ob, config)
 	return
 }
 
@@ -57,47 +58,47 @@ type OpenSSLBackend struct {
 	Config *OpenSSLBackendConfig
 }
 
-func NewOpenSSLBackend(config map[string]interface{}) (this *OpenSSLBackend) {
-	this = new(OpenSSLBackend)
-	this.Config = NewOpenSSLBackendConfig(config)
+func NewOpenSSLBackend(config map[string]interface{}) (ob *OpenSSLBackend) {
+	ob = new(OpenSSLBackend)
+	ob.Config = NewOpenSSLBackendConfig(config)
 	return
 }
 
-func (this *OpenSSLBackend) Configure(arguments map[string]interface{}) (err error) {
+func (ob *OpenSSLBackend) Configure(arguments map[string]interface{}) (err error) {
 	if arguments["--openssl"] != nil && arguments["--openssl"].(string) != "" {
-		this.Config.Openssl = arguments["--openssl"].(string)
+		ob.Config.Openssl = arguments["--openssl"].(string)
 	}
 	if arguments["--cipher"] != nil && arguments["--cipher"].(string) != "" {
-		this.Config.Cipher = arguments["--cipher"].(string)
+		ob.Config.Cipher = arguments["--cipher"].(string)
 	}
 	if arguments["--passphrase"] != nil && arguments["--passphrase"].(string) != "" {
-		this.Config.Passphrase = arguments["--passphrase"].(string)
-		if this.Config.Passphrase == "-" {
+		ob.Config.Passphrase = arguments["--passphrase"].(string)
+		if ob.Config.Passphrase == "-" {
 			fmt.Printf("Please enter a passphrase : ")
-			_, err = fmt.Scanln(&this.Config.Passphrase)
+			_, err = fmt.Scanln(&ob.Config.Passphrase)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
-		this.Config.Passphrase = common.GenerateRandomId(25)
-		fmt.Println("Passphrase : " + this.Config.Passphrase)
+		ob.Config.Passphrase = common.GenerateRandomId(25)
+		fmt.Println("Passphrase : " + ob.Config.Passphrase)
 	}
 	if arguments["--secure-options"] != nil && arguments["--secure-options"].(string) != "" {
-		this.Config.Options = arguments["--secure-options"].(string)
+		ob.Config.Options = arguments["--secure-options"].(string)
 	}
 
 	return
 }
 
-func (this *OpenSSLBackend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
+func (ob *OpenSSLBackend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
 	passReader, passWriter, err := os.Pipe()
 	if err != nil {
 		fmt.Printf("Unable to make pipe : %s\n", err)
 		os.Exit(1)
 		return
 	}
-	_, err = passWriter.Write([]byte(this.Config.Passphrase))
+	_, err = passWriter.Write([]byte(ob.Config.Passphrase))
 	if err != nil {
 		fmt.Printf("Unable to write to pipe : %s\n", err)
 		os.Exit(1)
@@ -109,7 +110,7 @@ func (this *OpenSSLBackend) Encrypt(reader io.Reader, writer io.Writer) (err err
 		os.Exit(1)
 		return
 	}
-	cmd := exec.Command(this.Config.Openssl, this.Config.Cipher, "-pass", fmt.Sprintf("fd:3"))
+	cmd := exec.Command(ob.Config.Openssl, ob.Config.Cipher, "-pass", fmt.Sprintf("fd:3"))
 	cmd.Stdin = reader                                  // fd:0
 	cmd.Stdout = writer                                 // fd:1
 	cmd.Stderr = os.Stderr                              // fd:2
@@ -129,10 +130,10 @@ func (this *OpenSSLBackend) Encrypt(reader io.Reader, writer io.Writer) (err err
 	return
 }
 
-func (this *OpenSSLBackend) Comments() string {
-	return fmt.Sprintf("openssl %s -d -pass pass:%s", this.Config.Cipher, this.Config.Passphrase)
+func (ob *OpenSSLBackend) Comments() string {
+	return fmt.Sprintf("openssl %s -d -pass pass:%s", ob.Config.Cipher, ob.Config.Passphrase)
 }
 
-func (this *OpenSSLBackend) GetConfiguration() interface{} {
-	return this.Config
+func (ob *OpenSSLBackend) GetConfiguration() interface{} {
+	return ob.Config
 }
