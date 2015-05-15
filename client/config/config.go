@@ -38,12 +38,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/BurntSushi/toml"
-	homedir "github.com/mitchellh/go-homedir"
+	"github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/BurntSushi/toml"
+	homedir "github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/mitchellh/go-homedir"
+	"github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/root-gg/utils"
 	"github.com/root-gg/plik/client/archive"
 	"github.com/root-gg/plik/client/crypto"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 )
 
 // Static config var

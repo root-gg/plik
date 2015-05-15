@@ -30,9 +30,9 @@ THE SOFTWARE.
 package common
 
 import (
-	"github.com/BurntSushi/toml"
-	"github.com/GeertJohan/yubigo"
-	"github.com/root-gg/logger"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/BurntSushi/toml"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/GeertJohan/yubigo"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
 )
 
 var (

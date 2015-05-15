@@ -32,8 +32,8 @@ package pgp
 import (
 	"os"
 
-	"github.com/root-gg/utils"
-	"golang.org/x/crypto/openpgp"
+	"github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/root-gg/utils"
+	"github.com/root-gg/plik/client/Godeps/_workspace/src/golang.org/x/crypto/openpgp"
 )
 
 // BackendConfig object

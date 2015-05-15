@@ -30,7 +30,7 @@ THE SOFTWARE.
 package openssl
 
 import (
-	"github.com/root-gg/utils"
+	"github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/root-gg/utils"
 )
 
 // BackendConfig object

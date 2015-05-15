@@ -30,7 +30,7 @@ THE SOFTWARE.
 package weedfs
 
 import (
-	"github.com/root-gg/utils"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
 )
 
 // BackendConfig describes configuration for WeedFS Databackend
