@@ -32,12 +32,13 @@ package tar
 import (
 	"errors"
 	"fmt"
-	"github.com/root-gg/utils"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/root-gg/utils"
 )
 
 type TarBackendConfig struct {
@@ -46,11 +47,11 @@ type TarBackendConfig struct {
 	Options  string
 }
 
-func NewTarBackendConfig(config map[string]interface{}) (this *TarBackendConfig) {
-	this = new(TarBackendConfig)
-	this.Tar = "/bin/tar"
-	this.Compress = "gzip"
-	utils.Assign(this, config)
+func NewTarBackendConfig(config map[string]interface{}) (tb *TarBackendConfig) {
+	tb = new(TarBackendConfig)
+	tb.Tar = "/bin/tar"
+	tb.Compress = "gzip"
+	utils.Assign(tb, config)
 	return
 }
 
@@ -58,23 +59,23 @@ type TarBackend struct {
 	Config *TarBackendConfig
 }
 
-func NewTarBackend(config map[string]interface{}) (this *TarBackend, err error) {
-	this = new(TarBackend)
-	this.Config = NewTarBackendConfig(config)
-	if _, err = os.Stat(this.Config.Tar); os.IsNotExist(err) || os.IsPermission(err) {
-		if this.Config.Tar, err = exec.LookPath("tar"); err != nil {
+func NewTarBackend(config map[string]interface{}) (tb *TarBackend, err error) {
+	tb = new(TarBackend)
+	tb.Config = NewTarBackendConfig(config)
+	if _, err = os.Stat(tb.Config.Tar); os.IsNotExist(err) || os.IsPermission(err) {
+		if tb.Config.Tar, err = exec.LookPath("tar"); err != nil {
 			err = errors.New("tar binary not found in $PATH, please install or edit ~/.plickrc")
 		}
 	}
 	return
 }
 
-func (this *TarBackend) Configure(arguments map[string]interface{}) (err error) {
+func (tb *TarBackend) Configure(arguments map[string]interface{}) (err error) {
 	if arguments["--compress"] != nil && arguments["--compress"].(string) != "" {
-		this.Config.Compress = arguments["--compress"].(string)
+		tb.Config.Compress = arguments["--compress"].(string)
 	}
 	if arguments["--archive-options"] != nil && arguments["--archive-options"].(string) != "" {
-		this.Config.Options = arguments["--archive-options"].(string)
+		tb.Config.Options = arguments["--archive-options"].(string)
 	}
 	return
 }
@@ -99,7 +100,7 @@ func getCompressExtention(mode string) string {
 		return ""
 	}
 }
-func (this *TarBackend) Archive(files []string, writer io.WriteCloser) (name string, err error) {
+func (tb *TarBackend) Archive(files []string, writer io.WriteCloser) (name string, err error) {
 	if len(files) == 0 {
 		fmt.Println("Unable to make a tar archive from STDIN")
 		os.Exit(1)
@@ -110,17 +111,17 @@ func (this *TarBackend) Archive(files []string, writer io.WriteCloser) (name str
 	if len(files) == 1 {
 		name = filepath.Base(files[0])
 	}
-	name += ".tar" + getCompressExtention(this.Config.Compress)
+	name += ".tar" + getCompressExtention(tb.Config.Compress)
 
 	args := make([]string, 0)
 	args = append(args, "--create")
-	if this.Config.Compress != "no" {
-		args = append(args, "--"+this.Config.Compress)
+	if tb.Config.Compress != "no" {
+		args = append(args, "--"+tb.Config.Compress)
 	}
-	args = append(args, strings.Fields(this.Config.Options)...)
+	args = append(args, strings.Fields(tb.Config.Options)...)
 	args = append(args, files...)
 
-	cmd := exec.Command(this.Config.Tar, args...)
+	cmd := exec.Command(tb.Config.Tar, args...)
 	cmd.Stdout = writer
 	cmd.Stderr = os.Stderr
 	go func() {
@@ -145,10 +146,10 @@ func (this *TarBackend) Archive(files []string, writer io.WriteCloser) (name str
 	return
 }
 
-func (this *TarBackend) Comments() string {
+func (tb *TarBackend) Comments() string {
 	return "tar xvf -"
 }
 
-func (this *TarBackend) GetConfiguration() interface{} {
-	return this.Config
+func (tb *TarBackend) GetConfiguration() interface{} {
+	return tb.Config
 }

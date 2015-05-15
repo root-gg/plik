@@ -34,12 +34,13 @@ package w000t
 //
 
 import (
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 )
 
 var timeout = time.Duration(time.Second)

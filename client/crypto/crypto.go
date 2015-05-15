@@ -31,11 +31,14 @@ package crypto
 
 import (
 	"errors"
+	"io"
+
 	"github.com/root-gg/plik/client/crypto/openssl"
 	"github.com/root-gg/plik/client/crypto/pgp"
-	"io"
 )
 
+// CryptoBackend interface describe methods that the different
+// types of crypto backend must implement to work.
 type CryptoBackend interface {
 	Configure(arguments map[string]interface{}) (err error)
 	Encrypt(reader io.Reader, writer io.Writer) (err error)
@@ -43,6 +46,8 @@ type CryptoBackend interface {
 	GetConfiguration() interface{}
 }
 
+// NewCryptoBackend instantiate the wanted archive backend with the name provided in configuration file
+// We are passing its configuration found in .plikrc file or arguments
 func NewCryptoBackend(name string, config map[string]interface{}) (backend CryptoBackend, err error) {
 	switch name {
 	case "openssl":

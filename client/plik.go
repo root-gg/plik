@@ -34,12 +34,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/cheggaaa/pb"
-	docopt "github.com/docopt/docopt-go"
-	"github.com/olekukonko/ts"
-	"github.com/root-gg/plik/client/config"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -51,6 +45,13 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/cheggaaa/pb"
+	docopt "github.com/docopt/docopt-go"
+	"github.com/olekukonko/ts"
+	"github.com/root-gg/plik/client/config"
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 )
 
 // Vars

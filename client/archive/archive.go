@@ -31,11 +31,14 @@ package archive
 
 import (
 	"errors"
+	"io"
+
 	"github.com/root-gg/plik/client/archive/tar"
 	"github.com/root-gg/plik/client/archive/zip"
-	"io"
 )
 
+// ArchiveBackend interface describe methods that the different
+// types of archive backend must implement to work.
 type ArchiveBackend interface {
 	Configure(arguments map[string]interface{}) (err error)
 	Archive(files []string, writer io.WriteCloser) (name string, err error)
@@ -43,6 +46,8 @@ type ArchiveBackend interface {
 	GetConfiguration() interface{}
 }
 
+// NewArchiveBackend instantiate the wanted archive backend with the name provided in configuration file
+// We are passing its configuration found in .plikrc file or arguments
 func NewArchiveBackend(name string, config map[string]interface{}) (backend ArchiveBackend, err error) {
 	switch name {
 	case "tar":

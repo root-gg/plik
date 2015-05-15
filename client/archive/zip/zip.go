@@ -35,10 +35,11 @@ import (
 	//	"strings"
 	"errors"
 	"fmt"
-	"github.com/root-gg/utils"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/root-gg/utils"
 )
 
 type ZipBackendConfig struct {
@@ -46,10 +47,10 @@ type ZipBackendConfig struct {
 	Options string
 }
 
-func NewZipBackendConfig(config map[string]interface{}) (this *ZipBackendConfig) {
-	this = new(ZipBackendConfig)
-	this.Zip = "/bin/zip"
-	utils.Assign(this, config)
+func NewZipBackendConfig(config map[string]interface{}) (zb *ZipBackendConfig) {
+	zb = new(ZipBackendConfig)
+	zb.Zip = "/bin/zip"
+	utils.Assign(zb, config)
 	return
 }
 
@@ -57,25 +58,25 @@ type ZipBackend struct {
 	Config *ZipBackendConfig
 }
 
-func NewZipBackend(config map[string]interface{}) (this *ZipBackend, err error) {
-	this = new(ZipBackend)
-	this.Config = NewZipBackendConfig(config)
-	if _, err := os.Stat(this.Config.Zip); os.IsNotExist(err) || os.IsPermission(err) {
-		if this.Config.Zip, err = exec.LookPath("zip"); err != nil {
+func NewZipBackend(config map[string]interface{}) (zb *ZipBackend, err error) {
+	zb = new(ZipBackend)
+	zb.Config = NewZipBackendConfig(config)
+	if _, err := os.Stat(zb.Config.Zip); os.IsNotExist(err) || os.IsPermission(err) {
+		if zb.Config.Zip, err = exec.LookPath("zip"); err != nil {
 			err = errors.New("zip binary not found in $PATH, please install or edit ~/.plickrc")
 		}
 	}
 	return
 }
 
-func (this *ZipBackend) Configure(arguments map[string]interface{}) (err error) {
+func (zb *ZipBackend) Configure(arguments map[string]interface{}) (err error) {
 	if arguments["--archive-options"] != nil && arguments["--archive-options"].(string) != "" {
-		this.Config.Options = arguments["--archive-options"].(string)
+		zb.Config.Options = arguments["--archive-options"].(string)
 	}
 	return
 }
 
-func (this *ZipBackend) Archive(files []string, writer io.WriteCloser) (name string, err error) {
+func (zb *ZipBackend) Archive(files []string, writer io.WriteCloser) (name string, err error) {
 	if len(files) == 0 {
 		fmt.Println("Unable to make a zip archive from STDIN")
 		os.Exit(1)
@@ -89,11 +90,11 @@ func (this *ZipBackend) Archive(files []string, writer io.WriteCloser) (name str
 	name += ".zip"
 
 	args := make([]string, 0)
-	args = append(args, strings.Fields(this.Config.Options)...)
+	args = append(args, strings.Fields(zb.Config.Options)...)
 	args = append(args, "-r", "-")
 	args = append(args, files...)
 
-	cmd := exec.Command(this.Config.Zip, args...)
+	cmd := exec.Command(zb.Config.Zip, args...)
 	cmd.Stdout = writer
 	cmd.Stderr = os.Stderr
 	go func() {
@@ -118,10 +119,10 @@ func (this *ZipBackend) Archive(files []string, writer io.WriteCloser) (name str
 	return
 }
 
-func (this *ZipBackend) Comments() string {
+func (zb *ZipBackend) Comments() string {
 	return ""
 }
 
-func (this *ZipBackend) GetConfiguration() interface{} {
-	return this.Config
+func (zb *ZipBackend) GetConfiguration() interface{} {
+	return zb.Config
 }

@@ -32,13 +32,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/root-gg/logger"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/data_backend"
-	"github.com/root-gg/plik/server/metadata_backend"
-	"github.com/root-gg/plik/server/shorten_backend"
-	"github.com/root-gg/utils"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -50,6 +43,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/root-gg/logger"
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/data_backend"
+	"github.com/root-gg/plik/server/metadata_backend"
+	"github.com/root-gg/plik/server/shorten_backend"
+	"github.com/root-gg/utils"
 )
 
 var log *logger.Logger
@@ -343,7 +344,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	upload, err := metadata_backend.GetMetaDataBackend().Get(ctx.Fork("get metadata"), uploadId)
 	if err != nil {
 		ctx.Warningf("Upload %s not found : %s", uploadId, err)
-		redirect(req, resp, errors.New(fmt.Sprintf("Upload %s not found", uploadId)), 404)
+		redirect(req, resp, fmt.Errorf("Upload %s not found", uploadId), 404)
 		return
 	}
 
@@ -358,7 +359,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	if upload.Ttl != 0 {
 		if time.Now().Unix() >= (upload.Creation + int64(upload.Ttl)) {
 			ctx.Warningf("Upload is expired since %s", time.Since(time.Unix(upload.Creation, int64(0)).Add(time.Duration(upload.Ttl)*time.Second)).String())
-			redirect(req, resp, errors.New(fmt.Sprintf("Upload %s is expired", upload.Id)), 404)
+			redirect(req, resp, fmt.Errorf("Upload %s is expired", upload.Id), 404)
 			return
 		}
 	}
@@ -366,7 +367,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// Retrieve file using data backend
 	if _, ok := upload.Files[fileId]; !ok {
 		ctx.Warningf("File %s not found", fileId)
-		redirect(req, resp, errors.New(fmt.Sprintf("File %s not found", fileId)), 404)
+		redirect(req, resp, fmt.Errorf("File %s not found", fileId), 404)
 		return
 	}
 
@@ -376,21 +377,21 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// Compare url filename with upload filename
 	if file.Name != fileName {
 		ctx.Warningf("Invalid filename %s mismatch %s", fileName, file.Name)
-		redirect(req, resp, errors.New(fmt.Sprintf("File %s not found", fileName)), 404)
+		redirect(req, resp, fmt.Errorf("File %s not found", fileName), 404)
 		return
 	}
 
 	// If upload has OneShot option, test if file has not been already downloaded once
 	if upload.OneShot && file.Status == "downloaded" {
 		ctx.Warningf("File %s has already been downloaded in upload %s", file.Name, upload.Id)
-		redirect(req, resp, errors.New(fmt.Sprintf("File %s has already been downloaded", file.Name)), 401)
+		redirect(req, resp, fmt.Errorf("File %s has already been downloaded", file.Name), 401)
 		return
 	}
 
 	// If the file is marked as deleted by a previous call, we abort request
 	if upload.Removable && file.Status == "removed" {
 		ctx.Warningf("File %s has been removed", file.Name)
-		redirect(req, resp, errors.New(fmt.Sprintf("File %s has been removed", file.Name)), 404)
+		redirect(req, resp, fmt.Errorf("File %s has been removed", file.Name), 404)
 		return
 	}
 
@@ -457,7 +458,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 		fileReader, err := data_backend.GetDataBackend().GetFile(ctx.Fork("get file"), upload, file.Id)
 		if err != nil {
 			ctx.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.Id, err)
-			redirect(req, resp, errors.New(fmt.Sprintf("Failed to read file %s", file.Name)), 404)
+			redirect(req, resp, fmt.Errorf("Failed to read file %s", file.Name), 404)
 			return
 		}
 		defer fileReader.Close()
@@ -528,7 +529,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Get file handle from multipart request
 	var file io.Reader
-	var fileName string = ""
+	var fileName string
 	multiPartReader, err := req.MultipartReader()
 	if err != nil {
 		ctx.Warningf("Failed to get file from multipart request : %s", err)
@@ -538,8 +539,8 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Read multipart body until the "file" part
 	for {
-		part, err_part := multiPartReader.NextPart()
-		if err_part == io.EOF {
+		part, errPart := multiPartReader.NextPart()
+		if errPart == io.EOF {
 			break
 		}
 
@@ -628,7 +629,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	err = metadata_backend.GetMetaDataBackend().AddOrUpdateFile(ctx.Fork("update metadata"), upload, newFile)
 	if err != nil {
 		ctx.Warningf("Unable to update metadata : %s", err)
-		http.Error(resp, common.NewResult(fmt.Sprintf("Error adding file %s to upload %s metadata", newFile.Name, upload.Id, err), nil).ToJsonString(), 500)
+		http.Error(resp, common.NewResult(fmt.Sprintf("Error adding file %s to upload %s metadata : %s", newFile.Name, upload.Id, err), nil).ToJsonString(), 500)
 		return
 	}
 
@@ -684,7 +685,7 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// Test if upload is removable
 	if !upload.Removable {
 		ctx.Warningf("User tried to remove file %s of an non removeable upload", fileId)
-		redirect(req, resp, errors.New(fmt.Sprintf("Can't remove files on this upload", uploadId)), 401)
+		redirect(req, resp, errors.New("Can't remove files on this upload"), 401)
 		return
 	}
 
@@ -739,18 +740,18 @@ func httpBasicAuth(req *http.Request, resp http.ResponseWriter, upload *common.U
 			// of the base64 string is saved in the upload metadata
 			auth := strings.Split(req.Header.Get("Authorization"), " ")
 			if len(auth) != 2 {
-				err = errors.New(fmt.Sprintf("Inavlid Authorization header %s", req.Header.Get("Authorization")))
+				err = fmt.Errorf("Inavlid Authorization header %s", req.Header.Get("Authorization"))
 			}
 			if auth[0] != "Basic" {
-				err = errors.New(fmt.Sprintf("Inavlid http authorization scheme : %s", auth[0]))
+				err = fmt.Errorf("Inavlid http authorization scheme : %s", auth[0])
 			}
 			var md5sum string
 			md5sum, err = utils.Md5sum(auth[1])
 			if err != nil {
-				err = errors.New(fmt.Sprintf("Unable to hash credentials : %s", err))
+				err = fmt.Errorf("Unable to hash credentials : %s", err)
 			}
 			if md5sum != upload.Password {
-				err = errors.New(fmt.Sprintf("Invalid credentials"))
+				err = errors.New("Invalid credentials")
 			}
 		}
 		if err != nil {
@@ -763,7 +764,7 @@ func httpBasicAuth(req *http.Request, resp http.ResponseWriter, upload *common.U
 	return
 }
 
-var userAgents []string = []string{"wget", "curl", "python-urllib", "libwwww-perl", "php", "pycurl"}
+var userAgents = []string{"wget", "curl", "python-urllib", "libwwww-perl", "php", "pycurl"}
 
 func redirect(req *http.Request, resp http.ResponseWriter, err error, status int) {
 	// The web client uses http redirect to get errors
@@ -834,7 +835,8 @@ func UploadsCleaningRoutine() {
 	}
 }
 
-// Removing upload if there is no available files
+// RemoveUploadIfNoFileAvailable iterates on upload files and remove upload files
+// and metadata if all the files have been downloaded (usefull for OneShot uploads)
 func RemoveUploadIfNoFileAvailable(ctx *common.PlikContext, upload *common.Upload) (err error) {
 
 	// Test if there are remaining files

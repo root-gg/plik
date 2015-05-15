@@ -30,11 +30,12 @@ THE SOFTWARE.
 package data_backend
 
 import (
+	"io"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data_backend/file"
 	"github.com/root-gg/plik/server/data_backend/swift"
 	"github.com/root-gg/plik/server/data_backend/weedfs"
-	"io"
 )
 
 var dataBackend DataBackend

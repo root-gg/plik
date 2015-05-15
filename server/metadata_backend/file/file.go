@@ -31,8 +31,6 @@ package file
 
 import (
 	"encoding/json"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -41,20 +39,23 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 )
 
 type FileMetadataBackendConfig struct {
 	Directory string
 }
 
-func NewFileMetadataBackendConfig(config map[string]interface{}) (this *FileMetadataBackendConfig) {
-	this = new(FileMetadataBackendConfig)
+func NewFileMetadataBackendConfig(config map[string]interface{}) (fmb *FileMetadataBackendConfig) {
+	fmb = new(FileMetadataBackendConfig)
 	// Default upload directory is ./files
 	// this is the same as the default file
 	// data backend so by default files and
 	// metadata are colocated
-	this.Directory = "files"
-	utils.Assign(this, config)
+	fmb.Directory = "files"
+	utils.Assign(fmb, config)
 	return
 }
 
@@ -64,18 +65,18 @@ type FileMetadataBackend struct {
 
 var locks map[string]*sync.RWMutex
 
-func NewFileMetadataBackend(config map[string]interface{}) (this *FileMetadataBackend) {
-	this = new(FileMetadataBackend)
-	this.Config = NewFileMetadataBackendConfig(config)
+func NewFileMetadataBackend(config map[string]interface{}) (fmb *FileMetadataBackend) {
+	fmb = new(FileMetadataBackend)
+	fmb.Config = NewFileMetadataBackendConfig(config)
 	locks = make(map[string]*sync.RWMutex)
 	return
 }
 
-func (this *FileMetadataBackend) Create(ctx *common.PlikContext, upload *common.Upload) (err error) {
+func (fmb *FileMetadataBackend) Create(ctx *common.PlikContext, upload *common.Upload) (err error) {
 	defer ctx.Finalize(err)
 
 	// Get metadata file path
-	directory := this.Config.Directory + "/" + upload.Id[:2] + "/" + upload.Id
+	directory := fmb.Config.Directory + "/" + upload.Id[:2] + "/" + upload.Id
 	metadataFile := directory + "/.config"
 
 	// Serialize metadata to json
@@ -120,11 +121,11 @@ func (this *FileMetadataBackend) Create(ctx *common.PlikContext, upload *common.
 	return
 }
 
-func (this *FileMetadataBackend) Get(ctx *common.PlikContext, id string) (upload *common.Upload, err error) {
+func (fmb *FileMetadataBackend) Get(ctx *common.PlikContext, id string) (upload *common.Upload, err error) {
 	defer ctx.Finalize(err)
 
 	// Get metadata file path
-	metadataFile := this.Config.Directory + "/" + id[:2] + "/" + id + "/.config"
+	metadataFile := fmb.Config.Directory + "/" + id[:2] + "/" + id + "/.config"
 
 	// Open and read metadata
 	buffer := make([]byte, 0)
@@ -144,7 +145,7 @@ func (this *FileMetadataBackend) Get(ctx *common.PlikContext, id string) (upload
 	return
 }
 
-func (this *FileMetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
+func (fmb *FileMetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
 	defer ctx.Finalize(err)
 
 	// avoid race condition
@@ -152,7 +153,7 @@ func (this *FileMetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload
 	defer Unlock(upload.Id)
 
 	// The first thing to do is to reload the file from disk
-	upload, err = this.Get(ctx.Fork("reload metadata"), upload.Id)
+	upload, err = fmb.Get(ctx.Fork("reload metadata"), upload.Id)
 
 	// Add file metadata to upload metadata
 	upload.Files[file.Id] = file
@@ -165,7 +166,7 @@ func (this *FileMetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload
 	}
 
 	// Get metadata file path
-	directory := this.Config.Directory + "/" + upload.Id[:2] + "/" + upload.Id
+	directory := fmb.Config.Directory + "/" + upload.Id[:2] + "/" + upload.Id
 	metadataFile := directory + "/.config"
 
 	// Create directory if needed
@@ -202,7 +203,7 @@ func (this *FileMetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload
 	return
 }
 
-func (this *FileMetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
+func (fmb *FileMetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
 	defer ctx.Finalize(err)
 
 	// avoid race condition
@@ -210,7 +211,7 @@ func (this *FileMetadataBackend) RemoveFile(ctx *common.PlikContext, upload *com
 	defer Unlock(upload.Id)
 
 	// The first thing to do is to reload the file from disk
-	upload, err = this.Get(ctx.Fork("reload metadata"), upload.Id)
+	upload, err = fmb.Get(ctx.Fork("reload metadata"), upload.Id)
 
 	// Remove file metadata from upload metadata
 	delete(upload.Files, file.Name)
@@ -223,7 +224,7 @@ func (this *FileMetadataBackend) RemoveFile(ctx *common.PlikContext, upload *com
 	}
 
 	// Get metadata file path
-	directory := this.Config.Directory + "/" + upload.Id[:2] + "/" + upload.Id
+	directory := fmb.Config.Directory + "/" + upload.Id[:2] + "/" + upload.Id
 	metadataFile := directory + "/.config"
 
 	// Override metadata file
@@ -251,10 +252,10 @@ func (this *FileMetadataBackend) RemoveFile(ctx *common.PlikContext, upload *com
 	return nil
 }
 
-func (this *FileMetadataBackend) Remove(ctx *common.PlikContext, upload *common.Upload) (err error) {
+func (fmb *FileMetadataBackend) Remove(ctx *common.PlikContext, upload *common.Upload) (err error) {
 
 	// Get metadata file path
-	directory := this.Config.Directory + "/" + upload.Id[:2] + "/" + upload.Id
+	directory := fmb.Config.Directory + "/" + upload.Id[:2] + "/" + upload.Id
 	metadataFile := directory + "/.config"
 
 	// Test if file exist
@@ -274,7 +275,7 @@ func (this *FileMetadataBackend) Remove(ctx *common.PlikContext, upload *common.
 	return
 }
 
-func (this *FileMetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []string, err error) {
+func (fmb *FileMetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []string, err error) {
 	defer ctx.Finalize(err)
 
 	// Look for uploads older than MaxTTL to schedule them for removal ( defaults to 30 days )
@@ -285,7 +286,7 @@ func (this *FileMetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (id
 
 		// Let's call our friend find
 		args := make([]string, 0)
-		args = append(args, this.Config.Directory)
+		args = append(args, fmb.Config.Directory)
 		args = append(args, "-mindepth", "2") // Remember that the upload directory
 		args = append(args, "-maxdepth", "2") // structure is splitted in two
 		args = append(args, "-type", "d")

@@ -34,12 +34,13 @@ package isgd
 //
 
 import (
-	"github.com/root-gg/plik/server/common"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 var timeout = time.Duration(time.Second)

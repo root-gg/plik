@@ -32,7 +32,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/root-gg/plik/server/common"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -41,15 +40,17 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 var (
-	plikUrl         string          = "http://127.0.0.1:8080"
-	basicAuth       string          = ""
-	client          *http.Client    = &http.Client{}
-	contentToUpload string          = "PLIK"
-	readerForUpload *strings.Reader = strings.NewReader(contentToUpload)
-	err             error           = nil
+	plikUrl         = "http://127.0.0.1:8080"
+	basicAuth       = ""
+	client          = &http.Client{}
+	contentToUpload = "PLIK"
+	readerForUpload = strings.NewReader(contentToUpload)
+	err             error
 )
 
 func TestSimpleFileUploadAndGet(t *testing.T) {
