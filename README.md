@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/root-gg/plik.svg?branch=master)](https://travis-ci.org/root-gg/plik)
+
 # Plik
 
 Plik is an simple and powerful file uploading system written in golang.

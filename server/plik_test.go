@@ -53,6 +53,11 @@ var (
 	err             error
 )
 
+func TestMain(t *testing.T) {
+	go main()
+	time.Sleep(time.Second)
+}
+
 func TestSimpleFileUploadAndGet(t *testing.T) {
 	upload := createUpload(&common.Upload{}, t)
 	file := uploadFile(upload, "test", readerForUpload, t)
