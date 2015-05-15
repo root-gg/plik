@@ -29,8 +29,9 @@ THE SOFTWARE.
 
 package common
 
+// File object
 type File struct {
-	Id             string                 `json:"id" bson:"fileId"`
+	ID             string                 `json:"id" bson:"fileId"`
 	Name           string                 `json:"fileName" bson:"fileName"`
 	Md5            string                 `json:"fileMd5" bson:"fileMd5"`
 	Status         string                 `json:"status" bson:"status"`
@@ -40,12 +41,16 @@ type File struct {
 	BackendDetails map[string]interface{} `json:"backendDetails,omitempty" bson:"backendDetails"`
 }
 
+// NewFile instantiate a new object
+// and generate a random id
 func NewFile() (file *File) {
 	file = new(File)
-	file.Id = GenerateRandomId(16)
+	file.ID = GenerateRandomID(16)
 	return
 }
 
+// Sanitize removes sensible information from
+// object. Used to hide information in API.
 func (file *File) Sanitize() {
 	file.BackendDetails = nil
 }

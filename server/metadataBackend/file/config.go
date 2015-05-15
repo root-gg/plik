@@ -1,6 +1,6 @@
 /**
 
-    Plik upload client
+    Plik upload server
 
 The MIT License (MIT)
 
@@ -27,35 +27,26 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package archive
+package file
 
 import (
-	"errors"
-	"io"
-
-	"github.com/root-gg/plik/client/archive/tar"
-	"github.com/root-gg/plik/client/archive/zip"
+	"github.com/root-gg/utils"
 )
 
-// Backend interface describe methods that the different
-// types of archive backend must implement to work.
-type Backend interface {
-	Configure(arguments map[string]interface{}) (err error)
-	Archive(files []string, writer io.WriteCloser) (name string, err error)
-	Comments() (comments string)
-	GetConfiguration() interface{}
+// MetadataBackendConfig object
+type MetadataBackendConfig struct {
+	Directory string
 }
 
-// NewArchiveBackend instantiate the wanted archive backend with the name provided in configuration file
-// We are passing its configuration found in .plikrc file or arguments
-func NewArchiveBackend(name string, config map[string]interface{}) (backend Backend, err error) {
-	switch name {
-	case "tar":
-		backend, err = tar.NewTarBackend(config)
-	case "zip":
-		backend, err = zip.NewZipBackend(config)
-	default:
-		err = errors.New("Invalid archive backend")
-	}
+// NewFileMetadataBackendConfig configures the backend
+// from config passed as argument
+func NewFileMetadataBackendConfig(config map[string]interface{}) (fmb *MetadataBackendConfig) {
+	fmb = new(MetadataBackendConfig)
+	// Default upload directory is ./files
+	// this is the same as the default file
+	// data backend so by default files and
+	// metadata are colocated
+	fmb.Directory = "files"
+	utils.Assign(fmb, config)
 	return
 }

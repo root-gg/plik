@@ -120,12 +120,12 @@ Options:
 	config.Debug("Got upload info : " + config.Sdump(uploadInfo))
 
 	printf("Upload successfully created : \n\n")
-	printf("    %s/#/?id=%s\n\n\n", config.Config.Url, uploadInfo.Id)
+	printf("    %s/#/?id=%s\n\n\n", config.Config.URL, uploadInfo.ID)
 
 	if config.Config.Archive {
 
 		pipeReader, pipeWriter := io.Pipe()
-		name, err := config.ArchiveBackend.Archive(arguments["FILE"].([]string), pipeWriter)
+		name, err := config.GetArchiveBackend().Archive(arguments["FILE"].([]string), pipeWriter)
 		if err != nil {
 			printf("Unable to archive files : %s\n", err)
 			os.Exit(1)
@@ -142,7 +142,7 @@ Options:
 		}
 		pipeReader.CloseWithError(err)
 
-		uploadInfo.Files[file.Id] = file
+		uploadInfo.Files[file.ID] = file
 	} else {
 		if len(config.Files) == 0 {
 			// Upload from STDIN
@@ -157,7 +157,7 @@ Options:
 				return
 			}
 
-			uploadInfo.Files[file.Id] = file
+			uploadInfo.Files[file.ID] = file
 		} else {
 			// Upload individual files
 			var wg sync.WaitGroup
@@ -172,7 +172,7 @@ Options:
 						return
 					}
 
-					uploadInfo.Files[file.Id] = file
+					uploadInfo.Files[file.ID] = file
 				}(fileToUpload)
 			}
 			wg.Wait()
@@ -189,7 +189,7 @@ Options:
 
 		// Print file informations (only url if quiet mode enabled)
 		if config.Config.Quiet {
-			fmt.Println(getFileUrl(uploadInfo, file))
+			fmt.Println(getFileURL(uploadInfo, file))
 		} else {
 			fmt.Println(getFileCommand(uploadInfo, file))
 		}
@@ -202,8 +202,8 @@ Options:
 }
 
 func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error) {
-	var Url *url.URL
-	Url, err = url.Parse(config.Config.Url + "/upload")
+	var URL *url.URL
+	URL, err = url.Parse(config.Config.URL + "/upload")
 	if err != nil {
 		return
 	}
@@ -215,14 +215,14 @@ func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error
 	}
 
 	var req *http.Request
-	req, err = http.NewRequest("POST", Url.String(), bytes.NewBuffer(j))
+	req, err = http.NewRequest("POST", URL.String(), bytes.NewBuffer(j))
 	if err != nil {
 		return
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-ClientApp", "cli_client")
-	req.Header.Set("Referer", config.Config.Url)
+	req.Header.Set("Referer", config.Config.URL)
 
 	var resp *http.Response
 	resp, err = client.Do(req)
@@ -266,7 +266,7 @@ func upload(uploadInfo *common.Upload, name string, size int64, reader io.Reader
 			multiWriter = part
 		} else {
 			bar := pb.New64(size).SetUnits(pb.U_BYTES)
-			bar.Prefix(fmt.Sprintf("%-"+strconv.Itoa(config.LongestFilenameSize)+"s : ", name))
+			bar.Prefix(fmt.Sprintf("%-"+strconv.Itoa(config.GetLongestFilename())+"s : ", name))
 			bar.ShowSpeed = true
 			bar.ShowFinalTime = false
 			bar.SetWidth(100)
@@ -278,7 +278,7 @@ func upload(uploadInfo *common.Upload, name string, size int64, reader io.Reader
 		}
 
 		if config.Config.Secure {
-			err = config.CryptoBackend.Encrypt(reader, multiWriter)
+			err = config.GetCryptoBackend().Encrypt(reader, multiWriter)
 			if err != nil {
 				fmt.Println(err)
 				return pipeWriter.CloseWithError(err)
@@ -295,14 +295,14 @@ func upload(uploadInfo *common.Upload, name string, size int64, reader io.Reader
 		return pipeWriter.CloseWithError(err)
 	}()
 
-	var Url *url.URL
-	Url, err = url.Parse(config.Config.Url + "/upload/" + uploadInfo.Id + "/file")
+	var URL *url.URL
+	URL, err = url.Parse(config.Config.URL + "/upload/" + uploadInfo.ID + "/file")
 	if err != nil {
 		return
 	}
 
 	var req *http.Request
-	req, err = http.NewRequest("POST", Url.String(), pipeReader)
+	req, err = http.NewRequest("POST", URL.String(), pipeReader)
 	if err != nil {
 		return
 	}
@@ -350,11 +350,11 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 		command += config.Config.DownloadBinary
 	}
 
-	command += fmt.Sprintf(" %s/file/%s/%s/%s", config.Config.Url, upload.Id, file.Id, file.Name)
+	command += fmt.Sprintf(" %s/file/%s/%s/%s", config.Config.URL, upload.ID, file.ID, file.Name)
 
 	// If Ssl
 	if config.Config.Secure {
-		command += fmt.Sprintf(" | %s", config.CryptoBackend.Comments())
+		command += fmt.Sprintf(" | %s", config.GetCryptoBackend().Comments())
 	}
 
 	// If archive
@@ -362,7 +362,7 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 		if config.Config.ArchiveMethod == "zip" {
 			command += fmt.Sprintf(" > %s", file.Name)
 		} else {
-			command += fmt.Sprintf(" | %s", config.ArchiveBackend.Comments())
+			command += fmt.Sprintf(" | %s", config.GetArchiveBackend().Comments())
 		}
 	} else {
 		command += " > " + file.Name
@@ -371,8 +371,8 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 	return
 }
 
-func getFileUrl(upload *common.Upload, file *common.File) (fileUrl string) {
-	fileUrl += fmt.Sprintf("%s/file/%s/%s/%s", config.Config.Url, upload.Id, file.Id, file.Name)
+func getFileURL(upload *common.Upload, file *common.File) (fileURL string) {
+	fileURL += fmt.Sprintf("%s/file/%s/%s/%s", config.Config.URL, upload.ID, file.ID, file.Name)
 	return
 }
 

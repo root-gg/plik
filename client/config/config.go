@@ -46,20 +46,27 @@ import (
 	"github.com/root-gg/utils"
 )
 
+// Static config var
 var Config *UploadConfig
+
+// Static Upload var
 var Upload *common.Upload
+
+// Static files array
 var Files []*FileToUpload
 
-var CryptoBackend crypto.CryptoBackend
-var ArchiveBackend archive.ArchiveBackend
+// Private backends
+var cryptoBackend crypto.Backend
+var archiveBackend archive.Backend
 
-var LongestFilenameSize int
+var longestFilenameSize int
 
+// UploadConfig object
 type UploadConfig struct {
 	Debug          bool
 	Quiet          bool
 	HomeDir        string
-	Url            string
+	URL            string
 	OneShot        bool
 	Removable      bool
 	Secure         bool
@@ -72,21 +79,15 @@ type UploadConfig struct {
 	Comments       string
 	Yubikey        bool
 	Password       string
-	Ttl            int
+	TTL            int
 }
 
-type FileToUpload struct {
-	Path       string
-	Base       string
-	Size       int64
-	FileHandle *os.File
-}
-
+// NewUploadConfig construct a new configuration with default values
 func NewUploadConfig() (config *UploadConfig) {
 	config = new(UploadConfig)
 	config.Debug = false
 	config.Quiet = false
-	config.Url = "http://127.0.0.1:8080"
+	config.URL = "http://127.0.0.1:8080"
 	config.OneShot = false
 	config.Removable = false
 	config.Secure = false
@@ -104,10 +105,22 @@ func NewUploadConfig() (config *UploadConfig) {
 	config.Comments = ""
 	config.Yubikey = false
 	config.Password = ""
-	config.Ttl = 86400 * 30
+	config.TTL = 86400 * 30
 	return
 }
 
+// FileToUpload is a handy struct to gather information
+// about a file to be uploaded
+type FileToUpload struct {
+	Path       string
+	Base       string
+	Size       int64
+	FileHandle *os.File
+}
+
+// Load creates a new default configuration and override it with .plikrc fike.
+// If plikrc does not exist, ask domain,
+// and create a new one in user HOMEDIR
 func Load() (err error) {
 	Config = NewUploadConfig()
 	Upload = common.NewUpload()
@@ -130,9 +143,9 @@ func Load() (err error) {
 		fmt.Printf("Please enter your plik domain [default:http://127.0.0.1:8080] : ")
 		_, err := fmt.Scanf("%s", &domain)
 		if err == nil {
-			Config.Url = domain
+			Config.URL = domain
 			if !strings.HasPrefix(domain, "http") {
-				Config.Url = "http://" + domain
+				Config.URL = "http://" + domain
 			}
 		}
 
@@ -159,7 +172,7 @@ func Load() (err error) {
 	return
 }
 
-// Here, we are unmarshalling args into upload informations
+// UnmarshalArgs into upload informations
 // Argument takes priority over config file param
 func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 
@@ -176,7 +189,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 
 	// Plik url
 	if arguments["--server"] != nil && arguments["--server"].(string) != "" {
-		Config.Url = arguments["--server"].(string)
+		Config.URL = arguments["--server"].(string)
 	}
 
 	// Check files
@@ -195,8 +208,8 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 			}
 
 			// Check file size (for displaying purpose later)
-			if len(fileToUpload.Base) > LongestFilenameSize {
-				LongestFilenameSize = len(fileToUpload.Base)
+			if len(fileToUpload.Base) > longestFilenameSize {
+				longestFilenameSize = len(fileToUpload.Base)
 			}
 
 			// Check mode
@@ -230,7 +243,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 	}
 
 	// Upload time to live
-	Upload.Ttl = Config.Ttl
+	Upload.TTL = Config.TTL
 	if arguments["--ttl"] != nil && arguments["--ttl"].(string) != "" {
 		ttlStr := arguments["--ttl"].(string)
 		mul := 1
@@ -248,7 +261,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		if err != nil {
 			return fmt.Errorf("Invalid TTL %s", arguments["--ttl"].(string))
 		}
-		Upload.Ttl = ttl * mul
+		Upload.TTL = ttl * mul
 	}
 
 	// Do we need a crypto backend ?
@@ -259,16 +272,16 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 			secureMethod = arguments["--secure"].(string)
 		}
 		var err error
-		CryptoBackend, err = crypto.NewCryptoBackend(secureMethod, Config.SecureOptions)
+		cryptoBackend, err = crypto.NewCryptoBackend(secureMethod, Config.SecureOptions)
 		if err != nil {
 			return fmt.Errorf("Invalid secure params : %s\n", err)
 		}
-		err = CryptoBackend.Configure(arguments)
+		err = cryptoBackend.Configure(arguments)
 		if err != nil {
 			return fmt.Errorf("Invalid secure params : %s\n", err)
 		}
 
-		Debug("Crypto backend configuration : " + utils.Sdump(CryptoBackend.GetConfiguration()))
+		Debug("Crypto backend configuration : " + utils.Sdump(cryptoBackend.GetConfiguration()))
 	}
 
 	// Do we need an archive backend
@@ -278,16 +291,16 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		if arguments["--archive"] != nil && arguments["--archive"] != "" {
 			Config.ArchiveMethod = arguments["--archive"].(string)
 		}
-		ArchiveBackend, err = archive.NewArchiveBackend(Config.ArchiveMethod, Config.ArchiveOptions)
+		archiveBackend, err = archive.NewArchiveBackend(Config.ArchiveMethod, Config.ArchiveOptions)
 		if err != nil {
 			return fmt.Errorf("Invalid archive params : %s\n", err)
 		}
-		err = ArchiveBackend.Configure(arguments)
+		err = archiveBackend.Configure(arguments)
 		if err != nil {
 			return fmt.Errorf("Invalid archive params : %s\n", err)
 		}
 
-		Debug("Archive backend configuration : " + utils.Sdump(ArchiveBackend.GetConfiguration()))
+		Debug("Archive backend configuration : " + utils.Sdump(archiveBackend.GetConfiguration()))
 	} else {
 		for _, fileToUpload := range Files {
 			fh, err := os.Open(fileToUpload.Path)
@@ -342,16 +355,37 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 	return
 }
 
+// GetLongestFilename is used for a nice
+// display of file names in cli
+func GetLongestFilename() int {
+	return longestFilenameSize
+}
+
+// GetArchiveBackend is a getter for archive backend
+func GetArchiveBackend() archive.Backend {
+	return archiveBackend
+}
+
+// GetCryptoBackend is a getter for crypto backend
+func GetCryptoBackend() crypto.Backend {
+	return cryptoBackend
+}
+
+// Debug is a handy function that calls Println of message
+// only if Debug is enabled in configuration
 func Debug(message string) {
 	if Config.Debug {
 		fmt.Println(message)
 	}
 }
 
+// Dump takes a interface{} and print the call
+// to Sdump
 func Dump(data interface{}) {
 	fmt.Println(Sdump(data))
 }
 
+// Sdump takes a interface{} and turn it to a string
 func Sdump(data interface{}) string {
 	buf := new(bytes.Buffer)
 	if json, err := json.MarshalIndent(data, "", "    "); err != nil {

@@ -27,41 +27,29 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package metadata_backend
+package mongo
 
 import (
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadata_backend/file"
-	"github.com/root-gg/plik/server/metadata_backend/mongo"
+	"github.com/root-gg/utils"
 )
 
-var metadataBackend MetadataBackend
-
-type MetadataBackend interface {
-	Create(ctx *common.PlikContext, u *common.Upload) (err error)
-	Get(ctx *common.PlikContext, id string) (u *common.Upload, err error)
-	AddOrUpdateFile(ctx *common.PlikContext, u *common.Upload, file *common.File) (err error)
-	RemoveFile(ctx *common.PlikContext, u *common.Upload, file *common.File) (err error)
-	Remove(ctx *common.PlikContext, u *common.Upload) (err error)
-	GetUploadsToRemove(ctx *common.PlikContext) (ids []string, err error)
+// MetadataBackendConfig object
+type MetadataBackendConfig struct {
+	URL        string
+	Database   string
+	Collection string
+	Username   string
+	Password   string
+	Ssl        bool
 }
 
-func GetMetaDataBackend() MetadataBackend {
-	if metadataBackend == nil {
-		Initialize()
-	}
-	return metadataBackend
-}
-
-func Initialize() {
-	if metadataBackend == nil {
-		switch common.Config.MetadataBackend {
-		case "file":
-			metadataBackend = file.NewFileMetadataBackend(common.Config.MetadataBackendConfig)
-		case "mongo":
-			metadataBackend = mongo.NewMongoMetadataBackend(common.Config.MetadataBackendConfig)
-		default:
-			common.Log().Fatalf("Invalid metadata backend %s", common.Config.DataBackend)
-		}
-	}
+// NewMongoMetadataBackendConfig configures the backend
+// from config passed as argument
+func NewMongoMetadataBackendConfig(config map[string]interface{}) (mmb *MetadataBackendConfig) {
+	mmb = new(MetadataBackendConfig)
+	mmb.URL = "127.0.0.1:27017"
+	mmb.Database = "plik"
+	mmb.Collection = "meta"
+	utils.Assign(mmb, config)
+	return
 }

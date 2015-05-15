@@ -33,31 +33,122 @@ import (
 	"io"
 
 	"github.com/ncw/swift"
-	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/utils"
 )
 
-type SwiftBackend struct {
+// Backend object
+type Backend struct {
 	config     *configInfo
 	connection swift.Connection
 }
 
-type configInfo struct {
-	Username, Password, Host, ProjectName, Container string
-}
-
-var log *logger.Logger
-
-func NewSwiftBackend(config map[string]interface{}) (sb *SwiftBackend) {
-	sb = new(SwiftBackend)
+// NewSwiftBackend instantiate a new Openstack Swift Data Backend
+// from configuration passed as argument
+func NewSwiftBackend(config map[string]interface{}) (sb *Backend) {
+	sb = new(Backend)
 	sb.config = new(configInfo)
 	sb.config.Container = "PlickData"
 	utils.Assign(sb.config, config)
 	return sb
 }
 
-func (sb *SwiftBackend) auth(ctx *common.PlikContext) (err error) {
+// GetFile implementation for Swift Data Backend
+func (sb *Backend) GetFile(ctx *common.PlikContext, upload *common.Upload, fileID string) (reader io.ReadCloser, err error) {
+	defer func() {
+		if err != nil {
+			ctx.Finalize(err)
+		}
+	}() // Finalize the context only if error, else let it be finalized by the download goroutine
+
+	err = sb.auth(ctx)
+	if err != nil {
+		return
+	}
+
+	reader, pipeWriter := io.Pipe()
+	uuid := sb.getFileID(upload, fileID)
+	go func() {
+		defer ctx.Finalize(err)
+		_, err = sb.connection.ObjectGet(sb.config.Container, uuid, pipeWriter, true, nil)
+		defer pipeWriter.Close()
+		if err != nil {
+			err = ctx.EWarningf("Unable to get object %s : %s", uuid, err)
+			return
+		}
+	}()
+
+	return
+}
+
+// AddFile implementation for Swift Data Backend
+func (sb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
+	defer ctx.Finalize(err)
+
+	err = sb.auth(ctx)
+	if err != nil {
+		return
+	}
+
+	uuid := sb.getFileID(upload, file.ID)
+	object, err := sb.connection.ObjectCreate(sb.config.Container, uuid, true, "", "", nil)
+
+	_, err = io.Copy(object, fileReader)
+	if err != nil {
+		err = ctx.EWarningf("Unable to save object %s : %s", uuid, err)
+		return
+	}
+	object.Close()
+	ctx.Infof("Object %s successfully saved", uuid)
+
+	return
+}
+
+// RemoveFile implementation for Swift Data Backend
+func (sb *Backend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, fileID string) (err error) {
+	defer ctx.Finalize(err)
+
+	err = sb.auth(ctx)
+	if err != nil {
+		return
+	}
+
+	uuid := sb.getFileID(upload, fileID)
+	err = sb.connection.ObjectDelete(sb.config.Container, uuid)
+	if err != nil {
+		err = ctx.EWarningf("Unable to remove object %s : %s", uuid, err)
+		return
+	}
+
+	return
+}
+
+// RemoveUpload implementation for Swift Data Backend
+// Iterates on each upload file and call RemoveFile
+func (sb *Backend) RemoveUpload(ctx *common.PlikContext, upload *common.Upload) (err error) {
+	defer ctx.Finalize(err)
+
+	err = sb.auth(ctx)
+	if err != nil {
+		return
+	}
+
+	for fileID := range upload.Files {
+		uuid := sb.getFileID(upload, fileID)
+		err = sb.connection.ObjectDelete(sb.config.Container, uuid)
+		if err != nil {
+			err = ctx.EWarningf("Unable to remove object %s : %s", uuid, err)
+		}
+	}
+
+	return
+}
+
+func (sb *Backend) getFileID(upload *common.Upload, fileID string) string {
+	return upload.ID + "." + fileID
+}
+
+func (sb *Backend) auth(ctx *common.PlikContext) (err error) {
 	timer := ctx.Time("auth")
 	defer timer.Stop()
 
@@ -75,7 +166,7 @@ func (sb *SwiftBackend) auth(ctx *common.PlikContext) (err error) {
 	// Authenticate
 	err = connection.Authenticate()
 	if err != nil {
-		err = log.EWarningf("Unable to autenticate : %s", err)
+		err = ctx.EWarningf("Unable to autenticate : %s", err)
 		return err
 	}
 	sb.connection = connection
@@ -84,94 +175,4 @@ func (sb *SwiftBackend) auth(ctx *common.PlikContext) (err error) {
 	sb.connection.ContainerCreate(sb.config.Container, nil)
 
 	return
-}
-
-func (sb *SwiftBackend) GetFile(ctx *common.PlikContext, upload *common.Upload, fileId string) (reader io.ReadCloser, err error) {
-	defer func() {
-		if err != nil {
-			ctx.Finalize(err)
-		}
-	}() // Finalize the context only if error, else let it be finalized by the download goroutine
-
-	err = sb.auth(ctx)
-	if err != nil {
-		return
-	}
-
-	reader, pipeWriter := io.Pipe()
-	uuid := sb.getFileId(upload, fileId)
-	go func() {
-		defer ctx.Finalize(err)
-		_, err = sb.connection.ObjectGet(sb.config.Container, uuid, pipeWriter, true, nil)
-		defer pipeWriter.Close()
-		if err != nil {
-			err = ctx.EWarningf("Unable to get object %s : %s", uuid, err)
-			return
-		}
-	}()
-
-	return
-}
-
-func (sb *SwiftBackend) AddFile(ctx *common.PlikContext, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
-	defer ctx.Finalize(err)
-
-	err = sb.auth(ctx)
-	if err != nil {
-		return
-	}
-
-	uuid := sb.getFileId(upload, file.Id)
-	object, err := sb.connection.ObjectCreate(sb.config.Container, uuid, true, "", "", nil)
-
-	_, err = io.Copy(object, fileReader)
-	if err != nil {
-		err = ctx.EWarningf("Unable to save object %s : %s", uuid, err)
-		return
-	}
-	object.Close()
-	ctx.Infof("Object %s successfully saved", uuid)
-
-	return
-}
-
-func (sb *SwiftBackend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, fileId string) (err error) {
-	defer ctx.Finalize(err)
-
-	err = sb.auth(ctx)
-	if err != nil {
-		return
-	}
-
-	uuid := sb.getFileId(upload, fileId)
-	err = sb.connection.ObjectDelete(sb.config.Container, uuid)
-	if err != nil {
-		err = ctx.EWarningf("Unable to remove object %s : %s", uuid, err)
-		return
-	}
-
-	return
-}
-
-func (sb *SwiftBackend) RemoveUpload(ctx *common.PlikContext, upload *common.Upload) (err error) {
-	defer ctx.Finalize(err)
-
-	err = sb.auth(ctx)
-	if err != nil {
-		return
-	}
-
-	for fileId := range upload.Files {
-		uuid := sb.getFileId(upload, fileId)
-		err = sb.connection.ObjectDelete(sb.config.Container, uuid)
-		if err != nil {
-			err = ctx.EWarningf("Unable to remove object %s : %s", uuid, err)
-		}
-	}
-
-	return
-}
-
-func (bf *SwiftBackend) getFileId(upload *common.Upload, fileId string) string {
-	return upload.Id + "." + fileId
 }

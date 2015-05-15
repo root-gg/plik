@@ -36,38 +36,25 @@ import (
 	"os"
 	"strings"
 
-	"github.com/root-gg/utils"
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/armor"
 )
 
-type PgpBackendConfig struct {
-	Gpg       string
-	Keyring   string
-	Recipient string
-	Email     string
-	Entity    *openpgp.Entity
+// Backend object
+type Backend struct {
+	Config *BackendConfig
 }
 
-func NewPgpBackendConfig(config map[string]interface{}) (pb *PgpBackendConfig) {
-	pb = new(PgpBackendConfig)
-	pb.Gpg = "/usr/bin/gpg"
-	pb.Keyring = os.Getenv("HOME") + "/.gnupg/pubring.gpg"
-	utils.Assign(pb, config)
-	return
-}
-
-type PgpBackend struct {
-	Config *PgpBackendConfig
-}
-
-func NewPgpBackend(config map[string]interface{}) (pb *PgpBackend) {
-	pb = new(PgpBackend)
+// NewPgpBackend instantiate a new PGP Crypto Backend
+// and configure it from config map
+func NewPgpBackend(config map[string]interface{}) (pb *Backend) {
+	pb = new(Backend)
 	pb.Config = NewPgpBackendConfig(config)
 	return
 }
 
-func (pb *PgpBackend) Configure(arguments map[string]interface{}) (err error) {
+// Configure implementation for PGP Crypto Backend
+func (pb *Backend) Configure(arguments map[string]interface{}) (err error) {
 
 	// Parse options
 	if arguments["--recipient"] != nil && arguments["--recipient"].(string) != "" {
@@ -97,8 +84,9 @@ func (pb *PgpBackend) Configure(arguments map[string]interface{}) (err error) {
 	}
 
 	// Search for key
+	var emailsFound []string
+
 	entitiesFound := make(map[uint64]*openpgp.Entity)
-	emailsFound := make([]string, 0)
 	intToEntity := make(map[int]uint64)
 	countEntitiesFound := 0
 
@@ -133,7 +121,8 @@ func (pb *PgpBackend) Configure(arguments map[string]interface{}) (err error) {
 	return nil
 }
 
-func (pb *PgpBackend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
+// Encrypt implementation for PGP Crypto Backend
+func (pb *Backend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
 	w, _ := armor.Encode(writer, "PGP MESSAGE", nil)
 	plaintext, _ := openpgp.Encrypt(w, []*openpgp.Entity{pb.Config.Entity}, nil, &openpgp.FileHints{IsBinary: true}, nil)
 
@@ -148,10 +137,12 @@ func (pb *PgpBackend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
 	return
 }
 
-func (pb *PgpBackend) Comments() string {
+// Comments implementation for PGP Crypto Backend
+func (pb *Backend) Comments() string {
 	return "gpg -d"
 }
 
-func (pb *PgpBackend) GetConfiguration() interface{} {
+// GetConfiguration implementation for PGP Crypto Backend
+func (pb *Backend) GetConfiguration() interface{} {
 	return pb.Config
 }

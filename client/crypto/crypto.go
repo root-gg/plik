@@ -37,9 +37,9 @@ import (
 	"github.com/root-gg/plik/client/crypto/pgp"
 )
 
-// CryptoBackend interface describe methods that the different
+// Backend interface describe methods that the different
 // types of crypto backend must implement to work.
-type CryptoBackend interface {
+type Backend interface {
 	Configure(arguments map[string]interface{}) (err error)
 	Encrypt(reader io.Reader, writer io.Writer) (err error)
 	Comments() string
@@ -48,7 +48,7 @@ type CryptoBackend interface {
 
 // NewCryptoBackend instantiate the wanted archive backend with the name provided in configuration file
 // We are passing its configuration found in .plikrc file or arguments
-func NewCryptoBackend(name string, config map[string]interface{}) (backend CryptoBackend, err error) {
+func NewCryptoBackend(name string, config map[string]interface{}) (backend Backend, err error) {
 	switch name {
 	case "openssl":
 		backend = openssl.NewOpenSSLBackend(config)

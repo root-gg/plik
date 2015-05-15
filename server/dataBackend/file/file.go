@@ -34,35 +34,28 @@ import (
 	"os"
 
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 )
 
-type FileBackendConfig struct {
-	Directory string
+// Backend object
+type Backend struct {
+	Config *BackendConfig
 }
 
-func NewFileBackendConfig(config map[string]interface{}) (fb *FileBackendConfig) {
-	fb = new(FileBackendConfig)
-	fb.Directory = "files" // Default upload directory is ./files
-	utils.Assign(fb, config)
-	return
-}
-
-type FileBackend struct {
-	Config *FileBackendConfig
-}
-
-func NewFileBackend(config map[string]interface{}) (fb *FileBackend) {
-	fb = new(FileBackend)
+// NewFileBackend instantiate a new File Data Backend
+// from configuration passed as argument
+func NewFileBackend(config map[string]interface{}) (fb *Backend) {
+	fb = new(Backend)
 	fb.Config = NewFileBackendConfig(config)
 	return
 }
 
-func (fb *FileBackend) GetFile(ctx *common.PlikContext, upload *common.Upload, id string) (file io.ReadCloser, err error) {
+// GetFile implementation for file data backend will search
+// on filesystem the asked file and return its reading filehandle
+func (fb *Backend) GetFile(ctx *common.PlikContext, upload *common.Upload, id string) (file io.ReadCloser, err error) {
 	defer ctx.Finalize(err)
 
 	// Get file path
-	directory := fb.getDirectoryFromUploadId(upload.Id)
+	directory := fb.getDirectoryFromUploadID(upload.ID)
 	fullPath := directory + "/" + id
 
 	// The file content will be piped directly
@@ -76,12 +69,14 @@ func (fb *FileBackend) GetFile(ctx *common.PlikContext, upload *common.Upload, i
 	return
 }
 
-func (fb *FileBackend) AddFile(ctx *common.PlikContext, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
+// AddFile implementation for file data backend will creates a new file for the given upload
+// and save it on filesystem with the given file reader
+func (fb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
 	defer ctx.Finalize(err)
 
 	// Get file path
-	directory := fb.getDirectoryFromUploadId(upload.Id)
-	fullPath := directory + "/" + file.Id
+	directory := fb.getDirectoryFromUploadID(upload.ID)
+	fullPath := directory + "/" + file.ID
 
 	// Create directory
 	_, err = os.Stat(directory)
@@ -113,11 +108,13 @@ func (fb *FileBackend) AddFile(ctx *common.PlikContext, upload *common.Upload, f
 	return
 }
 
-func (fb *FileBackend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, id string) (err error) {
+// RemoveFile implementation for file data backend will delete the given
+// file from filesystem
+func (fb *Backend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, id string) (err error) {
 	defer ctx.Finalize(err)
 
 	// Get file path
-	fullPath := fb.getDirectoryFromUploadId(upload.Id) + "/" + id
+	fullPath := fb.getDirectoryFromUploadID(upload.ID) + "/" + id
 
 	// Remove file
 	err = os.Remove(fullPath)
@@ -130,11 +127,14 @@ func (fb *FileBackend) RemoveFile(ctx *common.PlikContext, upload *common.Upload
 	return
 }
 
-func (fb *FileBackend) RemoveUpload(ctx *common.PlikContext, upload *common.Upload) (err error) {
+// RemoveUpload implementation for file data backend will
+// delete the whole upload. Given that an upload is a directory,
+// we remove the whole directory at once.
+func (fb *Backend) RemoveUpload(ctx *common.PlikContext, upload *common.Upload) (err error) {
 	defer ctx.Finalize(err)
 
 	// Get upload directory
-	fullPath := fb.getDirectoryFromUploadId(upload.Id)
+	fullPath := fb.getDirectoryFromUploadID(upload.ID)
 
 	// Remove everything at once
 	err = os.RemoveAll(fullPath)
@@ -146,12 +146,12 @@ func (fb *FileBackend) RemoveUpload(ctx *common.PlikContext, upload *common.Uplo
 	return
 }
 
-func (fb *FileBackend) getDirectoryFromUploadId(uploadId string) string {
+func (fb *Backend) getDirectoryFromUploadID(uploadID string) string {
 	// To avoid too many files in the same directory
 	// data directory is splitted in two levels the
 	// first level is the 2 first chars from the upload id
 	// it gives 3844 possibilities reaching 65535 files per
 	// directory at ~250.000.000 files uploaded.
 
-	return fb.Config.Directory + "/" + uploadId[:2] + "/" + uploadId
+	return fb.Config.Directory + "/" + uploadID[:2] + "/" + uploadID
 }

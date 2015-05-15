@@ -30,36 +30,24 @@ THE SOFTWARE.
 package zip
 
 import (
-	"io"
-	"os/exec"
-	//	"strings"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/root-gg/utils"
 )
 
-type ZipBackendConfig struct {
-	Zip     string
-	Options string
+// Backend config
+type Backend struct {
+	Config *BackendConfig
 }
 
-func NewZipBackendConfig(config map[string]interface{}) (zb *ZipBackendConfig) {
-	zb = new(ZipBackendConfig)
-	zb.Zip = "/bin/zip"
-	utils.Assign(zb, config)
-	return
-}
-
-type ZipBackend struct {
-	Config *ZipBackendConfig
-}
-
-func NewZipBackend(config map[string]interface{}) (zb *ZipBackend, err error) {
-	zb = new(ZipBackend)
+// NewZipBackend instantiate a new ZIP Archive Backend
+// and configure it from config map
+func NewZipBackend(config map[string]interface{}) (zb *Backend, err error) {
+	zb = new(Backend)
 	zb.Config = NewZipBackendConfig(config)
 	if _, err := os.Stat(zb.Config.Zip); os.IsNotExist(err) || os.IsPermission(err) {
 		if zb.Config.Zip, err = exec.LookPath("zip"); err != nil {
@@ -69,14 +57,16 @@ func NewZipBackend(config map[string]interface{}) (zb *ZipBackend, err error) {
 	return
 }
 
-func (zb *ZipBackend) Configure(arguments map[string]interface{}) (err error) {
+// Configure implementation for ZIP Archive Backend
+func (zb *Backend) Configure(arguments map[string]interface{}) (err error) {
 	if arguments["--archive-options"] != nil && arguments["--archive-options"].(string) != "" {
 		zb.Config.Options = arguments["--archive-options"].(string)
 	}
 	return
 }
 
-func (zb *ZipBackend) Archive(files []string, writer io.WriteCloser) (name string, err error) {
+// Archive implementation for ZIP Archive Backend
+func (zb *Backend) Archive(files []string, writer io.WriteCloser) (name string, err error) {
 	if len(files) == 0 {
 		fmt.Println("Unable to make a zip archive from STDIN")
 		os.Exit(1)
@@ -89,7 +79,7 @@ func (zb *ZipBackend) Archive(files []string, writer io.WriteCloser) (name strin
 	}
 	name += ".zip"
 
-	args := make([]string, 0)
+	var args []string
 	args = append(args, strings.Fields(zb.Config.Options)...)
 	args = append(args, "-r", "-")
 	args = append(args, files...)
@@ -119,10 +109,13 @@ func (zb *ZipBackend) Archive(files []string, writer io.WriteCloser) (name strin
 	return
 }
 
-func (zb *ZipBackend) Comments() string {
+// Comments implementation for ZIP Archive Backend
+// Left empty because ZIP can't accept piping to it's STDIN
+func (zb *Backend) Comments() string {
 	return ""
 }
 
-func (zb *ZipBackend) GetConfiguration() interface{} {
+// GetConfiguration implementation for ZIP Archive Backend
+func (zb *Backend) GetConfiguration() interface{} {
 	return zb.Config
 }
