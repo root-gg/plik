@@ -243,6 +243,12 @@ THE SOFTWARE.
                     </div>
                 </div>
             </div>
+            <!-- EXPIRATION -->
+            <div class="container-fluid" ng-show="upload.ttl != 0">
+                <div class="row">
+                    <p class="text-center">This upload will expire on {{ getExpirationDate() }}</p>
+                </div>
+            </div>
         </div>
         <!-- FOOTER -->
         <div class="panel-footer">

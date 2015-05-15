@@ -398,6 +398,11 @@ function UploadCtrl($scope, $dialog, $route, $location, $api) {
         return ttl;
     }
 
+    $scope.getExpirationDate = function(){
+        var d = new Date(($scope.upload.ttl + $scope.upload.uploadDate)*1000);
+        return d.toLocaleDateString() + " at " + d.toLocaleTimeString();
+    }
+
     $scope.init();
 }
 
