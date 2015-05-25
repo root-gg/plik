@@ -78,6 +78,7 @@ func NewConfiguration() (this *Configuration) {
 	this.LogLevel = "INFO"
 	this.ListenAddress = "0.0.0.0"
 	this.ListenPort = 8080
+	this.DataBackend = "file"
 	this.MetadataBackend = "file"
 	this.MaxFileSize = 1048576 // 1MB
 	this.DefaultTTL = 2592000  // 30 days
