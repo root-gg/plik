@@ -44,13 +44,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/root-gg/logger"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/gorilla/mux"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/dataBackend"
 	"github.com/root-gg/plik/server/metadataBackend"
 	"github.com/root-gg/plik/server/shortenBackend"
-	"github.com/root-gg/utils"
 )
 
 var log *logger.Logger

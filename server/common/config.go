@@ -30,9 +30,9 @@ THE SOFTWARE.
 package common
 
 import (
-	"github.com/BurntSushi/toml"
-	"github.com/GeertJohan/yubigo"
-	"github.com/root-gg/logger"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/BurntSushi/toml"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/GeertJohan/yubigo"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
 )
 
 var (
@@ -78,6 +78,7 @@ func NewConfiguration() (this *Configuration) {
 	this.LogLevel = "INFO"
 	this.ListenAddress = "0.0.0.0"
 	this.ListenPort = 8080
+	this.DataBackend = "file"
 	this.MetadataBackend = "file"
 	this.MaxFileSize = 1048576 // 1MB
 	this.DefaultTTL = 2592000  // 30 days

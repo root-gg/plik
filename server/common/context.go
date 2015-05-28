@@ -34,8 +34,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/root-gg/context"
-	"github.com/root-gg/logger"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/context"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
 )
 
 var rootLogger = logger.NewLogger()

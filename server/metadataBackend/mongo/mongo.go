@@ -35,9 +35,9 @@ import (
 	"strconv"
 	"time"
 
+	mgo "github.com/root-gg/plik/server/Godeps/_workspace/src/gopkg.in/mgo.v2"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/gopkg.in/mgo.v2/bson"
 	"github.com/root-gg/plik/server/common"
-	mgo "gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
 )
 
 /*

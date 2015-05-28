@@ -1,0 +1,47 @@
+{
+	"ImportPath": "github.com/root-gg/plik/server",
+	"GoVersion": "go1.3.1",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/BurntSushi/toml",
+			"Comment": "v0.1.0",
+			"Rev": "2ceedfee35ad3848e49308ab0c9a4f640cfb5fb2"
+		},
+		{
+			"ImportPath": "github.com/GeertJohan/yubigo",
+			"Rev": "b1764f04aa9ba3c98a15084e7e13c1a69753e1da"
+		},
+		{
+			"ImportPath": "github.com/gorilla/context",
+			"Rev": "50c25fb3b2b3b3cc724e9b6ac75fb44b3bccd0da"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Rev": "e444e69cbd2e2e3e0749a2f3c717cec491552bbf"
+		},
+		{
+			"ImportPath": "github.com/ncw/swift",
+			"Rev": "da9274954a59d67d130af988ebf73bb15bc15e1b"
+		},
+		{
+			"ImportPath": "github.com/root-gg/context",
+			"Rev": "eb01ea15154712b6b44ee3bbf07863af6525afc6"
+		},
+		{
+			"ImportPath": "github.com/root-gg/logger",
+			"Rev": "5d9a47a3531200bc20998b96439220812c111707"
+		},
+		{
+			"ImportPath": "github.com/root-gg/utils",
+			"Rev": "075b52a8bb434c1e2f156f004a994976bf6a8173"
+		},
+		{
+			"ImportPath": "gopkg.in/mgo.v2",
+			"Comment": "r2015.01.24",
+			"Rev": "c6a7dce14133ccac2dcac3793f1d6e2ef048503a"
+		}
+	]
+}

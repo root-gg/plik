@@ -32,7 +32,7 @@ package common
 import (
 	"fmt"
 
-	"github.com/root-gg/utils"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
 )
 
 // Result object
