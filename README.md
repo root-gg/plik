@@ -69,6 +69,10 @@ Creating upload and uploading files :
          Important fields :
            - id (required to upload files)
            - uploadToken (required to upload files)
+
+   - **GET** /upload/:uploadid:
+     - Get upload metadatas (files list, upload date, ttl,...)
+
    - **POST** /upload/:uploadid:/file
      - Body must be a multipart request with a part named "file" containing file data
    Returning a JSON object of newly uploaded file
