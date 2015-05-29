@@ -1,4 +1,6 @@
 [![Build Status](https://travis-ci.org/root-gg/plik.svg?branch=master)](https://travis-ci.org/root-gg/plik)
+[![Go Report](https://img.shields.io/badge/Go_report-A+-brightgreen.svg)](http://goreportcard.com/report/root-gg/plik)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](http://opensource.org/licenses/MIT)
 
 # Plik
 
@@ -42,7 +44,7 @@ $ cd $GOPATH/github.com/root-gg/plik/
 
 As root user you need to install grunt, bower, and setup the golang crosscompilation environnement :
 ```sh
-$ sudo -c "npm install -g bower grunt"
+$ sudo -c "npm install -g bower grunt-cli"
 $ sudo -c "client/build.sh env"
 ```
 
