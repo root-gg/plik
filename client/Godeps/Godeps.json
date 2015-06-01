@@ -1,0 +1,55 @@
+{
+	"ImportPath": "github.com/root-gg/plik/client",
+	"GoVersion": "go1.3.1",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/BurntSushi/toml",
+			"Comment": "v0.1.0",
+			"Rev": "2ceedfee35ad3848e49308ab0c9a4f640cfb5fb2"
+		},
+		{
+			"ImportPath": "github.com/GeertJohan/yubigo",
+			"Rev": "b1764f04aa9ba3c98a15084e7e13c1a69753e1da"
+		},
+		{
+			"ImportPath": "github.com/cheggaaa/pb",
+			"Rev": "bd14546a551971ae7f460e6d6e527c5b56cd38d7"
+		},
+		{
+			"ImportPath": "github.com/docopt/docopt-go",
+			"Comment": "0.6.1-1-gc5dac53",
+			"Rev": "c5dac536301992c0371c6115d998fb62944bfad3"
+		},
+		{
+			"ImportPath": "github.com/mitchellh/go-homedir",
+			"Rev": "7d2d8c8a4e078ce3c58736ab521a40b37a504c52"
+		},
+		{
+			"ImportPath": "github.com/olekukonko/ts",
+			"Rev": "ecf753e7c962639ab5a1fb46f7da627d4c0a04b8"
+		},
+		{
+			"ImportPath": "github.com/root-gg/context",
+			"Rev": "eb01ea15154712b6b44ee3bbf07863af6525afc6"
+		},
+		{
+			"ImportPath": "github.com/root-gg/logger",
+			"Rev": "5d9a47a3531200bc20998b96439220812c111707"
+		},
+		{
+			"ImportPath": "github.com/root-gg/utils",
+			"Rev": "075b52a8bb434c1e2f156f004a994976bf6a8173"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/cast5",
+			"Rev": "c84e1f8e3a7e322d497cd16c0e8a13c7e127baf3"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/openpgp",
+			"Rev": "c84e1f8e3a7e322d497cd16c0e8a13c7e127baf3"
+		}
+	]
+}

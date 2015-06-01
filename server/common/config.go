@@ -30,29 +30,32 @@ THE SOFTWARE.
 package common
 
 import (
-	"github.com/BurntSushi/toml"
-	"github.com/GeertJohan/yubigo"
-	"github.com/root-gg/logger"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/BurntSushi/toml"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/GeertJohan/yubigo"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
 )
 
-var PlikVersion = "##VERSION##"
+var (
+	plikVersion = "##VERSION##"
+)
 
+// Configuration object
 type Configuration struct {
 	LogLevel      string
 	ListenAddress string
 	ListenPort    int
 	MaxFileSize   int
 
-	DefaultTtl int
-	MaxTtl     int
+	DefaultTTL int
+	MaxTTL     int
 
 	SslEnabled bool
 	SslCert    string
 	SslKey     string
 
 	YubikeyEnabled   bool
-	YubikeyApiKey    string
-	YubikeyApiSecret string
+	YubikeyAPIKey    string
+	YubikeyAPISecret string
 	YubiAuth         *yubigo.YubiAuth
 
 	MetadataBackend       string
@@ -68,21 +71,27 @@ type Configuration struct {
 // Global var to store conf
 var Config *Configuration
 
+// NewConfiguration creates a new configuration
+// object with default values
 func NewConfiguration() (this *Configuration) {
 	this = new(Configuration)
 	this.LogLevel = "INFO"
 	this.ListenAddress = "0.0.0.0"
 	this.ListenPort = 8080
+	this.DataBackend = "file"
 	this.MetadataBackend = "file"
 	this.MaxFileSize = 1048576 // 1MB
-	this.DefaultTtl = 2592000  // 30 days
-	this.MaxTtl = 0
+	this.DefaultTTL = 2592000  // 30 days
+	this.MaxTTL = 0
 	this.SslEnabled = false
 	this.SslCert = ""
 	this.SslKey = ""
 	return
 }
 
+// LoadConfiguration creates a new empty configuration
+// and try to load specified file with toml library to
+// override default params
 func LoadConfiguration(file string) {
 	Config = NewConfiguration()
 	if _, err := toml.DecodeFile(file, Config); err != nil {
@@ -99,7 +108,7 @@ func LoadConfiguration(file string) {
 
 	// Do user specified a ApiKey and ApiSecret for Yubikey
 	if Config.YubikeyEnabled {
-		yubiAuth, err := yubigo.NewYubiAuth(Config.YubikeyApiKey, Config.YubikeyApiSecret)
+		yubiAuth, err := yubigo.NewYubiAuth(Config.YubikeyAPIKey, Config.YubikeyAPISecret)
 		if err != nil {
 			Log().Warningf("Failed to load yubikey backend : %s", err)
 			Config.YubikeyEnabled = false
@@ -107,4 +116,10 @@ func LoadConfiguration(file string) {
 			Config.YubiAuth = yubiAuth
 		}
 	}
+}
+
+// GetVersion return the hardcoded version
+// before compilation
+func GetVersion() string {
+	return plikVersion
 }

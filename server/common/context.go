@@ -31,23 +31,27 @@ package common
 
 import (
 	"fmt"
-	"github.com/root-gg/context"
-	"github.com/root-gg/logger"
 	"net/http"
 	"strings"
+
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/context"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
 )
 
-var rootLogger *logger.Logger = logger.NewLogger()
-var rootContext *PlikContext = newRootContext()
+var rootLogger = logger.NewLogger()
+var rootContext = newRootContext()
 
+// RootContext is a shortcut to get rootContext
 func RootContext() *PlikContext {
 	return rootContext
 }
 
+// Log is a shortcut to get rootLogger
 func Log() *logger.Logger {
 	return rootLogger
 }
 
+// PlikContext is a root-gg logger && logger object
 type PlikContext struct {
 	*context.Context
 	*logger.Logger
@@ -60,6 +64,7 @@ func newRootContext() (ctx *PlikContext) {
 	return
 }
 
+// NewPlikContext creates a new plik context forked from root logger/context
 func NewPlikContext(name string, req *http.Request) (ctx *PlikContext) {
 	ctx = new(PlikContext)
 	ctx.Context = rootContext.Context.Fork(name).AutoDetach()
@@ -75,6 +80,7 @@ func NewPlikContext(name string, req *http.Request) (ctx *PlikContext) {
 	return
 }
 
+// Fork context and copy logger
 func (ctx *PlikContext) Fork(name string) (fork *PlikContext) {
 	fork = new(PlikContext)
 	fork.Context = ctx.Context.Fork(name)
@@ -82,25 +88,28 @@ func (ctx *PlikContext) Fork(name string) (fork *PlikContext) {
 	return fork
 }
 
-func (ctx *PlikContext) SetUpload(uploadId string) *PlikContext {
-	ctx.Set("UploadId", uploadId)
+// SetUpload is used to display upload id in logger prefix and set it in context
+func (ctx *PlikContext) SetUpload(uploadID string) *PlikContext {
+	ctx.Set("UploadId", uploadID)
 	ctx.UpdateLoggerPrefix("")
 	return ctx
 }
 
+// SetFile is used to display file id in logger prefix and set it in context
 func (ctx *PlikContext) SetFile(fileName string) *PlikContext {
 	ctx.Set("FileName", fileName)
 	ctx.UpdateLoggerPrefix("")
 	return ctx
 }
 
+// UpdateLoggerPrefix sets a new prefix for the context logger
 func (ctx *PlikContext) UpdateLoggerPrefix(prefix string) {
 	str := ""
 	if ip, ok := ctx.Get("RemoteIp"); ok {
 		str += fmt.Sprintf("[%s]", ip)
 	}
-	if uploadId, ok := ctx.Get("UploadId"); ok {
-		str += fmt.Sprintf("[%s]", uploadId)
+	if uploadID, ok := ctx.Get("UploadId"); ok {
+		str += fmt.Sprintf("[%s]", uploadID)
 	}
 	if fileName, ok := ctx.Get("FileName"); ok {
 		str += fmt.Sprintf("[%s]", fileName)

@@ -32,78 +32,67 @@ package pgp
 import (
 	"errors"
 	"fmt"
-	"github.com/root-gg/utils"
-	"golang.org/x/crypto/openpgp"
-	"golang.org/x/crypto/openpgp/armor"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/root-gg/plik/client/Godeps/_workspace/src/golang.org/x/crypto/openpgp"
+	"github.com/root-gg/plik/client/Godeps/_workspace/src/golang.org/x/crypto/openpgp/armor"
 )
 
-type PgpBackendConfig struct {
-	Gpg       string
-	Keyring   string
-	Recipient string
-	Email     string
-	Entity    *openpgp.Entity
+// Backend object
+type Backend struct {
+	Config *BackendConfig
 }
 
-func NewPgpBackendConfig(config map[string]interface{}) (this *PgpBackendConfig) {
-	this = new(PgpBackendConfig)
-	this.Gpg = "/usr/bin/gpg"
-	this.Keyring = os.Getenv("HOME") + "/.gnupg/pubring.gpg"
-	utils.Assign(this, config)
+// NewPgpBackend instantiate a new PGP Crypto Backend
+// and configure it from config map
+func NewPgpBackend(config map[string]interface{}) (pb *Backend) {
+	pb = new(Backend)
+	pb.Config = NewPgpBackendConfig(config)
 	return
 }
 
-type PgpBackend struct {
-	Config *PgpBackendConfig
-}
-
-func NewPgpBackend(config map[string]interface{}) (this *PgpBackend) {
-	this = new(PgpBackend)
-	this.Config = NewPgpBackendConfig(config)
-	return
-}
-
-func (this *PgpBackend) Configure(arguments map[string]interface{}) (err error) {
+// Configure implementation for PGP Crypto Backend
+func (pb *Backend) Configure(arguments map[string]interface{}) (err error) {
 
 	// Parse options
 	if arguments["--recipient"] != nil && arguments["--recipient"].(string) != "" {
-		this.Config.Recipient = arguments["--recipient"].(string)
+		pb.Config.Recipient = arguments["--recipient"].(string)
 	}
 
-	if this.Config.Recipient == "" {
+	if pb.Config.Recipient == "" {
 		return errors.New("No PGP recipient specified (--recipient Bob or Recipient param in section [SecureOptions] of .plikrc)")
 	}
 
 	// Keyring is here ?
-	_, err = os.Stat(this.Config.Keyring)
+	_, err = os.Stat(pb.Config.Keyring)
 	if err != nil {
-		return errors.New(fmt.Sprintf("GnuPG Keyring %s not found on your system", this.Config.Keyring))
+		return fmt.Errorf("GnuPG Keyring %s not found on your system", pb.Config.Keyring)
 	}
 
 	// Open it
-	pubringFile, err := os.Open(this.Config.Keyring)
+	pubringFile, err := os.Open(pb.Config.Keyring)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Fail to open your GnuPG keyring : %s", err))
+		return fmt.Errorf("Fail to open your GnuPG keyring : %s", err)
 	}
 
 	// Read it
 	pubring, err := openpgp.ReadKeyRing(pubringFile)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Fail to read your GnuPG keyring : %s", err))
+		return fmt.Errorf("Fail to read your GnuPG keyring : %s", err)
 	}
 
 	// Search for key
+	var emailsFound []string
+
 	entitiesFound := make(map[uint64]*openpgp.Entity)
-	emailsFound := make([]string, 0)
 	intToEntity := make(map[int]uint64)
 	countEntitiesFound := 0
 
 	for _, entity := range pubring {
 		for _, ident := range entity.Identities {
-			if strings.Contains(ident.UserId.Email, this.Config.Recipient) || strings.Contains(ident.UserId.Name, this.Config.Recipient) {
+			if strings.Contains(ident.UserId.Email, pb.Config.Recipient) || strings.Contains(ident.UserId.Name, pb.Config.Recipient) {
 				if _, ok := entitiesFound[entity.PrimaryKey.KeyId]; !ok {
 					entitiesFound[entity.PrimaryKey.KeyId] = entity
 					intToEntity[countEntitiesFound] = entity.PrimaryKey.KeyId
@@ -116,10 +105,10 @@ func (this *PgpBackend) Configure(arguments map[string]interface{}) (err error) 
 
 	// How many entities we have found ?
 	if countEntitiesFound == 0 {
-		return errors.New(fmt.Sprintf("No key found for input '%s' in your keyring !", this.Config.Recipient))
+		return fmt.Errorf("No key found for input '%s' in your keyring !", pb.Config.Recipient)
 	} else if countEntitiesFound == 1 {
-		this.Config.Entity = entitiesFound[intToEntity[0]]
-		this.Config.Email = emailsFound[0]
+		pb.Config.Entity = entitiesFound[intToEntity[0]]
+		pb.Config.Email = emailsFound[0]
 	} else {
 		errorMessage := fmt.Sprintf("There are %d keys that match your search :\n", countEntitiesFound)
 		for _, email := range emailsFound {
@@ -132,9 +121,10 @@ func (this *PgpBackend) Configure(arguments map[string]interface{}) (err error) 
 	return nil
 }
 
-func (this *PgpBackend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
+// Encrypt implementation for PGP Crypto Backend
+func (pb *Backend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
 	w, _ := armor.Encode(writer, "PGP MESSAGE", nil)
-	plaintext, _ := openpgp.Encrypt(w, []*openpgp.Entity{this.Config.Entity}, nil, &openpgp.FileHints{IsBinary: true}, nil)
+	plaintext, _ := openpgp.Encrypt(w, []*openpgp.Entity{pb.Config.Entity}, nil, &openpgp.FileHints{IsBinary: true}, nil)
 
 	_, err = io.Copy(plaintext, reader)
 	if err != nil {
@@ -147,10 +137,12 @@ func (this *PgpBackend) Encrypt(reader io.Reader, writer io.Writer) (err error) 
 	return
 }
 
-func (this *PgpBackend) Comments() string {
+// Comments implementation for PGP Crypto Backend
+func (pb *Backend) Comments() string {
 	return "gpg -d"
 }
 
-func (this *PgpBackend) GetConfiguration() interface{} {
-	return this.Config
+// GetConfiguration implementation for PGP Crypto Backend
+func (pb *Backend) GetConfiguration() interface{} {
+	return pb.Config
 }
