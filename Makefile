@@ -44,5 +44,5 @@ release: clean build clients
 	@cp -R server/public/public $(RELEASE_DIR)/server/public
 	@cp -R server/public/index.html $(RELEASE_DIR)/server/public
 
-	@cd release && tar cvf plik-`cat ../VERSION`.tar.gz .
+	@cd release && tar cvf plik-`cat ../VERSION`.tar.gz *
 
