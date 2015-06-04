@@ -129,6 +129,26 @@ $ plik -s file.doc
 
 ```
 
+
+### FAQ
+
+##### I have an error when uploading from client : "invalid character '<' looking for beginning of value"
+
+Under nginx < 1.3.9, you must enable HttpChunkin module to allow transfer-encoding "chunked".
+
+For debian, this module is present in the "nginx-extras" package
+
+And add in your server configuration :
+
+```sh
+        chunkin on;
+        error_page 411 = @my_411_error;
+        location @my_411_error {
+                chunkin_resume;
+        }
+```
+
+
 ### Participate
 
 You are free to implement other data/metadata/shorten backends and submit them via
