@@ -572,7 +572,6 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Get file handle from multipart request
 	var file io.Reader
-	var fileName string
 	multiPartReader, err := req.MultipartReader()
 	if err != nil {
 		ctx.Warningf("Failed to get file from multipart request : %s", err)
@@ -588,7 +587,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		}
 		if part.FormName() == "file" {
 			file = part
-			fileName = part.FileName()
+			newFile.Name = part.FileName()
 			break
 		}
 	}
@@ -597,11 +596,11 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		http.Error(resp, common.NewResult("Missing file from multipart request", nil).ToJSONString(), 400)
 		return
 	}
-	if fileName == "" {
+	if newFile.Name == "" {
 		ctx.Warning("Missing file name from multipart request")
 		http.Error(resp, common.NewResult("Missing file name from multipart request", nil).ToJSONString(), 400)
 	}
-	ctx.SetFile(fileName)
+	ctx.SetFile(newFile.Name)
 
 	// Pipe file data from the request body to a preprocessing goroutine
 	//  - Guess content type
