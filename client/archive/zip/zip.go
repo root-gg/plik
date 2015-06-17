@@ -66,18 +66,12 @@ func (zb *Backend) Configure(arguments map[string]interface{}) (err error) {
 }
 
 // Archive implementation for ZIP Archive Backend
-func (zb *Backend) Archive(files []string, writer io.WriteCloser) (name string, err error) {
+func (zb *Backend) Archive(files []string, writer io.WriteCloser) (err error) {
 	if len(files) == 0 {
 		fmt.Println("Unable to make a zip archive from STDIN")
 		os.Exit(1)
 		return
 	}
-
-	name = "archive"
-	if len(files) == 1 {
-		name = filepath.Base(files[0])
-	}
-	name += ".zip"
 
 	var args []string
 	args = append(args, strings.Fields(zb.Config.Options)...)
@@ -113,6 +107,16 @@ func (zb *Backend) Archive(files []string, writer io.WriteCloser) (name string, 
 // Left empty because ZIP can't accept piping to it's STDIN
 func (zb *Backend) Comments() string {
 	return ""
+}
+
+// GetFileName returns the final archive file name
+func (zb *Backend) GetFileName(files []string) (name string) {
+	name = "archive"
+	if len(files) == 1 {
+		name = filepath.Base(files[0])
+	}
+	name += ".zip"
+	return
 }
 
 // GetConfiguration implementation for ZIP Archive Backend

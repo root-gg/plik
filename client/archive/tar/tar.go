@@ -69,18 +69,12 @@ func (tb *Backend) Configure(arguments map[string]interface{}) (err error) {
 }
 
 // Archive implementation for TAR Archive Backend
-func (tb *Backend) Archive(files []string, writer io.WriteCloser) (name string, err error) {
+func (tb *Backend) Archive(files []string, writer io.WriteCloser) (err error) {
 	if len(files) == 0 {
 		fmt.Println("Unable to make a tar archive from STDIN")
 		os.Exit(1)
 		return
 	}
-
-	name = "archive"
-	if len(files) == 1 {
-		name = filepath.Base(files[0])
-	}
-	name += ".tar" + getCompressExtention(tb.Config.Compress)
 
 	var args []string
 	args = append(args, "--create")
@@ -123,6 +117,16 @@ func (tb *Backend) Comments() string {
 // GetConfiguration implementation for TAR Archive Backend
 func (tb *Backend) GetConfiguration() interface{} {
 	return tb.Config
+}
+
+// GetFileName returns the final archive file name
+func (tb *Backend) GetFileName(files []string) (name string) {
+	name = "archive"
+	if len(files) == 1 {
+		name = filepath.Base(files[0])
+	}
+	name += ".zip" + getCompressExtention(tb.Config.Compress)
+	return
 }
 
 func getCompressExtention(mode string) string {

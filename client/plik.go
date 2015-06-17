@@ -81,11 +81,12 @@ Options:
   -d --debug                Enable debug mode
   -q --quiet                Enable quiet mode
   -v --version              Show plik version
-  -o, --oneshot             Enable OneShot (Each file will be deleted on first download)
-  -r, --removable           Enable Removable upload (Each file can be deleted by anyone at anymoment)
+  -o, --oneshot             Enable OneShot ( Each file will be deleted on first download )
+  -r, --removable           Enable Removable upload ( Each file can be deleted by anyone at anymoment )
+  -S, --stream              Enable Streaming ( It will block until remote user starts downloading )
   -t, --ttl TTL             Time before expiration (Upload will be removed in m|h|d)
   -n, --name NAME           Set file name when piping from STDIN
-  --comments COMMENT        Set comments of the upload (MarkDown compatible)
+  --comments COMMENT        Set comments of the upload ( MarkDown compatible )
   --archive-options OPTIONS [tar|zip] Additional command line options
   -p                        Protect the upload with login and password
   --password PASSWD         Protect the upload with login:password ( if omitted default login is "plik" )
@@ -122,36 +123,34 @@ Options:
 	printf("Upload successfully created : \n\n")
 	printf("    %s/#/?id=%s\n\n\n", config.Config.URL, uploadInfo.ID)
 
-	if config.Config.Archive {
+	// Match file id from server using client reference
+	for _, clientFile := range config.Files {
+		for _, serverFile := range uploadInfo.Files {
+			if clientFile.Reference == serverFile.Reference {
+				clientFile.ID = serverFile.ID
+				break
+			}
+		}
+	}
 
+	if config.Config.Archive {
 		pipeReader, pipeWriter := io.Pipe()
-		name, err := config.GetArchiveBackend().Archive(arguments["FILE"].([]string), pipeWriter)
+		err = config.GetArchiveBackend().Archive(arguments["FILE"].([]string), pipeWriter)
 		if err != nil {
 			printf("Unable to archive files : %s\n", err)
 			os.Exit(1)
 		}
 
-		if arguments["--name"] != nil && arguments["--name"].(string) != "" {
-			name = arguments["--name"].(string)
-		}
-
-		file, err := upload(uploadInfo, name, int64(0), pipeReader)
+		_, err = upload(uploadInfo, config.Files[0], pipeReader)
 		if err != nil {
 			printf("Unable to upload from STDIN : %s\n", err)
 			return
 		}
 		pipeReader.CloseWithError(err)
 
-		uploadInfo.Files[file.ID] = file
 	} else {
 		if len(config.Files) == 0 {
-			// Upload from STDIN
-			name := "STDIN"
-			if arguments["--name"] != nil && arguments["--name"].(string) != "" {
-				name = arguments["--name"].(string)
-			}
-
-			file, err := upload(uploadInfo, name, int64(0), os.Stdin)
+			file, err := upload(uploadInfo, config.Files[0], os.Stdin)
 			if err != nil {
 				printf("Unable to upload from STDIN : %s\n", err)
 				return
@@ -166,7 +165,7 @@ Options:
 				go func(fileToUpload *config.FileToUpload) {
 					defer wg.Done()
 
-					file, err := upload(uploadInfo, fileToUpload.Base, fileToUpload.Size, fileToUpload.FileHandle)
+					file, err := upload(uploadInfo, fileToUpload, fileToUpload.FileHandle)
 					if err != nil {
 						printf("Unable upload file : %s\n", err)
 						return
@@ -180,25 +179,27 @@ Options:
 	}
 
 	// Comments
-	var totalSize int64
-	printf("\n\nCommands\n\n")
-	for _, file := range uploadInfo.Files {
+	if !uploadInfo.Stream {
+		var totalSize int64
+		printf("\n\nCommands\n\n")
+		for _, file := range uploadInfo.Files {
 
-		// Increment size
-		totalSize += file.CurrentSize
+			// Increment size
+			totalSize += file.CurrentSize
 
-		// Print file informations (only url if quiet mode enabled)
-		if config.Config.Quiet {
-			fmt.Println(getFileURL(uploadInfo, file))
-		} else {
-			fmt.Println(getFileCommand(uploadInfo, file))
+			// Print file informations (only url if quiet mode enabled)
+			if config.Config.Quiet {
+				fmt.Println(getFileURL(uploadInfo, file))
+			} else {
+				fmt.Println(getFileCommand(uploadInfo, file))
+			}
 		}
-	}
-	printf("\n")
+		printf("\n")
 
-	// Upload files
-	printf("\nTotal\n\n")
-	printf("    %s (%d file(s)) \n\n", utils.BytesToString(int(totalSize)), len(uploadInfo.Files))
+		// Upload files
+		printf("\nTotal\n\n")
+		printf("    %s (%d file(s)) \n\n", utils.BytesToString(int(totalSize)), len(uploadInfo.Files))
+	}
 }
 
 func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error) {
@@ -248,13 +249,18 @@ func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error
 	return
 }
 
-func upload(uploadInfo *common.Upload, name string, size int64, reader io.Reader) (file *common.File, err error) {
+func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader io.Reader) (file *common.File, err error) {
 	pipeReader, pipeWriter := io.Pipe()
 	multipartWriter := multipart.NewWriter(pipeWriter)
 
+	if uploadInfo.Stream {
+		fmt.Printf("%s\n", getFileCommand(uploadInfo, fileToUpload.File))
+	}
+
 	// TODO Handler error properly here
 	go func() error {
-		part, err := multipartWriter.CreateFormFile("file", name)
+
+		part, err := multipartWriter.CreateFormFile("file", fileToUpload.Name)
 		if err != nil {
 			fmt.Println(err)
 			return pipeWriter.CloseWithError(err)
@@ -265,13 +271,12 @@ func upload(uploadInfo *common.Upload, name string, size int64, reader io.Reader
 		if config.Config.Quiet {
 			multiWriter = part
 		} else {
-			bar := pb.New64(size).SetUnits(pb.U_BYTES)
-			bar.Prefix(fmt.Sprintf("%-"+strconv.Itoa(config.GetLongestFilename())+"s : ", name))
+			bar := pb.New64(fileToUpload.CurrentSize).SetUnits(pb.U_BYTES)
+			bar.Prefix(fmt.Sprintf("%-"+strconv.Itoa(config.GetLongestFilename())+"s : ", fileToUpload.Name))
 			bar.ShowSpeed = true
 			bar.ShowFinalTime = false
 			bar.SetWidth(100)
 			bar.SetMaxWidth(100)
-
 			multiWriter = io.MultiWriter(part, bar)
 			bar.Start()
 			defer bar.Finish()
@@ -296,7 +301,7 @@ func upload(uploadInfo *common.Upload, name string, size int64, reader io.Reader
 	}()
 
 	var URL *url.URL
-	URL, err = url.Parse(config.Config.URL + "/upload/" + uploadInfo.ID + "/file")
+	URL, err = url.Parse(config.Config.URL + "/upload/" + uploadInfo.ID + "/file/" + fileToUpload.ID)
 	if err != nil {
 		return
 	}
@@ -334,7 +339,7 @@ func upload(uploadInfo *common.Upload, name string, size int64, reader io.Reader
 		return
 	}
 
-	config.Debug(fmt.Sprintf("Uploaded %s : %s", name, config.Sdump(file)))
+	config.Debug(fmt.Sprintf("Uploaded %s : %s", file.Name, config.Sdump(file)))
 	return
 }
 

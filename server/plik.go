@@ -83,6 +83,7 @@ func main() {
 	r.HandleFunc("/upload/{uploadID}", getUploadHandler).Methods("GET")
 	r.HandleFunc("/upload/{uploadID}/file", addFileHandler).Methods("POST")
 	r.HandleFunc("/upload/{uploadID}/file/{fileID}", getFileHandler).Methods("GET")
+	r.HandleFunc("/upload/{uploadID}/file/{fileID}", addFileHandler).Methods("POST")
 	r.HandleFunc("/upload/{uploadID}/file/{fileID}", removeFileHandler).Methods("DELETE")
 	r.HandleFunc("/file/{uploadID}/{fileID}/{filename}", getFileHandler).Methods("GET", "HEAD")
 	r.HandleFunc("/file/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", getFileHandler).Methods("GET")
@@ -158,6 +159,15 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	ctx.SetUpload(upload.ID)
 	upload.RemoteIP = req.RemoteAddr
 	uploadToken := upload.UploadToken
+
+	if upload.Stream {
+		if !common.Config.StreamMode {
+			ctx.Warning("Stream mode is not enabled")
+			http.Error(resp, common.NewResult("Stream mode is not enabled", nil).ToJSONString(), 400)
+			return
+		}
+		upload.OneShot = true
+	}
 
 	// TTL = Time in second before the upload expiration
 	// 0 	-> No ttl specified : default value from configuration
@@ -251,6 +261,14 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 				ctx.Warningf("Unable to shorten url %s : %s", longURL, err)
 			}
 		}
+	}
+
+	// Create files
+	for i, file := range upload.Files {
+		file.GenerateID()
+		file.Status = "missing";
+		delete(upload.Files, i)
+		upload.Files[file.ID] = file
 	}
 
 	// Save the metadata
@@ -437,7 +455,9 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Set content type and print file
 	resp.Header().Set("Content-Type", file.Type)
-	resp.Header().Set("Content-Length", strconv.Itoa(int(file.CurrentSize)))
+	if file.CurrentSize > 0 {
+		resp.Header().Set("Content-Length", strconv.Itoa(int(file.CurrentSize)))
+	}
 
 	// If "dl" GET params is set
 	// -> Set Content-Disposition header
@@ -455,7 +475,13 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	if req.Method == "GET" {
 		// Get file in data backend
-		fileReader, err := dataBackend.GetDataBackend().GetFile(ctx.Fork("get file"), upload, file.ID)
+		var backend dataBackend.DataBackend
+		if upload.Stream {
+			backend = dataBackend.GetStreamBackend()
+		} else {
+			backend = dataBackend.GetDataBackend()
+		}
+		fileReader, err := backend.GetFile(ctx.Fork("get file"), upload, file.ID)
 		if err != nil {
 			ctx.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.ID, err)
 			redirect(req, resp, fmt.Errorf("Failed to read file %s", file.Name), 404)
@@ -503,6 +529,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// Get the upload id from the url params
 	vars := mux.Vars(req)
 	uploadID := vars["uploadID"]
+	fileID := vars["fileID"]
 	ctx.SetUpload(uploadID)
 
 	// Get upload metadata
@@ -527,6 +554,22 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Create a new file object
+	var newFile *common.File
+	if fileID != "" {
+		if _, ok := upload.Files[fileID]; ok {
+			newFile = upload.Files[fileID]
+		} else {
+			ctx.Warningf("Invalid file id %s", fileID)
+			http.Error(resp, common.NewResult("Invalid file id", nil).ToJSONString(), 404)
+			return
+		}
+	} else {
+		newFile = common.NewFile()
+		newFile.Type = "application/octet-stream"
+	}
+	ctx.SetFile(newFile.ID)
+
 	// Get file handle from multipart request
 	var file io.Reader
 	var fileName string
@@ -543,7 +586,6 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		if errPart == io.EOF {
 			break
 		}
-
 		if part.FormName() == "file" {
 			file = part
 			fileName = part.FileName()
@@ -553,16 +595,12 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	if file == nil {
 		ctx.Warning("Missing file from multipart request")
 		http.Error(resp, common.NewResult("Missing file from multipart request", nil).ToJSONString(), 400)
+		return
 	}
 	if fileName == "" {
 		ctx.Warning("Missing file name from multipart request")
 		http.Error(resp, common.NewResult("Missing file name from multipart request", nil).ToJSONString(), 400)
 	}
-
-	// Create a new file object
-	newFile := common.NewFile()
-	newFile.Name = fileName
-	newFile.Type = "application/octet-stream"
 	ctx.SetFile(fileName)
 
 	// Pipe file data from the request body to a preprocessing goroutine
@@ -610,7 +648,13 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}()
 
 	// Save file in the data backend
-	backendDetails, err := dataBackend.GetDataBackend().AddFile(ctx.Fork("save file"), upload, newFile, preprocessReader)
+	var backend dataBackend.DataBackend
+	if upload.Stream {
+		backend = dataBackend.GetStreamBackend()
+	} else {
+		backend = dataBackend.GetDataBackend()
+	}
+	backendDetails, err := backend.AddFile(ctx.Fork("save file"), upload, newFile, preprocessReader)
 	if err != nil {
 		ctx.Warningf("Unable to save file : %s", err)
 		http.Error(resp, common.NewResult(fmt.Sprintf("Error saving file %s in upload %s : %s", newFile.Name, upload.ID, err), nil).ToJSONString(), 500)
@@ -619,7 +663,11 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Fill-in file informations
 	newFile.CurrentSize = int64(totalBytes)
-	newFile.Status = "uploaded"
+	if upload.Stream {
+		newFile.Status = "downloaded"
+	} else {
+		newFile.Status = "uploaded"
+	}
 	newFile.Md5 = fmt.Sprintf("%x", md5Hash.Sum(nil))
 	newFile.UploadDate = time.Now().Unix()
 	newFile.BackendDetails = backendDetails
