@@ -64,6 +64,9 @@ type Configuration struct {
 	DataBackend       string
 	DataBackendConfig map[string]interface{}
 
+	StreamMode          bool
+	StreamBackendConfig map[string]interface{}
+
 	ShortenBackend       string
 	ShortenBackendConfig map[string]interface{}
 }
@@ -86,6 +89,7 @@ func NewConfiguration() (this *Configuration) {
 	this.SslEnabled = false
 	this.SslCert = ""
 	this.SslKey = ""
+	this.StreamMode = true
 	return
 }
 

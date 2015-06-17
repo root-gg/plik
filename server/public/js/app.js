@@ -93,7 +93,7 @@ angular.module('api', ['ngFileUpload']).
                     url: url,
                     method: 'POST',
                     data: params,
-                    fileName: file.uploadName,
+                    fileName: file.metadata.fileName,
                     file: file,
                     headers : headers
                 })
@@ -108,8 +108,8 @@ angular.module('api', ['ngFileUpload']).
             return promise.promise;
         };
 
-        api.createUpload = function (params, names) {
-            params.fileNames = names;
+        api.createUpload = function (params, files) {
+            params.files = files;
             var url = api.base + '/upload';
             return api.call(url,'POST',params);
         };
@@ -125,8 +125,8 @@ angular.module('api', ['ngFileUpload']).
         };
 
         api.uploadFile = function (uploadId, file, progres_cb, basicAuth, uploadToken) {
-        var url = api.base + '/upload/' + uploadId + '/file';
-            return api.upload(url, file, {foo:"bar"}, progres_cb, basicAuth, uploadToken);
+        var url = api.base + '/upload/' + uploadId + '/file/' + file.metadata.id;
+            return api.upload(url, file, null, progres_cb, basicAuth, uploadToken);
         };
 
 
@@ -202,13 +202,21 @@ function UploadCtrl($scope, $dialog, $route, $location, $api) {
             });
     }
 
+    var reference = -1;
+    var nextRef = function() {
+        reference++;
+        return reference.toString();
+    };
+
     // Add file to the upload list
     $scope.onFileSelect = function (files) {
         _.each(files, function (file) {
             // remove already added files
             var names = _.pluck($scope.files, 'name');
             if (!_.contains(names, file.name)) {
-                file.uploadName = file.name;
+                file.fileName = file.name;
+                file.fileSize = file.size;
+                file.reference = nextRef();
                 $scope.files.push(file);
             }
         });
@@ -217,7 +225,7 @@ function UploadCtrl($scope, $dialog, $route, $location, $api) {
     // Remove file from the upload list
     $scope.removeFile = function (file) {
         $scope.files = _.reject($scope.files, function (f) {
-            return f.name == file.name;
+            return f.reference == file.reference;
         });
     };
 
@@ -234,10 +242,23 @@ function UploadCtrl($scope, $dialog, $route, $location, $api) {
             $scope.getYubikey();
             return;
         }
-        $api.createUpload($scope.upload, _.pluck($scope.files, 'name'))
+        var files = {};
+        _.each($scope.files, function (file) {
+            files[file.reference] = file;
+        });
+        $api.createUpload($scope.upload, files)
             .then(function (upload) {
                 console.log("metadatas", upload);
                 $scope.upload = upload;
+                _.each($scope.upload.files,function(file){
+                    _.every($scope.files, function(f){
+                        if(f.reference == file.reference){
+                            f.metadata = file;
+                            return false;
+                        }
+                        return true;
+                    });
+                });
                 $location.search('id', $scope.upload.id);
                 $scope.uploadFiles();
             })
@@ -250,10 +271,11 @@ function UploadCtrl($scope, $dialog, $route, $location, $api) {
     $scope.uploadFiles = function () {
         if (!$scope.upload.id) return;
         _.each($scope.files, function (file) {
-            if (file.metadata) return;
+            if (!file.metadata.id) return;
             var cb = function (event) {
                 $scope.progress(file, event)
             };
+            file.metadata.status = "uploading";
             $api.uploadFile($scope.upload.id, file, cb, $scope.basicAuth, $scope.upload.uploadToken)
                 .then(function (result) {
                     $scope.success(file, result);
@@ -269,7 +291,7 @@ function UploadCtrl($scope, $dialog, $route, $location, $api) {
         $api.removeFile($scope.upload.id,file.metadata.id)
             .then(function (result){
                 $scope.files = _.reject($scope.files, function (f) {
-                    return f.metadata.fileName == file.metadata.fileName;
+                    return f.metadata.reference == file.metadata.reference;
                 });
                 if (!$scope.files.length){
                     $location.search('id',null);

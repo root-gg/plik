@@ -59,6 +59,14 @@ THE SOFTWARE.
                                 <a tooltip-placement="right" tooltip="The files will be removed from the server right after the first download.">?</a>
                             </div>
                         </div>
+                        <!-- STREAMING -->
+                        <div class="row">
+                            <div class="col-sm-12">
+                                <input id="checkbox-destruct" type="checkbox"  ng-model="upload.stream" style="display:inline-block">
+                                <label for="checkbox-destruct" style="font-weight:normal;">Streaming</label>
+                                <a tooltip-placement="right" tooltip="The files will not be stored on the server. Upload will begin when the remote user starts downloading.">?</a>
+                            </div>
+                        </div>
                         <!-- REMOVABLE -->
                         <div class="row">
                             <div class="col-sm-12">
@@ -106,7 +114,7 @@ THE SOFTWARE.
                                     <th class="col-sm-5" >action</th>
                                 </tr>
                                 <tr ng-repeat="file in files | orderBy:sortField:sortOrder">
-                                    <td ng-model="file.uploadName" contenteditable="true" strip-br="true" select-non-editable="true"></td>
+                                    <td ng-model="file.fileName" contenteditable="true" strip-br="true" select-non-editable="true"></td>
                                     <td>{{humanReadableSize(file.size)}}</td>
                                     <td ng-show="!file.progress">
                                         <button class="btn btn-danger" ng-click="removeFile(file)"><span class="glyphicon glyphicon-remove"></span><span class="hidden-xs hidden-sm hidden-md"> Remove</span></button>
@@ -175,13 +183,7 @@ THE SOFTWARE.
                             <th class="col-sm-5" >action</th>
                         </tr>
                         <tr ng-repeat="file in files | orderBy:sortField:sortOrder">
-                            <td ng-show="!file.metadata"
-                                ng-model="file.uploadName"
-                                contenteditable="true"
-                                strip-br="true"
-                                select-non-editable="true">
-                            </td>
-                            <td ng-show="file.metadata">
+                            <td>
                                 <span class="{{file.showdetails|collapseClass}}" ng-click="file.showdetails = !file.showdetails">
                                 {{file.metadata.fileName}}
                                 </span>
@@ -191,12 +193,8 @@ THE SOFTWARE.
                                     <br />
                                 </div>
                             </td>
-                            <td ng-show="!file.metadata">{{humanReadableSize(file.size)}}</td>
-                            <td ng-show="file.metadata">{{humanReadableSize(file.metadata.fileSize)}}</td>
-                            <td ng-show="!file.metadata && !file.progress">
-                                <button class="btn btn-danger" ng-click="removeFile(file)"><span class="glyphicon glyphicon-remove"></span><span class="hidden-xs hidden-sm hidden-md"> Remove</span></button>
-                            </td>
-                            <td ng-show="!file.metadata && file.progress">
+                            <td>{{humanReadableSize(file.metadata.fileSize)}}</td>
+                            <td ng-show="file.metadata.status == 'uploading'">
                                 <div class="progress">
                                     <div class="progress-bar progress-bar-striped active" role="progressbar"
                                          aria-valuenow="{{file.progress}}" aria-valuemin="0" aria-valuemax="100"
@@ -205,22 +203,24 @@ THE SOFTWARE.
                                     </div>
                                 </div>
                             </td>
-                            <td ng-show="file.metadata">
-                                <div ng-show="file.metadata.status == 'uploaded'">
+                            <td ng-show="file.metadata.status != 'uploading'">
+                                <div ng-show="(upload.stream && file.metadata.status == 'missing') || (!upload.stream && file.metadata.status == 'uploaded')">
                                     <!-- DOWNLOAD WITHOUT YUBIKEY -->
                                     <a href="{{getFileUrl(file,1)}}" ng-show="!upload.protectedByYubikey">
                                         <button title="Download" type="button" class="btn btn-success"><span class="glyphicon glyphicon-cloud-download"></span><span class="hidden-xs hidden-sm hidden-md"> Download</span></button>
                                     </a>
                                     <!-- DOWNLOAD WITH YUBIKEY -->
                                     <button title="Download" type="button" class="btn btn-success" ng-show="upload.protectedByYubikey" ng-click="downloadWithYubikey(getFileUrl(file))"><span class="glyphicon glyphicon-cloud-download"></span><span class="hidden-xs hidden-sm hidden-md"> Download</span></button>
+                                    <!-- COPY TO CLIPBOARD -->
                                     <button title="Copy to clipboard" type="button" class="btn btn-success" clip-copy="getFileUrl(file)">
                                         <span class="glyphicon glyphicon-paperclip"></span> <span class="hidden-xs hidden-sm hidden-md">Copy to clipboard</span>
                                     </button>
+                                    <!-- REMOVE FILE -->
                                     <button title="Delete File" type="button" class="btn btn-danger" ng-click="delete(file)" ng-show="upload.removable == '1'">
                                         <span class="glyphicon glyphicon-remove"></span> <span class="hidden-xs hidden-sm hidden-md">Remove</span>
                                     </button>
                                 </div>
-                                <div ng-show="file.metadata.status != 'uploaded'">
+                                <div ng-show="file.metadata.status != 'uploading' && file.metadata.status != 'uploaded' && !(upload.stream && file.metadata.status == 'missing')">
                                     <span class="fileStatus">{{file.metadata.status.toUpperCase()}}</span>
                                 </div>
                             </td>
@@ -235,7 +235,7 @@ THE SOFTWARE.
                     <div class="row">
                         <div class="col-sm-10 col-sm-offset-1">
                             <div class="well linkSummary"  style="text-align:center">
-                                <div ng-repeat="file in files" ng-show="file.metadata.status == 'uploaded'">
+                                <div ng-repeat="file in files" ng-show="(upload.stream && (file.metadata.status == 'uploading' || file.metadata.status == 'missing')) || (!upload.stream && file.metadata.status == 'uploaded')">
                                     <a href="{{getFileUrl(file)}}"> {{getFileUrl(file)}}</a>
                                 </div>
                             </div>

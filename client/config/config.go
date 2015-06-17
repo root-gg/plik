@@ -30,9 +30,11 @@ THE SOFTWARE.
 package config
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -69,6 +71,7 @@ type UploadConfig struct {
 	URL            string
 	OneShot        bool
 	Removable      bool
+	Stream         bool
 	Secure         bool
 	SecureMethod   string
 	SecureOptions  map[string]interface{}
@@ -90,6 +93,7 @@ func NewUploadConfig() (config *UploadConfig) {
 	config.URL = "http://127.0.0.1:8080"
 	config.OneShot = false
 	config.Removable = false
+	config.Stream = false
 	config.Secure = false
 	config.Archive = false
 	config.ArchiveMethod = "tar"
@@ -112,10 +116,17 @@ func NewUploadConfig() (config *UploadConfig) {
 // FileToUpload is a handy struct to gather information
 // about a file to be uploaded
 type FileToUpload struct {
+	*common.File
 	Path       string
 	Base       string
-	Size       int64
-	FileHandle *os.File
+	FileHandle io.Reader
+}
+
+// NewFileToUpload return a new FileToUpload object
+func NewFileToUpload() (fileToUpload *FileToUpload) {
+	fileToUpload = new(FileToUpload)
+	fileToUpload.File = common.NewFile()
+	return
 }
 
 // Load creates a new default configuration and override it with .plikrc fike.
@@ -195,17 +206,36 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 	// Check files
 	if _, ok := arguments["FILE"].([]string); ok {
 
-		// Test if they exist
-		for _, filePath := range arguments["FILE"].([]string) {
+		if len(arguments["FILE"].([]string)) == 0 {
+			fileToUpload := NewFileToUpload()
+			fileToUpload.Name = "STDIN"
+			fileToUpload.FileHandle = bufio.NewReader(os.Stdin)
+			fileToUpload.Reference = "0"
+			Upload.Files["0"] = fileToUpload.File
+			Files = append(Files, fileToUpload)
+		}
 
-			fileToUpload := new(FileToUpload)
+		// Test if they exist
+		for i, filePath := range arguments["FILE"].([]string) {
+
+			fileToUpload := NewFileToUpload()
 			fileToUpload.Path = filePath
 			fileToUpload.Base = filepath.Base(filePath)
+			fileToUpload.Reference = strconv.Itoa(i)
+			fileToUpload.Name = filepath.Base(filePath)
+			Upload.Files[fileToUpload.Reference] = fileToUpload.File
 
 			fileInfo, err := os.Stat(filePath)
 			if err != nil {
 				return fmt.Errorf("File %s not found", filePath)
 			}
+
+			fh, err := os.Open(fileToUpload.Path)
+			if err != nil {
+				return fmt.Errorf("Unable to open %s : %s", fileToUpload.Path, err)
+			}
+
+			fileToUpload.FileHandle = fh
 
 			// Check file size (for displaying purpose later)
 			if len(fileToUpload.Base) > longestFilenameSize {
@@ -216,8 +246,11 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 			// Enable archive if one of them is a directory
 			if fileInfo.Mode().IsDir() {
 				Config.Archive = true
+
+				fileToUpload.Name = archiveBackend.GetFileName(arguments["FILE"].([]string))
+				Upload.Files["0"] = fileToUpload.File
 			} else if fileInfo.Mode().IsRegular() {
-				fileToUpload.Size = fileInfo.Size()
+				fileToUpload.CurrentSize = fileInfo.Size()
 			} else {
 				return fmt.Errorf("Unhandled file mode %s for file %s", fileInfo.Mode().String(), filePath)
 			}
@@ -228,6 +261,11 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		return fmt.Errorf("No files specified")
 	}
 
+	// Set name if user specified it
+	if arguments["--name"] != nil && arguments["--name"].(string) != "" && len(Files) == 1 {
+		Files[0].Name = arguments["--name"].(string)
+	}
+
 	// Upload options
 	Upload.OneShot = Config.OneShot
 	if arguments["--oneshot"].(bool) {
@@ -236,6 +274,10 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 	Upload.Removable = Config.Removable
 	if arguments["--removable"].(bool) {
 		Upload.OneShot = true
+	}
+	Upload.Stream = Config.Stream
+	if arguments["--stream"].(bool) {
+		Upload.Stream = true
 	}
 	Upload.Comments = Config.Comments
 	if arguments["--comments"] != nil && arguments["--comments"].(string) != "" {
@@ -301,15 +343,6 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		}
 
 		Debug("Archive backend configuration : " + utils.Sdump(archiveBackend.GetConfiguration()))
-	} else {
-		for _, fileToUpload := range Files {
-			fh, err := os.Open(fileToUpload.Path)
-			if err != nil {
-				return fmt.Errorf("Unable to open %s : %s", fileToUpload.Path, err)
-			}
-
-			fileToUpload.FileHandle = fh
-		}
 	}
 
 	// Do user wants a password protected upload ?
