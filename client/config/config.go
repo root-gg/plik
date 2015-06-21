@@ -83,6 +83,7 @@ type UploadConfig struct {
 	Yubikey        bool
 	Password       string
 	TTL            int
+	AutoUpdate     bool
 }
 
 // NewUploadConfig construct a new configuration with default values
@@ -110,6 +111,7 @@ func NewUploadConfig() (config *UploadConfig) {
 	config.Yubikey = false
 	config.Password = ""
 	config.TTL = 86400 * 30
+	config.AutoUpdate = true
 	return
 }
 
