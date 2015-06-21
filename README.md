@@ -150,7 +150,7 @@ $ plik -s file.doc
 
 ### FAQ
 
-##### I have an error when uploading from client : "invalid character '<' looking for beginning of value"
+##### I have an error when uploading from client : "Unable upload file : HTTP error 411 Length Required"
 
 Under nginx < 1.3.9, you must enable HttpChunkin module to allow transfer-encoding "chunked".
 
