@@ -1,26 +1,26 @@
 /* The MIT License (MIT)
 
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
+ Copyright (c) <2015>
+ - Mathieu Bodjikian <mathieu@bodjikian.fr>
+ - Charles-Antoine Mathieu <skatkatt@root.gg>
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE. */
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE. */
 
 // Modal dialog service
 angular.module('dialog', ['ui.bootstrap']).
@@ -66,22 +66,25 @@ angular.module('dialog', ['ui.bootstrap']).
 // API Service
 angular.module('api', ['ngFileUpload']).
     factory('$api', function ($http, $q, Upload) {
-        var api = { base : '' };
+        var api = {base: ''};
 
         // Make the actual HTTP call and return a promise
-        api.call = function(url,method,params){
+        api.call = function (url, method, params, uploadToken) {
             var promise = $q.defer();
+            var headers = {};
+            if (uploadToken) headers['X-UploadToken'] = uploadToken;
             $http({
                 url: url,
                 method: method,
-                data: params
+                data: params,
+                headers: headers
             })
                 .success(function (data) {
                     promise.resolve(data);
                 })
                 .error(function (data, code) {
                     // Format HTTP error return for the dialog service
-                    promise.reject({ status: code, message: data.message });
+                    promise.reject({status: code, message: data.message});
                 });
             return promise.promise;
         };
@@ -99,7 +102,7 @@ angular.module('api', ['ngFileUpload']).
                     data: params,
                     fileName: file.metadata.fileName,
                     file: file,
-                    headers : headers
+                    headers: headers
                 })
                 .progress(progress_cb)
                 .success(function (data) {
@@ -107,7 +110,7 @@ angular.module('api', ['ngFileUpload']).
                 })
                 .error(function (data, code) {
                     // Format HTTP error return for the dialog service
-                    promise.reject({ status: code, message: data.message });
+                    promise.reject({status: code, message: data.message});
                 });
 
             return promise.promise;
@@ -116,47 +119,47 @@ angular.module('api', ['ngFileUpload']).
         // Get upload metadata
         api.getUpload = function (uploadId) {
             var url = api.base + '/upload/' + uploadId;
-            return api.call(url,'GET',{});
+            return api.call(url, 'GET', {});
         };
 
         // Create an upload with current settings
         api.createUpload = function (upload) {
             var url = api.base + '/upload';
-            return api.call(url,'POST',upload);
+            return api.call(url, 'POST', upload);
         };
 
         // Upload a file
-        api.uploadFile = function (upload, file, progres_cb, basicAuth, uploadToken) {
+        api.uploadFile = function (upload, file, progres_cb, basicAuth) {
             var url = api.base + '/upload/' + upload.id + '/file/' + file.metadata.id;
-            return api.upload(url, file, null, progres_cb, basicAuth, uploadToken);
+            return api.upload(url, file, null, progres_cb, basicAuth, upload.uploadToken);
         };
 
         // Remove a file
         api.removeFile = function (upload, file) {
             var url = api.base + '/upload/' + upload.id + '/file/' + file.metadata.id;
-            return api.call(url,'DELETE',{});
+            return api.call(url, 'DELETE', {}, upload.uploadToken);
         };
 
         return api;
     });
 
 // Plik app bootstrap and global configuration
-angular.module('plik', ['ngRoute', 'api', 'dialog','contenteditable','ngClipboard','ngSanitize', 'btford.markdown'])
-    .config(function($routeProvider) {
+angular.module('plik', ['ngRoute', 'api', 'dialog', 'contenteditable', 'ngClipboard', 'ngSanitize', 'btford.markdown'])
+    .config(function ($routeProvider) {
         $routeProvider
-            .when('/', { controller:MainCtrl, templateUrl:'partials/main.html', reloadOnSearch: false})
-            .when('/clients', { controller:ClientListCtrl, templateUrl:'partials/clients.html'})
-            .otherwise({ redirectTo: '/' });
+            .when('/', {controller: MainCtrl, templateUrl: 'partials/main.html', reloadOnSearch: false})
+            .when('/clients', {controller: ClientListCtrl, templateUrl: 'partials/clients.html'})
+            .otherwise({redirectTo: '/'});
     })
-    .config(['$httpProvider', function($httpProvider) {
+    .config(['$httpProvider', function ($httpProvider) {
         $httpProvider.defaults.headers.common['X-ClientApp'] = 'web_client';
     }])
-    .config(['ngClipProvider', function(ngClipProvider) {
+    .config(['ngClipProvider', function (ngClipProvider) {
         ngClipProvider.setPath("bower_components/zeroclipboard/dist/ZeroClipboard.swf");
     }])
-    .filter('collapseClass',function(){
-        return function(opened){
-            if(opened) return "fa fa-caret-down";
+    .filter('collapseClass', function () {
+        return function (opened) {
+            if (opened) return "fa fa-caret-down";
             return "fa fa-caret-right";
         }
     });
@@ -172,43 +175,44 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     $scope.password = false;
 
     // Initialize main controller
-    $scope.init = function(){
+    $scope.init = function () {
         // Display error from redirect if any
         var err = $location.search().err;
-        if ( ! _.isUndefined(err) ) {
-            if ( err == "Invalid yubikey token" && $location.search().uri ) {
+        if (!_.isUndefined(err)) {
+            if (err == "Invalid yubikey token" && $location.search().uri) {
                 var uri = $location.search().uri.split("/");
                 $scope.load(uri[2]);
                 $scope.downloadWithYubikey(location.origin + "/file/" + uri[2] + "/" + uri[3] + "/" + uri[4]);
             } else {
                 var code = $location.search().errcode;
-                $dialog.alert({ status: code, message: err });
+                $dialog.alert({status: code, message: err});
             }
         } else {
             // Load current upload id
             $scope.load($location.search().id)
+            $scope.upload.uploadToken = $location.search().uploadToken;
         }
     };
 
     // Load upload from id
-    $scope.load = function(id) {
-        if(!id) return;
+    $scope.load = function (id) {
+        if (!id) return;
         $scope.upload.id = id;
         $api.getUpload($scope.upload.id)
-            .then(function(metadatas){
-                _.extend($scope.upload,metadatas);
-                $scope.files = _.map($scope.upload.files,function(metadata){
-                    return { metadata : metadata };
+            .then(function (metadatas) {
+                _.extend($scope.upload, metadatas);
+                $scope.files = _.map($scope.upload.files, function (metadata) {
+                    return {metadata: metadata};
                 });
             })
-            .then(null,function(error){
+            .then(null, function (error) {
                 $dialog.alert(error);
             });
     };
 
     // Reference is needed to match files ids
     var reference = -1;
-    var nextRef = function() {
+    var nextRef = function () {
         reference++;
         return reference.toString();
     };
@@ -239,12 +243,12 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         if (!$scope.files.length) return;
         $scope.upload.ttl = $scope.getTTL();
         // HTTP basic auth prompt dialog
-        if($scope.password && ! ($scope.upload.login && $scope.upload.password)) {
+        if ($scope.password && !($scope.upload.login && $scope.upload.password)) {
             $scope.getPassword();
             return;
         }
         // Yubikey prompt dialog
-        if($scope.yubikey && ! $scope.upload.yubikey) {
+        if ($scope.yubikey && !$scope.upload.yubikey) {
             $scope.getYubikey();
             return;
         }
@@ -257,9 +261,9 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             .then(function (upload) {
                 $scope.upload = upload;
                 // Match file metadata using the reference
-                _.each($scope.upload.files,function(file){
-                    _.every($scope.files, function(f){
-                        if(f.reference == file.reference){
+                _.each($scope.upload.files, function (file) {
+                    _.every($scope.files, function (f) {
+                        if (f.reference == file.reference) {
                             f.metadata = file;
                             return false;
                         }
@@ -284,7 +288,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
                 $scope.progress(file, event)
             };
             file.metadata.status = "uploading";
-            $api.uploadFile($scope.upload, file, cb, $scope.basicAuth, $scope.upload.uploadToken)
+            $api.uploadFile($scope.upload, file, cb, $scope.basicAuth)
                 .then(function (metadata) {
                     file.metadata = metadata;
                 })
@@ -295,19 +299,20 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     };
 
     // Remove a file from the servers
-    $scope.delete = function(file) {
-        $api.removeFile($scope.upload,file)
-            .then(function (){
+    $scope.delete = function (file) {
+        if (!$scope.upload.uploadToken) return;
+        $api.removeFile($scope.upload, file)
+            .then(function () {
                 $scope.files = _.reject($scope.files, function (f) {
                     return f.metadata.reference == file.metadata.reference;
                 });
                 // Redirect to main page if no more files
-                if (!$scope.files.length){
-                    $location.search('id',null);
+                if (!$scope.files.length) {
+                    $location.search('id', null);
                     $route.reload();
                 }
             })
-            .then(function (error){
+            .then(function (error) {
                 $dialog.alert(error);
             });
     };
@@ -318,16 +323,16 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     };
 
     // Compute human readable size
-    $scope.humanReadableSize = function(size){
-        if(_.isUndefined(size)) return;
-        return filesize(size, { base : 2 });
+    $scope.humanReadableSize = function (size) {
+        if (_.isUndefined(size)) return;
+        return filesize(size, {base: 2});
     };
 
     // Return file download URL
-    $scope.getFileUrl = function(file,dl) {
-        if(!file || !file.metadata) return;
+    $scope.getFileUrl = function (file, dl) {
+        if (!file || !file.metadata) return;
         var url = location.origin + '/file/' + $scope.upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName
-        if(dl) {
+        if (dl) {
             // Force file download
             url += "?dl=1";
         }
@@ -336,7 +341,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     };
 
     // Basic auth credentials dialog
-    $scope.getPassword = function() {
+    $scope.getPassword = function () {
         var opts = {
             backdrop: true,
             backdropClick: true,
@@ -345,10 +350,10 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             resolve: {
                 args: function () {
                     return {
-                        callback: function(login,password) {
+                        callback: function (login, password) {
                             $scope.upload.login = login;
                             $scope.upload.password = password;
-                            $scope.basicAuth = btoa(login+":"+password);
+                            $scope.basicAuth = btoa(login + ":" + password);
                             $scope.newUpload();
                         }
                     }
@@ -360,7 +365,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     };
 
     // Yubikey OTP upload dialog
-    $scope.getYubikey = function() {
+    $scope.getYubikey = function () {
         var opts = {
             backdrop: true,
             backdropClick: true,
@@ -369,7 +374,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             resolve: {
                 args: function () {
                     return {
-                        callback: function(otp) {
+                        callback: function (otp) {
                             $scope.upload.yubikey = otp;
                             $scope.newUpload();
                         }
@@ -382,7 +387,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     };
 
     // Yubikey OTP download dialog
-    $scope.downloadWithYubikey = function(url) {
+    $scope.downloadWithYubikey = function (url) {
         var opts = {
             backdrop: true,
             backdropClick: true,
@@ -391,7 +396,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             resolve: {
                 args: function () {
                     return {
-                        callback: function(token){
+                        callback: function (token) {
                             // Redirect to file download URL with yubikey token
                             window.location.replace(url + '/yubikey/' + token);
                         }
@@ -404,20 +409,20 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     };
 
 
-    $scope.ttlUnits = ["days","hours","minutes"];
+    $scope.ttlUnits = ["days", "hours", "minutes"];
     $scope.ttlUnit = "days";
     $scope.ttlValue = 30;
 
     // Change ttl unit
-    $scope.switchTimeUnit = function() {
+    $scope.switchTimeUnit = function () {
         var index = (_.indexOf($scope.ttl.units, $scope.ttl.unit) + 1) % $scope.ttl.units.length;
         $scope.ttl.unit = $scope.ttl.units[index];
     };
 
     // Return TTL value in seconds
-    $scope.getTTL = function() {
+    $scope.getTTL = function () {
         var ttl = $scope.ttlValue;
-        if (ttl > 0) {
+        if (ttl > 0) {
             if ($scope.ttlUnit == "minutes") {
                 ttl = ttl * 60;
             } else if ($scope.ttlUnit == "hours") {
@@ -430,9 +435,13 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     };
 
     // Return upload expiration date string
-    $scope.getExpirationDate = function(){
-        var d = new Date(($scope.upload.ttl + $scope.upload.uploadDate)*1000);
+    $scope.getExpirationDate = function () {
+        var d = new Date(($scope.upload.ttl + $scope.upload.uploadDate) * 1000);
         return d.toLocaleDateString() + " at " + d.toLocaleTimeString();
+    };
+
+    $scope.adminUrl = function () {
+        $location.search('uploadToken', $scope.upload.uploadToken);
     };
 
     $scope.init();
@@ -442,25 +451,25 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
 function ClientListCtrl($scope, $location) {
     $scope.clients = [];
 
-    $scope.addClient = function(name,arch,binary) {
-        if(!binary) binary = "plik";
-        $scope.clients.push({name : name, url : location.origin + "/clients/" + arch + "/" + binary });
+    $scope.addClient = function (name, arch, binary) {
+        if (!binary) binary = "plik";
+        $scope.clients.push({name: name, url: location.origin + "/clients/" + arch + "/" + binary});
     };
 
     // This list should not be hardcoded here
-    $scope.addClient("Linux 64bit","linux-amd64");
-    $scope.addClient("Linux 32bit","linux-386");
-    $scope.addClient("Linux ARM","linux-arm");
-    $scope.addClient("MacOS 64bit","darwin-amd64");
-    $scope.addClient("MacOS 32bit","darwin-386");
-    $scope.addClient("Freebsd 64bit","freebsd-amd64");
-    $scope.addClient("Freebsd 32bit","freebsd-386");
-    $scope.addClient("Freebsd ARM","freebsd-arm");
-    $scope.addClient("Openbsd 64bit","openbsd-amd64");
-    $scope.addClient("Openbsd 32bit","openbsd-386");
-    $scope.addClient("Windows 64bit","windows-amd64","plik.exe");
-    $scope.addClient("Windows 32bit","windows-386","plik.exe");
-    $scope.addClient("Bash (curl)","bash","plik.sh");
+    $scope.addClient("Linux 64bit", "linux-amd64");
+    $scope.addClient("Linux 32bit", "linux-386");
+    $scope.addClient("Linux ARM", "linux-arm");
+    $scope.addClient("MacOS 64bit", "darwin-amd64");
+    $scope.addClient("MacOS 32bit", "darwin-386");
+    $scope.addClient("Freebsd 64bit", "freebsd-amd64");
+    $scope.addClient("Freebsd 32bit", "freebsd-386");
+    $scope.addClient("Freebsd ARM", "freebsd-arm");
+    $scope.addClient("Openbsd 64bit", "openbsd-amd64");
+    $scope.addClient("Openbsd 32bit", "openbsd-386");
+    $scope.addClient("Windows 64bit", "windows-amd64", "plik.exe");
+    $scope.addClient("Windows 32bit", "windows-386", "plik.exe");
+    $scope.addClient("Bash (curl)", "bash", "plik.sh");
 }
 
 // Alert modal dialog controller
@@ -475,7 +484,7 @@ function AlertDialogController($rootScope, $scope, $modalInstance, args) {
     $scope.close = function (result) {
         $rootScope.dialogs = _.without($rootScope.dialogs, $scope);
         $modalInstance.close(result);
-        if(args.callback) {
+        if (args.callback) {
             args.callback(result);
         }
     };
@@ -494,13 +503,13 @@ function PasswordController($rootScope, $scope, $modalInstance, args) {
     $scope.login = "plik";
     $scope.password = "";
 
-    $scope.close = function (login,password) {
-        if(!(login.length > 0 && password.length > 0)){
+    $scope.close = function (login, password) {
+        if (!(login.length > 0 && password.length > 0)) {
             return;
         }
         $scope.dismiss();
-        if(args.callback) {
-            args.callback(login,password);
+        if (args.callback) {
+            args.callback(login, password);
         }
     };
 
@@ -522,15 +531,15 @@ function YubikeyController($rootScope, $scope, $modalInstance, args) {
     $scope.title = 'Please fill in a Yubikey OTP !';
     $scope.token = "";
 
-    $scope.check = function(token){
-        if(token.length == 44){
+    $scope.check = function (token) {
+        if (token.length == 44) {
             $scope.close(token);
         }
     };
 
     $scope.close = function (result) {
         $scope.dismiss();
-        if(args.callback) {
+        if (args.callback) {
             args.callback(result);
         }
     };

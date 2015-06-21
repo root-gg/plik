@@ -365,6 +365,7 @@ func removeFile(upload *common.Upload, file *common.File) (httpCode int, err err
 	}
 
 	req.Header.Set("User-Agent", "curl")
+	req.Header.Set("X-UploadToken", upload.UploadToken)
 
 	resp, err := client.Do(req)
 	if err != nil {
