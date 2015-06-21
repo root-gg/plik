@@ -35,6 +35,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -130,6 +131,13 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	var err error
 	ctx := common.NewPlikContext("create upload handler", req)
 	defer ctx.Finalize(err)
+
+	// Check that source IP address is valid and whitelisted
+	code, err := checkSourceIP(ctx, true)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), code)
+		return
+	}
 
 	upload := common.NewUpload()
 	ctx.SetUpload(upload.ID)
@@ -266,7 +274,7 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	// Create files
 	for i, file := range upload.Files {
 		file.GenerateID()
-		file.Status = "missing";
+		file.Status = "missing"
 		delete(upload.Files, i)
 		upload.Files[file.ID] = file
 	}
@@ -300,6 +308,13 @@ func getUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	var err error
 	ctx := common.NewPlikContext("get upload handler", req)
 	defer ctx.Finalize(err)
+
+	// Check that source IP address is valid
+	code, err := checkSourceIP(ctx, false)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), code)
+		return
+	}
 
 	// Get the upload id and file id from the url params
 	vars := mux.Vars(req)
@@ -340,6 +355,13 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	var err error
 	ctx := common.NewPlikContext("get file handler", req)
 	defer ctx.Finalize(err)
+
+	// Check that source IP address is valid
+	code, err := checkSourceIP(ctx, false)
+	if err != nil {
+		redirect(req, resp, err, code)
+		return
+	}
 
 	// Get the upload id and file id from the url params
 	vars := mux.Vars(req)
@@ -526,6 +548,13 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	ctx := common.NewPlikContext("add file handler", req)
 	defer ctx.Finalize(err)
 
+	// Check that source IP address is valid
+	code, err := checkSourceIP(ctx, false)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), code)
+		return
+	}
+
 	// Get the upload id from the url params
 	vars := mux.Vars(req)
 	uploadID := vars["uploadID"]
@@ -698,18 +727,25 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	ctx := common.NewPlikContext("remove file handler", req)
 	defer ctx.Finalize(err)
 
+	// Check that source IP address is valid
+	code, err := checkSourceIP(ctx, false)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), code)
+		return
+	}
+
 	// Get the upload id and file id from the url params
 	vars := mux.Vars(req)
 	uploadID := vars["uploadID"]
 	fileID := vars["fileID"]
 	if uploadID == "" {
 		ctx.Warning("Missing upload id")
-		redirect(req, resp, errors.New("Missing upload id"), 404)
+		http.Error(resp, common.NewResult(fmt.Sprintf("Upload %s not found", uploadID), nil).ToJSONString(), 404)
 		return
 	}
 	if fileID == "" {
 		ctx.Warning("Missing file id")
-		redirect(req, resp, errors.New("Missing file id"), 404)
+		http.Error(resp, common.NewResult(fmt.Sprintf("File %s not found", fileID), nil).ToJSONString(), 404)
 		return
 	}
 	ctx.SetUpload(uploadID)
@@ -785,6 +821,41 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 //
 //// Misc functions
 //
+
+// Check if source IP address is valid and whitelisted
+func checkSourceIP(ctx *common.PlikContext, whitelist bool) (code int, err error) {
+	// Get source IP address from context
+	sourceIPstr, ok := ctx.Get("RemoteIP")
+	if !ok || sourceIPstr.(string) == "" {
+		ctx.Warning("Unable to get source IP address from context")
+		err = errors.New("Unable to get source IP address")
+		code = 401
+		return
+	}
+
+	// Parse source IP address
+	sourceIP := net.ParseIP(sourceIPstr.(string))
+	if sourceIP == nil {
+		ctx.Warningf("Unable to parse source IP address %s", sourceIPstr)
+		err = errors.New("Unable to parse source IP address")
+		code = 401
+		return
+	}
+
+	// If needed check that source IP address is in whitelist
+	if whitelist && len(common.UploadWhitelist) > 0 {
+		for _, net := range common.UploadWhitelist {
+			if net.Contains(sourceIP) {
+				return
+			}
+		}
+		ctx.Warningf("Unauthorized source IP address %s", sourceIPstr)
+		err = errors.New("Unauthorized source IP address")
+		code = 403
+	}
+	return
+}
+
 func httpBasicAuth(req *http.Request, resp http.ResponseWriter, upload *common.Upload) (err error) {
 	if upload.ProtectedByPassword {
 		if req.Header.Get("Authorization") == "" {

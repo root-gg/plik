@@ -33,6 +33,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -143,7 +144,7 @@ Options:
 
 		_, err = upload(uploadInfo, config.Files[0], pipeReader)
 		if err != nil {
-			printf("Unable to upload from STDIN : %s\n", err)
+			printf("Unable to upload archive : %s\n", err)
 			return
 		}
 		pipeReader.CloseWithError(err)
@@ -237,9 +238,21 @@ func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error
 		return
 	}
 
+	// Parse Json error
+	if resp.StatusCode != 200 {
+		result := new(common.Result)
+		err = json.Unmarshal(body, result)
+		if err == nil && result.Message != "" {
+			err = errors.New(result.Message)
+		} else {
+			err = fmt.Errorf("HTTP error %d %s", resp.StatusCode, resp.Status)
+		}
+		return
+	}
+
 	basicAuth = resp.Header.Get("Authorization")
 
-	// Parse Json
+	// Parse Json response
 	upload = new(common.Upload)
 	err = json.Unmarshal(body, upload)
 	if err != nil {
@@ -327,14 +340,26 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 	}
 
 	defer resp.Body.Close()
-	responseBody, err := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return
 	}
 
-	// Parse Json
+	// Parse Json error
+	if resp.StatusCode != 200 {
+		result := new(common.Result)
+		err = json.Unmarshal(body, result)
+		if err == nil && result.Message != "" {
+			err = errors.New(result.Message)
+		} else {
+			err = fmt.Errorf("HTTP error %d %s", resp.StatusCode, resp.Status)
+		}
+		return
+	}
+
+	// Parse Json response
 	file = new(common.File)
-	err = json.Unmarshal(responseBody, file)
+	err = json.Unmarshal(body, file)
 	if err != nil {
 		return
 	}
