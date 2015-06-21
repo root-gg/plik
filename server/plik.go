@@ -732,7 +732,14 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// Test if upload is removable
 	if !upload.Removable {
 		ctx.Warningf("User tried to remove file %s of an non removeable upload", fileID)
-		redirect(req, resp, errors.New("Can't remove files on this upload"), 401)
+		http.Error(resp, common.NewResult("Can't remove files on this upload", nil).ToJSONString(), 401)
+		return
+	}
+
+	// Check upload token
+	if req.Header.Get("X-UploadToken") != upload.UploadToken {
+		ctx.Warningf("Invalid upload token %s", req.Header.Get("X-UploadToken"))
+		http.Error(resp, common.NewResult("Invalid upload token in X-UploadToken header", nil).ToJSONString(), 403)
 		return
 	}
 
