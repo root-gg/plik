@@ -395,7 +395,7 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 		command += config.Config.DownloadBinary
 	}
 
-	command += fmt.Sprintf(` "%s/file/%s/%s/%s"`, config.Config.URL, upload.ID, file.ID, file.Name)
+	command += fmt.Sprintf(` '%s/file/%s/%s/%s'`, config.Config.URL, upload.ID, file.ID, file.Name)
 
 	// If Ssl
 	if config.Config.Secure {
