@@ -110,7 +110,7 @@ func NewUploadConfig() (config *UploadConfig) {
 	config.Yubikey = false
 	config.Password = ""
 	config.TTL = 86400 * 30
-	config.AutoUpdate = true
+	config.AutoUpdate = false
 	return
 }
 
@@ -166,6 +166,15 @@ func Load() (err error) {
 			}
 		}
 
+		// Enable client updates ?
+		fmt.Printf("Do you want to enable client auto update ? [Y/n] ")
+		input := "y"
+		fmt.Scanln(&input)
+		strings.ToLower(input)
+		if strings.HasPrefix(input, "y") {
+			Config.AutoUpdate = true
+		}
+
 		// Encode in toml
 		buf := new(bytes.Buffer)
 		if err = toml.NewEncoder(buf).Encode(Config); err != nil {
@@ -180,6 +189,8 @@ func Load() (err error) {
 
 		f.Write(buf.Bytes())
 		f.Close()
+
+		fmt.Println("Plik client settings successfully saved to " + configFile)
 	} else {
 		// Load toml
 		if _, err := toml.DecodeFile(configFile, &Config); err != nil {
