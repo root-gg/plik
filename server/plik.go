@@ -424,7 +424,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// If upload has OneShot option, test if file has not been already downloaded once
 	if upload.OneShot && file.Status == "downloaded" {
 		ctx.Warningf("File %s has already been downloaded in upload %s", file.Name, upload.ID)
-		redirect(req, resp, fmt.Errorf("File %s has already been downloaded", file.Name), 401)
+		redirect(req, resp, fmt.Errorf("File %s has already been downloaded", file.Name), 404)
 		return
 	}
 
