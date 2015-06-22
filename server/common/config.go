@@ -30,6 +30,9 @@ THE SOFTWARE.
 package common
 
 import (
+	"net"
+	"strings"
+
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/BurntSushi/toml"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/GeertJohan/yubigo"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
@@ -58,11 +61,17 @@ type Configuration struct {
 	YubikeyAPISecret string
 	YubiAuth         *yubigo.YubiAuth
 
+	SourceIPHeader  string
+	UploadWhitelist []string
+
 	MetadataBackend       string
 	MetadataBackendConfig map[string]interface{}
 
 	DataBackend       string
 	DataBackendConfig map[string]interface{}
+
+	StreamMode          bool
+	StreamBackendConfig map[string]interface{}
 
 	ShortenBackend       string
 	ShortenBackendConfig map[string]interface{}
@@ -70,6 +79,9 @@ type Configuration struct {
 
 // Global var to store conf
 var Config *Configuration
+
+// Parse upload whitelist only once at startup time
+var UploadWhitelist []*net.IPNet
 
 // NewConfiguration creates a new configuration
 // object with default values
@@ -86,6 +98,7 @@ func NewConfiguration() (this *Configuration) {
 	this.SslEnabled = false
 	this.SslCert = ""
 	this.SslKey = ""
+	this.StreamMode = true
 	return
 }
 
@@ -114,6 +127,21 @@ func LoadConfiguration(file string) {
 			Config.YubikeyEnabled = false
 		} else {
 			Config.YubiAuth = yubiAuth
+		}
+	}
+
+	// Parse upload whitelist
+	UploadWhitelist = make([]*net.IPNet, 0)
+	if Config.UploadWhitelist != nil {
+		for _, cidr := range Config.UploadWhitelist {
+			if !strings.Contains(cidr, "/") {
+				cidr += "/32"
+			}
+			if _, net, err := net.ParseCIDR(cidr); err == nil {
+				UploadWhitelist = append(UploadWhitelist, net)
+			} else {
+				Log().Fatalf("Failed to parse upload whitelist : %s", cidr)
+			}
 		}
 	}
 }

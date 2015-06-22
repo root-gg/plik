@@ -1,6 +1,6 @@
 /**
 
-    Plik upload client
+    Plik upload server
 
 The MIT License (MIT)
 
@@ -27,36 +27,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package archive
+package stream
 
 import (
-	"errors"
-	"io"
-
-	"github.com/root-gg/plik/client/archive/tar"
-	"github.com/root-gg/plik/client/archive/zip"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
 )
 
-// Backend interface describe methods that the different
-// types of archive backend must implement to work.
-type Backend interface {
-	Configure(arguments map[string]interface{}) (err error)
-	Archive(files []string, writer io.WriteCloser) (err error)
-	Comments() (comments string)
-	GetFileName(files []string) (name string)
-	GetConfiguration() interface{}
+// BackendConfig describes configuration for File Databackend
+type BackendConfig struct {
 }
 
-// NewArchiveBackend instantiate the wanted archive backend with the name provided in configuration file
-// We are passing its configuration found in .plikrc file or arguments
-func NewArchiveBackend(name string, config map[string]interface{}) (backend Backend, err error) {
-	switch name {
-	case "tar":
-		backend, err = tar.NewTarBackend(config)
-	case "zip":
-		backend, err = zip.NewZipBackend(config)
-	default:
-		err = errors.New("Invalid archive backend")
-	}
+// NewStreamBackendConfig instantiate a new default configuration
+// and override it with configuration passed as argument
+func NewStreamBackendConfig(config map[string]interface{}) (sbc *BackendConfig) {
+	sbc = new(BackendConfig)
+	utils.Assign(sbc, config)
 	return
 }

@@ -49,6 +49,7 @@ type Upload struct {
 	UploadToken string           `json:"uploadToken,omitempty" bson:"uploadToken"`
 	TTL         int              `json:"ttl" bson:"ttl"`
 
+	Stream    bool `json:"stream" bson:"stream"`
 	OneShot   bool `json:"oneShot" bson:"oneShot"`
 	Removable bool `json:"removable" bson:"removable"`
 
@@ -73,7 +74,9 @@ func NewUpload() (upload *Upload) {
 func (upload *Upload) Create() {
 	upload.ID = GenerateRandomID(16)
 	upload.Creation = time.Now().Unix()
-	upload.Files = make(map[string]*File)
+	if upload.Files == nil {
+		upload.Files = make(map[string]*File)
+	}
 	upload.UploadToken = GenerateRandomID(32)
 }
 

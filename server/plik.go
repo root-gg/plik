@@ -35,15 +35,16 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/facebookgo/httpdown"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/gorilla/mux"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
@@ -77,12 +78,19 @@ func main() {
 	dataBackend.Initialize()
 	shortenBackend.Initialize()
 
+	// Initialize the httpdown wrapper
+	hd := &httpdown.HTTP{
+		StopTimeout: 5 * time.Minute,
+		KillTimeout: 1 * time.Second,
+	}
+
 	// HTTP Api routes configuration
 	r := mux.NewRouter()
 	r.HandleFunc("/upload", createUploadHandler).Methods("POST")
 	r.HandleFunc("/upload/{uploadID}", getUploadHandler).Methods("GET")
 	r.HandleFunc("/upload/{uploadID}/file", addFileHandler).Methods("POST")
 	r.HandleFunc("/upload/{uploadID}/file/{fileID}", getFileHandler).Methods("GET")
+	r.HandleFunc("/upload/{uploadID}/file/{fileID}", addFileHandler).Methods("POST")
 	r.HandleFunc("/upload/{uploadID}/file/{fileID}", removeFileHandler).Methods("DELETE")
 	r.HandleFunc("/file/{uploadID}/{fileID}/{filename}", getFileHandler).Methods("GET", "HEAD")
 	r.HandleFunc("/file/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", getFileHandler).Methods("GET")
@@ -93,32 +101,30 @@ func main() {
 	go UploadsCleaningRoutine()
 
 	// Start HTTP server
-	go func() {
-		var err error
-		if common.Config.SslEnabled {
-			address := common.Config.ListenAddress + ":" + strconv.Itoa(common.Config.ListenPort)
-			tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10}
-			server := &http.Server{Addr: address, Handler: r, TLSConfig: tlsConfig}
-			err = server.ListenAndServeTLS(common.Config.SslCert, common.Config.SslKey)
-		} else {
-			err = http.ListenAndServe(common.Config.ListenAddress+":"+strconv.Itoa(common.Config.ListenPort), nil)
-		}
+	var err error
+	var server *http.Server
 
+	address := common.Config.ListenAddress + ":" + strconv.Itoa(common.Config.ListenPort)
+
+	if common.Config.SslEnabled {
+
+		// Load cert
+		cert, err := tls.LoadX509KeyPair(common.Config.SslCert, common.Config.SslKey)
 		if err != nil {
-			log.Fatalf("Unable to start HTTP server : %s", err)
+			log.Fatalf("Unable to load ssl certificate : %s", err)
 		}
-	}()
 
-	// Handle signals
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill)
-	for {
-		select {
-		case s := <-c:
-			log.Infof("Got signal : %s", s)
-			os.Exit(0)
-		}
+		tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10, Certificates: []tls.Certificate{cert}}
+		server = &http.Server{Addr: address, Handler: r, TLSConfig: tlsConfig}
+	} else {
+		server = &http.Server{Addr: address, Handler: r}
 	}
+
+	err = httpdown.ListenAndServe(server, hd)
+	if err != nil {
+		log.Fatalf("Unable to start HTTP server : %s", err)
+	}
+
 }
 
 /*
@@ -129,6 +135,13 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	var err error
 	ctx := common.NewPlikContext("create upload handler", req)
 	defer ctx.Finalize(err)
+
+	// Check that source IP address is valid and whitelisted
+	code, err := checkSourceIP(ctx, true)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), code)
+		return
+	}
 
 	upload := common.NewUpload()
 	ctx.SetUpload(upload.ID)
@@ -158,6 +171,15 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	ctx.SetUpload(upload.ID)
 	upload.RemoteIP = req.RemoteAddr
 	uploadToken := upload.UploadToken
+
+	if upload.Stream {
+		if !common.Config.StreamMode {
+			ctx.Warning("Stream mode is not enabled")
+			http.Error(resp, common.NewResult("Stream mode is not enabled", nil).ToJSONString(), 400)
+			return
+		}
+		upload.OneShot = true
+	}
 
 	// TTL = Time in second before the upload expiration
 	// 0 	-> No ttl specified : default value from configuration
@@ -253,6 +275,14 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// Create files
+	for i, file := range upload.Files {
+		file.GenerateID()
+		file.Status = "missing"
+		delete(upload.Files, i)
+		upload.Files[file.ID] = file
+	}
+
 	// Save the metadata
 	err = metadataBackend.GetMetaDataBackend().Create(ctx.Fork("create metadata"), upload)
 	if err != nil {
@@ -282,6 +312,13 @@ func getUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	var err error
 	ctx := common.NewPlikContext("get upload handler", req)
 	defer ctx.Finalize(err)
+
+	// Check that source IP address is valid
+	code, err := checkSourceIP(ctx, false)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), code)
+		return
+	}
 
 	// Get the upload id and file id from the url params
 	vars := mux.Vars(req)
@@ -322,6 +359,13 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	var err error
 	ctx := common.NewPlikContext("get file handler", req)
 	defer ctx.Finalize(err)
+
+	// Check that source IP address is valid
+	code, err := checkSourceIP(ctx, false)
+	if err != nil {
+		redirect(req, resp, err, code)
+		return
+	}
 
 	// Get the upload id and file id from the url params
 	vars := mux.Vars(req)
@@ -384,7 +428,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// If upload has OneShot option, test if file has not been already downloaded once
 	if upload.OneShot && file.Status == "downloaded" {
 		ctx.Warningf("File %s has already been downloaded in upload %s", file.Name, upload.ID)
-		redirect(req, resp, fmt.Errorf("File %s has already been downloaded", file.Name), 401)
+		redirect(req, resp, fmt.Errorf("File %s has already been downloaded", file.Name), 404)
 		return
 	}
 
@@ -437,7 +481,9 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Set content type and print file
 	resp.Header().Set("Content-Type", file.Type)
-	resp.Header().Set("Content-Length", strconv.Itoa(int(file.CurrentSize)))
+	if file.CurrentSize > 0 {
+		resp.Header().Set("Content-Length", strconv.Itoa(int(file.CurrentSize)))
+	}
 
 	// If "dl" GET params is set
 	// -> Set Content-Disposition header
@@ -455,7 +501,13 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	if req.Method == "GET" {
 		// Get file in data backend
-		fileReader, err := dataBackend.GetDataBackend().GetFile(ctx.Fork("get file"), upload, file.ID)
+		var backend dataBackend.DataBackend
+		if upload.Stream {
+			backend = dataBackend.GetStreamBackend()
+		} else {
+			backend = dataBackend.GetDataBackend()
+		}
+		fileReader, err := backend.GetFile(ctx.Fork("get file"), upload, file.ID)
 		if err != nil {
 			ctx.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.ID, err)
 			redirect(req, resp, fmt.Errorf("Failed to read file %s", file.Name), 404)
@@ -480,7 +532,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 		// Remove file from data backend if oneShot option is set
 		if upload.OneShot {
-			err = dataBackend.GetDataBackend().RemoveFile(ctx.Fork("remove file"), upload, file.ID)
+			err = backend.RemoveFile(ctx.Fork("remove file"), upload, file.ID)
 			if err != nil {
 				ctx.Warningf("Error while deleting file %s from upload %s : %s", file.Name, upload.ID, err)
 				return
@@ -500,9 +552,17 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	ctx := common.NewPlikContext("add file handler", req)
 	defer ctx.Finalize(err)
 
+	// Check that source IP address is valid
+	code, err := checkSourceIP(ctx, false)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), code)
+		return
+	}
+
 	// Get the upload id from the url params
 	vars := mux.Vars(req)
 	uploadID := vars["uploadID"]
+	fileID := vars["fileID"]
 	ctx.SetUpload(uploadID)
 
 	// Get upload metadata
@@ -527,9 +587,24 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Create a new file object
+	var newFile *common.File
+	if fileID != "" {
+		if _, ok := upload.Files[fileID]; ok {
+			newFile = upload.Files[fileID]
+		} else {
+			ctx.Warningf("Invalid file id %s", fileID)
+			http.Error(resp, common.NewResult("Invalid file id", nil).ToJSONString(), 404)
+			return
+		}
+	} else {
+		newFile = common.NewFile()
+		newFile.Type = "application/octet-stream"
+	}
+	ctx.SetFile(newFile.ID)
+
 	// Get file handle from multipart request
 	var file io.Reader
-	var fileName string
 	multiPartReader, err := req.MultipartReader()
 	if err != nil {
 		ctx.Warningf("Failed to get file from multipart request : %s", err)
@@ -543,27 +618,22 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		if errPart == io.EOF {
 			break
 		}
-
 		if part.FormName() == "file" {
 			file = part
-			fileName = part.FileName()
+			newFile.Name = part.FileName()
 			break
 		}
 	}
 	if file == nil {
 		ctx.Warning("Missing file from multipart request")
 		http.Error(resp, common.NewResult("Missing file from multipart request", nil).ToJSONString(), 400)
+		return
 	}
-	if fileName == "" {
+	if newFile.Name == "" {
 		ctx.Warning("Missing file name from multipart request")
 		http.Error(resp, common.NewResult("Missing file name from multipart request", nil).ToJSONString(), 400)
 	}
-
-	// Create a new file object
-	newFile := common.NewFile()
-	newFile.Name = fileName
-	newFile.Type = "application/octet-stream"
-	ctx.SetFile(fileName)
+	ctx.SetFile(newFile.Name)
 
 	// Pipe file data from the request body to a preprocessing goroutine
 	//  - Guess content type
@@ -610,7 +680,13 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}()
 
 	// Save file in the data backend
-	backendDetails, err := dataBackend.GetDataBackend().AddFile(ctx.Fork("save file"), upload, newFile, preprocessReader)
+	var backend dataBackend.DataBackend
+	if upload.Stream {
+		backend = dataBackend.GetStreamBackend()
+	} else {
+		backend = dataBackend.GetDataBackend()
+	}
+	backendDetails, err := backend.AddFile(ctx.Fork("save file"), upload, newFile, preprocessReader)
 	if err != nil {
 		ctx.Warningf("Unable to save file : %s", err)
 		http.Error(resp, common.NewResult(fmt.Sprintf("Error saving file %s in upload %s : %s", newFile.Name, upload.ID, err), nil).ToJSONString(), 500)
@@ -619,7 +695,11 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Fill-in file informations
 	newFile.CurrentSize = int64(totalBytes)
-	newFile.Status = "uploaded"
+	if upload.Stream {
+		newFile.Status = "downloaded"
+	} else {
+		newFile.Status = "uploaded"
+	}
 	newFile.Md5 = fmt.Sprintf("%x", md5Hash.Sum(nil))
 	newFile.UploadDate = time.Now().Unix()
 	newFile.BackendDetails = backendDetails
@@ -651,18 +731,25 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	ctx := common.NewPlikContext("remove file handler", req)
 	defer ctx.Finalize(err)
 
+	// Check that source IP address is valid
+	code, err := checkSourceIP(ctx, false)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), code)
+		return
+	}
+
 	// Get the upload id and file id from the url params
 	vars := mux.Vars(req)
 	uploadID := vars["uploadID"]
 	fileID := vars["fileID"]
 	if uploadID == "" {
 		ctx.Warning("Missing upload id")
-		redirect(req, resp, errors.New("Missing upload id"), 404)
+		http.Error(resp, common.NewResult(fmt.Sprintf("Upload %s not found", uploadID), nil).ToJSONString(), 404)
 		return
 	}
 	if fileID == "" {
 		ctx.Warning("Missing file id")
-		redirect(req, resp, errors.New("Missing file id"), 404)
+		http.Error(resp, common.NewResult(fmt.Sprintf("File %s not found", fileID), nil).ToJSONString(), 404)
 		return
 	}
 	ctx.SetUpload(uploadID)
@@ -685,7 +772,14 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// Test if upload is removable
 	if !upload.Removable {
 		ctx.Warningf("User tried to remove file %s of an non removeable upload", fileID)
-		redirect(req, resp, errors.New("Can't remove files on this upload"), 401)
+		http.Error(resp, common.NewResult("Can't remove files on this upload", nil).ToJSONString(), 401)
+		return
+	}
+
+	// Check upload token
+	if req.Header.Get("X-UploadToken") != upload.UploadToken {
+		ctx.Warningf("Invalid upload token %s", req.Header.Get("X-UploadToken"))
+		http.Error(resp, common.NewResult("Invalid upload token in X-UploadToken header", nil).ToJSONString(), 403)
 		return
 	}
 
@@ -706,7 +800,14 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	// Remove file from data backend
-	if err := dataBackend.GetDataBackend().RemoveFile(ctx.Fork("remove file"), upload, file.ID); err != nil {
+	// Get file in data backend
+	var backend dataBackend.DataBackend
+	if upload.Stream {
+		backend = dataBackend.GetStreamBackend()
+	} else {
+		backend = dataBackend.GetDataBackend()
+	}
+	if err := backend.RemoveFile(ctx.Fork("remove file"), upload, file.ID); err != nil {
 
 		ctx.Warningf("Error while deleting file : %s", err)
 		http.Error(resp, common.NewResult(fmt.Sprintf("Error while deleting file %s in upload %s", file.Name, upload.ID), nil).ToJSONString(), 500)
@@ -731,6 +832,41 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 //
 //// Misc functions
 //
+
+// Check if source IP address is valid and whitelisted
+func checkSourceIP(ctx *common.PlikContext, whitelist bool) (code int, err error) {
+	// Get source IP address from context
+	sourceIPstr, ok := ctx.Get("RemoteIP")
+	if !ok || sourceIPstr.(string) == "" {
+		ctx.Warning("Unable to get source IP address from context")
+		err = errors.New("Unable to get source IP address")
+		code = 401
+		return
+	}
+
+	// Parse source IP address
+	sourceIP := net.ParseIP(sourceIPstr.(string))
+	if sourceIP == nil {
+		ctx.Warningf("Unable to parse source IP address %s", sourceIPstr)
+		err = errors.New("Unable to parse source IP address")
+		code = 401
+		return
+	}
+
+	// If needed check that source IP address is in whitelist
+	if whitelist && len(common.UploadWhitelist) > 0 {
+		for _, net := range common.UploadWhitelist {
+			if net.Contains(sourceIP) {
+				return
+			}
+		}
+		ctx.Warningf("Unauthorized source IP address %s", sourceIPstr)
+		err = errors.New("Unauthorized source IP address")
+		code = 403
+	}
+	return
+}
+
 func httpBasicAuth(req *http.Request, resp http.ResponseWriter, upload *common.Upload) (err error) {
 	if upload.ProtectedByPassword {
 		if req.Header.Get("Authorization") == "" {
@@ -839,7 +975,6 @@ func UploadsCleaningRoutine() {
 // RemoveUploadIfNoFileAvailable iterates on upload files and remove upload files
 // and metadata if all the files have been downloaded (usefull for OneShot uploads)
 func RemoveUploadIfNoFileAvailable(ctx *common.PlikContext, upload *common.Upload) (err error) {
-
 	// Test if there are remaining files
 	filesInUpload := len(upload.Files)
 	for _, f := range upload.Files {
@@ -852,9 +987,11 @@ func RemoveUploadIfNoFileAvailable(ctx *common.PlikContext, upload *common.Uploa
 
 		ctx.Debugf("No more files in upload. Removing all informations.")
 
-		err = dataBackend.GetDataBackend().RemoveUpload(ctx, upload)
-		if err != nil {
-			return
+		if !upload.Stream {
+			err = dataBackend.GetDataBackend().RemoveUpload(ctx, upload)
+			if err != nil {
+				return
+			}
 		}
 		err = metadataBackend.GetMetaDataBackend().Remove(ctx, upload)
 		if err != nil {

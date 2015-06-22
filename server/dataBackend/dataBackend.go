@@ -34,11 +34,13 @@ import (
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/dataBackend/file"
+	"github.com/root-gg/plik/server/dataBackend/stream"
 	"github.com/root-gg/plik/server/dataBackend/swift"
 	"github.com/root-gg/plik/server/dataBackend/weedfs"
 )
 
 var dataBackend DataBackend
+var streamBackend DataBackend
 
 // DataBackend interface describes methods that data backends
 // must implements to be compatible with plik.
@@ -49,13 +51,14 @@ type DataBackend interface {
 	RemoveUpload(ctx *common.PlikContext, u *common.Upload) (err error)
 }
 
-// GetDataBackend is a singleton pattern.
-// Init static backend if not already and return it
+// GetDataBackend return the primary data backend
 func GetDataBackend() DataBackend {
-	if dataBackend == nil {
-		Initialize()
-	}
 	return dataBackend
+}
+
+// GetStreamBackend return the stream data backend
+func GetStreamBackend() DataBackend {
+	return streamBackend
 }
 
 // Initialize backend from type found in configuration
@@ -71,5 +74,8 @@ func Initialize() {
 		default:
 			common.Log().Fatalf("Invalid data backend %s", common.Config.DataBackend)
 		}
+	}
+	if common.Config.StreamMode {
+		streamBackend = stream.NewStreamBackend(common.Config.StreamBackendConfig)
 	}
 }

@@ -9,16 +9,17 @@ Plik is an simple and powerful file uploading system written in golang.
 ### Main features
    - Multiple data backends : File, OpenStack Swift, WeedFS
    - Multiple metadata backends : File, MongoDB
-   - Shorten backends : Recuce your uploads urls (is.gd && w000t.me available)
-   - OneShot : Files are destructed after first download
-   - Removable : Give the hability to uploader to remove files from upload
-   - TTL : Option to set upload expiration
-   - Password : Protect the upload with login/password (Auth Basic)
-   - Comments : Add comments to upload (in Markdown format)
-   - Yubikey : Protect the upload with your yubikey. You'll need an OTP per download
+   - Shorten backends : Shorten upload urls (is.gd && w000t.me available)
+   - OneShot : Files are destructed after the first download
+   - Stream : Files are streamed from the uploader to the downloader (nothing stored server side)  
+   - Removable : Give the ability to the uploader to remove files at any time
+   - TTL : Custom expiration date
+   - Password : Protect upload with login/password (Auth Basic)
+   - Yubikey : Protect upload with your yubikey. (One Time Password)
+   - Comments : Add custom message (in Markdown format)
 
 ### Version
-1.0-RC4
+1.0-RC5
 
 
 ### Installation
@@ -26,17 +27,18 @@ Plik is an simple and powerful file uploading system written in golang.
 ##### From release
 To run plik, it's very simple :
 ```sh
-$ wget https://github.com/root-gg/plik/releases/download/1.0-RC4/plik-1.0-RC4.tar.gz
-$ tar xvf plik-1.0-RC4.tar.gz
-$ cd plik-1.0-RC4/server
+$ wget https://github.com/root-gg/plik/releases/download/1.0-RC5/plik-1.0-RC5.tar.gz
+$ tar xvf plik-1.0-RC5.tar.gz
+$ cd plik-1.0-RC5/server
 $ ./plikd
 ```
-Et voilà ! You have how a fully functionnal instance of plik ruuning on http://127.0.0.1:8080. You can edit server/plikd.cfg to adapt the params to your needs (ports, ssl, ttl, backends params,...)
+Et voilà ! You now have a fully functional instance of plik running on http://127.0.0.1:8080.  
+You can edit server/plikd.cfg to adapt the configuration to your needs (ports, ssl, ttl, backends params,...)
 
 ##### From sources
-For compiling plik from sources, you need a functionnal installation of Golang, and npm installed on your system.
+To compile plik from sources, you'll need golang and npm installed on your system.
 
-First, get the project and libs via go get
+First, get the project and libs via go get :
 ```sh
 $ go get github.com/root-gg/plik/server
 $ cd $GOPATH/github.com/root-gg/plik/
@@ -48,7 +50,7 @@ $ sudo -c "npm install -g bower grunt-cli"
 $ sudo -c "client/build.sh env"
 ```
 
-And now, you just have to compile it
+To build everything :
 ```sh
 $ make build
 $ make clients
@@ -57,11 +59,12 @@ $ make clients
 ### API
 Plik server expose a REST-full API to manage uploads and get files :
 
-Creating upload and uploading files :
+To create upload and upload files :
  
    - **POST**        /upload
      - Params (json object in request body) :
       - oneshot (bool)
+      - stream (bool)
       - removable (bool)
       - ttl (int)
       - login (string)
@@ -70,14 +73,29 @@ Creating upload and uploading files :
          JSON formatted upload object.
          Important fields :
            - id (required to upload files)
-           - uploadToken (required to upload files)
+           - uploadToken (required to upload/remove files)
 
    - **GET** /upload/:uploadid:
-     - Get upload metadatas (files list, upload date, ttl,...)
+     - Get upload metadata (files list, upload date, ttl,...)
 
    - **POST** /upload/:uploadid:/file
      - Body must be a multipart request with a part named "file" containing file data
-   Returning a JSON object of newly uploaded file
+   Returns a JSON object of uploaded file metadata
+   
+   - **POST** /file/:uploadid/:fileid: (same as above)
+     - For stream mode you need to know the file id before the upload starts as it will block.  
+   To get the file ids pass a files hash param to the previous create upload call with each file you are about to upload.  
+   Fill the reference field with an arbitrary string to avoid to match file ids using the fileName field.
+   ```
+   upload.files : {
+     "0" : {
+       fileName: "file.txt"
+       fileSize: 12345
+       fileType: "text/plain"
+       reference: "0"
+     },...
+   }
+   ```
    
    - **DELETE** /upload/:uploadid:/file/:fileid:
      - Delete file from the upload. Upload must have "removable" option enabled.
@@ -85,7 +103,7 @@ Creating upload and uploading files :
 Get files :
 
   - **HEAD** /file/:uploadid/:fileid:/:filename:
-    - Returning only HTTP headers. Usefull to know Content-Type and Content-Type of file without downloading it. Especially if upload has OneShot option enabled.
+    - Returns only HTTP headers. Usefull to know Content-Type and Content-Type without downloading the file. Especially if upload has OneShot option enabled.
 
   - **GET**  /file/:uploadid/:fileid:/:filename:
     - Download specified file from upload. Filename **MUST** be right. In a browser, it will try to display file (if it's a jpeg for example). You can force download with dl=1 in url.
@@ -128,6 +146,26 @@ Secure upload (OpenSSL with aes-256-cbc by deault)
 $ plik -s file.doc
 
 ```
+
+
+### FAQ
+
+##### I have an error when uploading from client : "Unable upload file : HTTP error 411 Length Required"
+
+Under nginx < 1.3.9, you must enable HttpChunkin module to allow transfer-encoding "chunked".
+
+For debian, this module is present in the "nginx-extras" package
+
+And add in your server configuration :
+
+```sh
+        chunkin on;
+        error_page 411 = @my_411_error;
+        location @my_411_error {
+                chunkin_resume;
+        }
+```
+
 
 ### Participate
 

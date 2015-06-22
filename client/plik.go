@@ -33,6 +33,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -41,13 +42,16 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/cheggaaa/pb"
 	docopt "github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/docopt/docopt-go"
+	"github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/kardianos/osext"
 	"github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/olekukonko/ts"
 	"github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/root-gg/utils"
 	"github.com/root-gg/plik/client/config"
@@ -81,11 +85,13 @@ Options:
   -d --debug                Enable debug mode
   -q --quiet                Enable quiet mode
   -v --version              Show plik version
-  -o, --oneshot             Enable OneShot (Each file will be deleted on first download)
-  -r, --removable           Enable Removable upload (Each file can be deleted by anyone at anymoment)
+  -o, --oneshot             Enable OneShot ( Each file will be deleted on first download )
+  -r, --removable           Enable Removable upload ( Each file can be deleted by anyone at anymoment )
+  -S, --stream              Enable Streaming ( It will block until remote user starts downloading )
   -t, --ttl TTL             Time before expiration (Upload will be removed in m|h|d)
   -n, --name NAME           Set file name when piping from STDIN
-  --comments COMMENT        Set comments of the upload (MarkDown compatible)
+  --server SERVER           Overrides plik url
+  --comments COMMENT        Set comments of the upload ( MarkDown compatible )
   --archive-options OPTIONS [tar|zip] Additional command line options
   -p                        Protect the upload with login and password
   --password PASSWD         Protect the upload with login:password ( if omitted default login is "plik" )
@@ -99,6 +105,7 @@ Options:
   --passphrase PASSPHRASE   [openssl] Passphrase or '-' to be prompted for a passphrase
   --secure-options OPTIONS  [openssl|pgp] Additional command line options
   --recipient RECIPIENT     [pgp] Set recipient for pgp backend ( example : --recipient Bob )
+  --update                  Update client
 `
 	// Parse command line arguments
 	arguments, _ = docopt.Parse(usage, nil, true, "", false)
@@ -110,7 +117,17 @@ Options:
 		os.Exit(1)
 	}
 
-	// Creating upload on plik
+	// Check client version
+	forceUpdate := arguments["--update"].(bool)
+	err = updateClient(forceUpdate)
+	if err != nil {
+		printf("Unable to update Plik client : %s\n", err)
+		if forceUpdate {
+			os.Exit(1)
+		}
+	}
+
+	// Create upload
 	config.Debug("Sending upload params : " + config.Sdump(config.Upload))
 	uploadInfo, err := createUpload(config.Upload)
 	if err != nil {
@@ -122,36 +139,34 @@ Options:
 	printf("Upload successfully created : \n\n")
 	printf("    %s/#/?id=%s\n\n\n", config.Config.URL, uploadInfo.ID)
 
-	if config.Config.Archive {
+	// Match file id from server using client reference
+	for _, clientFile := range config.Files {
+		for _, serverFile := range uploadInfo.Files {
+			if clientFile.Reference == serverFile.Reference {
+				clientFile.ID = serverFile.ID
+				break
+			}
+		}
+	}
 
+	if config.Config.Archive {
 		pipeReader, pipeWriter := io.Pipe()
-		name, err := config.GetArchiveBackend().Archive(arguments["FILE"].([]string), pipeWriter)
+		err = config.GetArchiveBackend().Archive(arguments["FILE"].([]string), pipeWriter)
 		if err != nil {
 			printf("Unable to archive files : %s\n", err)
 			os.Exit(1)
 		}
 
-		if arguments["--name"] != nil && arguments["--name"].(string) != "" {
-			name = arguments["--name"].(string)
-		}
-
-		file, err := upload(uploadInfo, name, int64(0), pipeReader)
+		_, err = upload(uploadInfo, config.Files[0], pipeReader)
 		if err != nil {
-			printf("Unable to upload from STDIN : %s\n", err)
+			printf("Unable to upload archive : %s\n", err)
 			return
 		}
 		pipeReader.CloseWithError(err)
 
-		uploadInfo.Files[file.ID] = file
 	} else {
 		if len(config.Files) == 0 {
-			// Upload from STDIN
-			name := "STDIN"
-			if arguments["--name"] != nil && arguments["--name"].(string) != "" {
-				name = arguments["--name"].(string)
-			}
-
-			file, err := upload(uploadInfo, name, int64(0), os.Stdin)
+			file, err := upload(uploadInfo, config.Files[0], os.Stdin)
 			if err != nil {
 				printf("Unable to upload from STDIN : %s\n", err)
 				return
@@ -166,7 +181,7 @@ Options:
 				go func(fileToUpload *config.FileToUpload) {
 					defer wg.Done()
 
-					file, err := upload(uploadInfo, fileToUpload.Base, fileToUpload.Size, fileToUpload.FileHandle)
+					file, err := upload(uploadInfo, fileToUpload, fileToUpload.FileHandle)
 					if err != nil {
 						printf("Unable upload file : %s\n", err)
 						return
@@ -180,25 +195,27 @@ Options:
 	}
 
 	// Comments
-	var totalSize int64
-	printf("\n\nCommands\n\n")
-	for _, file := range uploadInfo.Files {
+	if !uploadInfo.Stream {
+		var totalSize int64
+		printf("\n\nCommands\n\n")
+		for _, file := range uploadInfo.Files {
 
-		// Increment size
-		totalSize += file.CurrentSize
+			// Increment size
+			totalSize += file.CurrentSize
 
-		// Print file informations (only url if quiet mode enabled)
-		if config.Config.Quiet {
-			fmt.Println(getFileURL(uploadInfo, file))
-		} else {
-			fmt.Println(getFileCommand(uploadInfo, file))
+			// Print file informations (only url if quiet mode enabled)
+			if config.Config.Quiet {
+				fmt.Println(getFileURL(uploadInfo, file))
+			} else {
+				fmt.Println(getFileCommand(uploadInfo, file))
+			}
 		}
-	}
-	printf("\n")
+		printf("\n")
 
-	// Upload files
-	printf("\nTotal\n\n")
-	printf("    %s (%d file(s)) \n\n", utils.BytesToString(int(totalSize)), len(uploadInfo.Files))
+		// Upload files
+		printf("\nTotal\n\n")
+		printf("    %s (%d file(s)) \n\n", utils.BytesToString(int(totalSize)), len(uploadInfo.Files))
+	}
 }
 
 func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error) {
@@ -236,9 +253,21 @@ func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error
 		return
 	}
 
+	// Parse Json error
+	if resp.StatusCode != 200 {
+		result := new(common.Result)
+		err = json.Unmarshal(body, result)
+		if err == nil && result.Message != "" {
+			err = errors.New(result.Message)
+		} else {
+			err = fmt.Errorf("HTTP error %d %s", resp.StatusCode, resp.Status)
+		}
+		return
+	}
+
 	basicAuth = resp.Header.Get("Authorization")
 
-	// Parse Json
+	// Parse Json response
 	upload = new(common.Upload)
 	err = json.Unmarshal(body, upload)
 	if err != nil {
@@ -248,13 +277,18 @@ func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error
 	return
 }
 
-func upload(uploadInfo *common.Upload, name string, size int64, reader io.Reader) (file *common.File, err error) {
+func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader io.Reader) (file *common.File, err error) {
 	pipeReader, pipeWriter := io.Pipe()
 	multipartWriter := multipart.NewWriter(pipeWriter)
 
+	if uploadInfo.Stream {
+		fmt.Printf("%s\n", getFileCommand(uploadInfo, fileToUpload.File))
+	}
+
 	// TODO Handler error properly here
 	go func() error {
-		part, err := multipartWriter.CreateFormFile("file", name)
+
+		part, err := multipartWriter.CreateFormFile("file", fileToUpload.Name)
 		if err != nil {
 			fmt.Println(err)
 			return pipeWriter.CloseWithError(err)
@@ -265,13 +299,12 @@ func upload(uploadInfo *common.Upload, name string, size int64, reader io.Reader
 		if config.Config.Quiet {
 			multiWriter = part
 		} else {
-			bar := pb.New64(size).SetUnits(pb.U_BYTES)
-			bar.Prefix(fmt.Sprintf("%-"+strconv.Itoa(config.GetLongestFilename())+"s : ", name))
+			bar := pb.New64(fileToUpload.CurrentSize).SetUnits(pb.U_BYTES)
+			bar.Prefix(fmt.Sprintf("%-"+strconv.Itoa(config.GetLongestFilename())+"s : ", fileToUpload.Name))
 			bar.ShowSpeed = true
 			bar.ShowFinalTime = false
 			bar.SetWidth(100)
 			bar.SetMaxWidth(100)
-
 			multiWriter = io.MultiWriter(part, bar)
 			bar.Start()
 			defer bar.Finish()
@@ -296,7 +329,7 @@ func upload(uploadInfo *common.Upload, name string, size int64, reader io.Reader
 	}()
 
 	var URL *url.URL
-	URL, err = url.Parse(config.Config.URL + "/upload/" + uploadInfo.ID + "/file")
+	URL, err = url.Parse(config.Config.URL + "/upload/" + uploadInfo.ID + "/file/" + fileToUpload.ID)
 	if err != nil {
 		return
 	}
@@ -322,19 +355,31 @@ func upload(uploadInfo *common.Upload, name string, size int64, reader io.Reader
 	}
 
 	defer resp.Body.Close()
-	responseBody, err := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return
 	}
 
-	// Parse Json
+	// Parse Json error
+	if resp.StatusCode != 200 {
+		result := new(common.Result)
+		err = json.Unmarshal(body, result)
+		if err == nil && result.Message != "" {
+			err = errors.New(result.Message)
+		} else {
+			err = fmt.Errorf("HTTP error %d %s", resp.StatusCode, resp.Status)
+		}
+		return
+	}
+
+	// Parse Json response
 	file = new(common.File)
-	err = json.Unmarshal(responseBody, file)
+	err = json.Unmarshal(body, file)
 	if err != nil {
 		return
 	}
 
-	config.Debug(fmt.Sprintf("Uploaded %s : %s", name, config.Sdump(file)))
+	config.Debug(fmt.Sprintf("Uploaded %s : %s", file.Name, config.Sdump(file)))
 	return
 }
 
@@ -350,7 +395,7 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 		command += config.Config.DownloadBinary
 	}
 
-	command += fmt.Sprintf(" %s/file/%s/%s/%s", config.Config.URL, upload.ID, file.ID, file.Name)
+	command += fmt.Sprintf(` '%s/file/%s/%s/%s'`, config.Config.URL, upload.ID, file.ID, file.Name)
 
 	// If Ssl
 	if config.Config.Secure {
@@ -373,6 +418,128 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 
 func getFileURL(upload *common.Upload, file *common.File) (fileURL string) {
 	fileURL += fmt.Sprintf("%s/file/%s/%s/%s", config.Config.URL, upload.ID, file.ID, file.Name)
+	return
+}
+
+func updateClient(forceUpdate bool) (err error) {
+	if !forceUpdate && !config.Config.AutoUpdate {
+		return
+	}
+	if !forceUpdate && config.Config.Quiet {
+		return
+	}
+
+	// Get client MD5SUM
+	path, err := osext.Executable()
+	if err != nil {
+		return
+	}
+	MD5Sum, err := utils.FileMd5sum(path)
+	if err != nil {
+		return
+	}
+
+	// Get client architechture
+	arch := runtime.GOOS + "-" + runtime.GOARCH
+	binary := "plik"
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
+
+	// Get last client MD5Sum
+	baseURL := config.Config.URL + "/clients/" + arch
+	var URL *url.URL
+	URL, err = url.Parse(baseURL + "/MD5SUM")
+	if err != nil {
+		return
+	}
+	var req *http.Request
+	req, err = http.NewRequest("GET", URL.String(), nil)
+	if err != nil {
+		return
+	}
+	var resp *http.Response
+	resp, err = client.Do(req)
+	if err != nil {
+		return
+	}
+	if resp.StatusCode != 200 {
+		err = errors.New("Unable to get last MD5Sum : " + resp.Status)
+		return
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+	lastMD5Sum := utils.Chomp(string(body))
+
+	// Check if the client is up to date
+	if MD5Sum == lastMD5Sum {
+		if forceUpdate {
+			println("Plik client is up to date")
+			os.Exit(0)
+		}
+		return
+	}
+	fmt.Printf("Plik client is not up to date, do you want to update ? [Y/n] ")
+	input := "y"
+	fmt.Scanln(&input)
+	strings.ToLower(input)
+	if !strings.HasPrefix(input, "y") {
+		if forceUpdate {
+			os.Exit(0)
+		}
+		return
+	}
+
+	// Download new client
+	tmpPath := filepath.Dir(path) + "/" + "." + filepath.Base(path) + ".tmp"
+	tmpFile, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
+	if err != nil {
+		return
+	}
+	defer tmpFile.Close()
+	URL, err = url.Parse(baseURL + "/" + binary)
+	if err != nil {
+		return
+	}
+	req, err = http.NewRequest("GET", URL.String(), nil)
+	if err != nil {
+		return
+	}
+	resp, err = client.Do(req)
+	if err != nil {
+		return
+	}
+	if resp.StatusCode != 200 {
+		err = errors.New("Unable to get last client : " + resp.Status)
+		return
+	}
+	defer resp.Body.Close()
+	_, err = io.Copy(tmpFile, resp.Body)
+	if err != nil {
+		return
+	}
+
+	// Check new MD5sum
+	MD5Sum, err = utils.FileMd5sum(tmpPath)
+	if err != nil {
+		return
+	}
+	if MD5Sum != lastMD5Sum {
+		err = fmt.Errorf("Invalid client MD5Sum %s does not match %s", MD5Sum, lastMD5Sum)
+		return
+	}
+
+	// Replace old client
+	err = os.Rename(tmpPath, path)
+	if err != nil {
+		return
+	}
+
+	println("Plik client sucessfully updated")
+	os.Exit(0)
 	return
 }
 

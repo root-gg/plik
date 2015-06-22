@@ -60,7 +60,7 @@ func TestMain(t *testing.T) {
 
 func TestSimpleFileUploadAndGet(t *testing.T) {
 	upload := createUpload(&common.Upload{}, t)
-	file := uploadFile(upload, "test", readerForUpload, t)
+	file := uploadFile(upload, "test", "", readerForUpload, t)
 
 	// We have upload && file ?
 	test("getUpload", upload, nil, 200, t)
@@ -70,10 +70,10 @@ func TestSimpleFileUploadAndGet(t *testing.T) {
 func TestMultipleFilesUploadAndGet(t *testing.T) {
 	upload := createUpload(&common.Upload{}, t)
 
-	file1 := uploadFile(upload, "test1", readerForUpload, t)
-	file2 := uploadFile(upload, "test2", readerForUpload, t)
-	file3 := uploadFile(upload, "test3", readerForUpload, t)
-	file4 := uploadFile(upload, "test4", readerForUpload, t)
+	file1 := uploadFile(upload, "test1", "", readerForUpload, t)
+	file2 := uploadFile(upload, "test2", "", readerForUpload, t)
+	file3 := uploadFile(upload, "test3", "", readerForUpload, t)
+	file4 := uploadFile(upload, "test4", "", readerForUpload, t)
 
 	// We have upload && files ?
 	test("getUpload", upload, nil, 200, t)
@@ -91,7 +91,7 @@ func TestNonExistingUpload(t *testing.T) {
 
 func TestNonExistingFile(t *testing.T) {
 	upload := createUpload(&common.Upload{}, t)
-	file := uploadFile(upload, "test", readerForUpload, t)
+	file := uploadFile(upload, "test", "", readerForUpload, t)
 
 	// We have upload ?
 	test("getUpload", upload, nil, 200, t)
@@ -108,7 +108,7 @@ func TestNonExistingFile(t *testing.T) {
 
 func TestOneShot(t *testing.T) {
 	upload := createUpload(&common.Upload{OneShot: true}, t)
-	file := uploadFile(upload, "test", readerForUpload, t)
+	file := uploadFile(upload, "test", "", readerForUpload, t)
 
 	test("getFile", upload, file, 200, t)
 	test("getFile", upload, file, 404, t)
@@ -118,8 +118,8 @@ func TestRemovable(t *testing.T) {
 	upload := createUpload(&common.Upload{}, t)
 	uploadRemovable := createUpload(&common.Upload{Removable: true}, t)
 
-	file := uploadFile(upload, "test", readerForUpload, t)
-	fileRemovable := uploadFile(uploadRemovable, "test", readerForUpload, t)
+	file := uploadFile(upload, "test", "", readerForUpload, t)
+	fileRemovable := uploadFile(uploadRemovable, "test", "", readerForUpload, t)
 
 	// Should fail on classic upload
 	test("removeFile", upload, file, 401, t)
@@ -133,7 +133,7 @@ func TestRemovable(t *testing.T) {
 
 func TestBasicAuth(t *testing.T) {
 	upload := createUpload(&common.Upload{Login: "plik", Password: "plik"}, t)
-	file := uploadFile(upload, "test", readerForUpload, t)
+	file := uploadFile(upload, "test", "", readerForUpload, t)
 
 	// Without Authorization header
 	savedBasic := basicAuth
@@ -147,7 +147,7 @@ func TestBasicAuth(t *testing.T) {
 
 func TestTtl(t *testing.T) {
 	upload := createUpload(&common.Upload{TTL: 1}, t)
-	file := uploadFile(upload, "test", readerForUpload, t)
+	file := uploadFile(upload, "test", "", readerForUpload, t)
 
 	// Should work
 	test("getFile", upload, file, 200, t)
@@ -157,6 +157,44 @@ func TestTtl(t *testing.T) {
 
 	// Should fail as the ttl is 1second, and we slept 1,5sec
 	test("getFile", upload, file, 404, t)
+}
+
+func TestStream(t *testing.T) {
+	uploadParams := common.NewUpload()
+	uploadParams.Stream = true
+	uploadParams.Files["0"] = common.NewFile()
+	uploadParams.Files["0"].Name = "test"
+
+	// Creating upload with file
+	upload := createUpload(uploadParams, t)
+
+	var fileToUpload *common.File
+	for _, f := range upload.Files {
+		fileToUpload = f
+		break
+	}
+
+	// Upload file. It should block
+	done := make(chan struct{})
+	go func() {
+		uploadFile(upload, fileToUpload.Name, fileToUpload.ID, readerForUpload, t)
+		done <- struct{}{}
+	}()
+
+	// Let the upload finish
+	time.Sleep(time.Millisecond * 100)
+
+	test("getFile", upload, fileToUpload, 200, t)
+	test("getFile", upload, fileToUpload, 404, t)
+
+	select {
+	case <-done:
+		// OK
+	case <-time.After(time.Second):
+		t.Fatalf("Fail to test stream mode")
+	}
+
+	return
 }
 
 //
@@ -210,7 +248,7 @@ func createUpload(uploadParams *common.Upload, t *testing.T) (upload *common.Upl
 	return
 }
 
-func uploadFile(uploadInfo *common.Upload, name string, reader *strings.Reader, t *testing.T) (file *common.File) {
+func uploadFile(uploadInfo *common.Upload, name string, id string, reader *strings.Reader, t *testing.T) (file *common.File) {
 	pipeReader, pipeWriter := io.Pipe()
 	multipartWriter := multipart.NewWriter(pipeWriter)
 
@@ -230,7 +268,12 @@ func uploadFile(uploadInfo *common.Upload, name string, reader *strings.Reader, 
 	}()
 
 	var URL *url.URL
-	URL, err = url.Parse(plikURL + "/upload/" + uploadInfo.ID + "/file")
+	if id != "" {
+		URL, err = url.Parse(plikURL + "/upload/" + uploadInfo.ID + "/file/" + id)
+	} else {
+		URL, err = url.Parse(plikURL + "/upload/" + uploadInfo.ID + "/file")
+	}
+
 	if err != nil {
 		t.Fatalf("Error parsing url : %s", err)
 	}
@@ -365,6 +408,7 @@ func removeFile(upload *common.Upload, file *common.File) (httpCode int, err err
 	}
 
 	req.Header.Set("User-Agent", "curl")
+	req.Header.Set("X-UploadToken", upload.UploadToken)
 
 	resp, err := client.Do(req)
 	if err != nil {
