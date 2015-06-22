@@ -42,8 +42,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -101,6 +103,7 @@ Options:
   --passphrase PASSPHRASE   [openssl] Passphrase or '-' to be prompted for a passphrase
   --secure-options OPTIONS  [openssl|pgp] Additional command line options
   --recipient RECIPIENT     [pgp] Set recipient for pgp backend ( example : --recipient Bob )
+  --update                  Update client
 `
 	// Parse command line arguments
 	arguments, _ = docopt.Parse(usage, nil, true, "", false)
@@ -112,7 +115,14 @@ Options:
 		os.Exit(1)
 	}
 
-	// Creating upload on plik
+	// Check client version
+	err = updateClient(arguments["--update"].(bool))
+	if err != nil {
+		printf("Unable to update Plik client : %s\n", err)
+		os.Exit(1)
+	}
+
+	// Create upload
 	config.Debug("Sending upload params : " + config.Sdump(config.Upload))
 	uploadInfo, err := createUpload(config.Upload)
 	if err != nil {
@@ -403,6 +413,125 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 
 func getFileURL(upload *common.Upload, file *common.File) (fileURL string) {
 	fileURL += fmt.Sprintf("%s/file/%s/%s/%s", config.Config.URL, upload.ID, file.ID, file.Name)
+	return
+}
+
+func updateClient(force bool) (err error) {
+	if !(config.Config.AutoUpdate || force) {
+		return
+	}
+
+	// Get client MD5SUM
+	path, err := filepath.Abs(os.Args[0])
+	if err != nil {
+		return
+	}
+	MD5Sum, err := utils.FileMd5sum(path)
+	if err != nil {
+		return
+	}
+
+	// Get client architechture
+	arch := runtime.GOOS + "-" + runtime.GOARCH
+	binary := "plik"
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
+
+	// Get last client MD5Sum
+	baseURL := config.Config.URL + "/clients/" + arch
+	var URL *url.URL
+	URL, err = url.Parse(baseURL + "/MD5SUM")
+	if err != nil {
+		return
+	}
+	var req *http.Request
+	req, err = http.NewRequest("GET", URL.String(), nil)
+	if err != nil {
+		return
+	}
+	var resp *http.Response
+	resp, err = client.Do(req)
+	if err != nil {
+		return
+	}
+	if resp.StatusCode != 200 {
+		err = errors.New("Unable to get last MD5Sum : " + resp.Status)
+		return
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+	lastMD5Sum := utils.Chomp(string(body))
+
+	// Check if the client is up to date
+	if MD5Sum == lastMD5Sum {
+		if force {
+			println("Plik client is up to date")
+			os.Exit(0)
+		}
+		return
+	}
+	fmt.Println("Plik client is not up to date, do you want to update ? [Y/n]")
+	input := "y"
+	fmt.Scanln(&input)
+	strings.ToLower(input)
+	if !strings.HasPrefix(input, "y") {
+		if force {
+			os.Exit(0)
+		}
+		return
+	}
+
+	// Download new client
+	tmpPath := filepath.Dir(path) + "/" + "." + filepath.Base(path) + ".tmp"
+	tmpFile, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
+	if err != nil {
+		return
+	}
+	defer tmpFile.Close()
+	URL, err = url.Parse(baseURL + "/" + binary)
+	if err != nil {
+		return
+	}
+	req, err = http.NewRequest("GET", URL.String(), nil)
+	if err != nil {
+		return
+	}
+	resp, err = client.Do(req)
+	if err != nil {
+		return
+	}
+	if resp.StatusCode != 200 {
+		err = errors.New("Unable to get last client : " + resp.Status)
+		return
+	}
+	defer resp.Body.Close()
+	_, err = io.Copy(tmpFile, resp.Body)
+	if err != nil {
+		return
+	}
+
+	// Check new MD5sum
+	MD5Sum, err = utils.FileMd5sum(tmpPath)
+	if err != nil {
+		return
+	}
+	if MD5Sum != lastMD5Sum {
+		err = fmt.Errorf("Invalid client MD5Sum %s does not match %s", MD5Sum, lastMD5Sum)
+		return
+	}
+
+	// Replace old client
+	err = os.Rename(tmpPath, path)
+	if err != nil {
+		return
+	}
+
+	println("Plik client sucessfully updated")
+	os.Exit(0)
 	return
 }
 

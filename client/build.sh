@@ -30,5 +30,6 @@ elif [ "$1" == "clients" ]; then
         mkdir -p ../clients/$DIR
         echo " - go-${GOOS}-${GOARCH} build -o ../clients/$DIR/$EXECUTABLE"
         go-${GOOS}-${GOARCH} build -o ../clients/$DIR/$EXECUTABLE
+        md5sum ../clients/$DIR/$EXECUTABLE | awk '{print $1}' > ../clients/$DIR/MD5SUM
     done
 fi

@@ -67,7 +67,6 @@ var longestFilenameSize int
 type UploadConfig struct {
 	Debug          bool
 	Quiet          bool
-	HomeDir        string
 	URL            string
 	OneShot        bool
 	Removable      bool
@@ -83,6 +82,7 @@ type UploadConfig struct {
 	Yubikey        bool
 	Password       string
 	TTL            int
+	AutoUpdate     bool
 }
 
 // NewUploadConfig construct a new configuration with default values
@@ -110,6 +110,7 @@ func NewUploadConfig() (config *UploadConfig) {
 	config.Yubikey = false
 	config.Password = ""
 	config.TTL = 86400 * 30
+	config.AutoUpdate = true
 	return
 }
 
@@ -137,16 +138,22 @@ func Load() (err error) {
 	Upload = common.NewUpload()
 	Files = make([]*FileToUpload, 0)
 
-	// Detect home dir
-	home, err := homedir.Dir()
-	if err != nil {
-		Config.HomeDir = os.Getenv("HOME")
-	} else {
-		Config.HomeDir = home
+
+	// Get config file
+	configFile := os.Getenv("PLIKRC")
+	if configFile == "" {
+		// Detect home dir
+		home, err := homedir.Dir()
+		if err != nil {
+			home = os.Getenv("HOME")
+		}
+		if home == "" {
+			return fmt.Errorf("Unable to find home directory, please use PLIKRC environement variable", err)
+		}
+		configFile = home + "/.plikrc"
 	}
 
 	// Stat file
-	configFile := home + "/.plikrc"
 	_, err = os.Stat(configFile)
 	if err != nil {
 		// File not present. Ask for domain

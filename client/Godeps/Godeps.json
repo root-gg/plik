@@ -41,7 +41,7 @@
 		},
 		{
 			"ImportPath": "github.com/root-gg/utils",
-			"Rev": "075b52a8bb434c1e2f156f004a994976bf6a8173"
+			"Rev": "748890d0e7c37c07d7e0f9f5a66a69901b371e28"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/cast5",
