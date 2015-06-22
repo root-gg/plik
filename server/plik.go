@@ -532,7 +532,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 		// Remove file from data backend if oneShot option is set
 		if upload.OneShot {
-			err = dataBackend.GetDataBackend().RemoveFile(ctx.Fork("remove file"), upload, file.ID)
+			err = backend.RemoveFile(ctx.Fork("remove file"), upload, file.ID)
 			if err != nil {
 				ctx.Warningf("Error while deleting file %s from upload %s : %s", file.Name, upload.ID, err)
 				return
@@ -800,7 +800,14 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	// Remove file from data backend
-	if err := dataBackend.GetDataBackend().RemoveFile(ctx.Fork("remove file"), upload, file.ID); err != nil {
+	// Get file in data backend
+	var backend dataBackend.DataBackend
+	if upload.Stream {
+		backend = dataBackend.GetStreamBackend()
+	} else {
+		backend = dataBackend.GetDataBackend()
+	}
+	if err := backend.RemoveFile(ctx.Fork("remove file"), upload, file.ID); err != nil {
 
 		ctx.Warningf("Error while deleting file : %s", err)
 		http.Error(resp, common.NewResult(fmt.Sprintf("Error while deleting file %s in upload %s", file.Name, upload.ID), nil).ToJSONString(), 500)
@@ -968,7 +975,6 @@ func UploadsCleaningRoutine() {
 // RemoveUploadIfNoFileAvailable iterates on upload files and remove upload files
 // and metadata if all the files have been downloaded (usefull for OneShot uploads)
 func RemoveUploadIfNoFileAvailable(ctx *common.PlikContext, upload *common.Upload) (err error) {
-
 	// Test if there are remaining files
 	filesInUpload := len(upload.Files)
 	for _, f := range upload.Files {
@@ -981,9 +987,11 @@ func RemoveUploadIfNoFileAvailable(ctx *common.PlikContext, upload *common.Uploa
 
 		ctx.Debugf("No more files in upload. Removing all informations.")
 
-		err = dataBackend.GetDataBackend().RemoveUpload(ctx, upload)
-		if err != nil {
-			return
+		if !upload.Stream {
+			err = dataBackend.GetDataBackend().RemoveUpload(ctx, upload)
+			if err != nil {
+				return
+			}
 		}
 		err = metadataBackend.GetMetaDataBackend().Remove(ctx, upload)
 		if err != nil {
