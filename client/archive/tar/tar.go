@@ -111,7 +111,12 @@ func (tb *Backend) Archive(files []string, writer io.WriteCloser) (err error) {
 
 // Comments implementation for TAR Archive Backend
 func (tb *Backend) Comments() string {
-	return "tar xvf -"
+	comment := "tar xvf -"
+	if tb.Config.Compress != "no" {
+		comment += " --" + tb.Config.Compress
+	}
+
+	return comment
 }
 
 // GetConfiguration implementation for TAR Archive Backend
