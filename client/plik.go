@@ -476,7 +476,7 @@ func updateClient(force bool) (err error) {
 		}
 		return
 	}
-	fmt.Println("Plik client is not up to date, do you want to update ? [Y/n]")
+	fmt.Printf("Plik client is not up to date, do you want to update ? [Y/n] ")
 	input := "y"
 	fmt.Scanln(&input)
 	strings.ToLower(input)
