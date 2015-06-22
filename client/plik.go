@@ -118,10 +118,13 @@ Options:
 	}
 
 	// Check client version
-	err = updateClient(arguments["--update"].(bool))
+	forceUpdate := arguments["--update"].(bool)
+	err = updateClient(forceUpdate)
 	if err != nil {
 		printf("Unable to update Plik client : %s\n", err)
-		os.Exit(1)
+		if forceUpdate {
+			os.Exit(1)
+		}
 	}
 
 	// Create upload
@@ -418,8 +421,11 @@ func getFileURL(upload *common.Upload, file *common.File) (fileURL string) {
 	return
 }
 
-func updateClient(force bool) (err error) {
-	if !(config.Config.AutoUpdate || force) {
+func updateClient(forceUpdate bool) (err error) {
+	if !forceUpdate && !config.Config.AutoUpdate {
+		return
+	}
+	if !forceUpdate && config.Config.Quiet {
 		return
 	}
 
@@ -470,7 +476,7 @@ func updateClient(force bool) (err error) {
 
 	// Check if the client is up to date
 	if MD5Sum == lastMD5Sum {
-		if force {
+		if forceUpdate {
 			println("Plik client is up to date")
 			os.Exit(0)
 		}
@@ -481,7 +487,7 @@ func updateClient(force bool) (err error) {
 	fmt.Scanln(&input)
 	strings.ToLower(input)
 	if !strings.HasPrefix(input, "y") {
-		if force {
+		if forceUpdate {
 			os.Exit(0)
 		}
 		return

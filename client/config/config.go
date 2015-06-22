@@ -147,7 +147,7 @@ func Load() (err error) {
 			home = os.Getenv("HOME")
 		}
 		if home == "" {
-			return fmt.Errorf("Unable to find home directory, please use PLIKRC environement variable", err)
+			return fmt.Errorf("Unable to find home directory, please use PLIKRC environement variable")
 		}
 		configFile = home + "/.plikrc"
 	}
