@@ -138,7 +138,6 @@ func Load() (err error) {
 	Upload = common.NewUpload()
 	Files = make([]*FileToUpload, 0)
 
-
 	// Get config file
 	configFile := os.Getenv("PLIKRC")
 	if configFile == "" {
@@ -209,6 +208,24 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 	if arguments["--server"] != nil && arguments["--server"].(string) != "" {
 		Config.URL = arguments["--server"].(string)
 	}
+
+	// Do we need an archive backend
+	if arguments["-a"].(bool) || arguments["--archive"] != nil || Config.Archive {
+		Config.Archive = true
+
+		if arguments["--archive"] != nil && arguments["--archive"] != "" {
+			Config.ArchiveMethod = arguments["--archive"].(string)
+		}
+	}
+	archiveBackend, err = archive.NewArchiveBackend(Config.ArchiveMethod, Config.ArchiveOptions)
+	if err != nil {
+		return fmt.Errorf("Invalid archive params : %s\n", err)
+	}
+	err = archiveBackend.Configure(arguments)
+	if err != nil {
+		return fmt.Errorf("Invalid archive params : %s\n", err)
+	}
+	Debug("Archive backend configuration : " + utils.Sdump(archiveBackend.GetConfiguration()))
 
 	// Check files
 	if _, ok := arguments["FILE"].([]string); ok {
@@ -331,25 +348,6 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		}
 
 		Debug("Crypto backend configuration : " + utils.Sdump(cryptoBackend.GetConfiguration()))
-	}
-
-	// Do we need an archive backend
-	if arguments["-a"].(bool) || arguments["--archive"] != nil || Config.Archive {
-		Config.Archive = true
-
-		if arguments["--archive"] != nil && arguments["--archive"] != "" {
-			Config.ArchiveMethod = arguments["--archive"].(string)
-		}
-		archiveBackend, err = archive.NewArchiveBackend(Config.ArchiveMethod, Config.ArchiveOptions)
-		if err != nil {
-			return fmt.Errorf("Invalid archive params : %s\n", err)
-		}
-		err = archiveBackend.Configure(arguments)
-		if err != nil {
-			return fmt.Errorf("Invalid archive params : %s\n", err)
-		}
-
-		Debug("Archive backend configuration : " + utils.Sdump(archiveBackend.GetConfiguration()))
 	}
 
 	// Do user wants a password protected upload ?

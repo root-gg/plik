@@ -90,6 +90,7 @@ Options:
   -S, --stream              Enable Streaming ( It will block until remote user starts downloading )
   -t, --ttl TTL             Time before expiration (Upload will be removed in m|h|d)
   -n, --name NAME           Set file name when piping from STDIN
+  --server SERVER           Overrides plik url
   --comments COMMENT        Set comments of the upload ( MarkDown compatible )
   --archive-options OPTIONS [tar|zip] Additional command line options
   -p                        Protect the upload with login and password
@@ -391,7 +392,7 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 		command += config.Config.DownloadBinary
 	}
 
-	command += fmt.Sprintf(" %s/file/%s/%s/%s", config.Config.URL, upload.ID, file.ID, file.Name)
+	command += fmt.Sprintf(` "%s/file/%s/%s/%s"`, config.Config.URL, upload.ID, file.ID, file.Name)
 
 	// If Ssl
 	if config.Config.Secure {

@@ -125,7 +125,7 @@ func (tb *Backend) GetFileName(files []string) (name string) {
 	if len(files) == 1 {
 		name = filepath.Base(files[0])
 	}
-	name += ".zip" + getCompressExtention(tb.Config.Compress)
+	name += ".tar" + getCompressExtention(tb.Config.Compress)
 	return
 }
 
