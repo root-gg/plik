@@ -39,12 +39,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/facebookgo/httpdown"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/gorilla/mux"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
@@ -78,6 +78,12 @@ func main() {
 	dataBackend.Initialize()
 	shortenBackend.Initialize()
 
+	// Initialize the httpdown wrapper
+	hd := &httpdown.HTTP{
+		StopTimeout: 5 * time.Minute,
+		KillTimeout: 1 * time.Second,
+	}
+
 	// HTTP Api routes configuration
 	r := mux.NewRouter()
 	r.HandleFunc("/upload", createUploadHandler).Methods("POST")
@@ -95,32 +101,30 @@ func main() {
 	go UploadsCleaningRoutine()
 
 	// Start HTTP server
-	go func() {
-		var err error
-		if common.Config.SslEnabled {
-			address := common.Config.ListenAddress + ":" + strconv.Itoa(common.Config.ListenPort)
-			tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10}
-			server := &http.Server{Addr: address, Handler: r, TLSConfig: tlsConfig}
-			err = server.ListenAndServeTLS(common.Config.SslCert, common.Config.SslKey)
-		} else {
-			err = http.ListenAndServe(common.Config.ListenAddress+":"+strconv.Itoa(common.Config.ListenPort), nil)
-		}
+	var err error
+	var server *http.Server
 
+	address := common.Config.ListenAddress + ":" + strconv.Itoa(common.Config.ListenPort)
+
+	if common.Config.SslEnabled {
+
+		// Load cert
+		cert, err := tls.LoadX509KeyPair(common.Config.SslCert, common.Config.SslKey)
 		if err != nil {
-			log.Fatalf("Unable to start HTTP server : %s", err)
+			log.Fatalf("Unable to load ssl certificate : %s", err)
 		}
-	}()
 
-	// Handle signals
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill)
-	for {
-		select {
-		case s := <-c:
-			log.Infof("Got signal : %s", s)
-			os.Exit(0)
-		}
+		tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10, Certificates: []tls.Certificate{cert}}
+		server = &http.Server{Addr: address, Handler: r, TLSConfig: tlsConfig}
+	} else {
+		server = &http.Server{Addr: address, Handler: r}
 	}
+
+	err = httpdown.ListenAndServe(server, hd)
+	if err != nil {
+		log.Fatalf("Unable to start HTTP server : %s", err)
+	}
+
 }
 
 /*
