@@ -19,7 +19,7 @@ Plik is an simple and powerful file uploading system written in golang.
    - Comments : Add custom message (in Markdown format)
 
 ### Version
-1.0-RC5
+1.0
 
 
 ### Installation
@@ -27,9 +27,9 @@ Plik is an simple and powerful file uploading system written in golang.
 ##### From release
 To run plik, it's very simple :
 ```sh
-$ wget https://github.com/root-gg/plik/releases/download/1.0-RC5/plik-1.0-RC5.tar.gz
-$ tar xvf plik-1.0-RC5.tar.gz
-$ cd plik-1.0-RC5/server
+$ wget https://github.com/root-gg/plik/releases/download/1.0/plik-1.0.tar.gz
+$ tar xvf plik-1.0.tar.gz
+$ cd plik-1.0/server
 $ ./plikd
 ```
 Et voilà ! You now have a fully functional instance of plik running on http://127.0.0.1:8080.  
