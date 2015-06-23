@@ -92,7 +92,7 @@ func (pb *Backend) Configure(arguments map[string]interface{}) (err error) {
 
 	for _, entity := range pubring {
 		for _, ident := range entity.Identities {
-			if strings.Contains(ident.UserId.Email, pb.Config.Recipient) || strings.Contains(ident.UserId.Name, pb.Config.Recipient) {
+			if strings.Contains(strings.ToLower(ident.UserId.Email), strings.ToLower(pb.Config.Recipient)) || strings.Contains(strings.ToLower(ident.UserId.Name), strings.ToLower(pb.Config.Recipient)) {
 				if _, ok := entitiesFound[entity.PrimaryKey.KeyId]; !ok {
 					entitiesFound[entity.PrimaryKey.KeyId] = entity
 					intToEntity[countEntitiesFound] = entity.PrimaryKey.KeyId
