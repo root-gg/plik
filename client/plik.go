@@ -156,11 +156,12 @@ Options:
 			os.Exit(1)
 		}
 
-		_, err = upload(uploadInfo, config.Files[0], pipeReader)
+		file, err := upload(uploadInfo, config.Files[0], pipeReader)
 		if err != nil {
 			printf("Unable to upload archive : %s\n", err)
 			return
 		}
+		uploadInfo.Files[file.ID] = file
 		pipeReader.CloseWithError(err)
 
 	} else {
