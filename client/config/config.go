@@ -281,9 +281,6 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 			// Enable archive if one of them is a directory
 			if fileInfo.Mode().IsDir() {
 				Config.Archive = true
-
-				fileToUpload.Name = archiveBackend.GetFileName(arguments["FILE"].([]string))
-				Upload.Files["0"] = fileToUpload.File
 			} else if fileInfo.Mode().IsRegular() {
 				fileToUpload.CurrentSize = fileInfo.Size()
 			} else {
@@ -292,6 +289,19 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 
 			Files = append(Files, fileToUpload)
 		}
+
+		if Config.Archive {
+			fileToUpload := NewFileToUpload()
+			fileToUpload.Name = archiveBackend.GetFileName(arguments["FILE"].([]string))
+			fileToUpload.Reference = "0"
+
+			Upload.Files = make(map[string]*common.File)
+			Upload.Files["0"] = fileToUpload.File
+
+			Files = make([]*FileToUpload, 1)
+			Files[0] = fileToUpload
+		}
+
 	} else {
 		return fmt.Errorf("No files specified")
 	}
