@@ -84,7 +84,6 @@ Options:
   -h --help                 Show this help
   -d --debug                Enable debug mode
   -q --quiet                Enable quiet mode
-  -v --version              Show plik version
   -o, --oneshot             Enable OneShot ( Each file will be deleted on first download )
   -r, --removable           Enable Removable upload ( Each file can be deleted by anyone at anymoment )
   -S, --stream              Enable Streaming ( It will block until remote user starts downloading )
