@@ -485,8 +485,7 @@ func updateClient(forceUpdate bool) (err error) {
 	fmt.Printf("Plik client is not up to date, do you want to update ? [Y/n] ")
 	input := "y"
 	fmt.Scanln(&input)
-	strings.ToLower(input)
-	if !strings.HasPrefix(input, "y") {
+	if !strings.HasPrefix(strings.ToLower(input), "y") {
 		if forceUpdate {
 			os.Exit(0)
 		}
