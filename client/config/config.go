@@ -170,8 +170,7 @@ func Load() (err error) {
 		fmt.Printf("Do you want to enable client auto update ? [Y/n] ")
 		input := "y"
 		fmt.Scanln(&input)
-		strings.ToLower(input)
-		if strings.HasPrefix(input, "y") {
+		if strings.HasPrefix(strings.ToLower(input), "y") {
 			Config.AutoUpdate = true
 		}
 
