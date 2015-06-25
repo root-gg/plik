@@ -405,12 +405,12 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 	// If archive
 	if config.Config.Archive {
 		if config.Config.ArchiveMethod == "zip" {
-			command += fmt.Sprintf(" > %s", file.Name)
+			command += fmt.Sprintf(` > '%s'`, file.Name)
 		} else {
 			command += fmt.Sprintf(" | %s", config.GetArchiveBackend().Comments())
 		}
 	} else {
-		command += " > " + file.Name
+		command += fmt.Sprintf(` > '%s'`, file.Name)
 	}
 
 	return
