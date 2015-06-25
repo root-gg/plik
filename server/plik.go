@@ -490,9 +490,9 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// -> The client should download file instead of displaying it
 	dl := req.URL.Query().Get("dl")
 	if dl != "" {
-		resp.Header().Set("Content-Disposition", "attachement; filename="+file.Name)
+		resp.Header().Set("Content-Disposition", fmt.Sprintf(`attachement; filename="%s"`, file.Name))
 	} else {
-		resp.Header().Set("Content-Disposition", "filename="+file.Name)
+		resp.Header().Set("Content-Disposition", fmt.Sprintf(`filename="%s"`, file.Name))
 	}
 
 	// HEAD Request => Do not print file, user just wants http headers
