@@ -26,6 +26,7 @@ package main
 
 import (
 	"crypto/md5"
+	"crypto/rand"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
@@ -34,7 +35,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math/rand"
+	"math/big"
 	"net"
 	"net/http"
 	"net/url"
@@ -57,7 +58,6 @@ import (
 var log *logger.Logger
 
 func main() {
-	rand.Seed(time.Now().UTC().UnixNano())
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	log = common.Log()
@@ -926,9 +926,11 @@ func UploadsCleaningRoutine() {
 
 		// Sleep between 2 hours and 3 hours
 		// This is a dirty trick to avoid frontends doing this at the same time
-		randSleep := rand.Intn(3600) + 7200
-		log.Infof("Will clean old uploads in %d seconds.", randSleep)
-		time.Sleep(time.Duration(randSleep) * time.Second)
+		r, _ := rand.Int(rand.Reader, big.NewInt(3600))
+		randomSleep := r.Int64() + 7200
+
+		log.Infof("Will clean old uploads in %d seconds.", randomSleep)
+		time.Sleep(time.Duration(randomSleep) * time.Second)
 
 		// Get uploads that needs to be removed
 		log.Infof("Cleaning expired uploads...")

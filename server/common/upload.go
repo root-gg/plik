@@ -30,7 +30,8 @@ THE SOFTWARE.
 package common
 
 import (
-	"math/rand"
+	"crypto/rand"
+	"math/big"
 	"time"
 )
 
@@ -95,9 +96,11 @@ func (upload *Upload) Sanitize() {
 // GenerateRandomID generates a random string with specified length.
 // Used to generate upload id, tokens, ...
 func GenerateRandomID(length int) string {
+	max := *big.NewInt(int64(len(randRunes)))
 	b := make([]rune, length)
 	for i := range b {
-		b[i] = randRunes[rand.Intn(len(randRunes))]
+		n, _ := rand.Int(rand.Reader, &max)
+		b[i] = randRunes[n.Int64()]
 	}
 
 	return string(b)
