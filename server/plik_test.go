@@ -67,6 +67,27 @@ func TestSimpleFileUploadAndGet(t *testing.T) {
 	test("getFile", upload, file, 200, t)
 }
 
+func TestSpecialCharactersUploadAndGet(t *testing.T) {
+	upload := createUpload(&common.Upload{}, t)
+	test("getUpload", upload, nil, 200, t)
+
+	// ?&#% are invalid characters as they create invalid download urls
+	names := []string{
+		"[(çh0k@pïkê.^=+°|$£€)]",
+		"\"doublequote\"'simplequote'",
+		"machete kill again in space",
+		"<h1>lolilol<h1>",
+		"文件ֆայլملف",
+		//"?id=1&foo=bar#baz",
+		//"%",
+	}
+
+	for _, name := range names {
+		file := uploadFile(upload, name, "", readerForUpload, t)
+		test("getFile", upload, file, 200, t)
+	}
+}
+
 func TestMultipleFilesUploadAndGet(t *testing.T) {
 	upload := createUpload(&common.Upload{}, t)
 
@@ -421,12 +442,11 @@ func removeFile(upload *common.Upload, file *common.File) (httpCode int, err err
 }
 
 func test(action string, upload *common.Upload, file *common.File, expectedHTTPCode int, t *testing.T) {
-
-	t.Logf("Try to %s on upload %s. We should get a %d : ", action, upload.ID, expectedHTTPCode)
-
 	switch action {
 
 	case "getUpload":
+
+		t.Logf("Try to %s on upload %s. We should get a %d : ", action, upload.ID, expectedHTTPCode)
 
 		code, upload, err := getUpload(upload.ID)
 		if err != nil {
@@ -441,6 +461,8 @@ func test(action string, upload *common.Upload, file *common.File, expectedHTTPC
 		}
 
 	case "getFile":
+
+		t.Logf("Try to %s file %s on upload %s. We should get a %d : ", action, file.Name, upload.ID, expectedHTTPCode)
 
 		code, content, err := getFile(upload, file)
 		if err != nil {
@@ -470,6 +492,8 @@ func test(action string, upload *common.Upload, file *common.File, expectedHTTPC
 		}
 
 	case "removeFile":
+
+		t.Logf("Try to %s file %s on upload %s. We should get a %d : ", action, file.Name, upload.ID, expectedHTTPCode)
 
 		code, err := removeFile(upload, file)
 		if err != nil {
