@@ -290,7 +290,7 @@ func uploadFile(uploadInfo *common.Upload, name string, id string, reader *strin
 
 	var URL *url.URL
 	if id != "" {
-		URL, err = url.Parse(plikURL + "/upload/" + uploadInfo.ID + "/file/" + id)
+		URL, err = url.Parse(plikURL + "/file/" + uploadInfo.ID + "/" + id + "/" + name)
 	} else {
 		URL, err = url.Parse(plikURL + "/upload/" + uploadInfo.ID + "/file")
 	}
@@ -417,7 +417,7 @@ func getFile(upload *common.Upload, file *common.File) (httpCode int, content st
 func removeFile(upload *common.Upload, file *common.File) (httpCode int, err error) {
 
 	var URL *url.URL
-	URL, err = url.Parse(plikURL + "/upload/" + upload.ID + "/file/" + file.ID)
+	URL, err = url.Parse(plikURL + "/file/" + upload.ID + "/" + file.ID + "/" + file.Name)
 	if err != nil {
 		return
 	}
