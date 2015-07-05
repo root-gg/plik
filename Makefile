@@ -61,7 +61,7 @@ servers:
 ###
 client:
 	@cd client && go get -v
-    @cd client && go build -o plik ./
+	@cd client && go build -o plik ./
 
 ###
 # Build plik client for all architectures

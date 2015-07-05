@@ -56,10 +56,12 @@ elif [ "$1" == "debs" ]; then
     # Building packages
     for ARCH in amd64 i386 armhf ; do
         DEBROOT=$DEBS_DST_DIR/$ARCH
-        mkdir -p $DEBROOT/usr/local/bin
+        mkdir -p $DEBROOT/usr/local/plikd/server
         mkdir -p $DEBROOT/etc/init.d
 
         cp -R $DEB_CFG_DIR $DEBROOT
+        cp -R clients/ $DEBROOT/usr/local/plikd/clients
+        cp -R server/public/ $DEBROOT/usr/local/plikd/server/public
         cp -R server/plikd.cfg $DEBROOT/etc/plikd.cfg
         cp -R server/plikd.init $DEBROOT/etc/init.d/plikd
         chmod +x $DEBROOT/etc/init.d/plikd
@@ -68,11 +70,11 @@ elif [ "$1" == "debs" ]; then
         sed -i -e "s/##VERSION##/$VERSION/g" $DEBROOT/DEBIAN/control
 
         if [ $ARCH == 'i386' ]; then
-            cp servers/linux-386/plikd $DEBROOT/usr/local/bin
+            cp servers/linux-386/plikd $DEBROOT/usr/local/plikd/server/
         elif [ $ARCH == 'armhf' ]; then
-            cp servers/linux-arm/plikd $DEBROOT/usr/local/bin
+            cp servers/linux-arm/plikd $DEBROOT/usr/local/plikd/server/
         else
-            cp servers/linux-$ARCH/plikd $DEBROOT/usr/local/bin
+            cp servers/linux-$ARCH/plikd $DEBROOT/usr/local/plikd/server/
         fi
 
         echo " - Building $ARCH package in $DEBS_DST_DIR/plikd-$ARCH.deb"
