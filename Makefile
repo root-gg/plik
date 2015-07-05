@@ -27,12 +27,19 @@
 RELEASE_VERSION=`cat VERSION`
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 
-all: clean deps build
+all: clean deps server client
 
+###
+# Install npm build dependencies
+# ( run this first once )
+###
 deps:
 	@cd server/public && npm install
 
-build:
+###
+# Build plik server for the current architecture
+###
+server:
 	@cd server/public && bower install --allow-root
 	@cd server/public && grunt
 	@cd server && go get -v
@@ -40,31 +47,50 @@ build:
 	@cd server && go build -o plikd ./
 	@sed -i -e "s/$(RELEASE_VERSION)/##VERSION##/g" server/common/config.go
 
-clean:
-	@rm -rf server/public/bower_components
-	@rm -rf server/plikd
-	@rm -rf clients
-	@rm -rf servers
-	@rm -rf debs
-	@rm -rf release
+###
+# Build plik server for all architectures
+###
+servers:
+	@cd server/public && bower install --allow-root
+	@cd server/public && grunt
+	@cd server && go get -v
+	@server/build.sh servers
 
+###
+# Build plik client for the current architecture
+###
+client:
+	@cd client && go get -v
+    @cd client && go build -o plik ./
+
+###
+# Build plik client for all architectures
+###
 clients:
 	@cd client && go get -v
 	@client/build.sh clients
 	@mkdir -p clients/bash && cp client/plik.sh clients/bash
 
-servers:
-	@cd server && go get -v
-	@server/build.sh servers
+###
+# Make server and clients Debian packages
+###
+debs: debs-client debs-server
 
-debs: clients servers debs-client debs-server
-
-debs-client:
-	@client/build.sh debs
-
-debs-server:
+###
+# Make server Debian packages
+###
+debs-server: servers clients
 	@server/build.sh debs
 
+###
+# Make client Debian packages
+###
+debs-client: clients
+	@client/build.sh debs
+
+###
+# Build release archive
+###
 release: clean build clients
 	@mkdir -p $(RELEASE_DIR)/server/public
 
@@ -82,3 +108,13 @@ release: clean build clients
 
 	@cd release && tar cvf plik-`cat ../VERSION`.tar.gz *
 
+###
+# Remove all build files
+###
+clean:
+	@rm -rf server/public/bower_components
+	@rm -rf server/plikd
+	@rm -rf clients
+	@rm -rf servers
+	@rm -rf debs
+	@rm -rf release
