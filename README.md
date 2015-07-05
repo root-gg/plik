@@ -82,10 +82,10 @@ To create upload and upload files :
      - Body must be a multipart request with a part named "file" containing file data
    Returns a JSON object of uploaded file metadata
    
-   - **POST** /file/:uploadid/:fileid: (same as above)
+   - **POST** /$mode/:uploadid/:fileid:/:filename: (same as above)
      - For stream mode you need to know the file id before the upload starts as it will block.  
    To get the file ids pass a files hash param to the previous create upload call with each file you are about to upload.  
-   Fill the reference field with an arbitrary string to avoid to match file ids using the fileName field.
+   Fill the reference field with an arbitrary string to avoid matching file ids using the fileName field.
    ```
    upload.files : {
      "0" : {
@@ -96,21 +96,24 @@ To create upload and upload files :
      },...
    }
    ```
-   
-   - **DELETE** /upload/:uploadid:/file/:fileid:
-     - Delete file from the upload. Upload must have "removable" option enabled.
- 
-Get files :
 
-  - **HEAD** /file/:uploadid/:fileid:/:filename:
+Remove file :
+
+   - **DELETE** /$mode/:uploadid:/:fileid:/:filename:
+     - Delete file. Upload **MUST** have "removable" option enabled.
+ 
+Get file :
+
+  - **HEAD** /$mode/:uploadid:/:fileid:/:filename:
     - Returns only HTTP headers. Usefull to know Content-Type and Content-Type without downloading the file. Especially if upload has OneShot option enabled.
 
-  - **GET**  /file/:uploadid/:fileid:/:filename:
-    - Download specified file from upload. Filename **MUST** be right. In a browser, it will try to display file (if it's a jpeg for example). You can force download with dl=1 in url.
+  - **GET**  /$mode/:uploadid:/:fileid:/:filename:
+    - Download file. Filename **MUST** match. A browser, might try to display the file if it's a jpeg for example. You may try to force download with ?dl=1 in url.
 
-  - **GET**  /file/:uploadid/:fileid:/:filename:/yubikey/:yubikeyOtp:
+  - **GET**  /$mode/:uploadid:/:fileid:/:filename:/yubikey/:yubikeyOtp:
     - Same as previous call, except that you can specify a Yubikey OTP in the URL if the upload is Yubikey restricted.
 
+$mode can be "file" or "stream" depending if stream mode is enabled. See FAQ for more details.
 
 Examples :
 ```sh
@@ -168,7 +171,45 @@ And add in your server configuration :
 
 ##### Why is stream mode broken in multiple instance deployement ?
 
-Beacause stream mode isn't stateless. As the uploader request blocks on only one plik instance the downloader request MUST go to the same server to succeed. Loadbalancing strategy should be aware of this and route stream requests to the same plik instance by hashing the file id. Plik 1.1 API will provide new API paths to distinguish streams and load balancing configuration examples to ease deployement.
+Beacause stream mode isn't stateless. As the uploader request will blocks on one plik instance the downloader request MUST go to the same instance to succeed.
+The load balancing strategy **MUST** be aware of this and route stream requests to the same instance by hashing the file id.
+
+Here is an example of how to achieve this using nginx and a little piece of LUA. 
+Make sur your nginx server is built with LUA scripting support.
+You might want to install the nginx-extras package with built-in LUA support from nginx repository. 
+
+```
+upstream plik {
+    server 127.0.0.1:8080;
+    server 127.0.0.1:8081;
+}
+
+upstream stream {
+    server 127.0.0.1:8080;
+    server 127.0.0.1:8081;
+    hash $hash_key;
+}
+
+server {
+    listen 9000;
+
+    location / {
+        set $upstream "";
+        set $hash_key "";
+        access_by_lua '
+            _,_,file_id = string.find(ngx.var.request_uri, "^/stream/[a-zA-Z0-9]+/([a-zA-Z0-9]+)/.*$")
+            if file_id == nil then
+                ngx.var.upstream = "plik"
+            else
+                ngx.var.upstream = "stream"
+                ngx.var.hash_key = file_id
+            end
+        ';
+        proxy_pass http://$upstream;
+    }
+}
+```
+
 
 ### Participate
 

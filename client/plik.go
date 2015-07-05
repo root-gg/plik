@@ -338,8 +338,13 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 		return pipeWriter.CloseWithError(err)
 	}()
 
+	mode := "file"
+	if uploadInfo.Stream {
+		mode = "stream"
+	}
+
 	var URL *url.URL
-	URL, err = url.Parse(config.Config.URL + "/upload/" + uploadInfo.ID + "/file/" + fileToUpload.ID)
+	URL, err = url.Parse(config.Config.URL + "/" + mode + "/" + uploadInfo.ID + "/" + fileToUpload.ID + "/" + fileToUpload.Name)
 	if err != nil {
 		return
 	}
@@ -405,7 +410,7 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 		command += config.Config.DownloadBinary
 	}
 
-	command += fmt.Sprintf(` '%s/file/%s/%s/%s'`, config.Config.URL, upload.ID, file.ID, file.Name)
+	command += fmt.Sprintf(` "%s"`, getFileURL(upload, file))
 
 	// If Ssl
 	if config.Config.Secure {
@@ -427,7 +432,11 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 }
 
 func getFileURL(upload *common.Upload, file *common.File) (fileURL string) {
-	fileURL += fmt.Sprintf("%s/file/%s/%s/%s", config.Config.URL, upload.ID, file.ID, file.Name)
+	mode := "file"
+	if upload.Stream {
+		mode = "stream"
+	}
+	fileURL += fmt.Sprintf("%s/%s/%s/%s/%s", config.Config.URL, mode, upload.ID, file.ID, file.Name)
 	return
 }
 

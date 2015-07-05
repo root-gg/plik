@@ -130,13 +130,15 @@ angular.module('api', ['ngFileUpload']).
 
         // Upload a file
         api.uploadFile = function (upload, file, progres_cb, basicAuth) {
-            var url = api.base + '/upload/' + upload.id + '/file/' + file.metadata.id;
+            var mode = upload.stream ? "stream" : "file";
+            var url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
             return api.upload(url, file, null, progres_cb, basicAuth, upload.uploadToken);
         };
 
         // Remove a file
         api.removeFile = function (upload, file) {
-            var url = api.base + '/upload/' + upload.id + '/file/' + file.metadata.id;
+            var mode = upload.stream ? "stream" : "file";
+            var url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
             return api.call(url, 'DELETE', {}, upload.uploadToken);
         };
 
@@ -331,7 +333,8 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     // Return file download URL
     $scope.getFileUrl = function (file, dl) {
         if (!file || !file.metadata) return;
-        var url = location.origin + '/file/' + $scope.upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName
+        var mode = $scope.upload.stream ? "stream" : "file";
+        var url = location.origin + '/' + mode + '/' + $scope.upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName
         if (dl) {
             // Force file download
             url += "?dl=1";
