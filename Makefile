@@ -33,7 +33,7 @@ deps:
 	@cd server/public && npm install
 
 build:
-	@cd server/public && bower install
+	@cd server/public && bower install --allow-root
 	@cd server/public && grunt
 	@cd server && go get -v
 	@sed -i -e "s/##VERSION##/$(RELEASE_VERSION)/g" server/common/config.go
@@ -44,12 +44,26 @@ clean:
 	@rm -rf server/public/bower_components
 	@rm -rf server/plikd
 	@rm -rf clients
+	@rm -rf servers
+	@rm -rf debs
 	@rm -rf release
 
 clients:
 	@cd client && go get -v
 	@client/build.sh clients
 	@mkdir -p clients/bash && cp client/plik.sh clients/bash
+
+servers:
+	@cd server && go get -v
+	@server/build.sh servers
+
+debs: clients servers debs-client debs-server
+
+debs-client:
+	@client/build.sh debs
+
+debs-server:
+	@server/build.sh debs
 
 release: clean build clients
 	@mkdir -p $(RELEASE_DIR)/server/public
