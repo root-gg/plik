@@ -166,6 +166,9 @@ And add in your server configuration :
         }
 ```
 
+##### Why is stream mode broken in multiple instance deployement ?
+
+Beacause stream mode isn't stateless. As the uploader request blocks on only one plik instance the downloader request MUST go to the same server to succeed. Loadbalancing strategy should be aware of this and route stream requests to the same plik instance by hashing the file id. Plik 1.1 API will provide new API paths to distinguish streams and load balancing configuration examples to ease deployement.
 
 ### Participate
 
