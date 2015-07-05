@@ -31,6 +31,7 @@ package file
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -65,8 +66,14 @@ func NewFileMetadataBackend(config map[string]interface{}) (fmb *MetadataBackend
 func (fmb *MetadataBackend) Create(ctx *common.PlikContext, upload *common.Upload) (err error) {
 	defer ctx.Finalize(err)
 
+	// Get upload directory
+	directory, err := fmb.getDirectoryFromUploadID(upload.ID)
+	if err != nil {
+		ctx.Warningf("Unable to get upload directory : %s", err)
+		return
+	}
+
 	// Get metadata file path
-	directory := fmb.Config.Directory + "/" + upload.ID[:2] + "/" + upload.ID
 	metadataFile := directory + "/.config"
 
 	// Serialize metadata to json
@@ -115,8 +122,15 @@ func (fmb *MetadataBackend) Create(ctx *common.PlikContext, upload *common.Uploa
 func (fmb *MetadataBackend) Get(ctx *common.PlikContext, id string) (upload *common.Upload, err error) {
 	defer ctx.Finalize(err)
 
+	// Get upload directory
+	directory, err := fmb.getDirectoryFromUploadID(id)
+	if err != nil {
+		ctx.Warningf("Unable to get upload directory : %s", err)
+		return
+	}
+
 	// Get metadata file path
-	metadataFile := fmb.Config.Directory + "/" + id[:2] + "/" + id + "/.config"
+	metadataFile := directory + "/.config"
 
 	// Open and read metadata
 	var buffer []byte
@@ -157,8 +171,14 @@ func (fmb *MetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload *com
 		return
 	}
 
+	// Get upload directory
+	directory, err := fmb.getDirectoryFromUploadID(upload.ID)
+	if err != nil {
+		ctx.Warningf("Unable to get upload directory : %s", err)
+		return
+	}
+
 	// Get metadata file path
-	directory := fmb.Config.Directory + "/" + upload.ID[:2] + "/" + upload.ID
 	metadataFile := directory + "/.config"
 
 	// Create directory if needed
@@ -216,8 +236,14 @@ func (fmb *MetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.U
 		return
 	}
 
+	// Get upload directory
+	directory, err := fmb.getDirectoryFromUploadID(upload.ID)
+	if err != nil {
+		ctx.Warningf("Unable to get upload directory : %s", err)
+		return
+	}
+
 	// Get metadata file path
-	directory := fmb.Config.Directory + "/" + upload.ID[:2] + "/" + upload.ID
 	metadataFile := directory + "/.config"
 
 	// Override metadata file
@@ -248,8 +274,14 @@ func (fmb *MetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.U
 // Remove implementation for File Metadata Backend
 func (fmb *MetadataBackend) Remove(ctx *common.PlikContext, upload *common.Upload) (err error) {
 
+	// Get upload directory
+	directory, err := fmb.getDirectoryFromUploadID(upload.ID)
+	if err != nil {
+		ctx.Warningf("Unable to get upload directory : %s", err)
+		return
+	}
+
 	// Get metadata file path
-	directory := fmb.Config.Directory + "/" + upload.ID[:2] + "/" + upload.ID
 	metadataFile := directory + "/.config"
 
 	// Test if file exist
@@ -308,6 +340,19 @@ func (fmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []s
 	}
 
 	return ids, nil
+}
+
+func (fmb *MetadataBackend) getDirectoryFromUploadID(uploadID string) (string, error) {
+	// To avoid too many files in the same directory
+	// data directory is splitted in two levels the
+	// first level is the 2 first chars from the upload id
+	// it gives 3844 possibilities reaching 65535 files per
+	// directory at ~250.000.000 files uploaded.
+
+	if len(uploadID) < 3 {
+		return "", fmt.Errorf("Invalid uploadid %s", uploadID)
+	}
+	return fmb.Config.Directory + "/" + uploadID[:2] + "/" + uploadID, nil
 }
 
 // /!\ There is a race condition to avoid /!\
