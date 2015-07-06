@@ -191,7 +191,7 @@ And add in your server configuration :
 
 ##### Why is stream mode broken in multiple instance deployement ?
 
-Beacause stream mode isn't stateless. As the uploader request will blocks on one plik instance the downloader request MUST go to the same instance to succeed.
+Beacause stream mode isn't stateless. As the uploader request will block on one plik instance the downloader request **MUST** go to the same instance to succeed.
 The load balancing strategy **MUST** be aware of this and route stream requests to the same instance by hashing the file id.
 
 Here is an example of how to achieve this using nginx and a little piece of LUA. 
@@ -230,8 +230,18 @@ server {
 }
 ```
 
+##### How to take and upload screenshots like a boss ?
 
-### Participate
+```
+alias pshot="scrot -s -e 'plik -q \$f | xclip ; xclip -o ; rm \$f'"
+```
 
-You are free to implement other data/metadata/shorten backends and submit them via
+Requires you to have plik, scrot and xclip installed in your $PATH.  
+scroot -s allow you to "Interactively select a window or rectangle with the mouse" then
+Plik will upload the screenshot and the url will be directly copied to your clipboard and displayed by xclip.
+The screenshot is then removed of your home directory to avoid garbage.
+
+##### How to contribute to the project ?
+
+Contributions are welcome, you are free to implement other data/metadata/shorten backends and submit them via
 pull requests. We will be happy to add them in the future releases.
