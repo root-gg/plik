@@ -76,6 +76,11 @@ To make debian packages :
 $ make debs-server debs-client
 ```
 
+To make release archives :
+```
+$ make releases
+```
+
 ### API
 Plik server expose a REST-full API to manage uploads and get files :
 

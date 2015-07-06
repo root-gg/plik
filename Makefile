@@ -106,7 +106,34 @@ release: clean server clients
 	@cp -R server/public/public $(RELEASE_DIR)/server/public
 	@cp -R server/public/index.html $(RELEASE_DIR)/server/public
 
-	@cd release && tar cvf plik-`cat ../VERSION`.tar.gz *
+
+###
+# Build release archives for all architectures
+###
+releases: release servers
+
+	@mkdir -p releases
+
+	@cp -R servers/linux-amd64/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-linux-64bits.tar.gz *
+	@cp -R servers/linux-386/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-linux-32bits.tar.gz *
+	@cp -R servers/linux-arm/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-linux-arm.tar.gz *
+
+	@cp -R servers/freebsd-amd64/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-freebsd-64bits.tar.gz *
+	@cp -R servers/freebsd-386/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-freebsd-32bits.tar.gz *
+	@cp -R servers/freebsd-arm/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-freebsd-arm.tar.gz *
+
+	@cp -R servers/openbsd-amd64/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-openbsd-64bits.tar.gz *
+	@cp -R servers/openbsd-386/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-openbsd-32bits.tar.gz *
+
+	@rm $(RELEASE_DIR)/server/plikd
+	@cp -R servers/windows-amd64/plikd.exe $(RELEASE_DIR)/server && cd release && zip -r ../releases/plik-`cat ../VERSION`-windows-64bits.zip .
+	@cp -R servers/windows-386/plikd.exe $(RELEASE_DIR)/server && cd release && zip -r ../releases/plik-`cat ../VERSION`-windows-32bits.zip .
+
+	@cp -R servers/darwin-amd64/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-macos-64bits.tar.gz *
+	@cp -R servers/darwin-386/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-macos-32bits.tar.gz *
+
+	@md5sum releases/* > releases/md5sum.txt
+
 
 ###
 # Remove all build files
@@ -119,6 +146,7 @@ clean:
 	@rm -rf servers
 	@rm -rf debs
 	@rm -rf release
+	@rm -rf releases
 
 
 ###
