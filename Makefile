@@ -91,7 +91,7 @@ debs-client: clients
 ###
 # Build release archive
 ###
-release: clean build clients
+release: clean server clients
 	@mkdir -p $(RELEASE_DIR)/server/public
 
 	@cp -R clients $(RELEASE_DIR)
@@ -114,7 +114,16 @@ release: clean build clients
 clean:
 	@rm -rf server/public/bower_components
 	@rm -rf server/plikd
+	@rm -rf client/plik
 	@rm -rf clients
 	@rm -rf servers
 	@rm -rf debs
 	@rm -rf release
+
+
+###
+# Since the client/server directories are not generated
+# by make, we must declare these targets as phony to avoid :
+# "make: `client' is up to date" cases at compile time
+###
+.PHONY: client server
