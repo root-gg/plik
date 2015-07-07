@@ -107,7 +107,7 @@ To create upload and upload files :
      - Body must be a multipart request with a part named "file" containing file data
    Returns a JSON object of uploaded file metadata
    
-   - **POST** /$mode/:uploadid/:fileid:/:filename: (same as above)
+   - **POST** /$mode/:uploadid:/:fileid:/:filename: (same as above)
      - For stream mode you need to know the file id before the upload starts as it will block.  
    To get the file ids pass a files hash param to the previous create upload call with each file you are about to upload.  
    Fill the reference field with an arbitrary string to avoid matching file ids using the fileName field.
@@ -162,19 +162,58 @@ Date: Fri, 15 May 2015 09:16:20 GMT
 ```
 
 ### Cli client
-Plik is shipped with a golang multiplatform cli client (downloadable in web interface) :
+Plik is shipped with a powerful golang multiplatform cli client (downloadable in web interface) :  
+
+```
+Usage:
+  plik [options] [FILE] ...
+
+Options:
+  -h --help                 Show this help
+  -d --debug                Enable debug mode
+  -q --quiet                Enable quiet mode
+  -o, --oneshot             Enable OneShot ( Each file will be deleted on first download )
+  -r, --removable           Enable Removable upload ( Each file can be deleted by anyone at anymoment )
+  -S, --stream              Enable Streaming ( It will block until remote user starts downloading )
+  -t, --ttl TTL             Time before expiration (Upload will be removed in m|h|d)
+  -n, --name NAME           Set file name when piping from STDIN
+  --server SERVER           Overrides plik url
+  --comments COMMENT        Set comments of the upload ( MarkDown compatible )
+  --archive-options OPTIONS [tar|zip] Additional command line options
+  -p                        Protect the upload with login and password
+  --password PASSWD         Protect the upload with login:password ( if omitted default login is "plik" )
+  -y, --yubikey             Protect the upload with a Yubikey OTP
+  -a                        Archive upload using default archive params ( see ~/.plikrc )
+  --archive MODE            Archive upload using specified archive backend : tar|zip
+  --compress MODE           [tar] Compression codec : gzip|bzip2|xz|lzip|lzma|lzop|compress|no
+  -s                        Encrypt upload usnig default encrypt params ( see ~/.plikrc )
+  --secure MODE             Archive upload using specified archive backend : openssl|pgp
+  --cipher CIPHER           [openssl] Openssl cipher to use ( see openssl help )
+  --passphrase PASSPHRASE   [openssl] Passphrase or '-' to be prompted for a passphrase
+  --secure-options OPTIONS  [openssl|pgp] Additional command line options
+  --recipient RECIPIENT     [pgp] Set recipient for pgp backend ( example : --recipient Bob )
+  --update                  Update client
+```
+
+Example to create directory tar.gz archive and encrypt it with openssl.
 ```sh
-Simple upload
-$ plik file.doc
-Multiple files
-$ plik file.doc project.doc
-Archive and upload directory (using tar+gzip by default)
-$ plik -a project/
-Secure upload (OpenSSL with aes-256-cbc by deault)
-$ plik -s file.doc
+[desk:~/gopath/src/github.com/root-gg]# plik -a -s plik/
+Passphrase : 30ICoKdFeoKaKNdnFf36n0kMH
+Upload successfully created : 
+
+    https://plik.root.gg/#/?id=0KfNj6eMb93ilCrl
+
+plik.tar.gz : 15.70 MB 5.92 MB/s                                                                    
+
+Commands :
+
+curl -s 'https://plik.root.gg/file/0KfNj6eMb93ilCrl/q73tEBEqM04b22GP/plik.tar.gz' | openssl aes-256-cbc -d -pass pass:30ICoKdFeoKaKNdnFf36n0kMH | tar xvf - --gzip
+
+Total: 15.70 MB (1 file(s)) 
 
 ```
 
+Client configuration and preferences are stored at ~/.plikrc ( overridable with PLIKRC environement variable )
 
 ### FAQ
 
