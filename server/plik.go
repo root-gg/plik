@@ -64,6 +64,7 @@ func main() {
 
 	var configFile = flag.String("config", "plikd.cfg", "Configuration file (default: plikd.cfg")
 	var version = flag.Bool("version", false, "Show version of plikd")
+	var port = flag.Int("port", 0, "Overrides plik listen port")
 	flag.Parse()
 	if *version {
 		fmt.Printf("Plikd v%s\n", common.GetVersion())
@@ -72,6 +73,11 @@ func main() {
 
 	common.LoadConfiguration(*configFile)
 	log.Infof("Starting plikd server v" + common.GetVersion())
+
+	// Overrides port if provided in command line
+	if *port != 0 {
+		common.Config.ListenPort = *port
+	}
 
 	// Initialize all backends
 	metadataBackend.Initialize()
