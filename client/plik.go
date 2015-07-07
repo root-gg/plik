@@ -145,8 +145,9 @@ Options:
 	}
 	config.Debug("Got upload info : " + config.Sdump(uploadInfo))
 
-	printf("Upload successfully created : \n\n")
-	printf("    %s/#/?id=%s\n\n\n", config.Config.URL, uploadInfo.ID)
+	// Display upload url
+	printf("Upload successfully created : \n")
+	printf("    %s/#/?id=%s\n\n", config.Config.URL, uploadInfo.ID)
 
 	// Match file id from server using client reference
 	for _, clientFile := range config.Files {
@@ -207,7 +208,7 @@ Options:
 	// Comments
 	if !uploadInfo.Stream {
 		var totalSize int64
-		printf("\n\nCommands\n\n")
+		printf("\nCommands : \n")
 		for _, file := range uploadInfo.Files {
 
 			// Increment size
@@ -220,11 +221,6 @@ Options:
 				fmt.Println(getFileCommand(uploadInfo, file))
 			}
 		}
-		printf("\n")
-
-		// Upload files
-		printf("\nTotal\n\n")
-		printf("    %s (%d file(s)) \n\n", utils.BytesToString(int(totalSize)), len(uploadInfo.Files))
 	}
 }
 
