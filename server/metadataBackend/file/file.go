@@ -34,10 +34,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
