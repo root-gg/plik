@@ -195,22 +195,17 @@ Options:
   --update                  Update client
 ```
 
-Example to create directory tar.gz archive and encrypt it with openssl.
-```sh
-[desk:~/gopath/src/github.com/root-gg]# plik -a -s plik/
+For example to create directory tar.gz archive and encrypt it with openssl :
+```
+$plik -a -s mydirectory/
 Passphrase : 30ICoKdFeoKaKNdnFf36n0kMH
 Upload successfully created : 
+    https://127.0.0.1:8080/#/?id=0KfNj6eMb93ilCrl
 
-    https://plik.root.gg/#/?id=0KfNj6eMb93ilCrl
-
-plik.tar.gz : 15.70 MB 5.92 MB/s                                                                    
+mydirectory.tar.gz : 15.70 MB 5.92 MB/s
 
 Commands :
-
-curl -s 'https://plik.root.gg/file/0KfNj6eMb93ilCrl/q73tEBEqM04b22GP/plik.tar.gz' | openssl aes-256-cbc -d -pass pass:30ICoKdFeoKaKNdnFf36n0kMH | tar xvf - --gzip
-
-Total: 15.70 MB (1 file(s)) 
-
+curl -s 'https://127.0.0.1:8080/file/0KfNj6eMb93ilCrl/q73tEBEqM04b22GP/mydirectory.tar.gz' | openssl aes-256-cbc -d -pass pass:30ICoKdFeoKaKNdnFf36n0kMH | tar xvf - --gzip
 ```
 
 Client configuration and preferences are stored at ~/.plikrc ( overridable with PLIKRC environement variable )
@@ -219,9 +214,8 @@ Client configuration and preferences are stored at ~/.plikrc ( overridable with 
 
 ##### I have an error when uploading from client : "Unable upload file : HTTP error 411 Length Required"
 
-Under nginx < 1.3.9, you must enable HttpChunkin module to allow transfer-encoding "chunked".
-
-For debian, this module is present in the "nginx-extras" package
+Under nginx < 1.3.9, you must enable HttpChunkin module to allow transfer-encoding "chunked".  
+You might want to install the "nginx-extras" Debian package with built-in HttpChunkin module.
 
 And add in your server configuration :
 
@@ -238,10 +232,9 @@ And add in your server configuration :
 Beacause stream mode isn't stateless. As the uploader request will block on one plik instance the downloader request **MUST** go to the same instance to succeed.
 The load balancing strategy **MUST** be aware of this and route stream requests to the same instance by hashing the file id.
 
-Here is an example of how to achieve this using nginx and a little piece of LUA. 
+Here is an example of how to achieve this using nginx and a little piece of LUA.
 Make sur your nginx server is built with LUA scripting support.
-You might want to install the nginx-extras package with built-in LUA support from nginx repository. 
-
+You might want to install the "nginx-extras" Debian package (>1.7.2) with built-in LUA support.
 ```
 upstream plik {
     server 127.0.0.1:8080;
