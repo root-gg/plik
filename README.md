@@ -21,7 +21,6 @@ Plik is an simple and powerful file uploading system written in golang.
 ### Version
 1.0
 
-
 ### Installation
 
 ##### From release
@@ -84,7 +83,7 @@ $ make releases
 ### API
 Plik server expose a REST-full API to manage uploads and get files :
 
-To create upload and upload files :
+Get and create upload :
  
    - **POST**        /upload
      - Params (json object in request body) :
@@ -94,39 +93,41 @@ To create upload and upload files :
       - ttl (int)
       - login (string)
       - password (string)
+      - files (see below)
      - Return :
          JSON formatted upload object.
          Important fields :
            - id (required to upload files)
            - uploadToken (required to upload/remove files)
+           - files (see below)
 
+   For stream mode you need to know the file id before the upload starts as it will block.
+   File size and/or file type also need to be known before the upload starts as they have to be printed 
+   in HTTP response headers.
+   To get the file ids pass a "files" json object with each file you are about to upload.
+   Fill the reference field with an arbitrary string to avoid matching file ids using the fileName field.
+   This is also used to notify of MISSING files when file upload is not yet finished or has failed.
+  ```
+  "files" : {
+    "0" : {
+      "fileName": "file.txt",
+      "fileSize": 12345,
+      "fileType": "text/plain",
+      "reference": "0"
+    },...
+  }
+  ```
    - **GET** /upload/:uploadid:
      - Get upload metadata (files list, upload date, ttl,...)
 
-   - **POST** /upload/:uploadid:/file
-     - Body must be a multipart request with a part named "file" containing file data
-   Returns a JSON object of uploaded file metadata
-   
-   - **POST** /$mode/:uploadid:/:fileid:/:filename: (same as above)
-     - For stream mode you need to know the file id before the upload starts as it will block.  
-   To get the file ids pass a files hash param to the previous create upload call with each file you are about to upload.  
-   Fill the reference field with an arbitrary string to avoid matching file ids using the fileName field.
-   ```
-   upload.files : {
-     "0" : {
-       fileName: "file.txt"
-       fileSize: 12345
-       fileType: "text/plain"
-       reference: "0"
-     },...
-   }
-   ```
+Upload file :
 
-Remove file :
+   - **POST** /$mode/:uploadid:/:fileid:/:filename:
+     - Request body must be a multipart request with a part named "file" containing file data.
 
-   - **DELETE** /$mode/:uploadid:/:fileid:/:filename:
-     - Delete file. Upload **MUST** have "removable" option enabled.
- 
+   - **POST** /file/:uploadid:
+     - Same as above without passing file id, won't work for stream mode.
+
 Get file :
 
   - **HEAD** /$mode/:uploadid:/:fileid:/:filename:
@@ -138,21 +139,26 @@ Get file :
   - **GET**  /$mode/:uploadid:/:fileid:/:filename:/yubikey/:yubikeyOtp:
     - Same as previous call, except that you can specify a Yubikey OTP in the URL if the upload is Yubikey restricted.
 
+Remove file :
+
+   - **DELETE** /$mode/:uploadid:/:fileid:/:filename:
+     - Delete file. Upload **MUST** have "removable" option enabled.
+
 $mode can be "file" or "stream" depending if stream mode is enabled. See FAQ for more details.
 
 Examples :
 ```sh
 Create an upload (in the json response, you'll have upload id and upload token)
-$ curl -X POST 127.0.0.1:8080/upload
+$ curl -X POST http://127.0.0.1:8080/upload
 
 Create a OneShot upload
-$ curl -X POST -d '{ "OneShot" : true }' 127.0.0.1:8080/upload
+$ curl -X POST -d '{ "OneShot" : true }' http://127.0.0.1:8080/upload
 
 Upload a file to upload
-$ curl -X POST --header "X-UploadToken: M9PJftiApG1Kqr81gN3Fq1HJItPENMhl" -F "file=@test.txt" 127.0.0.1:8080/upload/IsrIPIsDskFpN12E/file
+$ curl -X POST --header "X-UploadToken: M9PJftiApG1Kqr81gN3Fq1HJItPENMhl" -F "file=@test.txt" http://127.0.0.1:8080/file/IsrIPIsDskFpN12E
 
 Get headers
-$ curl -I 127.0.0.1:8080/file/IsrIPIsDskFpN12E/sFjIeokH23M35tN4/test.txt
+$ curl -I http://127.0.0.1:8080/file/IsrIPIsDskFpN12E/sFjIeokH23M35tN4/test.txt
 HTTP/1.1 200 OK
 Content-Disposition: filename=test.txt
 Content-Length: 3486
@@ -269,7 +275,7 @@ server {
 
 ##### How to disable nginx buffering ?
 
-By default nginx buffers large HTTP requests and reponses to a temporary file. This behaviour leads to unnecessary disk load and slower transfers. This should be turned off (requires >1.7.12) at least for /file and /stream paths. You might also want to increase buffers size.
+By default nginx buffers large HTTP requests and reponses to a temporary file. This behaviour leads to unnecessary disk load and slower transfers. This should be turned off (>1.7.12) for /file and /stream paths. You might also want to increase buffers size.
 
 Detailed documentation : http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering
 ```
