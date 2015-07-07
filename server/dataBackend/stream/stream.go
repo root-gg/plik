@@ -74,7 +74,7 @@ func (sb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file 
 	defer delete(sb.Store, id)
 	// This will block until download begins
 	_, err = io.Copy(pipeWriter, stream)
-	pipeReader.Close()
+	pipeWriter.Close()
 	return
 }
 
