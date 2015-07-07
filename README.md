@@ -267,6 +267,19 @@ server {
 }
 ```
 
+##### How to disable nginx buffering ?
+
+By default nginx buffers large HTTP requests and reponses to a temporary file. This behaviour leads to unnecessary disk load and slower transfers. This should be turned off (requires >1.7.12) at least for /file and /stream paths. You might also want to increase buffers size.
+
+Detailed documentation : http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering
+```
+   proxy_buffering off;
+   proxy_request_buffering off;
+   proxy_http_version 1.1;
+   proxy_buffer_size 1M;
+   proxy_buffers 8 1M;
+   client_body_buffer_size 1M;
+```
 ##### How to take and upload screenshots like a boss ?
 
 ```
