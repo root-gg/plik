@@ -116,16 +116,6 @@ Options:
 		os.Exit(1)
 	}
 
-	// Detect STDIN type
-	// --> If from pipe : ok, doing nothing
-	// --> If not from pipe, and no files in arguments : printing help
-	fi, _ := os.Stdin.Stat()
-
-	if (fi.Mode()&os.ModeCharDevice) != 0 && len(arguments["FILE"].([]string)) == 0 {
-		fmt.Println(usage)
-		os.Exit(0)
-	}
-
 	// Check client version
 	forceUpdate := arguments["--update"].(bool)
 	err = updateClient(forceUpdate)
@@ -134,6 +124,16 @@ Options:
 		if forceUpdate {
 			os.Exit(1)
 		}
+	}
+
+	// Detect STDIN type
+	// --> If from pipe : ok, doing nothing
+	// --> If not from pipe, and no files in arguments : printing help
+	fi, _ := os.Stdin.Stat()
+
+	if (fi.Mode()&os.ModeCharDevice) != 0 && len(arguments["FILE"].([]string)) == 0 {
+		fmt.Println(usage)
+		os.Exit(0)
 	}
 
 	// Create upload
