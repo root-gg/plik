@@ -226,6 +226,9 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             var names = _.pluck($scope.files, 'name');
             if (!_.contains(names, file.name)) {
                 file.reference = nextRef();
+                file.fileName = file.name;
+                file.fileSize = file.size;
+                file.fileType = file.type;
                 $scope.files.push(file);
             }
         });
@@ -255,10 +258,11 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         // Create file to upload list
         $scope.upload.files = {};
         _.each($scope.files, function (file) {
+            // Sanitize file object
             $scope.upload.files[file.reference] = {
-                fileName : file.name,
-                fileType : file.type,
-                fileSize : file.size,
+                fileName : file.fileName,
+                fileType : file.fileType,
+                fileSize : file.fileSize,
                 reference : file.reference
             };
         });
