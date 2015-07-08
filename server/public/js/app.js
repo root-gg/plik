@@ -225,8 +225,6 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             // remove already added files
             var names = _.pluck($scope.files, 'name');
             if (!_.contains(names, file.name)) {
-                file.fileName = file.name;
-                file.fileSize = file.size;
                 file.reference = nextRef();
                 $scope.files.push(file);
             }
@@ -257,7 +255,12 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         // Create file to upload list
         $scope.upload.files = {};
         _.each($scope.files, function (file) {
-            $scope.upload.files[file.reference] = file;
+            $scope.upload.files[file.reference] = {
+                fileName : file.name,
+                fileType : file.type,
+                fileSize : file.size,
+                reference : file.reference
+            };
         });
         $api.createUpload($scope.upload)
             .then(function (upload) {
