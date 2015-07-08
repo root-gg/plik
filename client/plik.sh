@@ -71,7 +71,7 @@ if [ "${#files[@]}" == 0 ]; then
     exit 1
 fi
 if [ -e "$HOME/.plikrc" ]; then
-    URL=$(grep Url ~/.plikrc | grep -Po '(http[^\"]*)')
+    URL=$(grep URL ~/.plikrc | grep -Po '(http[^\"]*)')
 
     if [ "$URL" != "" ]; then
         PLIK_URL=$URL
@@ -154,9 +154,9 @@ do
     fi
 
     if [ "$STDIN" == true ]; then
-        UPLOAD_COMMAND+="curl -s -X POST --header \"X-UploadToken: $UPLOAD_TOKEN\" -F \"file=@-;filename=$FILENAME\" $PLIK_URL/upload/$UPLOAD_ID/file"
+        UPLOAD_COMMAND+="curl -s -X POST --header \"X-UploadToken: $UPLOAD_TOKEN\" -F \"file=@-;filename=$FILENAME\" $PLIK_URL/file/$UPLOAD_ID"
     else
-        UPLOAD_COMMAND+="curl -s -X POST --header \"X-UploadToken: $UPLOAD_TOKEN\" -F \"file=@$FILE;filename=$FILENAME\" $PLIK_URL/upload/$UPLOAD_ID/file"
+        UPLOAD_COMMAND+="curl -s -X POST --header \"X-UploadToken: $UPLOAD_TOKEN\" -F \"file=@$FILE;filename=$FILENAME\" $PLIK_URL/file/$UPLOAD_ID"
     fi
 
     FILE_RESP=$(eval $UPLOAD_COMMAND)

@@ -292,7 +292,7 @@ func uploadFile(uploadInfo *common.Upload, name string, id string, reader *strin
 	if id != "" {
 		URL, err = url.Parse(plikURL + "/file/" + uploadInfo.ID + "/" + id + "/" + name)
 	} else {
-		URL, err = url.Parse(plikURL + "/upload/" + uploadInfo.ID + "/file")
+		URL, err = url.Parse(plikURL + "/file/" + uploadInfo.ID)
 	}
 
 	if err != nil {
