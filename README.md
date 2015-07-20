@@ -273,7 +273,7 @@ server {
 }
 ```
 
-##### Is "file" metadata backend is compatible with multi-instance ?
+##### Is "file" metadata backend compatible with multi-instance ?
 
 Unfortunately, you may experience some weird behaviour using file metadata backend with multiple instances of plik.
 
