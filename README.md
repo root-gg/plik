@@ -273,6 +273,15 @@ server {
 }
 ```
 
+##### Is "file" metadata backend is compatible with multi-instance ?
+
+Unfortunately, you may experience some weird behaviour using file metadata backend with multiple instances of plik.
+
+The lock used in this backend is specific to a given instance, so the metadata file could be corrupted on concurrent requests.
+
+You can set a 'sticky' on the source ip but we recommend using the MongoDB metadata backend, when deploying a high available plik installation.
+
+
 ##### How to disable nginx buffering ?
 
 By default nginx buffers large HTTP requests and reponses to a temporary file. This behaviour leads to unnecessary disk load and slower transfers. This should be turned off (>1.7.12) for /file and /stream paths. You might also want to increase buffers size.
