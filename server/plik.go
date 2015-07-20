@@ -26,6 +26,7 @@ package main
 
 import (
 	"crypto/md5"
+	"crypto/rand"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
@@ -34,7 +35,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math/rand"
+	"math/big"
 	"net"
 	"net/http"
 	"net/url"
@@ -57,13 +58,13 @@ import (
 var log *logger.Logger
 
 func main() {
-	rand.Seed(time.Now().UTC().UnixNano())
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	log = common.Log()
 
 	var configFile = flag.String("config", "plikd.cfg", "Configuration file (default: plikd.cfg")
 	var version = flag.Bool("version", false, "Show version of plikd")
+	var port = flag.Int("port", 0, "Overrides plik listen port")
 	flag.Parse()
 	if *version {
 		fmt.Printf("Plikd v%s\n", common.GetVersion())
@@ -72,6 +73,11 @@ func main() {
 
 	common.LoadConfiguration(*configFile)
 	log.Infof("Starting plikd server v" + common.GetVersion())
+
+	// Overrides port if provided in command line
+	if *port != 0 {
+		common.Config.ListenPort = *port
+	}
 
 	// Initialize all backends
 	metadataBackend.Initialize()
@@ -88,12 +94,15 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/upload", createUploadHandler).Methods("POST")
 	r.HandleFunc("/upload/{uploadID}", getUploadHandler).Methods("GET")
-	r.HandleFunc("/upload/{uploadID}/file", addFileHandler).Methods("POST")
-	r.HandleFunc("/upload/{uploadID}/file/{fileID}", getFileHandler).Methods("GET")
-	r.HandleFunc("/upload/{uploadID}/file/{fileID}", addFileHandler).Methods("POST")
-	r.HandleFunc("/upload/{uploadID}/file/{fileID}", removeFileHandler).Methods("DELETE")
-	r.HandleFunc("/file/{uploadID}/{fileID}/{filename}", getFileHandler).Methods("GET", "HEAD")
+	r.HandleFunc("/file/{uploadID}", addFileHandler).Methods("POST")
+	r.HandleFunc("/file/{uploadID}/{fileID}/{filename}", addFileHandler).Methods("POST")
+	r.HandleFunc("/file/{uploadID}/{fileID}/{filename}", removeFileHandler).Methods("DELETE")
+	r.HandleFunc("/file/{uploadID}/{fileID}/{filename}", getFileHandler).Methods("HEAD", "GET")
 	r.HandleFunc("/file/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", getFileHandler).Methods("GET")
+	r.HandleFunc("/stream/{uploadID}/{fileID}/{filename}", addFileHandler).Methods("POST")
+	r.HandleFunc("/stream/{uploadID}/{fileID}/{filename}", removeFileHandler).Methods("DELETE")
+	r.HandleFunc("/stream/{uploadID}/{fileID}/{filename}", getFileHandler).Methods("HEAD", "GET")
+	r.HandleFunc("/stream/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", getFileHandler).Methods("GET")
 	r.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
 	http.Handle("/", r)
@@ -490,9 +499,9 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// -> The client should download file instead of displaying it
 	dl := req.URL.Query().Get("dl")
 	if dl != "" {
-		resp.Header().Set("Content-Disposition", "attachement; filename="+file.Name)
+		resp.Header().Set("Content-Disposition", fmt.Sprintf(`attachement; filename="%s"`, file.Name))
 	} else {
-		resp.Header().Set("Content-Disposition", "filename="+file.Name)
+		resp.Header().Set("Content-Disposition", fmt.Sprintf(`filename="%s"`, file.Name))
 	}
 
 	// HEAD Request => Do not print file, user just wants http headers
@@ -926,9 +935,11 @@ func UploadsCleaningRoutine() {
 
 		// Sleep between 2 hours and 3 hours
 		// This is a dirty trick to avoid frontends doing this at the same time
-		randSleep := rand.Intn(3600) + 7200
-		log.Infof("Will clean old uploads in %d seconds.", randSleep)
-		time.Sleep(time.Duration(randSleep) * time.Second)
+		r, _ := rand.Int(rand.Reader, big.NewInt(3600))
+		randomSleep := r.Int64() + 7200
+
+		log.Infof("Will clean old uploads in %d seconds.", randomSleep)
+		time.Sleep(time.Duration(randomSleep) * time.Second)
 
 		// Get uploads that needs to be removed
 		log.Infof("Cleaning expired uploads...")

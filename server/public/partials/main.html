@@ -33,7 +33,6 @@ THE SOFTWARE.
                         <a href="/" class="glyphicon glyphicon-refresh"></a>
                         <span ng-show="!upload.uploadId">Upload your files</span>
                         <span ng-show="upload.uploadId">Download your files</span>
-                        <a href="" class="pull-right" tooltip-placement="top" tooltip="To remove files" ng-click="adminUrl()" ng-show="upload.uploadToken">Admin url</a>
                     </h3>
                 </div>
             </div>
@@ -68,8 +67,8 @@ THE SOFTWARE.
                         <!-- STREAMING -->
                         <div class="row">
                             <div class="col-sm-10">
-                                <input id="checkbox-destruct" type="checkbox"  ng-model="upload.stream" style="display:inline-block">
-                                <label for="checkbox-destruct" style="font-weight:normal;">Streaming</label>
+                                <input id="checkbox-streaming" type="checkbox"  ng-model="upload.stream" style="display:inline-block">
+                                <label for="checkbox-streaming" style="font-weight:normal;">Streaming</label>
                                 <a tooltip-placement="right" tooltip="The files will not be stored on the server. Upload will begin when the remote user starts downloading.">?</a>
                             </div>
                         </div>

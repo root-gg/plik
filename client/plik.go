@@ -84,7 +84,6 @@ Options:
   -h --help                 Show this help
   -d --debug                Enable debug mode
   -q --quiet                Enable quiet mode
-  -v --version              Show plik version
   -o, --oneshot             Enable OneShot ( Each file will be deleted on first download )
   -r, --removable           Enable Removable upload ( Each file can be deleted by anyone at anymoment )
   -S, --stream              Enable Streaming ( It will block until remote user starts downloading )
@@ -127,6 +126,16 @@ Options:
 		}
 	}
 
+	// Detect STDIN type
+	// --> If from pipe : ok, doing nothing
+	// --> If not from pipe, and no files in arguments : printing help
+	fi, _ := os.Stdin.Stat()
+
+	if (fi.Mode()&os.ModeCharDevice) != 0 && len(arguments["FILE"].([]string)) == 0 {
+		fmt.Println(usage)
+		os.Exit(0)
+	}
+
 	// Create upload
 	config.Debug("Sending upload params : " + config.Sdump(config.Upload))
 	uploadInfo, err := createUpload(config.Upload)
@@ -136,8 +145,9 @@ Options:
 	}
 	config.Debug("Got upload info : " + config.Sdump(uploadInfo))
 
-	printf("Upload successfully created : \n\n")
-	printf("    %s/#/?id=%s\n\n\n", config.Config.URL, uploadInfo.ID)
+	// Display upload url
+	printf("Upload successfully created : \n")
+	printf("    %s/#/?id=%s\n\n", config.Config.URL, uploadInfo.ID)
 
 	// Match file id from server using client reference
 	for _, clientFile := range config.Files {
@@ -157,11 +167,12 @@ Options:
 			os.Exit(1)
 		}
 
-		_, err = upload(uploadInfo, config.Files[0], pipeReader)
+		file, err := upload(uploadInfo, config.Files[0], pipeReader)
 		if err != nil {
 			printf("Unable to upload archive : %s\n", err)
 			return
 		}
+		uploadInfo.Files[file.ID] = file
 		pipeReader.CloseWithError(err)
 
 	} else {
@@ -197,7 +208,7 @@ Options:
 	// Comments
 	if !uploadInfo.Stream {
 		var totalSize int64
-		printf("\n\nCommands\n\n")
+		printf("\nCommands : \n")
 		for _, file := range uploadInfo.Files {
 
 			// Increment size
@@ -210,11 +221,6 @@ Options:
 				fmt.Println(getFileCommand(uploadInfo, file))
 			}
 		}
-		printf("\n")
-
-		// Upload files
-		printf("\nTotal\n\n")
-		printf("    %s (%d file(s)) \n\n", utils.BytesToString(int(totalSize)), len(uploadInfo.Files))
 	}
 }
 
@@ -328,8 +334,13 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 		return pipeWriter.CloseWithError(err)
 	}()
 
+	mode := "file"
+	if uploadInfo.Stream {
+		mode = "stream"
+	}
+
 	var URL *url.URL
-	URL, err = url.Parse(config.Config.URL + "/upload/" + uploadInfo.ID + "/file/" + fileToUpload.ID)
+	URL, err = url.Parse(config.Config.URL + "/" + mode + "/" + uploadInfo.ID + "/" + fileToUpload.ID + "/" + fileToUpload.Name)
 	if err != nil {
 		return
 	}
@@ -395,7 +406,7 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 		command += config.Config.DownloadBinary
 	}
 
-	command += fmt.Sprintf(` '%s/file/%s/%s/%s'`, config.Config.URL, upload.ID, file.ID, file.Name)
+	command += fmt.Sprintf(` "%s"`, getFileURL(upload, file))
 
 	// If Ssl
 	if config.Config.Secure {
@@ -405,19 +416,23 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 	// If archive
 	if config.Config.Archive {
 		if config.Config.ArchiveMethod == "zip" {
-			command += fmt.Sprintf(" > %s", file.Name)
+			command += fmt.Sprintf(` > '%s'`, file.Name)
 		} else {
 			command += fmt.Sprintf(" | %s", config.GetArchiveBackend().Comments())
 		}
 	} else {
-		command += " > " + file.Name
+		command += fmt.Sprintf(` > '%s'`, file.Name)
 	}
 
 	return
 }
 
 func getFileURL(upload *common.Upload, file *common.File) (fileURL string) {
-	fileURL += fmt.Sprintf("%s/file/%s/%s/%s", config.Config.URL, upload.ID, file.ID, file.Name)
+	mode := "file"
+	if upload.Stream {
+		mode = "stream"
+	}
+	fileURL += fmt.Sprintf("%s/%s/%s/%s/%s", config.Config.URL, mode, upload.ID, file.ID, file.Name)
 	return
 }
 
@@ -485,8 +500,7 @@ func updateClient(forceUpdate bool) (err error) {
 	fmt.Printf("Plik client is not up to date, do you want to update ? [Y/n] ")
 	input := "y"
 	fmt.Scanln(&input)
-	strings.ToLower(input)
-	if !strings.HasPrefix(input, "y") {
+	if !strings.HasPrefix(strings.ToLower(input), "y") {
 		if forceUpdate {
 			os.Exit(0)
 		}

@@ -5,8 +5,11 @@ server/files
 server/public/public
 clients
 client/client
+servers
 server/server
 release
+releases
+debs
 plik_*.cfg
 *bower_components
 *node_modules

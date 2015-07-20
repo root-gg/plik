@@ -130,13 +130,15 @@ angular.module('api', ['ngFileUpload']).
 
         // Upload a file
         api.uploadFile = function (upload, file, progres_cb, basicAuth) {
-            var url = api.base + '/upload/' + upload.id + '/file/' + file.metadata.id;
+            var mode = upload.stream ? "stream" : "file";
+            var url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
             return api.upload(url, file, null, progres_cb, basicAuth, upload.uploadToken);
         };
 
         // Remove a file
         api.removeFile = function (upload, file) {
-            var url = api.base + '/upload/' + upload.id + '/file/' + file.metadata.id;
+            var mode = upload.stream ? "stream" : "file";
+            var url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
             return api.call(url, 'DELETE', {}, upload.uploadToken);
         };
 
@@ -223,9 +225,10 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             // remove already added files
             var names = _.pluck($scope.files, 'name');
             if (!_.contains(names, file.name)) {
+                file.reference = nextRef();
                 file.fileName = file.name;
                 file.fileSize = file.size;
-                file.reference = nextRef();
+                file.fileType = file.type;
                 $scope.files.push(file);
             }
         });
@@ -255,7 +258,13 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         // Create file to upload list
         $scope.upload.files = {};
         _.each($scope.files, function (file) {
-            $scope.upload.files[file.reference] = file;
+            // Sanitize file object
+            $scope.upload.files[file.reference] = {
+                fileName : file.fileName,
+                fileType : file.fileType,
+                fileSize : file.fileSize,
+                reference : file.reference
+            };
         });
         $api.createUpload($scope.upload)
             .then(function (upload) {
@@ -331,7 +340,8 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     // Return file download URL
     $scope.getFileUrl = function (file, dl) {
         if (!file || !file.metadata) return;
-        var url = location.origin + '/file/' + $scope.upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName
+        var mode = $scope.upload.stream ? "stream" : "file";
+        var url = location.origin + '/' + mode + '/' + $scope.upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName
         if (dl) {
             // Force file download
             url += "?dl=1";

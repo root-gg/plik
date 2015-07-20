@@ -33,6 +33,7 @@ import (
 	"io"
 	"os"
 
+	"fmt"
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -54,8 +55,14 @@ func NewFileBackend(config map[string]interface{}) (fb *Backend) {
 func (fb *Backend) GetFile(ctx *common.PlikContext, upload *common.Upload, id string) (file io.ReadCloser, err error) {
 	defer ctx.Finalize(err)
 
+	// Get upload directory
+	directory, err := fb.getDirectoryFromUploadID(upload.ID)
+	if err != nil {
+		ctx.Warningf("Unable to get upload directory : %s", err)
+		return
+	}
+
 	// Get file path
-	directory := fb.getDirectoryFromUploadID(upload.ID)
 	fullPath := directory + "/" + id
 
 	// The file content will be piped directly
@@ -74,8 +81,14 @@ func (fb *Backend) GetFile(ctx *common.PlikContext, upload *common.Upload, id st
 func (fb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
 	defer ctx.Finalize(err)
 
+	// Get upload directory
+	directory, err := fb.getDirectoryFromUploadID(upload.ID)
+	if err != nil {
+		ctx.Warningf("Unable to get upload directory : %s", err)
+		return
+	}
+
 	// Get file path
-	directory := fb.getDirectoryFromUploadID(upload.ID)
 	fullPath := directory + "/" + file.ID
 
 	// Create directory
@@ -113,8 +126,15 @@ func (fb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file 
 func (fb *Backend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, id string) (err error) {
 	defer ctx.Finalize(err)
 
+	// Get upload directory
+	directory, err := fb.getDirectoryFromUploadID(upload.ID)
+	if err != nil {
+		ctx.Warningf("Unable to get upload directory : %s", err)
+		return
+	}
+
 	// Get file path
-	fullPath := fb.getDirectoryFromUploadID(upload.ID) + "/" + id
+	fullPath := directory + "/" + id
 
 	// Remove file
 	err = os.Remove(fullPath)
@@ -134,7 +154,11 @@ func (fb *Backend) RemoveUpload(ctx *common.PlikContext, upload *common.Upload) 
 	defer ctx.Finalize(err)
 
 	// Get upload directory
-	fullPath := fb.getDirectoryFromUploadID(upload.ID)
+	fullPath, err := fb.getDirectoryFromUploadID(upload.ID)
+	if err != nil {
+		ctx.Warningf("Unable to get upload directory : %s", err)
+		return
+	}
 
 	// Remove everything at once
 	err = os.RemoveAll(fullPath)
@@ -146,12 +170,15 @@ func (fb *Backend) RemoveUpload(ctx *common.PlikContext, upload *common.Upload) 
 	return
 }
 
-func (fb *Backend) getDirectoryFromUploadID(uploadID string) string {
+func (fb *Backend) getDirectoryFromUploadID(uploadID string) (string, error) {
 	// To avoid too many files in the same directory
 	// data directory is splitted in two levels the
 	// first level is the 2 first chars from the upload id
 	// it gives 3844 possibilities reaching 65535 files per
 	// directory at ~250.000.000 files uploaded.
 
-	return fb.Config.Directory + "/" + uploadID[:2] + "/" + uploadID
+	if len(uploadID) < 3 {
+		return "", fmt.Errorf("Invalid uploadid %s", uploadID)
+	}
+	return fb.Config.Directory + "/" + uploadID[:2] + "/" + uploadID, nil
 }
