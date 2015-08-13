@@ -160,9 +160,13 @@ func Load() (err error) {
 		fmt.Printf("Please enter your plik domain [default:http://127.0.0.1:8080] : ")
 		_, err := fmt.Scanf("%s", &domain)
 		if err == nil {
-			Config.URL = domain
-			if !strings.HasPrefix(domain, "http") {
-				Config.URL = "http://" + domain
+			domain = strings.TrimRight(domain, "/")
+			parsed_domain, err := url.Parse(domain)
+			if err == nil {
+				if parsed_domain.Scheme == "" {
+					parsed_domain.Scheme = "http"
+				}
+				Config.URL = parsed_domain.String()
 			}
 		}
 
