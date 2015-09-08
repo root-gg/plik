@@ -123,8 +123,15 @@ func (pb *Backend) Configure(arguments map[string]interface{}) (err error) {
 
 // Encrypt implementation for PGP Crypto Backend
 func (pb *Backend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
-	w, _ := armor.Encode(writer, "PGP MESSAGE", nil)
-	plaintext, _ := openpgp.Encrypt(w, []*openpgp.Entity{pb.Config.Entity}, nil, &openpgp.FileHints{IsBinary: true}, nil)
+	w, err := armor.Encode(writer, "PGP MESSAGE", nil)
+	if err != nil {
+		return (err)
+	}
+
+	plaintext, err := openpgp.Encrypt(w, []*openpgp.Entity{pb.Config.Entity}, nil, &openpgp.FileHints{IsBinary: true}, nil)
+	if err != nil {
+		return (err)
+	}
 
 	_, err = io.Copy(plaintext, reader)
 	if err != nil {
