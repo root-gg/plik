@@ -432,8 +432,16 @@ func getFileURL(upload *common.Upload, file *common.File) (fileURL string) {
 	if upload.Stream {
 		mode = "stream"
 	}
+
 	fileURL += fmt.Sprintf("%s/%s/%s/%s/%s", config.Config.URL, mode, upload.ID, file.ID, file.Name)
-	return
+
+	// Parse to get a nice escaped url
+	u, err := url.Parse(fileURL)
+	if err != nil {
+		return ""
+	}
+
+	return u.String()
 }
 
 func updateClient(forceUpdate bool) (err error) {
