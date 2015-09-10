@@ -27,7 +27,7 @@
 RELEASE_VERSION=`cat VERSION`
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 
-all: clean deps server client
+all: clean deps server client
 
 ###
 # Install npm build dependencies
