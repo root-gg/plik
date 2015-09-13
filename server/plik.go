@@ -33,6 +33,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"image/png"
 	"io"
 	"io/ioutil"
 	"math/big"
@@ -45,10 +46,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/boombuler/barcode"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/boombuler/barcode/qr"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/facebookgo/httpdown"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/gorilla/mux"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/dataBackend"
 	"github.com/root-gg/plik/server/metadataBackend"
@@ -103,6 +107,7 @@ func main() {
 	r.HandleFunc("/stream/{uploadID}/{fileID}/{filename}", removeFileHandler).Methods("DELETE")
 	r.HandleFunc("/stream/{uploadID}/{fileID}/{filename}", getFileHandler).Methods("HEAD", "GET")
 	r.HandleFunc("/stream/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", getFileHandler).Methods("GET")
+	r.HandleFunc("/qrcode", getQrCodeHandler).Methods("GET")
 	r.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
 	http.Handle("/", r)
@@ -139,6 +144,50 @@ func main() {
 /*
  * HTTP HANDLERS
  */
+
+func getQrCodeHandler(resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx := common.NewPlikContext("get qrcode handler", req)
+	defer ctx.Finalize(err)
+
+	// Check that source IP address is valid and whitelisted
+	code, err := checkSourceIP(ctx, true)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), code)
+		return
+	}
+
+	// Check params
+	urlParam := req.FormValue("url")
+	sizeParam := req.FormValue("size")
+
+	// Parse int on size
+	sizeInt, err := strconv.Atoi(sizeParam)
+	if err != nil {
+		sizeInt = 250
+	}
+	if sizeInt > 1000 {
+		http.Error(resp, common.NewResult("QRCode size must be lower than 1000", nil).ToJSONString(), 403)
+		return
+	}
+
+	// Encode url to q nice QRCode png
+	qrcode, err := qr.Encode(urlParam, qr.H, qr.Auto)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), 500)
+		return
+	} else {
+		qrcode, err = barcode.Scale(qrcode, sizeInt, sizeInt)
+		if err != nil {
+			http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), 500)
+			return
+		}
+
+		resp.Header().Add("Content-Type", "image/png")
+		png.Encode(resp, qrcode)
+	}
+
+}
 
 func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	var err error
