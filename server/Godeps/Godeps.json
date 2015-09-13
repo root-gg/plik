@@ -28,6 +28,10 @@
 			"Rev": "63f4aa2c46ebfac93952223a52df876f30b064c0"
 		},
 		{
+			"ImportPath": "github.com/boombuler/barcode",
+			"Rev": "63f4aa2c46ebfac93952223a52df876f30b064c0"
+		},
+		{
 			"ImportPath": "github.com/gorilla/context",
 			"Rev": "50c25fb3b2b3b3cc724e9b6ac75fb44b3bccd0da"
 		},
