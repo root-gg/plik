@@ -92,6 +92,7 @@ func main() {
 
 	// HTTP Api routes configuration
 	r := mux.NewRouter()
+	r.HandleFunc("/config", getConfigurationHandler).Methods("GET")
 	r.HandleFunc("/upload", createUploadHandler).Methods("POST")
 	r.HandleFunc("/upload/{uploadID}", getUploadHandler).Methods("GET")
 	r.HandleFunc("/file/{uploadID}", addFileHandler).Methods("POST")
@@ -139,6 +140,22 @@ func main() {
 /*
  * HTTP HANDLERS
  */
+
+func getConfigurationHandler(resp http.ResponseWriter, req *http.Request) {
+
+	var err error
+	var json []byte
+
+	ctx := common.NewPlikContext("get configuration handler", req)
+	defer ctx.Finalize(err)
+
+	if json, err = utils.ToJson(common.Config); err != nil {
+		ctx.Warningf("Unable to serialize response body : %s", err)
+		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
+	}
+
+	resp.Write(json)
+}
 
 func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	var err error

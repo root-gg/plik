@@ -27,7 +27,7 @@
 RELEASE_VERSION=`cat VERSION`
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 
-all: clean deps server client
+all: clean deps server client
 
 ###
 # Install npm build dependencies
@@ -42,7 +42,6 @@ deps:
 server:
 	@cd server/public && bower install --allow-root
 	@cd server/public && grunt
-	@cd server && go get -v
 	@sed -i -e "s/##VERSION##/$(RELEASE_VERSION)/g" server/common/config.go
 	@cd server && go build -o plikd ./
 	@sed -i -e "s/$(RELEASE_VERSION)/##VERSION##/g" server/common/config.go
@@ -53,21 +52,18 @@ server:
 servers:
 	@cd server/public && bower install --allow-root
 	@cd server/public && grunt
-	@cd server && go get -v
 	@server/build.sh servers
 
 ###
 # Build plik client for the current architecture
 ###
 client:
-	@cd client && go get -v
 	@cd client && go build -o plik ./
 
 ###
 # Build plik client for all architectures
 ###
 clients:
-	@cd client && go get -v
 	@client/build.sh clients
 	@mkdir -p clients/bash && cp client/plik.sh clients/bash
 

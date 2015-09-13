@@ -44,37 +44,37 @@ var (
 
 // Configuration object
 type Configuration struct {
-	LogLevel      string
-	ListenAddress string
-	ListenPort    int
+	LogLevel      string `json:"-"`
+	ListenAddress string `json:"-"`
+	ListenPort    int    `json:"-"`
 	MaxFileSize   int
 
 	DefaultTTL int
 	MaxTTL     int
 
-	SslEnabled bool
-	SslCert    string
-	SslKey     string
+	SslEnabled bool   `json:"-"`
+	SslCert    string `json:"-"`
+	SslKey     string `json:"-"`
 
 	YubikeyEnabled   bool
-	YubikeyAPIKey    string
-	YubikeyAPISecret string
-	YubiAuth         *yubigo.YubiAuth
+	YubikeyAPIKey    string           `json:"-"`
+	YubikeyAPISecret string           `json:"-"`
+	YubiAuth         *yubigo.YubiAuth `json:"-"`
 
-	SourceIPHeader  string
-	UploadWhitelist []string
+	SourceIPHeader  string   `json:"-"`
+	UploadWhitelist []string `json:"-"`
 
 	MetadataBackend       string
-	MetadataBackendConfig map[string]interface{}
+	MetadataBackendConfig map[string]interface{} `json:"-"`
 
 	DataBackend       string
-	DataBackendConfig map[string]interface{}
+	DataBackendConfig map[string]interface{} `json:"-"`
 
 	StreamMode          bool
-	StreamBackendConfig map[string]interface{}
+	StreamBackendConfig map[string]interface{} `json:"-"`
 
 	ShortenBackend       string
-	ShortenBackendConfig map[string]interface{}
+	ShortenBackendConfig map[string]interface{} `json:"-"`
 }
 
 // Global var to store conf
@@ -92,7 +92,7 @@ func NewConfiguration() (this *Configuration) {
 	this.ListenPort = 8080
 	this.DataBackend = "file"
 	this.MetadataBackend = "file"
-	this.MaxFileSize = 1048576 // 1MB
+	this.MaxFileSize = 10737418240 // 10GB
 	this.DefaultTTL = 2592000  // 30 days
 	this.MaxTTL = 0
 	this.SslEnabled = false
@@ -108,7 +108,7 @@ func NewConfiguration() (this *Configuration) {
 func LoadConfiguration(file string) {
 	Config = NewConfiguration()
 	if _, err := toml.DecodeFile(file, Config); err != nil {
-		Log().Warningf("Unable to load config file %s : %s", file, err)
+		Log().Fatalf("Unable to load config file %s : %s", file, err)
 	}
 	Log().SetMinLevelFromString(Config.LogLevel)
 	Log().Dump(logger.DEBUG, Config)
