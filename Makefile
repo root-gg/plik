@@ -77,6 +77,13 @@ clients:
 	@client/build.sh clients
 	@mkdir -p clients/bash && cp client/plik.sh clients/bash
 
+##
+# Build docker
+##
+docker: release
+	@cp Dockerfile $(RELEASE_DIR)
+	@cd $(RELEASE_DIR) && docker build -t plik .
+
 ###
 # Make server and clients Debian packages
 ###
