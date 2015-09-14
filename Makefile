@@ -27,7 +27,10 @@
 RELEASE_VERSION=`cat VERSION`
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 
-all: clean deps server client
+GOHOSTOS=`go env GOHOSTOS`
+GOHOSTARCH=`go env GOHOSTARCH`
+
+all: clean deps frontend server client
 
 ###
 # Install npm build dependencies
@@ -36,12 +39,19 @@ all: clean deps server client
 deps:
 	@cd server/public && npm install
 
+
+###
+# Build frontend ressources
+###
+frontend:
+	@if [ ! -d server/public/bower_components ]; then cd server/public && bower install --allow-root ; fi ;
+	@if [ ! -d server/public/public ]; then cd server/public && grunt ; fi ;
+
+
 ###
 # Build plik server for the current architecture
 ###
 server:
-	@cd server/public && bower install --allow-root
-	@cd server/public && grunt
 	@sed -i -e "s/##VERSION##/$(RELEASE_VERSION)/g" server/common/config.go
 	@cd server && go build -o plikd ./
 	@sed -i -e "s/$(RELEASE_VERSION)/##VERSION##/g" server/common/config.go
@@ -87,7 +97,7 @@ debs-client: clients
 ###
 # Build release archive
 ###
-release: clean server clients
+release: clean frontend server clients
 	@mkdir -p $(RELEASE_DIR)/server/public
 
 	@cp -R clients $(RELEASE_DIR)
@@ -101,6 +111,8 @@ release: clean server clients
 	@cp -R server/public/partials $(RELEASE_DIR)/server/public
 	@cp -R server/public/public $(RELEASE_DIR)/server/public
 	@cp -R server/public/index.html $(RELEASE_DIR)/server/public
+
+	@cd release && tar czvf plik-`cat ../VERSION`-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz *
 
 
 ###
@@ -136,6 +148,7 @@ releases: release servers
 ###
 clean:
 	@rm -rf server/public/bower_components
+	@rm -rf server/public/public
 	@rm -rf server/plikd
 	@rm -rf client/plik
 	@rm -rf clients
