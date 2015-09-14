@@ -64,10 +64,12 @@ $ sudo -c "npm install -g bower grunt-cli"
 $ sudo -c "client/build.sh env"
 ```
 
-To build everything :
+To build everything and run it :
 ```sh
-$ make server
-$ make clients
+$ make deps
+$ make release
+$ cd server
+$ ./plikd
 ```
 
 To make debian packages :
@@ -78,6 +80,34 @@ $ make debs-server debs-client
 To make release archives :
 ```
 $ make releases
+```
+
+
+### Docker
+Plik comes with a simple Dockerfile that allows you to run it in a container.
+
+First, you need to build the docker image :
+```sh
+$ make docker
+```
+
+Then you can run an instance and map the local port 80 to the plik port :
+```sh
+$ docker run -t -d -p 80:8080 plik
+ab9b2c99da1f3e309cd3b12392b9084b5cafcca0325d7d47ff76f5b1e475d1b9
+```
+
+You can also use a volume to store uploads on a local folder.
+Here, we map local folder /data to the /home/plik/server/files folder of the container (this is the default uploads directory) :
+```sh
+$ docker run -t -d -p 80:8080 -v /data:/home/plik/server/files plik
+ab9b2c99da1f3e309cd3b12392b9084b5cafcca0325d7d47ff76f5b1e475d1b9
+```
+
+To use a different config file, you can also map a single file to the container at runtime :
+```sh
+$ docker run -t -d -p 80:8080 -v plikd.cfg:/home/plik/server/plikd.cfg plik
+ab9b2c99da1f3e309cd3b12392b9084b5cafcca0325d7d47ff76f5b1e475d1b9
 ```
 
 ### API

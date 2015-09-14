@@ -47,7 +47,7 @@ type Configuration struct {
 	LogLevel      string
 	ListenAddress string
 	ListenPort    int
-	MaxFileSize   int
+	MaxFileSize   int64
 
 	DefaultTTL int
 	MaxTTL     int
@@ -92,7 +92,7 @@ func NewConfiguration() (this *Configuration) {
 	this.ListenPort = 8080
 	this.DataBackend = "file"
 	this.MetadataBackend = "file"
-	this.MaxFileSize = 1048576 // 1MB
+	this.MaxFileSize = 10737418240 // 10GB
 	this.DefaultTTL = 2592000  // 30 days
 	this.MaxTTL = 0
 	this.SslEnabled = false
@@ -108,7 +108,7 @@ func NewConfiguration() (this *Configuration) {
 func LoadConfiguration(file string) {
 	Config = NewConfiguration()
 	if _, err := toml.DecodeFile(file, Config); err != nil {
-		Log().Warningf("Unable to load config file %s : %s", file, err)
+		Log().Fatalf("Unable to load config file %s : %s", file, err)
 	}
 	Log().SetMinLevelFromString(Config.LogLevel)
 	Log().Dump(logger.DEBUG, Config)

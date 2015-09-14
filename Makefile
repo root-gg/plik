@@ -27,7 +27,10 @@
 RELEASE_VERSION=`cat VERSION`
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 
-all: clean deps server client
+GOHOSTOS=`go env GOHOSTOS`
+GOHOSTARCH=`go env GOHOSTARCH`
+
+all: clean deps frontend server client
 
 ###
 # Install npm build dependencies
@@ -36,13 +39,19 @@ all: clean deps server client
 deps:
 	@cd server/public && npm install
 
+
+###
+# Build frontend ressources
+###
+frontend:
+	@if [ ! -d server/public/bower_components ]; then cd server/public && bower install --allow-root ; fi ;
+	@if [ ! -d server/public/public ]; then cd server/public && grunt ; fi ;
+
+
 ###
 # Build plik server for the current architecture
 ###
 server:
-	@cd server/public && bower install --allow-root
-	@cd server/public && grunt
-	@cd server && go get -v
 	@sed -i -e "s/##VERSION##/$(RELEASE_VERSION)/g" server/common/config.go
 	@cd server && go build -o plikd ./
 	@sed -i -e "s/$(RELEASE_VERSION)/##VERSION##/g" server/common/config.go
@@ -53,23 +62,27 @@ server:
 servers:
 	@cd server/public && bower install --allow-root
 	@cd server/public && grunt
-	@cd server && go get -v
 	@server/build.sh servers
 
 ###
 # Build plik client for the current architecture
 ###
 client:
-	@cd client && go get -v
 	@cd client && go build -o plik ./
 
 ###
 # Build plik client for all architectures
 ###
 clients:
-	@cd client && go get -v
 	@client/build.sh clients
 	@mkdir -p clients/bash && cp client/plik.sh clients/bash
+
+##
+# Build docker
+##
+docker: release
+	@cp Dockerfile $(RELEASE_DIR)
+	@cd $(RELEASE_DIR) && docker build -t plik .
 
 ###
 # Make server and clients Debian packages
@@ -91,7 +104,7 @@ debs-client: clients
 ###
 # Build release archive
 ###
-release: clean server clients
+release: clean frontend server clients
 	@mkdir -p $(RELEASE_DIR)/server/public
 
 	@cp -R clients $(RELEASE_DIR)
@@ -106,6 +119,8 @@ release: clean server clients
 	@cp -R server/public/public $(RELEASE_DIR)/server/public
 	@cp -R server/public/index.html $(RELEASE_DIR)/server/public
 
+	@cd release && tar czvf plik-`cat ../VERSION`-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz *
+
 
 ###
 # Build release archives for all architectures
@@ -114,23 +129,23 @@ releases: release servers
 
 	@mkdir -p releases
 
-	@cp -R servers/linux-amd64/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-linux-64bits.tar.gz *
-	@cp -R servers/linux-386/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-linux-32bits.tar.gz *
-	@cp -R servers/linux-arm/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-linux-arm.tar.gz *
+	@cp -R servers/linux-amd64/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-linux-64bits.tar.gz plik-`cat ../VERSION`
+	@cp -R servers/linux-386/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-linux-32bits.tar.gz plik-`cat ../VERSION`
+	@cp -R servers/linux-arm/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-linux-arm.tar.gz plik-`cat ../VERSION`
 
-	@cp -R servers/freebsd-amd64/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-freebsd-64bits.tar.gz *
-	@cp -R servers/freebsd-386/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-freebsd-32bits.tar.gz *
-	@cp -R servers/freebsd-arm/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-freebsd-arm.tar.gz *
+	@cp -R servers/freebsd-amd64/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-freebsd-64bits.tar.gz plik-`cat ../VERSION`
+	@cp -R servers/freebsd-386/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-freebsd-32bits.tar.gz plik-`cat ../VERSION`
+	@cp -R servers/freebsd-arm/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-freebsd-arm.tar.gz plik-`cat ../VERSION`
 
-	@cp -R servers/openbsd-amd64/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-openbsd-64bits.tar.gz *
-	@cp -R servers/openbsd-386/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-openbsd-32bits.tar.gz *
+	@cp -R servers/openbsd-amd64/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-openbsd-64bits.tar.gz plik-`cat ../VERSION`
+	@cp -R servers/openbsd-386/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-openbsd-32bits.tar.gz plik-`cat ../VERSION`
 
 	@rm $(RELEASE_DIR)/server/plikd
-	@cp -R servers/windows-amd64/plikd.exe $(RELEASE_DIR)/server && cd release && zip -r ../releases/plik-`cat ../VERSION`-windows-64bits.zip .
-	@cp -R servers/windows-386/plikd.exe $(RELEASE_DIR)/server && cd release && zip -r ../releases/plik-`cat ../VERSION`-windows-32bits.zip .
+	@cp -R servers/windows-amd64/plikd.exe $(RELEASE_DIR)/server && cd release && zip -r ../releases/plik-`cat ../VERSION`-windows-64bits.zip plik-`cat ../VERSION`
+	@cp -R servers/windows-386/plikd.exe $(RELEASE_DIR)/server && cd release && zip -r ../releases/plik-`cat ../VERSION`-windows-32bits.zip plik-`cat ../VERSION`
 
-	@cp -R servers/darwin-amd64/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-macos-64bits.tar.gz *
-	@cp -R servers/darwin-386/plikd $(RELEASE_DIR)/server && cd release && tar cvf ../releases/plik-`cat ../VERSION`-macos-32bits.tar.gz *
+	@cp -R servers/darwin-amd64/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-macos-64bits.tar.gz plik-`cat ../VERSION`
+	@cp -R servers/darwin-386/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-macos-32bits.tar.gz plik-`cat ../VERSION`
 
 	@md5sum releases/* > releases/md5sum.txt
 
@@ -140,6 +155,7 @@ releases: release servers
 ###
 clean:
 	@rm -rf server/public/bower_components
+	@rm -rf server/public/public
 	@rm -rf server/plikd
 	@rm -rf client/plik
 	@rm -rf clients
