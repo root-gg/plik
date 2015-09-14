@@ -677,7 +677,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 			md5Hash.Write(buf[:bytesRead])
 
 			// Check upload max size limit
-			if totalBytes > common.Config.MaxFileSize {
+			if int64(totalBytes) > common.Config.MaxFileSize {
 				err = ctx.EWarningf("File too big (limit is set to %d bytes)", common.Config.MaxFileSize)
 				preprocessWriter.CloseWithError(err)
 				return
