@@ -47,7 +47,7 @@ type Configuration struct {
 	LogLevel      string
 	ListenAddress string
 	ListenPort    int
-	MaxFileSize   int
+	MaxFileSize   int64
 
 	DefaultTTL int
 	MaxTTL     int
