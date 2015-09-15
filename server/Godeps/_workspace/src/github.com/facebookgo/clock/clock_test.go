@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/facebookgo/clock"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/facebookgo/clock"
 )
 
 // Ensure that the clock's After channel sends at the correct time.

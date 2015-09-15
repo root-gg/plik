@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/facebookgo/httpdown"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/facebookgo/httpdown"
 )
 
 func handler(w http.ResponseWriter, r *http.Request) {
