@@ -14,8 +14,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/facebookgo/clock"
-	"github.com/facebookgo/stats"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/facebookgo/clock"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/facebookgo/stats"
 )
 
 const (
@@ -100,7 +100,7 @@ func (h HTTP) Serve(s *http.Server, l net.Listener) Server {
 }
 
 // ListenAndServe returns a Server for the given http.Server. It is equivalent
-// to ListendAndServe from the standard library, but returns immediately.
+// to ListenAndServe from the standard library, but returns immediately.
 // Requests will be accepted in a background goroutine. If the http.Server has
 // a non-nil TLSConfig, a TLS enabled listener will be setup.
 func (h HTTP) ListenAndServe(s *http.Server) (Server, error) {

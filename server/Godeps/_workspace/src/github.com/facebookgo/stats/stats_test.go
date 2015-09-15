@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/facebookgo/ensure"
-	"github.com/facebookgo/stats"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/facebookgo/stats"
 )
 
 // Ensure calling End works even when a BumpTimeHook isn't provided.

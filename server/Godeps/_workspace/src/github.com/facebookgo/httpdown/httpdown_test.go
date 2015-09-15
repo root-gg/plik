@@ -15,11 +15,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/facebookgo/clock"
 	"github.com/facebookgo/ensure"
 	"github.com/facebookgo/freeport"
-	"github.com/facebookgo/httpdown"
-	"github.com/facebookgo/stats"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/facebookgo/clock"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/facebookgo/httpdown"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/facebookgo/stats"
 )
 
 type onCloseListener struct {
