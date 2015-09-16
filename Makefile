@@ -24,7 +24,7 @@
 # THE SOFTWARE.
 ###
 
-RELEASE_VERSION="1.0.2"
+RELEASE_VERSION="1.1"
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 RELEASE_TARGETS=darwin-386 darwin-amd64 freebsd-386 \
 freebsd-amd64 linux-386 linux-amd64 linux-arm openbsd-386 \
@@ -58,15 +58,14 @@ frontend:
 # Build plik server for the current architecture
 ###
 server:
-	@sed -i -e "s/##VERSION##/$(RELEASE_VERSION)/g" server/common/config.go
+	@server/gen_build_info.sh $(RELEASE_VERSION)
 	@cd server && go build -o plikd ./
-	@sed -i -e "s/$(RELEASE_VERSION)/##VERSION##/g" server/common/config.go
 
 ###
 # Build plik server for all architectures
 ###
 servers: frontend
-	@sed -i -e "s/##VERSION##/$(RELEASE_VERSION)/g" server/common/config.go
+	@server/gen_build_info.sh $(RELEASE_VERSION)
 	@cd server && for target in $(RELEASE_TARGETS) ; do \
 		SERVER_DIR=../servers/$$target; \
 		SERVER_PATH=$$SERVER_DIR/plikd;  \
@@ -213,6 +212,7 @@ releases: release-template servers
 # Remove all build files
 ###
 clean:
+	@rm -rf server/common/version.go
 	@rm -rf server/public/bower_components
 	@rm -rf server/public/public
 	@rm -rf server/plikd
