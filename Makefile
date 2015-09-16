@@ -24,8 +24,11 @@
 # THE SOFTWARE.
 ###
 
-RELEASE_VERSION=`cat VERSION`
+RELEASE_VERSION="1.0.2"
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
+RELEASE_TARGETS=darwin-386 darwin-amd64 freebsd-386 \
+freebsd-amd64 linux-386 linux-amd64 linux-arm openbsd-386 \
+openbsd-amd64 windows-386 windows-amd64
 
 GOHOSTOS=`go env GOHOSTOS`
 GOHOSTARCH=`go env GOHOSTARCH`
@@ -60,9 +63,16 @@ server:
 # Build plik server for all architectures
 ###
 servers:
-	@cd server/public && bower install --allow-root
-	@cd server/public && grunt
-	@server/build.sh servers
+	@cd server && for target in $(RELEASE_TARGETS) ; do \
+		SERVER_DIR=../servers/$$target; \
+		SERVER_PATH=$$SERVER_DIR/plikd;  \
+		export GOOS=`echo $$target | cut -d "-" -f 1`; 	\
+		export GOARCH=`echo $$target | cut -d "-" -f 2`; \
+		mkdir -p ../servers/$$target; \
+		if [ $$GOOS = "windows" ] ; then SERVER_PATH=$$SERVER_DIR/plikd.exe ; fi ; \
+		echo "Compiling plik server for $$target to $$SERVER_PATH"; \
+		go build -o $$SERVER_PATH ;	\
+	done
 
 ###
 # Build plik client for the current architecture
@@ -74,7 +84,16 @@ client:
 # Build plik client for all architectures
 ###
 clients:
-	@client/build.sh clients
+	@cd client && for target in $(RELEASE_TARGETS) ; do	\
+		CLIENT_DIR=../clients/$$target;	\
+		CLIENT_PATH=$$CLIENT_DIR/plik;	\
+		export GOOS=`echo $$target | cut -d "-" -f 1`; \
+		export GOARCH=`echo $$target | cut -d "-" -f 2`; \
+		mkdir -p $$CLIENT_DIR; \
+		if [ $$GOOS = "windows" ] ; then CLIENT_PATH=$$CLIENT_DIR/plik.exe ; fi ; \
+		echo "Compiling plik client for $$target to $$CLIENT_PATH"; \
+        go build -o $$CLIENT_PATH ; \
+	done
 	@mkdir -p clients/bash && cp client/plik.sh clients/bash
 
 ##
@@ -102,16 +121,13 @@ debs-client: clients
 	@client/build.sh debs
 
 ###
-# Build release archive
+# Prepare the release base (css, js, ...)
 ###
-release: clean frontend server clients
+release-template: frontend clients
 	@mkdir -p $(RELEASE_DIR)/server/public
 
 	@cp -R clients $(RELEASE_DIR)
-
-	@cp -R server/plikd $(RELEASE_DIR)/server
 	@cp -R server/plikd.cfg $(RELEASE_DIR)/server
-
 	@cp -R server/public/css $(RELEASE_DIR)/server/public
 	@cp -R server/public/img $(RELEASE_DIR)/server/public
 	@cp -R server/public/js $(RELEASE_DIR)/server/public
@@ -119,33 +135,35 @@ release: clean frontend server clients
 	@cp -R server/public/public $(RELEASE_DIR)/server/public
 	@cp -R server/public/index.html $(RELEASE_DIR)/server/public
 
-	@cd release && tar czvf plik-`cat ../VERSION`-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz *
+
+###
+# Build release archive
+###
+release: release-template server
+	@cp -R server/plikd $(RELEASE_DIR)/server
+	@cd $(RELEASE_DIR) && tar czvf ../plik-$(RELEASE_VERSION)-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz *
 
 
 ###
 # Build release archives for all architectures
 ###
-releases: release servers
+releases: release-template servers
 
 	@mkdir -p releases
 
-	@cp -R servers/linux-amd64/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-linux-64bits.tar.gz plik-`cat ../VERSION`
-	@cp -R servers/linux-386/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-linux-32bits.tar.gz plik-`cat ../VERSION`
-	@cp -R servers/linux-arm/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-linux-arm.tar.gz plik-`cat ../VERSION`
-
-	@cp -R servers/freebsd-amd64/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-freebsd-64bits.tar.gz plik-`cat ../VERSION`
-	@cp -R servers/freebsd-386/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-freebsd-32bits.tar.gz plik-`cat ../VERSION`
-	@cp -R servers/freebsd-arm/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-freebsd-arm.tar.gz plik-`cat ../VERSION`
-
-	@cp -R servers/openbsd-amd64/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-openbsd-64bits.tar.gz plik-`cat ../VERSION`
-	@cp -R servers/openbsd-386/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-openbsd-32bits.tar.gz plik-`cat ../VERSION`
-
-	@rm $(RELEASE_DIR)/server/plikd
-	@cp -R servers/windows-amd64/plikd.exe $(RELEASE_DIR)/server && cd release && zip -r ../releases/plik-`cat ../VERSION`-windows-64bits.zip plik-`cat ../VERSION`
-	@cp -R servers/windows-386/plikd.exe $(RELEASE_DIR)/server && cd release && zip -r ../releases/plik-`cat ../VERSION`-windows-32bits.zip plik-`cat ../VERSION`
-
-	@cp -R servers/darwin-amd64/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-macos-64bits.tar.gz plik-`cat ../VERSION`
-	@cp -R servers/darwin-386/plikd $(RELEASE_DIR)/server && cd release && tar czvf ../releases/plik-`cat ../VERSION`-macos-32bits.tar.gz plik-`cat ../VERSION`
+	@cd release && for target in $(RELEASE_TARGETS) ; do \
+		SERVER_PATH=../servers/$$target/plikd;  \
+		OS=`echo $$target | cut -d "-" -f 1`; \
+		ARCH=`echo $$target | cut -d "-" -f 2`; \
+		if [ $$OS = "darwin" ] ; then OS="macos" ; fi ; \
+		if [ $$OS = "windows" ] ; then SERVER_PATH=../servers/$$target/plikd.exe ; fi ; \
+		if [ $$ARCH = "386" ] ; then ARCH="32bits" ; fi ; \
+		if [ $$ARCH = "amd64" ] ; then ARCH="64bits" ; fi ; \
+		TARBALL_NAME=plik-$(RELEASE_VERSION)-$$OS-$$ARCH.tar.gz; \
+		echo "Packaging plik release for $$target to $$TARBALL_NAME"; \
+		cp -R $$SERVER_PATH plik-$(RELEASE_VERSION)/server; \
+		tar czvf ../releases/$$TARBALL_NAME plik-$(RELEASE_VERSION); \
+	done
 
 	@md5sum releases/* > releases/md5sum.txt
 
