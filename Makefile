@@ -87,12 +87,14 @@ clients:
 	@cd client && for target in $(RELEASE_TARGETS) ; do	\
 		CLIENT_DIR=../clients/$$target;	\
 		CLIENT_PATH=$$CLIENT_DIR/plik;	\
+		CLIENT_MD5=$$CLIENT_DIR/MD5SUM;	\
 		export GOOS=`echo $$target | cut -d "-" -f 1`; \
 		export GOARCH=`echo $$target | cut -d "-" -f 2`; \
 		mkdir -p $$CLIENT_DIR; \
 		if [ $$GOOS = "windows" ] ; then CLIENT_PATH=$$CLIENT_DIR/plik.exe ; fi ; \
 		echo "Compiling plik client for $$target to $$CLIENT_PATH"; \
-        go build -o $$CLIENT_PATH ; \
+		go build -o $$CLIENT_PATH ; \
+		md5sum $$CLIENT_PATH | awk '{print $$1}' > $$CLIENT_MD5; \
 	done
 	@mkdir -p clients/bash && cp client/plik.sh clients/bash
 
