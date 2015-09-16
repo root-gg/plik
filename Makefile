@@ -33,6 +33,9 @@ openbsd-amd64 windows-386 windows-amd64
 GOHOSTOS=`go env GOHOSTOS`
 GOHOSTARCH=`go env GOHOSTARCH`
 
+DEBROOT_SERVER=debs/server
+DEBROOT_CLIENT=debs/client
+
 all: clean deps frontend server client
 
 ###
@@ -62,7 +65,8 @@ server:
 ###
 # Build plik server for all architectures
 ###
-servers:
+servers: frontend
+	@sed -i -e "s/##VERSION##/$(RELEASE_VERSION)/g" server/common/config.go
 	@cd server && for target in $(RELEASE_TARGETS) ; do \
 		SERVER_DIR=../servers/$$target; \
 		SERVER_PATH=$$SERVER_DIR/plikd;  \
@@ -73,6 +77,7 @@ servers:
 		echo "Compiling plik server for $$target to $$SERVER_PATH"; \
 		go build -o $$SERVER_PATH ;	\
 	done
+	@sed -i -e "s/$(RELEASE_VERSION)/##VERSION##/g" server/common/config.go
 
 ###
 # Build plik client for the current architecture
@@ -114,13 +119,47 @@ debs: debs-client debs-server
 # Make server Debian packages
 ###
 debs-server: servers clients
-	@server/build.sh debs
+	@mkdir -p $(DEBROOT_SERVER)/usr/local/plikd/server
+	@mkdir -p $(DEBROOT_SERVER)/etc/init.d
+	@cp -R server/build/deb/DEBIAN $(DEBROOT_SERVER)
+	@cp -R clients/ $(DEBROOT_SERVER)/usr/local/plikd/clients
+	@cp -R server/public/ $(DEBROOT_SERVER)/usr/local/plikd/server/public
+	@cp -R server/plikd.cfg $(DEBROOT_SERVER)/etc/plikd.cfg
+	@cp -R server/plikd.init $(DEBROOT_SERVER)/etc/init.d/plikd && chmod +x $(DEBROOT_SERVER)/etc/init.d/plikd
+	@for arch in amd64 i386 armhf ; do \
+		cp -R server/build/deb/DEBIAN/control $(DEBROOT_SERVER)/DEBIAN/control ; \
+		sed -i -e "s/##ARCH##/$$arch/g" $(DEBROOT_SERVER)/DEBIAN/control ; \
+		sed -i -e "s/##VERSION##/$(RELEASE_VERSION)/g" $(DEBROOT_SERVER)/DEBIAN/control ; \
+		if [ $$arch = 'i386' ]; then \
+			cp servers/linux-386/plikd $(DEBROOT_SERVER)/usr/local/plikd/server/ ; \
+		elif [ $$arch = 'armhf' ]; then  \
+			cp servers/linux-arm/plikd $(DEBROOT_SERVER)/usr/local/plikd/server/ ; \
+		else \
+			cp servers/linux-$$arch/plikd $(DEBROOT_SERVER)/usr/local/plikd/server/ ; \
+		fi ; \
+		dpkg-deb --build $(DEBROOT_SERVER) debs/plikd-$(RELEASE_VERSION)-$$arch.deb ; \
+	done
 
 ###
 # Make client Debian packages
 ###
 debs-client: clients
-	@client/build.sh debs
+	@mkdir -p $(DEBROOT_CLIENT)/usr/local/bin
+	@cp -R client/build/deb/DEBIAN $(DEBROOT_CLIENT)
+	@for arch in amd64 i386 armhf ; do \
+		cp -R client/build/deb/DEBIAN/control $(DEBROOT_CLIENT)/DEBIAN/control ; \
+		sed -i -e "s/##ARCH##/$$arch/g" $(DEBROOT_CLIENT)/DEBIAN/control ; \
+		sed -i -e "s/##VERSION##/$(RELEASE_VERSION)/g" $(DEBROOT_CLIENT)/DEBIAN/control ; \
+		if [ $$arch = 'i386' ]; then \
+			cp clients/linux-386/plik $(DEBROOT_CLIENT)/usr/local/bin ; \
+		elif [ $$arch = 'armhf' ]; then  \
+			cp clients/linux-arm/plik $(DEBROOT_CLIENT)/usr/local/bin ; \
+		else \
+			cp clients/linux-$$arch/plik $(DEBROOT_CLIENT)/usr/local/bin ; \
+		fi ; \
+		dpkg-deb --build $(DEBROOT_CLIENT) debs/plik-$(RELEASE_VERSION)-$$arch.deb ; \
+	done
+
 
 ###
 # Prepare the release base (css, js, ...)
