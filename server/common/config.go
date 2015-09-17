@@ -38,10 +38,6 @@ import (
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
 )
 
-var (
-	plikVersion = "##VERSION##"
-)
-
 // Configuration object
 type Configuration struct {
 	LogLevel      string
@@ -93,7 +89,7 @@ func NewConfiguration() (this *Configuration) {
 	this.DataBackend = "file"
 	this.MetadataBackend = "file"
 	this.MaxFileSize = 10737418240 // 10GB
-	this.DefaultTTL = 2592000  // 30 days
+	this.DefaultTTL = 2592000      // 30 days
 	this.MaxTTL = 0
 	this.SslEnabled = false
 	this.SslCert = ""
@@ -144,10 +140,4 @@ func LoadConfiguration(file string) {
 			}
 		}
 	}
-}
-
-// GetVersion return the hardcoded version
-// before compilation
-func GetVersion() string {
-	return plikVersion
 }

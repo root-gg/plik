@@ -71,12 +71,12 @@ func main() {
 	var port = flag.Int("port", 0, "Overrides plik listen port")
 	flag.Parse()
 	if *version {
-		fmt.Printf("Plikd v%s\n", common.GetVersion())
+		fmt.Printf("Plikd v%s\n", common.GetBuildInfo().Version)
 		os.Exit(0)
 	}
 
 	common.LoadConfiguration(*configFile)
-	log.Infof("Starting plikd server v" + common.GetVersion())
+	log.Infof("Starting plikd server v" + common.GetBuildInfo().Version)
 
 	// Overrides port if provided in command line
 	if *port != 0 {
