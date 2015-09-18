@@ -35,6 +35,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -160,9 +161,28 @@ func Load() (err error) {
 		fmt.Printf("Please enter your plik domain [default:http://127.0.0.1:8080] : ")
 		_, err := fmt.Scanf("%s", &domain)
 		if err == nil {
-			Config.URL = domain
+			Config.URL = strings.TrimSuffix(domain, "/")
 			if !strings.HasPrefix(domain, "http") {
 				Config.URL = "http://" + domain
+			}
+		}
+
+		// Try to HEAD the site to see if we have a redirection
+		resp, err := http.Head(Config.URL)
+		if err != nil {
+			return err
+		}
+
+		finalURL := resp.Request.URL.String()
+		if finalURL != "" && finalURL != Config.URL {
+			fmt.Printf("We have been redirected to : %s\n", finalURL)
+			fmt.Printf("Replace current url (%s) with the new one ? [Y/n] ", Config.URL)
+
+			input := "y"
+			fmt.Scanln(&input)
+
+			if strings.HasPrefix(strings.ToLower(input), "y") {
+				Config.URL = strings.TrimSuffix(finalURL, "/")
 			}
 		}
 
