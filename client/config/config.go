@@ -317,7 +317,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 	}
 	Upload.Removable = Config.Removable
 	if arguments["--removable"].(bool) {
-		Upload.OneShot = true
+		Upload.Removable = true
 	}
 	Upload.Stream = Config.Stream
 	if arguments["--stream"].(bool) {
