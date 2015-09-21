@@ -162,12 +162,12 @@ func Load() (err error) {
 		_, err := fmt.Scanf("%s", &domain)
 		if err == nil {
 			domain = strings.TrimRight(domain, "/")
-			parsed_domain, err := url.Parse(domain)
+			parsedDomain, err := url.Parse(domain)
 			if err == nil {
-				if parsed_domain.Scheme == "" {
-					parsed_domain.Scheme = "http"
+				if parsedDomain.Scheme == "" {
+					parsedDomain.Scheme = "http"
 				}
-				Config.URL = parsed_domain.String()
+				Config.URL = parsedDomain.String()
 			}
 		}
 
@@ -209,6 +209,10 @@ func Load() (err error) {
 func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 
 	// Handle flags
+	if arguments["--version"].(bool) {
+		fmt.Printf("Plik client %s\n", common.GetBuildInfo())
+		os.Exit(0)
+	}
 	if arguments["--debug"].(bool) {
 		Config.Debug = true
 	}

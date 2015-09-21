@@ -26,9 +26,9 @@ Plik is an simple and powerful file uploading system written in golang.
 ##### From release
 To run plik, it's very simple :
 ```sh
-$ wget https://github.com/root-gg/plik/releases/download/1.0/plik-1.0.tar.gz
-$ tar xvf plik-1.0.tar.gz
-$ cd plik-1.0/server
+$ wget https://github.com/root-gg/plik/releases/download/1.1/plik-1.1.tar.gz
+$ tar xvf plik-1.1.tar.gz
+$ cd plik-1.1/server
 $ ./plikd
 ```
 Et voilà ! You now have a fully functional instance of plik running on http://127.0.0.1:8080.  
@@ -58,18 +58,10 @@ $ go get github.com/root-gg/plik/server
 $ cd $GOPATH/github.com/root-gg/plik/
 ```
 
-As root user you need to install grunt, bower, and setup the golang crosscompilation environnement :
-```sh
-$ sudo -c "npm install -g bower grunt-cli"
-$ sudo -c "client/build.sh env"
-```
-
 To build everything and run it :
 ```sh
-$ make deps
-$ make release
-$ cd server
-$ ./plikd
+$ make
+$ cd server && ./plikd
 ```
 
 To make debian packages :
@@ -173,6 +165,23 @@ Remove file :
 
    - **DELETE** /$mode/:uploadid:/:fileid:/:filename:
      - Delete file. Upload **MUST** have "removable" option enabled.
+
+Show server details :
+
+   - **GET** /version
+     - Show plik server version, and some build informations (build host, date, git revision,...)
+
+   - **GET** /config
+     - Show plik server configuration (ttl values, max file size, ...)
+
+QRCode :
+
+   - **GET** /qrcode
+     - Generate a QRCode image from an url
+     - Params :
+        - url  : The url you want to store in the QRCode
+        - size : The size of the generated image in pixels (default: 250, max: 1000)
+
 
 $mode can be "file" or "stream" depending if stream mode is enabled. See FAQ for more details.
 

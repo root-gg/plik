@@ -71,7 +71,7 @@ func main() {
 	var port = flag.Int("port", 0, "Overrides plik listen port")
 	flag.Parse()
 	if *version {
-		fmt.Printf("Plikd v%s\n", common.GetBuildInfo().Version)
+		fmt.Printf("Plik server %s\n", common.GetBuildInfo())
 		os.Exit(0)
 	}
 
@@ -96,6 +96,8 @@ func main() {
 
 	// HTTP Api routes configuration
 	r := mux.NewRouter()
+	r.HandleFunc("/config", getConfigurationHandler).Methods("GET")
+	r.HandleFunc("/version", getVersionHandler).Methods("GET")
 	r.HandleFunc("/upload", createUploadHandler).Methods("POST")
 	r.HandleFunc("/upload/{uploadID}", getUploadHandler).Methods("GET")
 	r.HandleFunc("/file/{uploadID}", addFileHandler).Methods("POST")
@@ -881,6 +883,34 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// Print upload metadata in the json response.
 	var json []byte
 	if json, err = utils.ToJson(upload); err != nil {
+		ctx.Warningf("Unable to serialize response body : %s", err)
+		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
+	}
+	resp.Write(json)
+}
+
+func getConfigurationHandler(resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx := common.NewPlikContext("get configuration handler", req)
+	defer ctx.Finalize(err)
+
+	// Print configuration in the json response.
+	var json []byte
+	if json, err = utils.ToJson(common.Config); err != nil {
+		ctx.Warningf("Unable to serialize response body : %s", err)
+		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
+	}
+	resp.Write(json)
+}
+
+func getVersionHandler(resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx := common.NewPlikContext("get version handler", req)
+	defer ctx.Finalize(err)
+
+	// Print version and build informations in the json response.
+	var json []byte
+	if json, err = utils.ToJson(common.GetBuildInfo()); err != nil {
 		ctx.Warningf("Unable to serialize response body : %s", err)
 		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
 	}
