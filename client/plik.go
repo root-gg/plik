@@ -105,6 +105,7 @@ Options:
   --secure-options OPTIONS  [openssl|pgp] Additional command line options
   --recipient RECIPIENT     [pgp] Set recipient for pgp backend ( example : --recipient Bob )
   --update                  Update client
+  -v --version              Show client version
 `
 	// Parse command line arguments
 	arguments, _ = docopt.Parse(usage, nil, true, "", false)

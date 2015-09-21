@@ -36,22 +36,15 @@ GOHOSTARCH=`go env GOHOSTARCH`
 DEBROOT_SERVER=debs/server
 DEBROOT_CLIENT=debs/client
 
-all: clean deps frontend server client
-
-###
-# Install npm build dependencies
-# ( run this first once )
-###
-deps:
-	@cd server/public && npm install
-
+all: clean frontend clients server
 
 ###
 # Build frontend ressources
 ###
 frontend:
-	@if [ ! -d server/public/bower_components ]; then cd server/public && bower install --allow-root ; fi ;
-	@if [ ! -d server/public/public ]; then cd server/public && grunt ; fi ;
+	@if [ ! -d server/public/node_modules ]; then cd server/public && npm install ; fi
+	@if [ ! -d server/public/bower_components ]; then cd server/public && node_modules/bower/bin/bower install --allow-root ; fi
+	@if [ ! -d server/public/public ]; then cd server/public && node_modules/grunt-cli/bin/grunt ; fi ;
 
 
 ###
@@ -82,12 +75,14 @@ servers: frontend
 # Build plik client for the current architecture
 ###
 client:
+	@server/gen_build_info.sh $(RELEASE_VERSION)
 	@cd client && go build -o plik ./
 
 ###
 # Build plik client for all architectures
 ###
 clients:
+	@server/gen_build_info.sh $(RELEASE_VERSION)
 	@cd client && for target in $(RELEASE_TARGETS) ; do	\
 		CLIENT_DIR=../clients/$$target;	\
 		CLIENT_PATH=$$CLIENT_DIR/plik;	\
