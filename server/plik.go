@@ -337,6 +337,13 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Create files
 	for i, file := range upload.Files {
+
+		// Check file name length
+		if len(file.Name) > 1024 {
+			http.Error(resp, common.NewResult("File name is too long. Maximum length is 1024 characters", nil).ToJSONString(), 401)
+			return
+		}
+
 		file.GenerateID()
 		file.Status = "missing"
 		delete(upload.Files, i)
@@ -680,6 +687,13 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		}
 		if part.FormName() == "file" {
 			file = part
+
+			// Check file name length
+			if len(part.FileName()) > 1024 {
+				http.Error(resp, common.NewResult("File name is too long. Maximum length is 1024 characters", nil).ToJSONString(), 401)
+				return
+			}
+
 			newFile.Name = part.FileName()
 			break
 		}
