@@ -158,7 +158,7 @@ debs-client: clients
 ###
 # Prepare the release base (css, js, ...)
 ###
-release-template: frontend clients
+release-template: clean frontend clients
 	@mkdir -p $(RELEASE_DIR)/server/public
 
 	@cp -R clients $(RELEASE_DIR)
@@ -166,6 +166,7 @@ release-template: frontend clients
 	@cp -R server/public/css $(RELEASE_DIR)/server/public
 	@cp -R server/public/img $(RELEASE_DIR)/server/public
 	@cp -R server/public/js $(RELEASE_DIR)/server/public
+	@cp -R server/public/fonts $(RELEASE_DIR)/server/public
 	@cp -R server/public/partials $(RELEASE_DIR)/server/public
 	@cp -R server/public/public $(RELEASE_DIR)/server/public
 	@cp -R server/public/index.html $(RELEASE_DIR)/server/public
