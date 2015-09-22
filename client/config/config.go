@@ -35,6 +35,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -168,6 +169,25 @@ func Load() (err error) {
 					parsedDomain.Scheme = "http"
 				}
 				Config.URL = parsedDomain.String()
+			}
+		}
+
+		// Try to HEAD the site to see if we have a redirection
+		resp, err := http.Head(Config.URL)
+		if err != nil {
+			return err
+		}
+
+		finalURL := resp.Request.URL.String()
+		if finalURL != "" && finalURL != Config.URL {
+			fmt.Printf("We have been redirected to : %s\n", finalURL)
+			fmt.Printf("Replace current url (%s) with the new one ? [Y/n] ", Config.URL)
+
+			input := "y"
+			fmt.Scanln(&input)
+
+			if strings.HasPrefix(strings.ToLower(input), "y") {
+				Config.URL = strings.TrimSuffix(finalURL, "/")
 			}
 		}
 
@@ -326,7 +346,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 	}
 	Upload.Removable = Config.Removable
 	if arguments["--removable"].(bool) {
-		Upload.OneShot = true
+		Upload.Removable = true
 	}
 	Upload.Stream = Config.Stream
 	if arguments["--stream"].(bool) {
