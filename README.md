@@ -19,7 +19,7 @@ Plik is an simple and powerful file uploading system written in golang.
    - Comments : Add custom message (in Markdown format)
 
 ### Version
-1.0
+1.1
 
 ### Installation
 
