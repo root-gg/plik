@@ -28,7 +28,7 @@ RELEASE_VERSION="1.1"
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 RELEASE_TARGETS=darwin-386 darwin-amd64 freebsd-386 \
 freebsd-amd64 linux-386 linux-amd64 linux-arm openbsd-386 \
-openbsd-amd64 windows-386 windows-amd64
+openbsd-amd64
 
 GOHOSTOS=`go env GOHOSTOS`
 GOHOSTARCH=`go env GOHOSTARCH`
@@ -177,7 +177,7 @@ release-template: clean frontend clients
 ###
 release: release-template server
 	@cp -R server/plikd $(RELEASE_DIR)/server
-	@cd $(RELEASE_DIR) && tar czvf ../plik-$(RELEASE_VERSION)-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz *
+	@cd release && tar czvf plik-$(RELEASE_VERSION)-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz plik-$(RELEASE_VERSION)
 
 
 ###
