@@ -98,6 +98,7 @@ package common
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 var buildInfo *BuildInfo
@@ -165,7 +166,7 @@ func (bi *BuildInfo) String() string {
 		v += fmt.Sprintf(" [%s]", strings.Join(flags, ","))
 	}
 
-	v += ")"
+	v += fmt.Sprintf(" at %s)", time.Unix(bi.Date, 0))
 
 	return v
 }
