@@ -24,7 +24,7 @@
 # THE SOFTWARE.
 ###
 
-RELEASE_VERSION="1.1"
+RELEASE_VERSION="1.1-RC1"
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 RELEASE_TARGETS=darwin-386 darwin-amd64 freebsd-386 \
 freebsd-amd64 linux-386 linux-amd64 linux-arm openbsd-386 \
