@@ -26,6 +26,18 @@
 angular.module('dialog', ['ui.bootstrap']).
     factory('$dialog', function ($rootScope, $modal) {
 
+        $rootScope.dialogs = [];
+
+        // Register dialog
+        $rootScope.registerDialog = function($dialog){
+            $rootScope.dialogs.push($dialog);
+        };
+
+        // Dismiss dialog
+        $rootScope.dismissDialog = function($dialog) {
+            $rootScope.dialogs = _.without($rootScope.dialogs, $dialog);
+        };
+
         var module = {};
 
         // alert dialog
@@ -34,7 +46,7 @@ angular.module('dialog', ['ui.bootstrap']).
             var options = {
                 backdrop: true,
                 backdropClick: true,
-                templateUrl: 'partials/alertDialogPartial.html',
+                templateUrl: 'partials/alert.html',
                 controller: 'AlertDialogController',
                 resolve: {
                     args: function () {
@@ -48,7 +60,6 @@ angular.module('dialog', ['ui.bootstrap']).
         };
 
         // generic dialog
-        $rootScope.dialogs = [];
         module.openDialog = function (options) {
             if (!options) return false;
 
@@ -142,11 +153,23 @@ angular.module('api', ['ngFileUpload']).
             return api.call(url, 'DELETE', {}, upload.uploadToken);
         };
 
+        // Get server version
+        api.getVersion = function() {
+            var url = api.base + '/version';
+            return api.call(url, 'GET', {});
+        };
+
+        // Get server config
+        api.getConfig = function() {
+            var url = api.base + '/config';
+            return api.call(url, 'GET', {});
+        };
+
         return api;
     });
 
 // Plik app bootstrap and global configuration
-angular.module('plik', ['ngRoute', 'api', 'dialog', 'contenteditable', 'ngClipboard', 'ngSanitize', 'btford.markdown'])
+angular.module('plik', ['ngRoute', 'api', 'dialog', 'contenteditable', 'ngSanitize', 'btford.markdown'])
     .config(function ($routeProvider) {
         $routeProvider
             .when('/', {controller: MainCtrl, templateUrl: 'partials/main.html', reloadOnSearch: false})
@@ -155,9 +178,6 @@ angular.module('plik', ['ngRoute', 'api', 'dialog', 'contenteditable', 'ngClipbo
     })
     .config(['$httpProvider', function ($httpProvider) {
         $httpProvider.defaults.headers.common['X-ClientApp'] = 'web_client';
-    }])
-    .config(['ngClipProvider', function (ngClipProvider) {
-        ngClipProvider.setPath("bower_components/zeroclipboard/dist/ZeroClipboard.swf");
     }])
     .filter('collapseClass', function () {
         return function (opened) {
@@ -176,6 +196,9 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     $scope.yubikey = false;
     $scope.password = false;
 
+    var fileNameMaxLength = 1024;
+    var invalidCharList = ['/','\\','#','?','%','"'];
+
     // Initialize main controller
     $scope.init = function () {
         // Display error from redirect if any
@@ -191,7 +214,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             }
         } else {
             // Load current upload id
-            $scope.load($location.search().id)
+            $scope.load($location.search().id);
             $scope.upload.uploadToken = $location.search().uploadToken;
         }
     };
@@ -219,19 +242,77 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         return reference.toString();
     };
 
+    // Detect shitty Apple devices
+    $scope.isAppleShit = function(){
+        return navigator.userAgent.match(/iPhone/i)
+            || navigator.userAgent.match(/iPad/i)
+            || navigator.userAgent.match(/iPod/i);
+    };
+
     // Add a file to the upload list
     $scope.onFileSelect = function (files) {
         _.each(files, function (file) {
-            // remove already added files
+            // Already added file names
             var names = _.pluck($scope.files, 'name');
-            if (!_.contains(names, file.name)) {
+
+            // iPhone/iPad/iPod fix
+            // Apple mobile devices does not populate file name
+            // well and tends to use something like image.jpg
+            // every time a new image is selected.
+            // If this appends an increment is added in the middle of
+            // the filename ( image.1.jpg )
+            // As a result of this the same file can be uploaded twice.
+            if ($scope.isAppleShit() && _.contains(names, file.name)){
                 file.reference = nextRef();
+
+                // Extract file name and extension and add increment
+                var sep = file.name.lastIndexOf('.');
+                var name = sep ? file.name.substr(0,sep) : file.name;
+                var ext = file.name.substr(sep + 1);
+                name = name + '.' + file.reference + '.' + ext;
+
+                // file.name is supposed to be read-only ...
+                Object.defineProperty(file,"name",{ value: name, writable: true});
+            }
+
+            // remove already added files
+            if (!_.contains(names, file.name)) {
+                if(!file.reference) file.reference = nextRef();
                 file.fileName = file.name;
                 file.fileSize = file.size;
                 file.fileType = file.type;
                 $scope.files.push(file);
             }
         });
+    };
+
+    // Kikoo style water drop effect
+    $scope.waterDrop = function(event){
+        var body = $('body');
+
+        // Create div centered on mouse click event
+        var pulse1 = $(document.createElement('div'))
+            .css({ left : event.clientX - 50, top : event.clientY - 50 })
+            .appendTo(body);
+        var pulse2 = $(document.createElement('div'))
+            .css({ left : event.clientX - 50, top : event.clientY - 50 })
+            .appendTo(body);
+
+        // Add animation class
+        pulse1.addClass("pulse1");
+        pulse2.addClass("pulse2");
+
+        // Clean after animation
+        setTimeout(function(){
+            pulse1.remove();
+            pulse2.remove();
+        },1100);
+    };
+
+    // Called when a file is dropped
+    $scope.onFileDrop = function(files,event){
+        $scope.onFileSelect(files);
+        $scope.waterDrop(event);
     };
 
     // Remove a file from the upload list
@@ -257,7 +338,26 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         }
         // Create file to upload list
         $scope.upload.files = {};
-        _.each($scope.files, function (file) {
+        var ko = _.find($scope.files, function (file) {
+            // Check file name length
+            if(file.fileName.length > fileNameMaxLength) {
+                $dialog.alert({
+                    status: 400,
+                    message: "File name max length is " + fileNameMaxLength + " characters"
+                });
+                return true; // break find loop
+            }
+            // Check invalid characters
+            var invalidChars = _.filter(invalidCharList, function(char){
+                return file.fileName.indexOf(char) != -1;
+            });
+            if (invalidChars.length) {
+                $dialog.alert({
+                    status: 400,
+                    message: "Invalid character " + invalidChars.join(',') + " in file name " + file.fileName
+                });
+                return true; // break find loop
+            }
             // Sanitize file object
             $scope.upload.files[file.reference] = {
                 fileName : file.fileName,
@@ -266,6 +366,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
                 reference : file.reference
             };
         });
+        if(ko) return;
         $api.createUpload($scope.upload)
             .then(function (upload) {
                 $scope.upload = upload;
@@ -321,7 +422,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
                     $route.reload();
                 }
             })
-            .then(function (error) {
+            .then(null, function (error) {
                 $dialog.alert(error);
             });
     };
@@ -341,13 +442,63 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     $scope.getFileUrl = function (file, dl) {
         if (!file || !file.metadata) return;
         var mode = $scope.upload.stream ? "stream" : "file";
-        var url = location.origin + '/' + mode + '/' + $scope.upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName
+        var url = location.origin + '/' + mode + '/' + $scope.upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
         if (dl) {
             // Force file download
             url += "?dl=1";
         }
 
-        return url
+        return url;
+    };
+
+    // Return QR Code image url
+    $scope.getQrCodeUrl = function (url, size) {
+        if (!url) return;
+        return location.origin + "/qrcode?url=" + encodeURIComponent(url) + "&size=" + size;
+    };
+
+    // Return QR Code image url for current upload
+    $scope.getQrCodeUploadUrl = function(size) {
+        return $scope.getQrCodeUrl(window.location.href,size);
+    };
+
+    // Return QR Code image url for file
+    $scope.getQrCodeFileUrl = function(file, size) {
+        return $scope.getQrCodeUrl($scope.getFileUrl($scope.qrcode, false),size);
+    };
+
+    // Display QR Code dialog for current upload
+    $scope.displayQRCodeUpload = function() {
+        var url = window.location.href;
+        var qrcode = $scope.getQrCodeUrl(url, 400);
+        $scope.displayQRCode(url,url,qrcode);
+    };
+
+    // Display QR Code dialog for file
+    $scope.displayQRCodeFile = function(file) {
+        var url = $scope.getFileUrl(file, false);
+        var qrcode = $scope.getQrCodeUrl(url, 400);
+        $scope.displayQRCode(file.metadata.fileName,url,qrcode);
+    };
+
+    // Display QRCode dialog
+    $scope.displayQRCode = function(title, url, qrcode) {
+        var opts = {
+            backdrop: true,
+            backdropClick: true,
+            templateUrl: 'partials/qrcode.html',
+            controller: 'QRCodeController',
+            resolve: {
+                args: function () {
+                    return {
+                        title: title,
+                        url: url,
+                        qrcode: qrcode
+                    };
+                }
+            }
+        };
+        $dialog.openDialog(opts);
     };
 
     // Basic auth credentials dialog
@@ -370,7 +521,6 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
                 }
             }
         };
-
         $dialog.openDialog(opts);
     };
 
@@ -392,7 +542,6 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
                 }
             }
         };
-
         $dialog.openDialog(opts);
     };
 
@@ -414,7 +563,6 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
                 }
             }
         };
-
         $dialog.openDialog(opts);
     };
 
@@ -454,37 +602,29 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         $location.search('uploadToken', $scope.upload.uploadToken);
     };
 
+    $scope.focus = function(id) {
+        angular.element('#'+id)[0].focus();
+    };
+
     $scope.init();
 }
 
 // Client download controller
-function ClientListCtrl($scope, $location) {
+function ClientListCtrl($scope, $api, $dialog) {
     $scope.clients = [];
 
-    $scope.addClient = function (name, arch, binary) {
-        if (!binary) binary = "plik";
-        $scope.clients.push({name: name, url: location.origin + "/clients/" + arch + "/" + binary});
-    };
-
-    // This list should not be hardcoded here
-    $scope.addClient("Linux 64bit", "linux-amd64");
-    $scope.addClient("Linux 32bit", "linux-386");
-    $scope.addClient("Linux ARM", "linux-arm");
-    $scope.addClient("MacOS 64bit", "darwin-amd64");
-    $scope.addClient("MacOS 32bit", "darwin-386");
-    $scope.addClient("Freebsd 64bit", "freebsd-amd64");
-    $scope.addClient("Freebsd 32bit", "freebsd-386");
-    $scope.addClient("Freebsd ARM", "freebsd-arm");
-    $scope.addClient("Openbsd 64bit", "openbsd-amd64");
-    $scope.addClient("Openbsd 32bit", "openbsd-386");
-    $scope.addClient("Windows 64bit", "windows-amd64", "plik.exe");
-    $scope.addClient("Windows 32bit", "windows-386", "plik.exe");
-    $scope.addClient("Bash (curl)", "bash", "plik.sh");
+    $api.getVersion()
+        .then(function (buildInfo) {
+            $scope.clients = buildInfo.clients;
+        })
+        .then(null, function (error) {
+            $dialog.alert(error);
+        });
 }
 
 // Alert modal dialog controller
 function AlertDialogController($rootScope, $scope, $modalInstance, args) {
-    $rootScope.dialogs.push($scope);
+    $rootScope.registerDialog($scope);
 
     $scope.title = 'Success !';
     if (args.data.status != 100) $scope.title = 'Oops !';
@@ -492,7 +632,7 @@ function AlertDialogController($rootScope, $scope, $modalInstance, args) {
     $scope.data = args.data;
 
     $scope.close = function (result) {
-        $rootScope.dialogs = _.without($rootScope.dialogs, $scope);
+        $rootScope.dismissDialog($scope);
         $modalInstance.close(result);
         if (args.callback) {
             args.callback(result);
@@ -502,7 +642,7 @@ function AlertDialogController($rootScope, $scope, $modalInstance, args) {
 
 // HTTP basic auth credentials dialog controller
 function PasswordController($rootScope, $scope, $modalInstance, args) {
-    $rootScope.dialogs.push($scope);
+    $rootScope.registerDialog($scope);
 
     // Ugly but it works
     setTimeout(function () {
@@ -510,8 +650,8 @@ function PasswordController($rootScope, $scope, $modalInstance, args) {
     }, 100);
 
     $scope.title = 'Please fill credentials !';
-    $scope.login = "plik";
-    $scope.password = "";
+    $scope.login = 'plik';
+    $scope.password = '';
 
     $scope.close = function (login, password) {
         if (!(login.length > 0 && password.length > 0)) {
@@ -524,14 +664,14 @@ function PasswordController($rootScope, $scope, $modalInstance, args) {
     };
 
     $scope.dismiss = function () {
-        $rootScope.dialogs = _.without($rootScope.dialogs, $scope);
+        $rootScope.dismissDialog($scope);
         $modalInstance.close();
     }
 }
 
 // Yubikey dialog controller
 function YubikeyController($rootScope, $scope, $modalInstance, args) {
-    $rootScope.dialogs.push($scope);
+    $rootScope.registerDialog($scope);
 
     // Ugly but it works
     setTimeout(function () {
@@ -539,7 +679,7 @@ function YubikeyController($rootScope, $scope, $modalInstance, args) {
     }, 100);
 
     $scope.title = 'Please fill in a Yubikey OTP !';
-    $scope.token = "";
+    $scope.token = '';
 
     $scope.check = function (token) {
         if (token.length == 44) {
@@ -555,7 +695,19 @@ function YubikeyController($rootScope, $scope, $modalInstance, args) {
     };
 
     $scope.dismiss = function () {
-        $rootScope.dialogs = _.without($rootScope.dialogs, $scope);
+        $rootScope.dismissDialog($scope);
         $modalInstance.close();
     }
+}
+
+// QRCode dialog controller
+function QRCodeController($rootScope, $scope, $modalInstance, args) {
+    $rootScope.registerDialog($scope);
+
+    $scope.args = args;
+
+    $scope.close = function () {
+        $rootScope.dismissDialog($scope);
+        $modalInstance.close();
+    };
 }

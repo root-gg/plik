@@ -33,8 +33,8 @@ module.exports = function(grunt) {
                     "bower_components/jquery/dist/jquery.js",
                     "bower_components/bootstrap/dist/js/bootstrap.js",
                     "bower_components/angular/angular.js",
-                    "bower_components/danialfarid-angular-file-upload/dist/ng-file-upload-shim.js",
-                    "bower_components/danialfarid-angular-file-upload/dist/ng-file-upload.js",
+                    "bower_components/ng-file-upload/ng-file-upload-shim.js",
+                    "bower_components/ng-file-upload/ng-file-upload.js",
                     "bower_components/angular-sanitize/angular-sanitize.min.js",
                     "bower_components/angular-route/angular-route.js",
                     "bower_components/angular-bootstrap/ui-bootstrap-tpls.js",
@@ -52,7 +52,10 @@ module.exports = function(grunt) {
             css_vendors: {
                 src: [
                     "bower_components/bootstrap/dist/css/bootstrap.css",
-                    "bower_components/fontawesome/css/font-awesome.css"
+                    "bower_components/bootstrap-flat/css/bootstrap-flat.css",
+                    "bower_components/bootstrap-flat/css/bootstrap-flat-extras.css",
+                    "bower_components/fontawesome/css/font-awesome.css",
+                    "css/water_drop.css"
                 ],
                 dest: 'public/css/vendor.css'
             }
@@ -63,8 +66,7 @@ module.exports = function(grunt) {
                     expand: true,
                     src: [
                         'bower_components/bootstrap/fonts/*',
-                        'bower_components/fontawesome/fonts/fontawesome-webfont.woff',
-                        'bower_components/fontawesome/fonts/fontawesome-webfont.tff',
+                        'bower_components/fontawesome/fonts/*',
                     ],
                     dest: 'public/fonts/',
                     flatten: true
