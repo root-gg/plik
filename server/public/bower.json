@@ -22,7 +22,6 @@
     "fontawesome": "~4.4.0",
     "underscore": "~1.8.3",
     "filesize": "~3.1.3",
-    "angular-contenteditable": "~0.3.8",
     "showdown": "~0.3.4",
     "ng-file-upload": "~7.2.1",
     "angular-route": "~1.2.21",

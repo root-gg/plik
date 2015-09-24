@@ -257,7 +257,7 @@ Client configuration and preferences are stored at ~/.plikrc ( overridable with 
 
 ### FAQ
 
-##### I have an error when uploading from client : "Unable upload file : HTTP error 411 Length Required"
+##### I have an error when uploading from client : "Unable to upload file : HTTP error 411 Length Required"
 
 Under nginx < 1.3.9, you must enable HttpChunkin module to allow transfer-encoding "chunked".  
 You might want to install the "nginx-extras" Debian package with built-in HttpChunkin module.

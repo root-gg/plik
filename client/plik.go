@@ -198,7 +198,7 @@ Options:
 
 					file, err := upload(uploadInfo, fileToUpload, fileToUpload.FileHandle)
 					if err != nil {
-						printf("Unable upload file : %s\n", err)
+						printf("Unable to upload file : %s\n", err)
 						return
 					}
 

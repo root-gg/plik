@@ -166,7 +166,9 @@ THE SOFTWARE.
                     <div class="col-xs-7">
                         <div class="file-flex">
                             <div class="fa fa-pencil file-pencil-padding" ng-click="focus('EditableFileName-' + file.reference)"></div>
-                            <div ng-attr-id="{{ 'EditableFileName-' + file.reference }}" class="file-name" ng-model="file.fileName" contenteditable="true" strip-br="true" select-non-editable="true"></div>
+                            <div contenteditable ng-model="file.fileName"
+                                 class="file-name" validator="fileNameValidator" invalid-class="file-name-invalid"
+                                 ng-attr-id="{{ 'EditableFileName-' + file.reference }}"></div>
                         </div>
                     </div>
                     <!-- SIZE COLUMN -->
@@ -175,7 +177,9 @@ THE SOFTWARE.
                     </div>
                     <!-- ACTION COLUMN -->
                     <div class="col-xs-3">
-                        <button class="btn btn-danger btn-sm pull-right" ng-click="removeFile(file)"><span class="glyphicon glyphicon-remove"></span><span class="hidden-xs hidden-sm hidden-md"> Remove</span></button>
+                        <button class="btn btn-danger btn-sm pull-right" ng-click="removeFile(file)">
+                            <span class="glyphicon glyphicon-remove"></span><span class="hidden-xs hidden-sm hidden-md"> Remove</span>
+                        </button>
                     </div>
                 </div>
                 <!-- UPLOADING / UPLOADED -->
