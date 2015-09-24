@@ -1025,7 +1025,6 @@ func UploadsCleaningRoutine() {
 	ctx := common.RootContext().Fork("clean expired uploads")
 
 	for {
-
 		// Sleep between 2 hours and 3 hours
 		// This is a dirty trick to avoid frontends doing this at the same time
 		r, _ := rand.Int(rand.Reader, big.NewInt(3600))
@@ -1033,15 +1032,13 @@ func UploadsCleaningRoutine() {
 
 		log.Infof("Will clean old uploads in %d seconds.", randomSleep)
 		time.Sleep(time.Duration(randomSleep) * time.Second)
-
-		// Get uploads that needs to be removed
 		log.Infof("Cleaning expired uploads...")
 
+		// Get uploads that needs to be removed
 		uploadIds, err := metadataBackend.GetMetaDataBackend().GetUploadsToRemove(ctx)
 		if err != nil {
-			log.Warningf("Failed to get expired uploads : %s")
+			log.Warningf("Failed to get expired uploads : %s", err)
 		} else {
-
 			// Remove them
 			for _, uploadID := range uploadIds {
 				ctx.SetUpload(uploadID)
