@@ -212,6 +212,10 @@ header a:hover, header a:visited, header a:link, header a:active{
     word-break: break-all;
 }
 
+.file-name-invalid {
+    color : red;
+}
+
 .file-status {
     color : #ff2132;
     font-size: 18px;
