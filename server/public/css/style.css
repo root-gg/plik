@@ -24,6 +24,33 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+/* Fonts */
+
+@font-face {
+    font-family: 'Courgette';
+    src: url('../fonts/courgette-regular-webfont.eot');
+    src: url('../fonts/courgette-regular-webfont.eot?#iefix') format('embedded-opentype'),
+    url('../fonts/courgette-regular-webfont.woff2') format('woff2'),
+    url('../fonts/courgette-regular-webfont.woff') format('woff'),
+    url('../fonts/courgette-regular-webfont.ttf') format('truetype'),
+    url('../fonts/courgette-regular-webfont.svg#courgetteregular') format('svg');
+    font-weight: normal;
+    font-style: normal;
+
+}
+
+@font-face {
+    font-family: 'Open Sans';
+    src: url('../fonts/opensans-regular-webfont.eot');
+    src: url('../fonts/opensans-regular-webfont.eot?#iefix') format('embedded-opentype'),
+    url('../fonts/opensans-regular-webfont.woff2') format('woff2'),
+    url('../fonts/opensans-regular-webfont.woff') format('woff'),
+    url('../fonts/opensans-regular-webfont.ttf') format('truetype'),
+    url('../fonts/opensans-regular-webfont.svg#open_sansregular') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
 /* Global */
 
 html {
