@@ -742,7 +742,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     };
 
     // Add upload token in url so one can add/remove files later
-    $scope.adminUrl = function () {
+    $scope.setAdminUrl = function () {
         $location.search('uploadToken', $scope.upload.uploadToken);
     };
 
