@@ -243,6 +243,16 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     $scope.yubikey = false;
     $scope.password = false;
 
+    // Get server config
+    $api.getConfig()
+        .then(function (config) {
+            $scope.config = config;
+            $scope.setDefaultTTL();
+        })
+        .then(null, function (error) {
+            $dialog.alert(error);
+        });
+
     // File name checks
     var fileNameMaxLength = 1024;
     var invalidCharList = ['/','#','?','%','"'];
@@ -279,10 +289,10 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         if (!id) return;
         $scope.upload.id = id;
         $api.getUpload($scope.upload.id)
-            .then(function (metadatas) {
-                _.extend($scope.upload, metadatas);
-                $scope.files = _.map($scope.upload.files, function (metadata) {
-                    return {metadata: metadata};
+            .then(function (upload) {
+                _.extend($scope.upload, upload);
+                $scope.files = _.map($scope.upload.files, function (file) {
+                    return {metadata: file};
                 });
             })
             .then(null, function (error) {
@@ -307,6 +317,16 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     // Add a file to the upload list
     $scope.onFileSelect = function (files) {
         _.each(files, function (file) {
+            // Check file size
+            if($scope.config.maxFileSize && file.size > $scope.config.maxFileSize){
+                $dialog.alert({
+                    status: 0,
+                    message: "File is too big : " + $scope.humanReadableSize(file.size),
+                    value: "Maximum allowed size is : " + $scope.humanReadableSize($scope.config.maxFileSize)
+                });
+                return;
+            }
+
             // Already added file names
             var names = _.pluck($scope.files, 'name');
 
@@ -327,17 +347,21 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
                 name = name + '.' + file.reference + '.' + ext;
 
                 // file.name is supposed to be read-only ...
-                Object.defineProperty(file,"name",{ value: name, writable: true});
+                Object.defineProperty(file,"name",{value: name, writable: true});
             }
 
-            // remove already added files
-            if (!_.contains(names, file.name)) {
-                if(!file.reference) file.reference = nextRef();
-                file.fileName = file.name;
-                file.fileSize = file.size;
-                file.fileType = file.type;
-                $scope.files.push(file);
-            }
+            // remove duplicate files
+            if (_.contains(names, file.name)) return;
+
+            // Set reference to match file id in the response
+            if(!file.reference) file.reference = nextRef();
+
+            // Use correct json fields
+            file.fileName = file.name;
+            file.fileSize = file.size;
+            file.fileType = file.type;
+
+            $scope.files.push(file);
         });
     };
 
@@ -380,6 +404,8 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     // Create a new upload
     $scope.newUpload = function () {
         if (!$scope.files.length) return;
+        // Get TTL value
+        if(!$scope.checkTTL()) return;
         $scope.upload.ttl = $scope.getTTL();
         // HTTP basic auth prompt dialog
         if ($scope.password && !($scope.upload.login && $scope.upload.password)) {
@@ -387,7 +413,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             return;
         }
         // Yubikey prompt dialog
-        if ($scope.yubikey && !$scope.upload.yubikey) {
+        if ($scope.config.yubikeyEnabled && $scope.yubikey && !$scope.upload.yubikey) {
             $scope.getYubikey();
             return;
         }
@@ -397,7 +423,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             // Check file name length
             if(file.fileName.length > fileNameMaxLength) {
                 $dialog.alert({
-                    status: 400,
+                    status: 0,
                     message: "File name max length is " + fileNameMaxLength + " characters"
                 });
                 return true; // break find loop
@@ -446,12 +472,12 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         if (!$scope.upload.id) return;
         _.each($scope.files, function (file) {
             if (!file.metadata.id) return;
-            // Progess bar callback
-            var cb = function (event) {
-                $scope.progress(file, event)
+            var progress = function (event) {
+                // Update progress bar callback
+                file.progress = parseInt(100.0 * event.loaded / event.total);
             };
             file.metadata.status = "uploading";
-            $api.uploadFile($scope.upload, file, cb, $scope.basicAuth)
+            $api.uploadFile($scope.upload, file, progress, $scope.basicAuth)
                 .then(function (metadata) {
                     file.metadata = metadata;
                 })
@@ -478,11 +504,6 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             .then(null, function (error) {
                 $dialog.alert(error);
             });
-    };
-
-    // Upload progess bar callback
-    $scope.progress = function (file, event) {
-        file.progress = parseInt(100.0 * event.loaded / event.total);
     };
 
     // Compute human readable size
@@ -619,7 +640,6 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         $dialog.openDialog(opts);
     };
 
-
     $scope.ttlUnits = ["days", "hours", "minutes"];
     $scope.ttlUnit = "days";
     $scope.ttlValue = 30;
@@ -641,20 +661,92 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             } else if ($scope.ttlUnit == "days") {
                 ttl = ttl * 86400;
             }
+        } else {
+            ttl = -1;
         }
         return ttl;
     };
 
-    // Return upload expiration date string
-    $scope.getExpirationDate = function () {
-        var d = new Date(($scope.upload.ttl + $scope.upload.uploadDate) * 1000);
-        return d.toLocaleDateString() + " at " + d.toLocaleTimeString();
+    // Return TTL unit and value
+    $scope.getHumanReadableTTL = function (ttl) {
+        var value,unit;
+        if (ttl == -1){
+            value = -1;
+            unit = "never"
+        } else if(ttl < 3600){
+            value = Math.round(ttl / 60);
+            unit = "minutes"
+        } else if (ttl < 86400){
+            value = Math.round(ttl / 3600);
+            unit = "hours"
+        } else if (ttl > 86400){
+            value = Math.round(ttl / 86400);
+            unit = "days"
+        } else {
+            value = 0;
+            unit = "invalid";
+        }
+        return [value,unit];
     };
 
+    // Check TTL value
+    $scope.checkTTL = function() {
+        var ok = true;
+
+        // Fix never value
+        if ($scope.ttlUnit == 'never') {
+            $scope.ttlValue = -1;
+        }
+
+        // Get TTL in seconds
+        var ttl = $scope.getTTL();
+
+        // Invalid negative value
+        if ($scope.ttlUnit != 'never' && ttl < 0) ok = false;
+        // Check against server side allowed maximum
+        if ($scope.config.maxTTL > 0 && ttl > $scope.config.maxTTL) ok = false;
+
+        if (!ok) {
+            var maxTTL = $scope.getHumanReadableTTL($scope.config.maxTTL);
+            $dialog.alert({
+                status: 0,
+                message: "Invalid expiration delay : " + $scope.ttlValue + " " + $scope.ttlUnit,
+                value: "Maximum expiration delay is : " + maxTTL[0] + " " + maxTTL[1]
+            });
+            $scope.setDefaultTTL();
+        }
+
+        return ok;
+    };
+
+    // Set TTL value to server defaultTTL
+    $scope.setDefaultTTL = function(){
+        if($scope.config.maxTTL == -1){
+            // Never expiring upload is allowed
+            $scope.ttlUnits = ["days", "hours", "minutes", "never"];
+        }
+        var ttl = $scope.getHumanReadableTTL($scope.config.defaultTTL);
+        $scope.ttlValue = ttl[0];
+        $scope.ttlUnit = ttl[1];
+    };
+
+    // Return upload expiration date string
+    $scope.getExpirationDate = function () {
+        if ($scope.upload.ttl == -1) {
+            return "never expire";
+        } else {
+            var d = new Date(($scope.upload.ttl + $scope.upload.uploadDate) * 1000);
+            return "expire the " + d.toLocaleDateString() + " at " + d.toLocaleTimeString();
+        }
+
+    };
+
+    // Add upload token in url so one can add/remove files later
     $scope.adminUrl = function () {
         $location.search('uploadToken', $scope.upload.uploadToken);
     };
 
+    // Focus the given element by id
     $scope.focus = function(id) {
         angular.element('#'+id)[0].focus();
     };
