@@ -173,21 +173,22 @@ func getQrCodeHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Encode url to q nice QRCode png
+	// Generate QRCode png from url
 	qrcode, err := qr.Encode(urlParam, qr.H, qr.Auto)
 	if err != nil {
 		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), 500)
 		return
-	} else {
-		qrcode, err = barcode.Scale(qrcode, sizeInt, sizeInt)
-		if err != nil {
-			http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), 500)
-			return
-		}
-
-		resp.Header().Add("Content-Type", "image/png")
-		png.Encode(resp, qrcode)
 	}
+
+	// Scale QRCode png size
+	qrcode, err = barcode.Scale(qrcode, sizeInt, sizeInt)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), 500)
+		return
+	}
+
+	resp.Header().Add("Content-Type", "image/png")
+	png.Encode(resp, qrcode)
 }
 
 func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
