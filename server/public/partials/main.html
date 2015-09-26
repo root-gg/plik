@@ -122,6 +122,14 @@ THE SOFTWARE.
             <div class="menu-item" ng-show="upload.ttl != 0">
                 <p class="text-center">This upload will {{ getExpirationDate() }}</p>
             </div>
+            <!-- ADMIN URL -->
+            <div class="menu-item text-center" ng-show="upload.removable">
+                <a href="" ng-click="setAdminUrl()"
+                   tooltip-placement="bottom"
+                   tooltip="Use this url to remove files later">
+                    Admin url
+                </a>
+            </div>
         </div>
     </div>
 
