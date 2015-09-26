@@ -155,9 +155,9 @@ func (mmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []s
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 
-	// Look for uploads older than MaxTTL to schedule them for removal
+	// Look for expired uploads
 	var uploads []*common.Upload
-	b := bson.M{"$where": strconv.Itoa(int(time.Now().Unix())) + " > mmb.uploadDate+mmb.ttl"}
+	b := bson.M{"$where": "this.ttl > 0 && " + strconv.Itoa(int(time.Now().Unix())) + " > this.uploadDate + this.ttl"}
 
 	err = collection.Find(b).All(&uploads)
 	if err != nil {

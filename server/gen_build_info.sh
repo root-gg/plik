@@ -95,6 +95,10 @@ done
 cat > "server/common/version.go" <<EOF 
 package common
 
+//
+// This file is generated automatically by gen_build_info.sh
+//
+
 import (
 	"fmt"
 	"strings"
@@ -103,6 +107,7 @@ import (
 
 var buildInfo *BuildInfo
 
+// BuildInfo export build related variables
 type BuildInfo struct {
 	Version string \`json:"version"\`
 	Date    int64  \`json:"date"\`
@@ -119,6 +124,7 @@ type BuildInfo struct {
 	Clients []*Client \`json:"clients"\`
 }
 
+// Client export client build related variables
 type Client struct {
 	Name string \`json:"name"\`
 	Md5  string \`json:"md5"\`
@@ -127,6 +133,7 @@ type Client struct {
 	ARCH string \`json:"arch"\`
 }
 
+// GetBuildInfo get or instanciate BuildInfo structure
 func GetBuildInfo() *BuildInfo {
 	if buildInfo == nil {
 		buildInfo = new(BuildInfo)
@@ -154,7 +161,7 @@ func (bi *BuildInfo) String() string {
 	v := fmt.Sprintf("v%s (built from git rev %s", bi.Version, bi.GitShortRevision)
 
 	// Compute flags
-	flags := make([]string, 0)
+	var flags []string
 	if buildInfo.IsMint {
 		flags = append(flags, "mint")
 	}

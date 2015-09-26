@@ -173,22 +173,22 @@ func getQrCodeHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Encode url to q nice QRCode png
+	// Generate QRCode png from url
 	qrcode, err := qr.Encode(urlParam, qr.H, qr.Auto)
 	if err != nil {
 		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), 500)
 		return
-	} else {
-		qrcode, err = barcode.Scale(qrcode, sizeInt, sizeInt)
-		if err != nil {
-			http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), 500)
-			return
-		}
-
-		resp.Header().Add("Content-Type", "image/png")
-		png.Encode(resp, qrcode)
 	}
 
+	// Scale QRCode png size
+	qrcode, err = barcode.Scale(qrcode, sizeInt, sizeInt)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), 500)
+		return
+	}
+
+	resp.Header().Add("Content-Type", "image/png")
+	png.Encode(resp, qrcode)
 }
 
 func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
@@ -248,18 +248,18 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	case 0:
 		upload.TTL = common.Config.DefaultTTL
 	case -1:
-		if common.Config.MaxTTL != 0 {
+		if common.Config.MaxTTL != -1 {
 			ctx.Warningf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTTL)
 			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTTL), nil).ToJSONString(), 400)
 			return
 		}
 	default:
-		if upload.TTL < 0 {
+		if upload.TTL <= 0 {
 			ctx.Warningf("Invalid value for ttl : %d", upload.TTL)
 			http.Error(resp, common.NewResult(fmt.Sprintf("Invalid value for ttl : %d", upload.TTL), nil).ToJSONString(), 400)
 			return
 		}
-		if common.Config.MaxTTL != 0 && upload.TTL > common.Config.MaxTTL {
+		if common.Config.MaxTTL > 0 && upload.TTL > common.Config.MaxTTL {
 			ctx.Warningf("Cannot set ttl to %d (maximum allowed is : %d)", upload.TTL, common.Config.MaxTTL)
 			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set ttl to %d (maximum allowed is : %d)", upload.TTL, common.Config.MaxTTL), nil).ToJSONString(), 400)
 			return
@@ -467,10 +467,10 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	// Test if upload is not expired
-	if upload.TTL != 0 {
+	if upload.TTL > 0 {
 		if time.Now().Unix() >= (upload.Creation + int64(upload.TTL)) {
 			ctx.Warningf("Upload is expired since %s", time.Since(time.Unix(upload.Creation, int64(0)).Add(time.Duration(upload.TTL)*time.Second)).String())
-			redirect(req, resp, fmt.Errorf("Upload %s is expired", upload.ID), 404)
+			redirect(req, resp, fmt.Errorf("Upload %s has expired", upload.ID), 404)
 			return
 		}
 	}
