@@ -208,14 +208,27 @@ releases: release-template servers
 # Run tests and sanity checks
 ###
 test:
-	@echo "go test server :" && cd server && go test ./...
-	@echo "go fmt server :" && cd server && go fmt ./...
-	@echo "go vet server :" && cd server && go vet ./...
-	@echo "go lint server :" && cd server && golint ./...
-	@echo "go test client :" && cd client && go test ./...
-	@echo "go fmt client :" && cd client && go fmt ./...
-	@echo "go vet client :" && cd client && go vet ./...
-	@echo "go lint client :" && cd client && golint ./...
+
+	@server/gen_build_info.sh $(RELEASE_VERSION)
+	@ERR="" ; for directory in server client ; do \
+		cd $$directory; \
+		echo -n "go test $$directory : "; \
+		TEST=`go test ./... 2>&1`; \
+		if [ $$? = 0 ] ; then echo "OK" ; else echo "$$TEST" | grep -v "no test files" | grep -v "^\[" && ERR="1"; fi ; \
+		echo "go fmt $$directory : "; \
+		for file in $$(find -name "*.go" | grep -v Godeps ); do \
+			echo -n " - file $$file : " ; \
+			FMT=`gofmt -l $$file` ; \
+			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
+		done; \
+		echo -n "go vet $$directory : "; \
+		VET=`go vet ./... 2>&1`; \
+		if [ $$? = 0 ] ; then echo "OK" ; else echo "FAIL" && echo $$VET && ERR="1" ; fi ; \
+		echo -n "go lint $$directory : "; \
+		LINT=`golint ./...`; \
+		if [ "$$LINT" = "" ] ; then echo "OK" ; else echo "FAIL" && echo $$LINT && ERR="1" ; fi ; \
+		cd - 2>&1 > /dev/null; \
+	done ; if [ "$$ERR" = "1" ] ; then exit 1 ; fi
 
 
 ###
