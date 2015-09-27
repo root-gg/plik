@@ -30,7 +30,7 @@ set -e
 cd $(dirname $0)
 
 ###
-# Try to update cli client from every target releases
+# Try to downgrade cli client to older target release
 ###
 
 RELEASES=(
@@ -40,37 +40,21 @@ RELEASES=(
 )
 
 ###
-# Check that plikd is running
+# Check that no plikd is running
 ###
 
 URL="http://127.0.0.1:8080"
-if ! curl $URL 2>/dev/null | grep plik > /dev/null ; then
-    echo "No plik instance running @ $URL"
+if curl $URL 2>/dev/null | grep plik > /dev/null ; then
+    echo "A plik instance is already running @ $URL"
     exit 1
 fi
 
 ###
-# Get current client info
+# Build current client
 ###
 
-CLIENT_DIR="../clients/$(go env GOOS)-$(go env GOARCH)"
-
-if [ ! -f "$CLIENT_DIR/plik" ];then
-    echo "Missing client $CLIENT/plik"
-    exit 1
-fi
-if [ ! -f "$CLIENT_DIR/MD5SUM" ];then
-    echo "Missing client $CLIENT/MD5SUM"
-    exit 1
-fi
-
-CLIENT_MD5=$(md5sum $CLIENT_DIR/plik | awk '{print $1}')
-SERVER_MD5=$(cat $CLIENT_DIR/MD5SUM)
-
-if [ "$CLIENT_MD5" != "$SERVER_MD5" ];then
-    echo "md5sum mismatch real($CLIENT_MD5) != server($SERVER_MD5)"
-    exit 1
-fi
+go build -o plik
+CLIENT=$(readlink -f plik)
 
 ###
 # Setup temporary build environment
@@ -89,7 +73,7 @@ export PLIKRC="$TMPDIR/.plikrc"
 echo "URL = \"$URL\"" > $PLIKRC
 
 ###
-# Update clients
+# Downgrade client
 ###
 
 for RELEASE in ${RELEASES[@]}
@@ -104,20 +88,54 @@ do
     git clone -b $RELEASE --depth 1 https://$PLIK_PACKAGE $BUILD_PATH
     cd $BUILD_PATH
 
-    # Build client
-    echo "Compiling client v$RELEASE :"
-    make client
+    # Build server and clients
+    echo "Compiling server and clients v$RELEASE :"
 
-    # Update client
-    echo "Update client from v$RELEASE :"
-    echo "Y" | client/plik --update
+    if grep deps Makefile ; then
+        make deps
+    fi
+
+    # 1.0.1 fix
+    if [ "$RELEASE" == "1.0.1" ] ; then
+        ( cd server && go get -v )
+    fi
+
+    make clients server
+
+    # Run server
+    echo "Start server v$RELEASE :"
+    (cd server && ./plikd)&
+
+    # Verify that server is running
+    sleep 1
+    if ! curl $URL 2>/dev/null | grep plik > /dev/null ; then
+        echo "Plik server did not start @ $URL"
+        exit 1
+    fi
+
+    # Try to downgrade client
+    cp $CLIENT ./plik
+    echo "y" | ./plik --update
 
     # Verify updated client
-    TARGET_MD5=$(md5sum "client/plik" | awk '{print $1}')
-    if [ "$SERVER_MD5" == "$TARGET_MD5" ];then
-        echo -e "\nUpdate from v$RELEASE success\n"
+    SERVER_MD5=$(md5sum "clients/$(go env GOOS)-$(go env GOARCH)/plik" | awk '{print $1}')
+    CLIENT_MD5=$(md5sum ./plik | awk '{print $1}')
+    if [ "$SERVER_MD5" == "$CLIENT_MD5" ];then
+        echo -e "\nUpdate to v$RELEASE success\n"
     else
-        echo -e "\nmd5sum mismatch server($SERVER_MD5) != target($TARGET_MD5)\n"
+        echo -e "\nUpdate to v$RELEASE fail : md5sum mismatch server($SERVER_MD5) != target($TARGET_MD5)\n"
         exit 1
+    fi
+
+    # Shutdown server
+    echo "Shutting down plik server"
+    PID=$(ps a | grep plikd | grep -v grep | awk '{print $1}')
+    if [ "x$PID" != "x" ];then
+        kill $PID
+        sleep 1
+        PID=$(ps a | grep plikd | grep -v grep | awk '{print $1}')
+        if [ "x$PID" != "x" ];then
+            kill -9 $PID
+        fi
     fi
 done
