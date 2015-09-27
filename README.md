@@ -224,20 +224,21 @@ Options:
   -n, --name NAME           Set file name when piping from STDIN
   --server SERVER           Overrides plik url
   --comments COMMENT        Set comments of the upload ( MarkDown compatible )
-  --archive-options OPTIONS [tar|zip] Additional command line options
   -p                        Protect the upload with login and password
   --password PASSWD         Protect the upload with login:password ( if omitted default login is "plik" )
   -y, --yubikey             Protect the upload with a Yubikey OTP
   -a                        Archive upload using default archive params ( see ~/.plikrc )
   --archive MODE            Archive upload using specified archive backend : tar|zip
   --compress MODE           [tar] Compression codec : gzip|bzip2|xz|lzip|lzma|lzop|compress|no
+  --archive-options OPTIONS [tar|zip] Additional command line options
   -s                        Encrypt upload usnig default encrypt params ( see ~/.plikrc )
   --secure MODE             Archive upload using specified archive backend : openssl|pgp
   --cipher CIPHER           [openssl] Openssl cipher to use ( see openssl help )
   --passphrase PASSPHRASE   [openssl] Passphrase or '-' to be prompted for a passphrase
-  --secure-options OPTIONS  [openssl|pgp] Additional command line options
   --recipient RECIPIENT     [pgp] Set recipient for pgp backend ( example : --recipient Bob )
+  --secure-options OPTIONS  [openssl|pgp] Additional command line options
   --update                  Update client
+  -v --version              Show client version
 ```
 
 For example to create directory tar.gz archive and encrypt it with openssl :
