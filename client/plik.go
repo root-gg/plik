@@ -118,11 +118,15 @@ Options:
 	}
 
 	// Check client version
-	forceUpdate := arguments["--update"].(bool)
-	err = updateClient(forceUpdate)
-	if err != nil {
+	updateFlag := arguments["--update"].(bool)
+	err = updateClient(updateFlag)
+	if err == nil {
+		if updateFlag {
+			os.Exit(0)
+		}
+	} else {
 		printf("Unable to update Plik client : %s\n", err)
-		if forceUpdate {
+		if updateFlag {
 			os.Exit(1)
 		}
 	}
@@ -448,11 +452,14 @@ func getFileURL(upload *common.Upload, file *common.File) (fileURL string) {
 	return u.String()
 }
 
-func updateClient(forceUpdate bool) (err error) {
-	if !forceUpdate && !config.Config.AutoUpdate {
+func updateClient(updateFlag bool) (err error) {
+	// Do not check for update if AutoUpdate is not enabled
+	if !updateFlag && !config.Config.AutoUpdate {
 		return
 	}
-	if !forceUpdate && config.Config.Quiet {
+
+	// Do not update when quiet mode is enabled
+	if !updateFlag && config.Config.Quiet {
 		return
 	}
 
@@ -461,59 +468,138 @@ func updateClient(forceUpdate bool) (err error) {
 	if err != nil {
 		return
 	}
-	MD5Sum, err := utils.FileMd5sum(path)
+	currentMD5, err := utils.FileMd5sum(path)
 	if err != nil {
 		return
 	}
 
-	// Get client architechture
-	arch := runtime.GOOS + "-" + runtime.GOARCH
-	binary := "plik"
-	if runtime.GOOS == "windows" {
-		binary += ".exe"
-	}
+	// Check server version
+	var version string
+	var downloadURL string
+	var newMD5 string
 
-	// Get last client MD5Sum
-	baseURL := config.Config.URL + "/clients/" + arch
 	var URL *url.URL
-	URL, err = url.Parse(baseURL + "/MD5SUM")
+	URL, err = url.Parse(config.Config.URL + "/version")
 	if err != nil {
+		err = fmt.Errorf("Unable to get server version : %s", err)
 		return
 	}
 	var req *http.Request
 	req, err = http.NewRequest("GET", URL.String(), nil)
 	if err != nil {
+		err = fmt.Errorf("Unable to get server version : %s", err)
 		return
 	}
 	var resp *http.Response
 	resp, err = client.Do(req)
 	if err != nil {
-		return
-	}
-	if resp.StatusCode != 200 {
-		err = errors.New("Unable to get last MD5Sum : " + resp.Status)
+		err = fmt.Errorf("Unable to get server version : %s", err)
 		return
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return
+
+	if resp.StatusCode == 404 {
+		// <1.1 fallback on MD5SUM file
+
+		baseURL := config.Config.URL + "/clients/" + runtime.GOOS + "-" + runtime.GOARCH
+		var URL *url.URL
+		URL, err = url.Parse(baseURL + "/MD5SUM")
+		if err != nil {
+			return
+		}
+		var req *http.Request
+		req, err = http.NewRequest("GET", URL.String(), nil)
+		if err != nil {
+			err = fmt.Errorf("Unable to get server version : %s", err)
+			return
+		}
+		var resp *http.Response
+		resp, err = client.Do(req)
+		if err != nil {
+			err = fmt.Errorf("Unable to get server version : %s", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != 200 {
+			err = fmt.Errorf("Unable to get server version : %s", resp.Status)
+			return
+		}
+
+		var body []byte
+		body, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			err = fmt.Errorf("Unable to get server version : %s", err)
+			return
+		}
+		newMD5 = utils.Chomp(string(body))
+
+		binary := "plik"
+		if runtime.GOOS == "windows" {
+			binary += ".exe"
+		}
+		downloadURL = baseURL + "/" + binary
+	} else {
+		// >=1.1 use BuildInfo from /version
+
+		if resp.StatusCode != 200 {
+			err = fmt.Errorf("Unable to get server version : %s", resp.Status)
+			return
+		}
+
+		var body []byte
+		body, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			err = fmt.Errorf("Unable to get server version : %s", err)
+			return
+		}
+
+		// Parse json BuildInfo object
+		buildInfo := new(common.BuildInfo)
+		err = json.Unmarshal(body, buildInfo)
+		if err != nil {
+			err = fmt.Errorf("Unable to get server version : %s", err)
+			return
+		}
+
+		version = buildInfo.Version
+		for _, client := range buildInfo.Clients {
+			if client.OS == runtime.GOOS && client.ARCH == runtime.GOARCH {
+				newMD5 = client.Md5
+				downloadURL = config.Config.URL + "/" + client.Path
+				break
+			}
+		}
+
+		if newMD5 == "" || downloadURL == "" {
+			err = fmt.Errorf("Server does not offer a %s-%s client", runtime.GOOS, runtime.GOARCH)
+			return
+		}
 	}
-	lastMD5Sum := utils.Chomp(string(body))
 
 	// Check if the client is up to date
-	if MD5Sum == lastMD5Sum {
-		if forceUpdate {
-			println("Plik client is up to date")
+	if currentMD5 == newMD5 {
+		if updateFlag {
+			if version != "" {
+				printf("Plik client %s is up to date\n", version)
+			} else {
+				printf("Plik client is up to date\n")
+			}
 			os.Exit(0)
 		}
 		return
 	}
-	fmt.Printf("Plik client is not up to date, do you want to update ? [Y/n] ")
+
+	// Ask for permission
+	if version != "" {
+		fmt.Printf("Update Plik client from %s to %s ? [Y/n] ", common.GetBuildInfo().Version, version)
+	} else {
+		fmt.Printf("Update Plik client to match server version ? [Y/n] ")
+	}
 	input := "y"
 	fmt.Scanln(&input)
 	if !strings.HasPrefix(strings.ToLower(input), "y") {
-		if forceUpdate {
+		if updateFlag {
 			os.Exit(0)
 		}
 		return
@@ -526,46 +612,56 @@ func updateClient(forceUpdate bool) (err error) {
 		return
 	}
 	defer tmpFile.Close()
-	URL, err = url.Parse(baseURL + "/" + binary)
+	URL, err = url.Parse(downloadURL)
 	if err != nil {
+		err = fmt.Errorf("Unable to download client : %s", err)
 		return
 	}
 	req, err = http.NewRequest("GET", URL.String(), nil)
 	if err != nil {
+		err = fmt.Errorf("Unable to download client : %s", err)
 		return
 	}
 	resp, err = client.Do(req)
 	if err != nil {
+		err = fmt.Errorf("Unable to download client : %s", err)
 		return
 	}
 	if resp.StatusCode != 200 {
-		err = errors.New("Unable to get last client : " + resp.Status)
+		err = fmt.Errorf("Unable to download client : %s", resp.Status)
 		return
 	}
 	defer resp.Body.Close()
 	_, err = io.Copy(tmpFile, resp.Body)
 	if err != nil {
+		err = fmt.Errorf("Unable to download client : %s", err)
 		return
 	}
 
-	// Check new MD5sum
-	MD5Sum, err = utils.FileMd5sum(tmpPath)
+	// Check download integrity
+	downloadMD5, err := utils.FileMd5sum(tmpPath)
 	if err != nil {
+		err = fmt.Errorf("Unable to download client : %s", err)
 		return
 	}
-	if MD5Sum != lastMD5Sum {
-		err = fmt.Errorf("Invalid client MD5Sum %s does not match %s", MD5Sum, lastMD5Sum)
+	if downloadMD5 != newMD5 {
+		err = fmt.Errorf("Unable to download client : md5sum %s does not match %s", downloadMD5, newMD5)
 		return
 	}
 
 	// Replace old client
 	err = os.Rename(tmpPath, path)
 	if err != nil {
+		err = fmt.Errorf("Unable to replace client : %s", err)
 		return
 	}
 
-	println("Plik client sucessfully updated")
-	os.Exit(0)
+	if version != "" {
+		printf("Plik client sucessfully updated to %s\n", version)
+	} else {
+		printf("Plik client sucessfully updated\n")
+	}
+
 	return
 }
 
