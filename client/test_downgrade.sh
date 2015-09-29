@@ -45,7 +45,7 @@ RELEASES=(
 
 URL="http://127.0.0.1:8080"
 if curl $URL 2>/dev/null | grep plik > /dev/null ; then
-    echo "A plik instance is already running @ $URL"
+    echo "A plik instance is running @ $URL"
     exit 1
 fi
 

@@ -47,10 +47,10 @@ type BackendConfig struct {
 
 // NewPgpBackendConfig instantiate a new Backend Configuration
 // from config map passed as argument
-func NewPgpBackendConfig(config map[string]interface{}) (pb *BackendConfig) {
-	pb = new(BackendConfig)
-	pb.Gpg = "/usr/bin/gpg"
-	pb.Keyring = os.Getenv("HOME") + "/.gnupg/pubring.gpg"
-	utils.Assign(pb, config)
+func NewPgpBackendConfig(config map[string]interface{}) (pbc *BackendConfig) {
+	pbc = new(BackendConfig)
+	pbc.Gpg = "/usr/bin/gpg"
+	pbc.Keyring = os.Getenv("HOME") + "/.gnupg/pubring.gpg"
+	utils.Assign(pbc, config)
 	return
 }
