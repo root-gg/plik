@@ -34,6 +34,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/root-gg/plik/server/common"
 )
@@ -99,7 +100,13 @@ func (ob *Backend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
 		os.Exit(1)
 		return
 	}
-	cmd := exec.Command(ob.Config.Openssl, ob.Config.Cipher, "-pass", fmt.Sprintf("fd:3"))
+
+	var args []string
+	args = append(args, ob.Config.Cipher)
+	args = append(args, "-pass", fmt.Sprintf("fd:3"))
+	args = append(args, strings.Fields(ob.Config.Options)...)
+
+	cmd := exec.Command(ob.Config.Openssl, args...)
 	cmd.Stdin = reader                                  // fd:0
 	cmd.Stdout = writer                                 // fd:1
 	cmd.Stderr = os.Stderr                              // fd:2
