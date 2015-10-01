@@ -229,7 +229,7 @@ test:
 		if [ "$$LINT" = "" ] ; then echo "OK" ; else echo "FAIL" && echo $$LINT && ERR="1" ; fi ; \
 		cd - 2>&1 > /dev/null; \
 	done ; if [ "$$ERR" = "1" ] ; then exit 1 ; fi
-
+	@echo "cli client integration tests :\n" && cd client && ./test.sh
 
 ###
 # Remove all build files
