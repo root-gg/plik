@@ -185,6 +185,7 @@ header a:hover, header a:visited, header a:link, header a:active{
 /* Comments */
 
 .comments {
+    display: inline-block;
     word-wrap: break-word;
     padding: 5px 5px 5px 5px;
 }
