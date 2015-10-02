@@ -170,6 +170,7 @@ release-template: clean frontend clients
 	@cp -R server/public/partials $(RELEASE_DIR)/server/public
 	@cp -R server/public/public $(RELEASE_DIR)/server/public
 	@cp -R server/public/index.html $(RELEASE_DIR)/server/public
+	@cp -R server/public/favicon.ico $(RELEASE_DIR)/server/public
 
 
 ###
