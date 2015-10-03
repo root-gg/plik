@@ -42,7 +42,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -252,8 +251,15 @@ func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-ClientApp", "cli_client")
+
+	// Referer is used to generate shorlinks
 	req.Header.Set("Referer", config.Config.URL)
+
+	// Set client version headers
+	err = setClientHeaders(req)
+	if err != nil {
+		return
+	}
 
 	var resp *http.Response
 	resp, err = client.Do(req)
@@ -360,8 +366,13 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 	}
 
 	req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
-	req.Header.Set("X-ClientApp", "cli_client")
 	req.Header.Set("X-UploadToken", uploadInfo.UploadToken)
+
+	// Set client version headers
+	err = setClientHeaders(req)
+	if err != nil {
+		return
+	}
 
 	if uploadInfo.ProtectedByPassword {
 		req.Header.Set("Authorization", basicAuth)
@@ -605,13 +616,17 @@ func updateClient(updateFlag bool) (err error) {
 		return
 	}
 
-	// Download new client
-	tmpPath := filepath.Dir(path) + "/" + "." + filepath.Base(path) + ".tmp"
-	tmpFile, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
+	// Create tmp file
+	tmpFile, err := ioutil.TempFile("", ".plik_update_")
 	if err != nil {
 		return
 	}
-	defer tmpFile.Close()
+	defer func() {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+	}()
+
+	// Download new client
 	URL, err = url.Parse(downloadURL)
 	if err != nil {
 		err = fmt.Errorf("Unable to download client : %s", err)
@@ -637,9 +652,14 @@ func updateClient(updateFlag bool) (err error) {
 		err = fmt.Errorf("Unable to download client : %s", err)
 		return
 	}
+	err = tmpFile.Close()
+	if err != nil {
+		err = fmt.Errorf("Unable to download client : %s", err)
+		return
+	}
 
 	// Check download integrity
-	downloadMD5, err := utils.FileMd5sum(tmpPath)
+	downloadMD5, err := utils.FileMd5sum(tmpFile.Name())
 	if err != nil {
 		err = fmt.Errorf("Unable to download client : %s", err)
 		return
@@ -650,7 +670,7 @@ func updateClient(updateFlag bool) (err error) {
 	}
 
 	// Replace old client
-	err = os.Rename(tmpPath, path)
+	err = os.Rename(tmpFile.Name(), path)
 	if err != nil {
 		err = fmt.Errorf("Unable to replace client : %s", err)
 		return
@@ -662,6 +682,16 @@ func updateClient(updateFlag bool) (err error) {
 		printf("Plik client sucessfully updated\n")
 	}
 
+	return
+}
+
+func setClientHeaders(req *http.Request) (err error) {
+	req.Header.Set("X-ClientApp", "cli_client")
+	bi := common.GetBuildInfo()
+	if bi != nil {
+		version := runtime.GOOS + "-" + runtime.GOARCH + "-" + bi.Version
+		req.Header.Set("X-ClientVersion", version)
+	}
 	return
 }
 

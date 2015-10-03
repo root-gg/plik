@@ -348,5 +348,5 @@ The screenshot is then removed of your home directory to avoid garbage.
 
 ##### How to contribute to the project ?
 
-Contributions are welcome, you are free to implement other data/metadata/shorten backends and submit them via
-pull requests. We will be happy to add them in the future releases.
+Contributions are welcome, feel free to open issues and/or submit pull requests.
+Please run/update the test suite using the makefile test target.
