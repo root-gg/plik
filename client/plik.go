@@ -252,8 +252,15 @@ func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-ClientApp", "cli_client")
+
+	// Referer is used to generate shorlinks
 	req.Header.Set("Referer", config.Config.URL)
+
+	// Set client version headers
+	err = setClientHeaders(req)
+	if err != nil {
+		return
+	}
 
 	var resp *http.Response
 	resp, err = client.Do(req)
@@ -360,8 +367,13 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 	}
 
 	req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
-	req.Header.Set("X-ClientApp", "cli_client")
 	req.Header.Set("X-UploadToken", uploadInfo.UploadToken)
+
+	// Set client version headers
+	err = setClientHeaders(req)
+	if err != nil {
+		return
+	}
 
 	if uploadInfo.ProtectedByPassword {
 		req.Header.Set("Authorization", basicAuth)
@@ -662,6 +674,16 @@ func updateClient(updateFlag bool) (err error) {
 		printf("Plik client sucessfully updated\n")
 	}
 
+	return
+}
+
+func setClientHeaders(req *http.Request) (err error) {
+	req.Header.Set("X-ClientApp", "cli_client")
+	bi := common.GetBuildInfo()
+	if bi != nil {
+		version := runtime.GOOS + "-" + runtime.GOARCH + "-" + bi.Version
+		req.Header.Set("X-ClientVersion", version)
+	}
 	return
 }
 
