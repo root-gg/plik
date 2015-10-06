@@ -522,7 +522,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             url += "?dl=1";
         }
 
-        return url;
+        return encodeURI(url);
     };
 
     // Return QR Code image url
