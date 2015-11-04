@@ -294,6 +294,7 @@ func (fmb *MetadataBackend) Remove(ctx *common.PlikContext, upload *common.Uploa
 		return
 	}
 
+	ctx.Infof("Metadata file successfully removed : %s", metadataFile)
 	return
 }
 

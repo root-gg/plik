@@ -45,11 +45,11 @@ type MetadataBackendConfig struct {
 
 // NewMongoMetadataBackendConfig configures the backend
 // from config passed as argument
-func NewMongoMetadataBackendConfig(config map[string]interface{}) (mmb *MetadataBackendConfig) {
-	mmb = new(MetadataBackendConfig)
-	mmb.URL = "127.0.0.1:27017"
-	mmb.Database = "plik"
-	mmb.Collection = "meta"
-	utils.Assign(mmb, config)
+func NewMongoMetadataBackendConfig(config map[string]interface{}) (mbc *MetadataBackendConfig) {
+	mbc = new(MetadataBackendConfig)
+	mbc.URL = "127.0.0.1:27017"
+	mbc.Database = "plik"
+	mbc.Collection = "meta"
+	utils.Assign(mbc, config)
 	return
 }
