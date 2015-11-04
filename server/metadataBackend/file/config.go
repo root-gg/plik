@@ -40,13 +40,13 @@ type MetadataBackendConfig struct {
 
 // NewFileMetadataBackendConfig configures the backend
 // from config passed as argument
-func NewFileMetadataBackendConfig(config map[string]interface{}) (fmb *MetadataBackendConfig) {
-	fmb = new(MetadataBackendConfig)
+func NewFileMetadataBackendConfig(config map[string]interface{}) (mbc *MetadataBackendConfig) {
+	mbc = new(MetadataBackendConfig)
 	// Default upload directory is ./files
 	// this is the same as the default file
 	// data backend so by default files and
 	// metadata are colocated
-	fmb.Directory = "files"
-	utils.Assign(fmb, config)
+	mbc.Directory = "files"
+	utils.Assign(mbc, config)
 	return
 }
