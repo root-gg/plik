@@ -1,6 +1,9 @@
 {
 	"ImportPath": "github.com/root-gg/plik/server",
 	"GoVersion": "go1.5.1",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/BurntSushi/toml",
@@ -10,6 +13,15 @@
 		{
 			"ImportPath": "github.com/GeertJohan/yubigo",
 			"Rev": "b1764f04aa9ba3c98a15084e7e13c1a69753e1da"
+		},
+		{
+			"ImportPath": "github.com/boltdb/bolt",
+			"Comment": "v1.1.0-12-g47d80ed",
+			"Rev": "47d80ed8a451fe9c07069e845e93b79291bb0532"
+		},
+		{
+			"ImportPath": "github.com/boombuler/barcode",
+			"Rev": "63f4aa2c46ebfac93952223a52df876f30b064c0"
 		},
 		{
 			"ImportPath": "github.com/facebookgo/clock",
@@ -22,14 +34,6 @@
 		{
 			"ImportPath": "github.com/facebookgo/stats",
 			"Rev": "31fb71caf5a4f04c9f8bb3fa8e7c2597ba6eb50a"
-		},
-		{
-			"ImportPath": "github.com/boombuler/barcode",
-			"Rev": "63f4aa2c46ebfac93952223a52df876f30b064c0"
-		},
-		{
-			"ImportPath": "github.com/boombuler/barcode",
-			"Rev": "63f4aa2c46ebfac93952223a52df876f30b064c0"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",

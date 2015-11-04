@@ -8,7 +8,7 @@ Plik is an simple and powerful file uploading system written in golang.
 
 ### Main features
    - Multiple data backends : File, OpenStack Swift, WeedFS
-   - Multiple metadata backends : File, MongoDB
+   - Multiple metadata backends : File, MongoDB, Bolt
    - Shorten backends : Shorten upload urls (is.gd && w000t.me available)
    - OneShot : Files are destructed after the first download
    - Stream : Files are streamed from the uploader to the downloader (nothing stored server side)  
@@ -279,7 +279,7 @@ Beacause stream mode isn't stateless. As the uploader request will block on one 
 The load balancing strategy **MUST** be aware of this and route stream requests to the same instance by hashing the file id.
 
 Here is an example of how to achieve this using nginx and a little piece of LUA.
-Make sur your nginx server is built with LUA scripting support.
+Make sure your nginx server is built with LUA scripting support.
 You might want to install the "nginx-extras" Debian package (>1.7.2) with built-in LUA support.
 ```
 upstream plik {
