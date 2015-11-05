@@ -28,7 +28,7 @@ RELEASE_VERSION="1.1-RC2"
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 RELEASE_TARGETS=darwin-386 darwin-amd64 freebsd-386 \
 freebsd-amd64 linux-386 linux-amd64 linux-arm openbsd-386 \
-openbsd-amd64
+openbsd-amd64 windows-amd64 windows-386
 
 GOHOSTOS=`go env GOHOSTOS`
 GOHOSTARCH=`go env GOHOSTARCH`
@@ -196,10 +196,16 @@ releases: release-template servers
 		if [ $$OS = "windows" ] ; then SERVER_PATH=../servers/$$target/plikd.exe ; fi ; \
 		if [ $$ARCH = "386" ] ; then ARCH="32bits" ; fi ; \
 		if [ $$ARCH = "amd64" ] ; then ARCH="64bits" ; fi ; \
-		TARBALL_NAME=plik-$(RELEASE_VERSION)-$$OS-$$ARCH.tar.gz; \
-		echo "Packaging plik release for $$target to $$TARBALL_NAME"; \
 		cp -R $$SERVER_PATH plik-$(RELEASE_VERSION)/server; \
-		tar czvf ../releases/$$TARBALL_NAME plik-$(RELEASE_VERSION); \
+		if [ $$OS = "windows" ] ; then \
+			TARBALL_NAME=plik-$(RELEASE_VERSION)-$$OS-$$ARCH.zip; \
+			echo "Packaging plik release for $$target to $$TARBALL_NAME"; \
+			zip -r ../releases/$$TARBALL_NAME plik-$(RELEASE_VERSION); \
+		else \
+			TARBALL_NAME=plik-$(RELEASE_VERSION)-$$OS-$$ARCH.tar.gz; \
+			echo "Packaging plik release for $$target to $$TARBALL_NAME"; \
+			tar czvf ../releases/$$TARBALL_NAME plik-$(RELEASE_VERSION); \
+		fi \
 	done
 
 	@md5sum releases/* > releases/md5sum.txt
