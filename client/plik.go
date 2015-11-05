@@ -135,9 +135,16 @@ Options:
 	// --> If not from pipe, and no files in arguments : printing help
 	fi, _ := os.Stdin.Stat()
 
-	if (fi.Mode()&os.ModeCharDevice) != 0 && len(arguments["FILE"].([]string)) == 0 {
-		fmt.Println(usage)
-		os.Exit(0)
+	if runtime.GOOS != "windows" {
+		if (fi.Mode()&os.ModeCharDevice) != 0 && len(arguments["FILE"].([]string)) == 0 {
+			fmt.Println(usage)
+			os.Exit(0)
+		}
+	} else {
+		if len(arguments["FILE"].([]string)) == 0 {
+			fmt.Println(usage)
+			os.Exit(0)
+		}
 	}
 
 	// Create upload

@@ -243,28 +243,10 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 	Debug("Arguments : " + Sdump(arguments))
 	Debug("Configuration : " + Sdump(Config))
 
-	// Plik url
+	// Plik server url
 	if arguments["--server"] != nil && arguments["--server"].(string) != "" {
 		Config.URL = arguments["--server"].(string)
 	}
-
-	// Do we need an archive backend
-	if arguments["-a"].(bool) || arguments["--archive"] != nil || Config.Archive {
-		Config.Archive = true
-
-		if arguments["--archive"] != nil && arguments["--archive"] != "" {
-			Config.ArchiveMethod = arguments["--archive"].(string)
-		}
-	}
-	archiveBackend, err = archive.NewArchiveBackend(Config.ArchiveMethod, Config.ArchiveOptions)
-	if err != nil {
-		return fmt.Errorf("Invalid archive params : %s\n", err)
-	}
-	err = archiveBackend.Configure(arguments)
-	if err != nil {
-		return fmt.Errorf("Invalid archive params : %s\n", err)
-	}
-	Debug("Archive backend configuration : " + utils.Sdump(archiveBackend.GetConfiguration()))
 
 	// Check files
 	if _, ok := arguments["FILE"].([]string); ok {
@@ -318,8 +300,31 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 			Files = append(Files, fileToUpload)
 		}
 
+		// Enable archive mode ?
+		if arguments["-a"].(bool) || arguments["--archive"] != nil || Config.Archive {
+			Config.Archive = true
+
+			if arguments["--archive"] != nil && arguments["--archive"] != "" {
+				Config.ArchiveMethod = arguments["--archive"].(string)
+			}
+		}
+
 		if Config.Archive {
+			// Configure the archive backend
+			archiveBackend, err = archive.NewArchiveBackend(Config.ArchiveMethod, Config.ArchiveOptions)
+			if err != nil {
+				return fmt.Errorf("Invalid archive params : %s\n", err)
+			}
+			err = archiveBackend.Configure(arguments)
+			if err != nil {
+				return fmt.Errorf("Invalid archive params : %s\n", err)
+			}
+			Debug("Archive backend configuration : " + utils.Sdump(archiveBackend.GetConfiguration()))
+
+			// Add archive file to upload list
 			fileToUpload := NewFileToUpload()
+
+			// Guess archive name
 			fileToUpload.Name = archiveBackend.GetFileName(arguments["FILE"].([]string))
 			fileToUpload.Reference = "0"
 
@@ -329,12 +334,11 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 			Files = make([]*FileToUpload, 1)
 			Files[0] = fileToUpload
 		}
-
 	} else {
 		return fmt.Errorf("No files specified")
 	}
 
-	// Set name if user specified it
+	// Override file name if specified
 	if arguments["--name"] != nil && arguments["--name"].(string) != "" && len(Files) == 1 {
 		Files[0].Name = arguments["--name"].(string)
 	}
@@ -357,7 +361,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		Upload.Comments = arguments["--comments"].(string)
 	}
 
-	// Upload time to live
+	// Configure upload expire date
 	Upload.TTL = Config.TTL
 	if arguments["--ttl"] != nil && arguments["--ttl"].(string) != "" {
 		ttlStr := arguments["--ttl"].(string)
@@ -379,7 +383,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		Upload.TTL = ttl * mul
 	}
 
-	// Do we need a crypto backend ?
+	// Enable secure mode ?
 	if arguments["-s"].(bool) || arguments["--secure"] != nil || Config.Secure {
 		Config.Secure = true
 		secureMethod := Config.SecureMethod
@@ -387,6 +391,8 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 			secureMethod = arguments["--secure"].(string)
 		}
 		var err error
+
+		// Configure crypto backend
 		cryptoBackend, err = crypto.NewCryptoBackend(secureMethod, Config.SecureOptions)
 		if err != nil {
 			return fmt.Errorf("Invalid secure params : %s\n", err)
@@ -399,7 +405,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		Debug("Crypto backend configuration : " + utils.Sdump(cryptoBackend.GetConfiguration()))
 	}
 
-	// Do user wants a password protected upload ?
+	// Enable password protection ?
 	if arguments["-p"].(bool) {
 		fmt.Printf("Login [plik]: ")
 		var err error
@@ -430,7 +436,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		Upload.Password = password
 	}
 
-	// User wants Yubikey protected upload ?
+	// Enable Yubikey protection ?
 	if Config.Yubikey || arguments["--yubikey"].(bool) {
 		fmt.Printf("Yubikey token : ")
 		_, err := fmt.Scanln(&Upload.Yubikey)
