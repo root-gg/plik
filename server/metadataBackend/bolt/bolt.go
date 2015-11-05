@@ -30,14 +30,14 @@ THE SOFTWARE.
 package bolt
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
-	"encoding/binary"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/boltdb/bolt"
 	"github.com/root-gg/plik/server/common"
-	"log"
 )
 
 // MetadataBackend object
