@@ -865,6 +865,13 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Check if file is not already removed
+	if file.Status == "removed" {
+		ctx.Infof("Can't remove an already removed file")
+		http.Error(resp, common.NewResult(fmt.Sprintf("File %s not found in upload %s", file.Name, upload.ID), nil).ToJSONString(), 404)
+		return
+	}
+
 	// Set status to removed, and save metadatas
 	file.Status = "removed"
 	if err := metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx.Fork("update metadata"), upload, file); err != nil {
