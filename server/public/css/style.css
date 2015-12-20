@@ -268,3 +268,9 @@ header a:hover, header a:visited, header a:link, header a:active{
 .client-max-width {
     max-width:550px;
 }
+
+/* Tokens */
+.token-speach {
+    //font-size: 12px;
+    font-family: sans-serif;
+}

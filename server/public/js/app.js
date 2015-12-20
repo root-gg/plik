@@ -130,6 +130,10 @@ angular.module('api', ['ngFileUpload']).
         api.call = function (url, method, params, uploadToken) {
             var promise = $q.defer();
             var headers = {};
+            var authToken = localStorage.getItem('AuthToken');
+            if (authToken){
+                headers['X-AuthToken'] = authToken;
+            }
             if (uploadToken) headers['X-UploadToken'] = uploadToken;
             $http({
                 url: url,
@@ -151,8 +155,12 @@ angular.module('api', ['ngFileUpload']).
         api.upload = function (url, file, params, progress_cb, basicAuth, uploadToken) {
             var promise = $q.defer();
             var headers = {};
-            if (basicAuth) headers['Authorization'] = "Basic " + basicAuth;
+            var authToken = localStorage.getItem('AuthToken');
+            if (authToken){
+                headers['X-AuthToken'] = authToken;
+            }
             if (uploadToken) headers['X-UploadToken'] = uploadToken;
+            if (basicAuth) headers['Authorization'] = "Basic " + basicAuth;
             Upload
                 .upload({
                     url: url,
@@ -175,29 +183,41 @@ angular.module('api', ['ngFileUpload']).
         };
 
         // Get upload metadata
-        api.getUpload = function (uploadId) {
+        api.getUpload = function(uploadId) {
             var url = api.base + '/upload/' + uploadId;
             return api.call(url, 'GET', {});
         };
 
         // Create an upload with current settings
-        api.createUpload = function (upload) {
+        api.createUpload = function(upload) {
             var url = api.base + '/upload';
             return api.call(url, 'POST', upload);
         };
 
         // Upload a file
-        api.uploadFile = function (upload, file, progres_cb, basicAuth) {
+        api.uploadFile = function(upload, file, progres_cb, basicAuth) {
             var mode = upload.stream ? "stream" : "file";
             var url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
             return api.upload(url, file, null, progres_cb, basicAuth, upload.uploadToken);
         };
 
         // Remove a file
-        api.removeFile = function (upload, file) {
+        api.removeFile = function(upload, file) {
             var mode = upload.stream ? "stream" : "file";
             var url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
             return api.call(url, 'DELETE', {}, upload.uploadToken);
+        };
+
+        // Generate a token
+        api.generateToken = function() {
+            var url = api.base + '/token';
+            return api.call(url, 'POST', {});
+        };
+
+        // Rovoke a token
+        api.revokeToken = function(token) {
+            var url = api.base + '/token/' + token;
+            return api.call(url, 'DELETE', {});
         };
 
         // Get server version
@@ -221,6 +241,7 @@ angular.module('plik', ['ngRoute', 'api', 'dialog', 'contentEditable', 'btford.m
         $routeProvider
             .when('/', {controller: MainCtrl, templateUrl: 'partials/main.html', reloadOnSearch: false})
             .when('/clients', {controller: ClientListCtrl, templateUrl: 'partials/clients.html'})
+            .when('/token', {controller: TokenCtrl, templateUrl: 'partials/token.html'})
             .otherwise({redirectTo: '/'});
     })
     .config(['$httpProvider', function ($httpProvider) {
@@ -522,7 +543,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             url += "?dl=1";
         }
 
-        return url;
+        return encodeURI(url);
     };
 
     // Return QR Code image url
@@ -765,6 +786,69 @@ function ClientListCtrl($scope, $api, $dialog) {
         .then(null, function (error) {
             $dialog.alert(error);
         });
+}
+
+// Token controller
+function TokenCtrl($scope, $api, $dialog, $location) {
+
+    // Get server config
+    $api.getConfig()
+        .then(function (config) {
+            // Check if token authentication is enabled server side
+            if ( ! config.tokenAuthentication ) {
+                $location.path('/');
+            }
+        })
+        .then(null, function (error) {
+            $dialog.alert(error);
+        });
+
+    // Load current token from local storage
+    $scope.token = localStorage.getItem("AuthToken");
+
+    // Generate a new token
+    $scope.generate = function(){
+        console.log("generate");
+        $api.generateToken()
+            .then(function (token) {
+                $scope.token = token;
+            })
+            .then(null, function (error) {
+                $dialog.alert(error);
+            });
+    };
+
+    // Save token in local storage
+    $scope.save = function(){
+        if ($scope.token == "") return;
+        localStorage.setItem("AuthToken",$scope.token);
+        $dialog.alert({
+            status : 100,
+            message : "Token " + $scope.token + " has been saved in local storage"
+        });
+    };
+
+    // Revoke a token
+    $scope.revoke = function(){
+        if ($scope.token == "") return;
+        console.log("revoke");
+        $api.revokeToken($scope.token)
+            .then(function () {
+                // Remove token from localStorage if needed
+                var localToken = localStorage.getItem("AuthToken");
+                if ( localToken == $scope.token ) {
+                    localStorage.removeItem("AuthToken");
+                }
+                $dialog.alert({
+                    status : 100,
+                    message : "Token " + $scope.token + " has been revoked"
+                });
+                $scope.token = "";
+            })
+            .then(null, function (error) {
+                $dialog.alert(error);
+            });
+    };
 }
 
 // Alert modal dialog controller

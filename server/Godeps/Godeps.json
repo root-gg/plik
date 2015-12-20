@@ -12,6 +12,15 @@
 			"Rev": "b1764f04aa9ba3c98a15084e7e13c1a69753e1da"
 		},
 		{
+			"ImportPath": "github.com/boltdb/bolt",
+			"Comment": "v1.1.0-12-g47d80ed",
+			"Rev": "47d80ed8a451fe9c07069e845e93b79291bb0532"
+		},
+		{
+			"ImportPath": "github.com/boombuler/barcode",
+			"Rev": "63f4aa2c46ebfac93952223a52df876f30b064c0"
+		},
+		{
 			"ImportPath": "github.com/facebookgo/clock",
 			"Rev": "600d898af40aa09a7a93ecb9265d87b0504b6f03"
 		},
@@ -24,16 +33,8 @@
 			"Rev": "31fb71caf5a4f04c9f8bb3fa8e7c2597ba6eb50a"
 		},
 		{
-			"ImportPath": "github.com/boombuler/barcode",
-			"Rev": "63f4aa2c46ebfac93952223a52df876f30b064c0"
-		},
-		{
-			"ImportPath": "github.com/boombuler/barcode",
-			"Rev": "63f4aa2c46ebfac93952223a52df876f30b064c0"
-		},
-		{
 			"ImportPath": "github.com/gorilla/context",
-			"Rev": "50c25fb3b2b3b3cc724e9b6ac75fb44b3bccd0da"
+			"Rev": "215affda49addc4c8ef7e2534915df2c8c35c6cd"
 		},
 		{
 			"ImportPath": "github.com/gorilla/mux",
@@ -42,6 +43,10 @@
 		{
 			"ImportPath": "github.com/ncw/swift",
 			"Rev": "da9274954a59d67d130af988ebf73bb15bc15e1b"
+		},
+		{
+			"ImportPath": "github.com/nu7hatch/gouuid",
+			"Rev": "179d4d0c4d8d407a32af483c2354df1d2c91e6c3"
 		},
 		{
 			"ImportPath": "github.com/root-gg/context",

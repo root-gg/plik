@@ -31,6 +31,7 @@ package metadataBackend
 
 import (
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/metadataBackend/bolt"
 	"github.com/root-gg/plik/server/metadataBackend/file"
 	"github.com/root-gg/plik/server/metadataBackend/mongo"
 )
@@ -46,6 +47,12 @@ type MetadataBackend interface {
 	RemoveFile(ctx *common.PlikContext, u *common.Upload, file *common.File) (err error)
 	Remove(ctx *common.PlikContext, u *common.Upload) (err error)
 	GetUploadsToRemove(ctx *common.PlikContext) (ids []string, err error)
+
+	// Tokens
+	SaveToken(ctx *common.PlikContext, t *common.Token) (err error)
+	GetToken(ctx *common.PlikContext, token string) (t *common.Token, err error)
+	ValidateToken(ctx *common.PlikContext, token string) (ok bool, err error)
+	RevokeToken(ctx *common.PlikContext, token string) (err error)
 }
 
 // GetMetaDataBackend is a singleton pattern.
@@ -65,6 +72,8 @@ func Initialize() {
 			metadataBackend = file.NewFileMetadataBackend(common.Config.MetadataBackendConfig)
 		case "mongo":
 			metadataBackend = mongo.NewMongoMetadataBackend(common.Config.MetadataBackendConfig)
+		case "bolt":
+			metadataBackend = bolt.NewBoltMetadataBackend(common.Config.MetadataBackendConfig)
 		default:
 			common.Log().Fatalf("Invalid metadata backend %s", common.Config.DataBackend)
 		}
