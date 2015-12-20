@@ -6,4 +6,9 @@ go:
   - tip
 
 before_install:
+  - npm install -g bower
+
+before_script: 
+  - make client
+  - make server
   - cd server

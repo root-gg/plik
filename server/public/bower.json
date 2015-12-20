@@ -16,22 +16,19 @@
   ],
   "dependencies": {
     "angular": "~1.2.21",
-    "bootstrap": "~3.3.4",
-    "fontawesome": "~4.1.0",
-    "underscore": "~1.8.3",
+    "bootstrap": "~3.3.5",
+    "bootstrap-flat": "~3.3.4",
     "angular-bootstrap": "~0.11.0",
-    "filesize": "~2.0.3",
-    "angular-contenteditable": "~0.3.7",
-    "zeroclipboard": "~2.2.0",
-    "ng-clip": "~0.2.6",
+    "fontawesome": "~4.4.0",
+    "underscore": "~1.8.3",
+    "filesize": "~3.1.3",
     "showdown": "~0.3.4",
-    "danialfarid-angular-file-upload": "4.1.3",
+    "ng-file-upload": "~7.2.1",
     "angular-route": "~1.2.21",
     "angular-sanitize": "~1.2.21",
     "angular-markdown-directive": "~0.3.1"
   },
   "resolutions": {
-    "zeroclipboard": "~2.2.0",
     "angular": "~1.2.20"
   }
 }

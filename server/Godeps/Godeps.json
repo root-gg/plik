@@ -1,9 +1,6 @@
 {
 	"ImportPath": "github.com/root-gg/plik/server",
-	"GoVersion": "go1.3.1",
-	"Packages": [
-		"./..."
-	],
+	"GoVersion": "go1.5.1",
 	"Deps": [
 		{
 			"ImportPath": "github.com/BurntSushi/toml",
@@ -13,6 +10,26 @@
 		{
 			"ImportPath": "github.com/GeertJohan/yubigo",
 			"Rev": "b1764f04aa9ba3c98a15084e7e13c1a69753e1da"
+		},
+		{
+			"ImportPath": "github.com/facebookgo/clock",
+			"Rev": "600d898af40aa09a7a93ecb9265d87b0504b6f03"
+		},
+		{
+			"ImportPath": "github.com/facebookgo/httpdown",
+			"Rev": "1fa03998d20119dfe4ef73f56a638d83048052e2"
+		},
+		{
+			"ImportPath": "github.com/facebookgo/stats",
+			"Rev": "31fb71caf5a4f04c9f8bb3fa8e7c2597ba6eb50a"
+		},
+		{
+			"ImportPath": "github.com/boombuler/barcode",
+			"Rev": "63f4aa2c46ebfac93952223a52df876f30b064c0"
+		},
+		{
+			"ImportPath": "github.com/boombuler/barcode",
+			"Rev": "63f4aa2c46ebfac93952223a52df876f30b064c0"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",

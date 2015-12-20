@@ -23,32 +23,29 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
-<div class="col-md-10 col-md-offset-1">
-    <div class="panel panel-default">
-        <div class="panel-heading">
-            <h3 class="panel-title"><a href="/" class="glyphicon glyphicon-refresh"></a>
-                <span>Choose your client</span>
-            </h3>
-        </div>
+<div class="col-xs-12 col-sm-6 col-md-5 col-lg-5 col-centered client-max-width">
+    <div class="tile panel panel-default">
         <div class="panel-body main">
-            <fieldset>
-                <div class="form-group clientList">
-                    <table class="table">
-                        <tr><th>name</th><th>link</th></tr>
-                        <tr ng-repeat="client in clients">
-                            <td>{{client.name}}</td>
-                            <td>
-                                <a href="{{client.url}}">
-                                    <button title="Download" type="button" class="btn btn-success"><span class="glyphicon glyphicon-cloud-download"></span></button>
-                                </a>
-                                <button type="button" class="btn btn-success" clip-copy="client.url">
-                                    <span class="glyphicon glyphicon-paperclip"></span>
-                                </button>
-                            </td>
-                        </tr>
-                    </table>
+            <div class="row file" ng-repeat="client in clients">
+                <div class="col-xs-8">
+                    <div class="file-name" ng-click="client.showDetails = !client.showDetails">
+                        <i class="{{client.showDetails|collapseClass}} hidden-xs"></i>
+                        {{client.name}}
+                    </div>
+                    <div class="small hidden-xs" ng-show="client.showDetails">
+                        <strong>md5 :</strong> {{client.md5}}<br/>
+                    </div>
                 </div>
-            </fieldset>
+                <div class="col-xs-4 text-center">
+                    <!-- DOWNLOAD BUTTON -->
+                    <a href="{{client.path}}">
+                        <button title="Download" type="button" class="btn btn-success btn-sm">
+                            <span class="glyphicon glyphicon-cloud-download"></span>
+                            <span class="hidden-xs hidden-sm hidden-md"> Download</span>
+                        </button>
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 </div>

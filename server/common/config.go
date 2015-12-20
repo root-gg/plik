@@ -38,43 +38,39 @@ import (
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
 )
 
-var (
-	plikVersion = "##VERSION##"
-)
-
 // Configuration object
 type Configuration struct {
-	LogLevel      string
-	ListenAddress string
-	ListenPort    int
-	MaxFileSize   int64
+	LogLevel      string `json:"-"`
+	ListenAddress string `json:"-"`
+	ListenPort    int    `json:"-"`
+	MaxFileSize   int64  `json:"maxFileSize"`
 
-	DefaultTTL int
-	MaxTTL     int
+	DefaultTTL int `json:"defaultTTL"`
+	MaxTTL     int `json:"maxTTL"`
 
-	SslEnabled bool
-	SslCert    string
-	SslKey     string
+	SslEnabled bool   `json:"-"`
+	SslCert    string `json:"-"`
+	SslKey     string `json:"-"`
 
-	YubikeyEnabled   bool
-	YubikeyAPIKey    string
-	YubikeyAPISecret string
-	YubiAuth         *yubigo.YubiAuth
+	YubikeyEnabled   bool             `json:"yubikeyEnabled"`
+	YubikeyAPIKey    string           `json:"-"`
+	YubikeyAPISecret string           `json:"-"`
+	YubiAuth         *yubigo.YubiAuth `json:"-"`
 
-	SourceIPHeader  string
-	UploadWhitelist []string
+	SourceIPHeader  string   `json:"-"`
+	UploadWhitelist []string `json:"-"`
 
-	MetadataBackend       string
-	MetadataBackendConfig map[string]interface{}
+	MetadataBackend       string                 `json:"-"`
+	MetadataBackendConfig map[string]interface{} `json:"-"`
 
-	DataBackend       string
-	DataBackendConfig map[string]interface{}
+	DataBackend       string                 `json:"-"`
+	DataBackendConfig map[string]interface{} `json:"-"`
 
-	StreamMode          bool
-	StreamBackendConfig map[string]interface{}
+	StreamMode          bool                   `json:"streamMode"`
+	StreamBackendConfig map[string]interface{} `json:"-"`
 
-	ShortenBackend       string
-	ShortenBackendConfig map[string]interface{}
+	ShortenBackend       string                 `json:"shortenBackend"`
+	ShortenBackendConfig map[string]interface{} `json:"-"`
 }
 
 // Global var to store conf
@@ -93,7 +89,7 @@ func NewConfiguration() (this *Configuration) {
 	this.DataBackend = "file"
 	this.MetadataBackend = "file"
 	this.MaxFileSize = 10737418240 // 10GB
-	this.DefaultTTL = 2592000  // 30 days
+	this.DefaultTTL = 2592000      // 30 days
 	this.MaxTTL = 0
 	this.SslEnabled = false
 	this.SslCert = ""
@@ -144,10 +140,4 @@ func LoadConfiguration(file string) {
 			}
 		}
 	}
-}
-
-// GetVersion return the hardcoded version
-// before compilation
-func GetVersion() string {
-	return plikVersion
 }

@@ -33,6 +33,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"image/png"
 	"io"
 	"io/ioutil"
 	"math/big"
@@ -45,10 +46,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/boombuler/barcode"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/boombuler/barcode/qr"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/facebookgo/httpdown"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/gorilla/mux"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/dataBackend"
 	"github.com/root-gg/plik/server/metadataBackend"
@@ -67,12 +71,12 @@ func main() {
 	var port = flag.Int("port", 0, "Overrides plik listen port")
 	flag.Parse()
 	if *version {
-		fmt.Printf("Plikd v%s\n", common.GetVersion())
+		fmt.Printf("Plik server %s\n", common.GetBuildInfo())
 		os.Exit(0)
 	}
 
 	common.LoadConfiguration(*configFile)
-	log.Infof("Starting plikd server v" + common.GetVersion())
+	log.Infof("Starting plikd server v" + common.GetBuildInfo().Version)
 
 	// Overrides port if provided in command line
 	if *port != 0 {
@@ -92,6 +96,8 @@ func main() {
 
 	// HTTP Api routes configuration
 	r := mux.NewRouter()
+	r.HandleFunc("/config", getConfigurationHandler).Methods("GET")
+	r.HandleFunc("/version", getVersionHandler).Methods("GET")
 	r.HandleFunc("/upload", createUploadHandler).Methods("POST")
 	r.HandleFunc("/upload/{uploadID}", getUploadHandler).Methods("GET")
 	r.HandleFunc("/file/{uploadID}", addFileHandler).Methods("POST")
@@ -103,6 +109,7 @@ func main() {
 	r.HandleFunc("/stream/{uploadID}/{fileID}/{filename}", removeFileHandler).Methods("DELETE")
 	r.HandleFunc("/stream/{uploadID}/{fileID}/{filename}", getFileHandler).Methods("HEAD", "GET")
 	r.HandleFunc("/stream/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", getFileHandler).Methods("GET")
+	r.HandleFunc("/qrcode", getQrCodeHandler).Methods("GET")
 	r.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
 	http.Handle("/", r)
@@ -139,6 +146,50 @@ func main() {
 /*
  * HTTP HANDLERS
  */
+
+func getQrCodeHandler(resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx := common.NewPlikContext("get qrcode handler", req)
+	defer ctx.Finalize(err)
+
+	// Check that source IP address is valid and whitelisted
+	code, err := checkSourceIP(ctx, true)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), code)
+		return
+	}
+
+	// Check params
+	urlParam := req.FormValue("url")
+	sizeParam := req.FormValue("size")
+
+	// Parse int on size
+	sizeInt, err := strconv.Atoi(sizeParam)
+	if err != nil {
+		sizeInt = 250
+	}
+	if sizeInt > 1000 {
+		http.Error(resp, common.NewResult("QRCode size must be lower than 1000", nil).ToJSONString(), 403)
+		return
+	}
+
+	// Generate QRCode png from url
+	qrcode, err := qr.Encode(urlParam, qr.H, qr.Auto)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), 500)
+		return
+	}
+
+	// Scale QRCode png size
+	qrcode, err = barcode.Scale(qrcode, sizeInt, sizeInt)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), 500)
+		return
+	}
+
+	resp.Header().Add("Content-Type", "image/png")
+	png.Encode(resp, qrcode)
+}
 
 func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	var err error
@@ -197,18 +248,18 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	case 0:
 		upload.TTL = common.Config.DefaultTTL
 	case -1:
-		if common.Config.MaxTTL != 0 {
+		if common.Config.MaxTTL != -1 {
 			ctx.Warningf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTTL)
 			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set infinite ttl (maximum allowed is : %d)", common.Config.MaxTTL), nil).ToJSONString(), 400)
 			return
 		}
 	default:
-		if upload.TTL < 0 {
+		if upload.TTL <= 0 {
 			ctx.Warningf("Invalid value for ttl : %d", upload.TTL)
 			http.Error(resp, common.NewResult(fmt.Sprintf("Invalid value for ttl : %d", upload.TTL), nil).ToJSONString(), 400)
 			return
 		}
-		if common.Config.MaxTTL != 0 && upload.TTL > common.Config.MaxTTL {
+		if common.Config.MaxTTL > 0 && upload.TTL > common.Config.MaxTTL {
 			ctx.Warningf("Cannot set ttl to %d (maximum allowed is : %d)", upload.TTL, common.Config.MaxTTL)
 			http.Error(resp, common.NewResult(fmt.Sprintf("Cannot set ttl to %d (maximum allowed is : %d)", upload.TTL, common.Config.MaxTTL), nil).ToJSONString(), 400)
 			return
@@ -286,6 +337,13 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// Create files
 	for i, file := range upload.Files {
+
+		// Check file name length
+		if len(file.Name) > 1024 {
+			http.Error(resp, common.NewResult("File name is too long. Maximum length is 1024 characters", nil).ToJSONString(), 401)
+			return
+		}
+
 		file.GenerateID()
 		file.Status = "missing"
 		delete(upload.Files, i)
@@ -409,10 +467,10 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	// Test if upload is not expired
-	if upload.TTL != 0 {
+	if upload.TTL > 0 {
 		if time.Now().Unix() >= (upload.Creation + int64(upload.TTL)) {
 			ctx.Warningf("Upload is expired since %s", time.Since(time.Unix(upload.Creation, int64(0)).Add(time.Duration(upload.TTL)*time.Second)).String())
-			redirect(req, resp, fmt.Errorf("Upload %s is expired", upload.ID), 404)
+			redirect(req, resp, fmt.Errorf("Upload %s has expired", upload.ID), 404)
 			return
 		}
 	}
@@ -629,6 +687,13 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		}
 		if part.FormName() == "file" {
 			file = part
+
+			// Check file name length
+			if len(part.FileName()) > 1024 {
+				http.Error(resp, common.NewResult("File name is too long. Maximum length is 1024 characters", nil).ToJSONString(), 401)
+				return
+			}
+
 			newFile.Name = part.FileName()
 			break
 		}
@@ -838,6 +903,34 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	resp.Write(json)
 }
 
+func getConfigurationHandler(resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx := common.NewPlikContext("get configuration handler", req)
+	defer ctx.Finalize(err)
+
+	// Print configuration in the json response.
+	var json []byte
+	if json, err = utils.ToJson(common.Config); err != nil {
+		ctx.Warningf("Unable to serialize response body : %s", err)
+		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
+	}
+	resp.Write(json)
+}
+
+func getVersionHandler(resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx := common.NewPlikContext("get version handler", req)
+	defer ctx.Finalize(err)
+
+	// Print version and build informations in the json response.
+	var json []byte
+	if json, err = utils.ToJson(common.GetBuildInfo()); err != nil {
+		ctx.Warningf("Unable to serialize response body : %s", err)
+		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
+	}
+	resp.Write(json)
+}
+
 //
 //// Misc functions
 //
@@ -932,7 +1025,6 @@ func UploadsCleaningRoutine() {
 	ctx := common.RootContext().Fork("clean expired uploads")
 
 	for {
-
 		// Sleep between 2 hours and 3 hours
 		// This is a dirty trick to avoid frontends doing this at the same time
 		r, _ := rand.Int(rand.Reader, big.NewInt(3600))
@@ -940,15 +1032,13 @@ func UploadsCleaningRoutine() {
 
 		log.Infof("Will clean old uploads in %d seconds.", randomSleep)
 		time.Sleep(time.Duration(randomSleep) * time.Second)
-
-		// Get uploads that needs to be removed
 		log.Infof("Cleaning expired uploads...")
 
+		// Get uploads that needs to be removed
 		uploadIds, err := metadataBackend.GetMetaDataBackend().GetUploadsToRemove(ctx)
 		if err != nil {
-			log.Warningf("Failed to get expired uploads : %s")
+			log.Warningf("Failed to get expired uploads : %s", err)
 		} else {
-
 			// Remove them
 			for _, uploadID := range uploadIds {
 				ctx.SetUpload(uploadID)

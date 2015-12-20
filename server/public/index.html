@@ -26,24 +26,44 @@ THE SOFTWARE.
 <!DOCTYPE html>
 <html ng-app="plik">
 <head>
+    <!-- META -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="root.gg temporary file upload service">
     <meta name="author" content="Mathieu Bodjikian, Charles-Antoine Mathieu">
 
-    <title>.: Upload :.</title>
+    <title>Plik</title>
 
+    <!-- CSS -->
     <link href='public/css/vendor.css'  rel='stylesheet' type='text/css'>
-
     <link href='css/style.css' rel='stylesheet' type='text/css'>
+
+    <!-- FAVICON -->
     <link rel="shortcut icon" href="favicon.ico">
 </head>
 
 <body>
-<div class="container">
-    <img src="img/background.jpg" class="wallpaper" alt="" />
-    <div class="row area">
-        <div ng-view id="global"></div>
+    <div id="view">
+        <!-- HEADER -->
+        <header>
+            <div class="container-fluid">
+                <div class="row">
+                    <!-- HEADER LEFT -->
+                    <div class="col-sm-3 text-center">
+                        <h1><a href="/">Plik</a></h1>
+                    </div>
+                    <!-- HEADER RIGHT -->
+                    <div class="col-sm-9 text-right hidden-xs hidden-sm">
+                        <a href="#/clients"><i class="fa fa-keyboard-o"></i> Command line client</a>
+                        &nbsp;
+                        <a href="https://github.com/root-gg/plik/tree/master"><i class="fa fa-github"></i> Source code</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- ANGULARJS VIEW -->
+        <div ng-view class="container-fluid"></div>
     </div>
 </div>
 
@@ -55,4 +75,3 @@ THE SOFTWARE.
 
 </body>
 </html>
-

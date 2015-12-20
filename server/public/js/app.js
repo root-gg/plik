@@ -22,9 +22,68 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE. */
 
+// Editable file name directive
+angular.module('contentEditable', []).
+    directive('contenteditable', [ function() {
+        return {
+            restrict: 'A',          // only activate on element attribute
+            require: '?ngModel',    // get a hold of NgModelController
+            scope: {
+                invalidClass: '@',  // Bind invalid-class attr evaluated expr
+                validator: '&'      // Bind parent scope value
+            },
+            link: function(scope, element, attrs, ngModel) {
+                if (!ngModel) return; // do nothing if no ng-model
+                scope.validator = scope.validator(); // ???
+
+                // Update view from model
+                ngModel.$render = function() {
+                    var string = ngModel.$viewValue;
+                    validate(string);
+                    element.text(string);
+                };
+
+                // Update model from view
+                function update() {
+                    var string = element.text();
+                    validate(string);
+                    ngModel.$setViewValue(string);
+                }
+
+                // Validate input and update css class
+                function validate(string) {
+                    if (scope.validator){
+                        if(scope.validator(string)){
+                            element.removeClass(scope.invalidClass);
+                        } else {
+                            element.addClass(scope.invalidClass);
+                        }
+                    }
+                }
+
+                // Listen for change events to enable binding
+                element.on('blur keyup change', function() {
+                    scope.$evalAsync(update);
+                });
+            }
+        };
+    }]);
+
 // Modal dialog service
 angular.module('dialog', ['ui.bootstrap']).
     factory('$dialog', function ($rootScope, $modal) {
+
+        $rootScope.dialogs = [];
+
+        // Register dialog
+        $rootScope.registerDialog = function($dialog){
+            $rootScope.dialogs.push($dialog);
+        };
+
+        // Dismiss dialog
+        $rootScope.dismissDialog = function($dialog) {
+            $rootScope.dialogs = _.without($rootScope.dialogs, $dialog);
+        };
 
         var module = {};
 
@@ -34,7 +93,7 @@ angular.module('dialog', ['ui.bootstrap']).
             var options = {
                 backdrop: true,
                 backdropClick: true,
-                templateUrl: 'partials/alertDialogPartial.html',
+                templateUrl: 'partials/alert.html',
                 controller: 'AlertDialogController',
                 resolve: {
                     args: function () {
@@ -48,7 +107,6 @@ angular.module('dialog', ['ui.bootstrap']).
         };
 
         // generic dialog
-        $rootScope.dialogs = [];
         module.openDialog = function (options) {
             if (!options) return false;
 
@@ -142,11 +200,23 @@ angular.module('api', ['ngFileUpload']).
             return api.call(url, 'DELETE', {}, upload.uploadToken);
         };
 
+        // Get server version
+        api.getVersion = function() {
+            var url = api.base + '/version';
+            return api.call(url, 'GET', {});
+        };
+
+        // Get server config
+        api.getConfig = function() {
+            var url = api.base + '/config';
+            return api.call(url, 'GET', {});
+        };
+
         return api;
     });
 
 // Plik app bootstrap and global configuration
-angular.module('plik', ['ngRoute', 'api', 'dialog', 'contenteditable', 'ngClipboard', 'ngSanitize', 'btford.markdown'])
+angular.module('plik', ['ngRoute', 'api', 'dialog', 'contentEditable', 'btford.markdown'])
     .config(function ($routeProvider) {
         $routeProvider
             .when('/', {controller: MainCtrl, templateUrl: 'partials/main.html', reloadOnSearch: false})
@@ -155,9 +225,6 @@ angular.module('plik', ['ngRoute', 'api', 'dialog', 'contenteditable', 'ngClipbo
     })
     .config(['$httpProvider', function ($httpProvider) {
         $httpProvider.defaults.headers.common['X-ClientApp'] = 'web_client';
-    }])
-    .config(['ngClipProvider', function (ngClipProvider) {
-        ngClipProvider.setPath("bower_components/zeroclipboard/dist/ZeroClipboard.swf");
     }])
     .filter('collapseClass', function () {
         return function (opened) {
@@ -176,6 +243,27 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     $scope.yubikey = false;
     $scope.password = false;
 
+    // Get server config
+    $api.getConfig()
+        .then(function (config) {
+            $scope.config = config;
+            $scope.setDefaultTTL();
+        })
+        .then(null, function (error) {
+            $dialog.alert(error);
+        });
+
+    // File name checks
+    var fileNameMaxLength = 1024;
+    var invalidCharList = ['/','#','?','%','"'];
+    $scope.fileNameValidator = function(fileName) {
+        if(_.isUndefined(fileName)) return false;
+        if(fileName.length == 0 || fileName.length > fileNameMaxLength) return false;
+        return _.every(invalidCharList, function(char){
+            return fileName.indexOf(char) == -1;
+        });
+    };
+
     // Initialize main controller
     $scope.init = function () {
         // Display error from redirect if any
@@ -191,7 +279,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             }
         } else {
             // Load current upload id
-            $scope.load($location.search().id)
+            $scope.load($location.search().id);
             $scope.upload.uploadToken = $location.search().uploadToken;
         }
     };
@@ -201,10 +289,10 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         if (!id) return;
         $scope.upload.id = id;
         $api.getUpload($scope.upload.id)
-            .then(function (metadatas) {
-                _.extend($scope.upload, metadatas);
-                $scope.files = _.map($scope.upload.files, function (metadata) {
-                    return {metadata: metadata};
+            .then(function (upload) {
+                _.extend($scope.upload, upload);
+                $scope.files = _.map($scope.upload.files, function (file) {
+                    return {metadata: file};
                 });
             })
             .then(null, function (error) {
@@ -219,19 +307,91 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         return reference.toString();
     };
 
+    // Detect shitty Apple devices
+    $scope.isAppleShit = function(){
+        return navigator.userAgent.match(/iPhone/i)
+            || navigator.userAgent.match(/iPad/i)
+            || navigator.userAgent.match(/iPod/i);
+    };
+
     // Add a file to the upload list
     $scope.onFileSelect = function (files) {
         _.each(files, function (file) {
-            // remove already added files
-            var names = _.pluck($scope.files, 'name');
-            if (!_.contains(names, file.name)) {
-                file.reference = nextRef();
-                file.fileName = file.name;
-                file.fileSize = file.size;
-                file.fileType = file.type;
-                $scope.files.push(file);
+            // Check file size
+            if($scope.config.maxFileSize && file.size > $scope.config.maxFileSize){
+                $dialog.alert({
+                    status: 0,
+                    message: "File is too big : " + $scope.humanReadableSize(file.size),
+                    value: "Maximum allowed size is : " + $scope.humanReadableSize($scope.config.maxFileSize)
+                });
+                return;
             }
+
+            // Already added file names
+            var names = _.pluck($scope.files, 'name');
+
+            // iPhone/iPad/iPod fix
+            // Apple mobile devices does not populate file name
+            // well and tends to use something like image.jpg
+            // every time a new image is selected.
+            // If this appends an increment is added in the middle of
+            // the filename ( image.1.jpg )
+            // As a result of this the same file can be uploaded twice.
+            if ($scope.isAppleShit() && _.contains(names, file.name)){
+                file.reference = nextRef();
+
+                // Extract file name and extension and add increment
+                var sep = file.name.lastIndexOf('.');
+                var name = sep ? file.name.substr(0,sep) : file.name;
+                var ext = file.name.substr(sep + 1);
+                name = name + '.' + file.reference + '.' + ext;
+
+                // file.name is supposed to be read-only ...
+                Object.defineProperty(file,"name",{value: name, writable: true});
+            }
+
+            // remove duplicate files
+            if (_.contains(names, file.name)) return;
+
+            // Set reference to match file id in the response
+            if(!file.reference) file.reference = nextRef();
+
+            // Use correct json fields
+            file.fileName = file.name;
+            file.fileSize = file.size;
+            file.fileType = file.type;
+
+            $scope.files.push(file);
         });
+    };
+
+    // Kikoo style water drop effect
+    $scope.waterDrop = function(event){
+        var body = $('body');
+
+        // Create div centered on mouse click event
+        var pulse1 = $(document.createElement('div'))
+            .css({ left : event.clientX - 50, top : event.clientY - 50 })
+            .appendTo(body);
+        var pulse2 = $(document.createElement('div'))
+            .css({ left : event.clientX - 50, top : event.clientY - 50 })
+            .appendTo(body);
+
+        // Add animation class
+        pulse1.addClass("pulse1");
+        pulse2.addClass("pulse2");
+
+        // Clean after animation
+        setTimeout(function(){
+            pulse1.remove();
+            pulse2.remove();
+        },1100);
+    };
+
+    // Called when a file is dropped
+    $scope.onFileDrop = function(files,event){
+        $scope.onFileSelect(files);
+        $scope.waterDrop(event);
     };
 
     // Remove a file from the upload list
@@ -244,6 +404,8 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     // Create a new upload
     $scope.newUpload = function () {
         if (!$scope.files.length) return;
+        // Get TTL value
+        if(!$scope.checkTTL()) return;
         $scope.upload.ttl = $scope.getTTL();
         // HTTP basic auth prompt dialog
         if ($scope.password && !($scope.upload.login && $scope.upload.password)) {
@@ -251,13 +413,30 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             return;
         }
         // Yubikey prompt dialog
-        if ($scope.yubikey && !$scope.upload.yubikey) {
+        if ($scope.config.yubikeyEnabled && $scope.yubikey && !$scope.upload.yubikey) {
             $scope.getYubikey();
             return;
         }
         // Create file to upload list
         $scope.upload.files = {};
-        _.each($scope.files, function (file) {
+        var ko = _.find($scope.files, function (file) {
+            // Check file name length
+            if(file.fileName.length > fileNameMaxLength) {
+                $dialog.alert({
+                    status: 0,
+                    message: "File name max length is " + fileNameMaxLength + " characters"
+                });
+                return true; // break find loop
+            }
+            // Check invalid characters
+            if (!$scope.fileNameValidator(file.fileName)) {
+                $dialog.alert({
+                    status: 0,
+                    message: "Invalid file name " + file.fileName + "\n",
+                    value: "Forbidden characters are : " + invalidCharList.join(' ')
+                });
+                return true; // break find loop
+            }
             // Sanitize file object
             $scope.upload.files[file.reference] = {
                 fileName : file.fileName,
@@ -266,6 +445,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
                 reference : file.reference
             };
         });
+        if(ko) return;
         $api.createUpload($scope.upload)
             .then(function (upload) {
                 $scope.upload = upload;
@@ -292,12 +472,12 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         if (!$scope.upload.id) return;
         _.each($scope.files, function (file) {
             if (!file.metadata.id) return;
-            // Progess bar callback
-            var cb = function (event) {
-                $scope.progress(file, event)
+            var progress = function (event) {
+                // Update progress bar callback
+                file.progress = parseInt(100.0 * event.loaded / event.total);
             };
             file.metadata.status = "uploading";
-            $api.uploadFile($scope.upload, file, cb, $scope.basicAuth)
+            $api.uploadFile($scope.upload, file, progress, $scope.basicAuth)
                 .then(function (metadata) {
                     file.metadata = metadata;
                 })
@@ -321,14 +501,9 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
                     $route.reload();
                 }
             })
-            .then(function (error) {
+            .then(null, function (error) {
                 $dialog.alert(error);
             });
-    };
-
-    // Upload progess bar callback
-    $scope.progress = function (file, event) {
-        file.progress = parseInt(100.0 * event.loaded / event.total);
     };
 
     // Compute human readable size
@@ -341,13 +516,63 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     $scope.getFileUrl = function (file, dl) {
         if (!file || !file.metadata) return;
         var mode = $scope.upload.stream ? "stream" : "file";
-        var url = location.origin + '/' + mode + '/' + $scope.upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName
+        var url = location.origin + '/' + mode + '/' + $scope.upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
         if (dl) {
             // Force file download
             url += "?dl=1";
         }
 
-        return url
+        return url;
+    };
+
+    // Return QR Code image url
+    $scope.getQrCodeUrl = function (url, size) {
+        if (!url) return;
+        return location.origin + "/qrcode?url=" + encodeURIComponent(url) + "&size=" + size;
+    };
+
+    // Return QR Code image url for current upload
+    $scope.getQrCodeUploadUrl = function(size) {
+        return $scope.getQrCodeUrl(window.location.href,size);
+    };
+
+    // Return QR Code image url for file
+    $scope.getQrCodeFileUrl = function(file, size) {
+        return $scope.getQrCodeUrl($scope.getFileUrl($scope.qrcode, false),size);
+    };
+
+    // Display QR Code dialog for current upload
+    $scope.displayQRCodeUpload = function() {
+        var url = window.location.href;
+        var qrcode = $scope.getQrCodeUrl(url, 400);
+        $scope.displayQRCode(url,url,qrcode);
+    };
+
+    // Display QR Code dialog for file
+    $scope.displayQRCodeFile = function(file) {
+        var url = $scope.getFileUrl(file, false);
+        var qrcode = $scope.getQrCodeUrl(url, 400);
+        $scope.displayQRCode(file.metadata.fileName,url,qrcode);
+    };
+
+    // Display QRCode dialog
+    $scope.displayQRCode = function(title, url, qrcode) {
+        var opts = {
+            backdrop: true,
+            backdropClick: true,
+            templateUrl: 'partials/qrcode.html',
+            controller: 'QRCodeController',
+            resolve: {
+                args: function () {
+                    return {
+                        title: title,
+                        url: url,
+                        qrcode: qrcode
+                    };
+                }
+            }
+        };
+        $dialog.openDialog(opts);
     };
 
     // Basic auth credentials dialog
@@ -370,7 +595,6 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
                 }
             }
         };
-
         $dialog.openDialog(opts);
     };
 
@@ -392,7 +616,6 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
                 }
             }
         };
-
         $dialog.openDialog(opts);
     };
 
@@ -414,10 +637,8 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
                 }
             }
         };
-
         $dialog.openDialog(opts);
     };
-
 
     $scope.ttlUnits = ["days", "hours", "minutes"];
     $scope.ttlUnit = "days";
@@ -440,51 +661,115 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             } else if ($scope.ttlUnit == "days") {
                 ttl = ttl * 86400;
             }
+        } else {
+            ttl = -1;
         }
         return ttl;
     };
 
-    // Return upload expiration date string
-    $scope.getExpirationDate = function () {
-        var d = new Date(($scope.upload.ttl + $scope.upload.uploadDate) * 1000);
-        return d.toLocaleDateString() + " at " + d.toLocaleTimeString();
+    // Return TTL unit and value
+    $scope.getHumanReadableTTL = function (ttl) {
+        var value,unit;
+        if (ttl == -1){
+            value = -1;
+            unit = "never"
+        } else if(ttl < 3600){
+            value = Math.round(ttl / 60);
+            unit = "minutes"
+        } else if (ttl < 86400){
+            value = Math.round(ttl / 3600);
+            unit = "hours"
+        } else if (ttl > 86400){
+            value = Math.round(ttl / 86400);
+            unit = "days"
+        } else {
+            value = 0;
+            unit = "invalid";
+        }
+        return [value,unit];
     };
 
-    $scope.adminUrl = function () {
+    // Check TTL value
+    $scope.checkTTL = function() {
+        var ok = true;
+
+        // Fix never value
+        if ($scope.ttlUnit == 'never') {
+            $scope.ttlValue = -1;
+        }
+
+        // Get TTL in seconds
+        var ttl = $scope.getTTL();
+
+        // Invalid negative value
+        if ($scope.ttlUnit != 'never' && ttl < 0) ok = false;
+        // Check against server side allowed maximum
+        if ($scope.config.maxTTL > 0 && ttl > $scope.config.maxTTL) ok = false;
+
+        if (!ok) {
+            var maxTTL = $scope.getHumanReadableTTL($scope.config.maxTTL);
+            $dialog.alert({
+                status: 0,
+                message: "Invalid expiration delay : " + $scope.ttlValue + " " + $scope.ttlUnit,
+                value: "Maximum expiration delay is : " + maxTTL[0] + " " + maxTTL[1]
+            });
+            $scope.setDefaultTTL();
+        }
+
+        return ok;
+    };
+
+    // Set TTL value to server defaultTTL
+    $scope.setDefaultTTL = function(){
+        if($scope.config.maxTTL == -1){
+            // Never expiring upload is allowed
+            $scope.ttlUnits = ["days", "hours", "minutes", "never"];
+        }
+        var ttl = $scope.getHumanReadableTTL($scope.config.defaultTTL);
+        $scope.ttlValue = ttl[0];
+        $scope.ttlUnit = ttl[1];
+    };
+
+    // Return upload expiration date string
+    $scope.getExpirationDate = function () {
+        if ($scope.upload.ttl == -1) {
+            return "never expire";
+        } else {
+            var d = new Date(($scope.upload.ttl + $scope.upload.uploadDate) * 1000);
+            return "expire the " + d.toLocaleDateString() + " at " + d.toLocaleTimeString();
+        }
+
+    };
+
+    // Add upload token in url so one can add/remove files later
+    $scope.setAdminUrl = function () {
         $location.search('uploadToken', $scope.upload.uploadToken);
+    };
+
+    // Focus the given element by id
+    $scope.focus = function(id) {
+        angular.element('#'+id)[0].focus();
     };
 
     $scope.init();
 }
 
 // Client download controller
-function ClientListCtrl($scope, $location) {
+function ClientListCtrl($scope, $api, $dialog) {
     $scope.clients = [];
 
-    $scope.addClient = function (name, arch, binary) {
-        if (!binary) binary = "plik";
-        $scope.clients.push({name: name, url: location.origin + "/clients/" + arch + "/" + binary});
-    };
-
-    // This list should not be hardcoded here
-    $scope.addClient("Linux 64bit", "linux-amd64");
-    $scope.addClient("Linux 32bit", "linux-386");
-    $scope.addClient("Linux ARM", "linux-arm");
-    $scope.addClient("MacOS 64bit", "darwin-amd64");
-    $scope.addClient("MacOS 32bit", "darwin-386");
-    $scope.addClient("Freebsd 64bit", "freebsd-amd64");
-    $scope.addClient("Freebsd 32bit", "freebsd-386");
-    $scope.addClient("Freebsd ARM", "freebsd-arm");
-    $scope.addClient("Openbsd 64bit", "openbsd-amd64");
-    $scope.addClient("Openbsd 32bit", "openbsd-386");
-    $scope.addClient("Windows 64bit", "windows-amd64", "plik.exe");
-    $scope.addClient("Windows 32bit", "windows-386", "plik.exe");
-    $scope.addClient("Bash (curl)", "bash", "plik.sh");
+    $api.getVersion()
+        .then(function (buildInfo) {
+            $scope.clients = buildInfo.clients;
+        })
+        .then(null, function (error) {
+            $dialog.alert(error);
+        });
 }
 
 // Alert modal dialog controller
 function AlertDialogController($rootScope, $scope, $modalInstance, args) {
-    $rootScope.dialogs.push($scope);
+    $rootScope.registerDialog($scope);
 
     $scope.title = 'Success !';
     if (args.data.status != 100) $scope.title = 'Oops !';
@@ -492,7 +777,7 @@ function AlertDialogController($rootScope, $scope, $modalInstance, args) {
     $scope.data = args.data;
 
     $scope.close = function (result) {
-        $rootScope.dialogs = _.without($rootScope.dialogs, $scope);
+        $rootScope.dismissDialog($scope);
         $modalInstance.close(result);
         if (args.callback) {
             args.callback(result);
@@ -502,7 +787,7 @@ function AlertDialogController($rootScope, $scope, $modalInstance, args) {
 
 // HTTP basic auth credentials dialog controller
 function PasswordController($rootScope, $scope, $modalInstance, args) {
-    $rootScope.dialogs.push($scope);
+    $rootScope.registerDialog($scope);
 
     // Ugly but it works
     setTimeout(function () {
@@ -510,8 +795,8 @@ function PasswordController($rootScope, $scope, $modalInstance, args) {
     }, 100);
 
     $scope.title = 'Please fill credentials !';
-    $scope.login = "plik";
-    $scope.password = "";
+    $scope.login = 'plik';
+    $scope.password = '';
 
     $scope.close = function (login, password) {
         if (!(login.length > 0 && password.length > 0)) {
@@ -524,14 +809,14 @@ function PasswordController($rootScope, $scope, $modalInstance, args) {
     };
 
     $scope.dismiss = function () {
-        $rootScope.dialogs = _.without($rootScope.dialogs, $scope);
+        $rootScope.dismissDialog($scope);
         $modalInstance.close();
     }
 }
 
 // Yubikey dialog controller
 function YubikeyController($rootScope, $scope, $modalInstance, args) {
-    $rootScope.dialogs.push($scope);
+    $rootScope.registerDialog($scope);
 
     // Ugly but it works
     setTimeout(function () {
@@ -539,7 +824,7 @@ function YubikeyController($rootScope, $scope, $modalInstance, args) {
     }, 100);
 
     $scope.title = 'Please fill in a Yubikey OTP !';
-    $scope.token = "";
+    $scope.token = '';
 
     $scope.check = function (token) {
         if (token.length == 44) {
@@ -555,7 +840,19 @@ function YubikeyController($rootScope, $scope, $modalInstance, args) {
     };
 
     $scope.dismiss = function () {
-        $rootScope.dialogs = _.without($rootScope.dialogs, $scope);
+        $rootScope.dismissDialog($scope);
         $modalInstance.close();
     }
+}
+
+// QRCode dialog controller
+function QRCodeController($rootScope, $scope, $modalInstance, args) {
+    $rootScope.registerDialog($scope);
+
+    $scope.args = args;
+
+    $scope.close = function () {
+        $rootScope.dismissDialog($scope);
+        $modalInstance.close();
+    };
 }

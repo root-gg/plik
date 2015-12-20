@@ -325,7 +325,7 @@ func (fmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []s
 			}
 
 			// If a TTL is set, test if expired or not
-			if upload.TTL != 0 && time.Now().Unix() > (upload.Creation+int64(upload.TTL)) {
+			if upload.TTL > 0 && time.Now().Unix() > (upload.Creation+int64(upload.TTL)) {
 				ids = append(ids, upload.ID)
 			}
 		}
