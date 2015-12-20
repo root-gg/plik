@@ -47,6 +47,12 @@ type MetadataBackend interface {
 	RemoveFile(ctx *common.PlikContext, u *common.Upload, file *common.File) (err error)
 	Remove(ctx *common.PlikContext, u *common.Upload) (err error)
 	GetUploadsToRemove(ctx *common.PlikContext) (ids []string, err error)
+
+	// Tokens
+	SaveToken(ctx *common.PlikContext, t *common.Token) (err error)
+	GetToken(ctx *common.PlikContext, token string) (t *common.Token, err error)
+	ValidateToken(ctx *common.PlikContext, token string) (ok bool, err error)
+	RevokeToken(ctx *common.PlikContext, token string) (err error)
 }
 
 // GetMetaDataBackend is a singleton pattern.

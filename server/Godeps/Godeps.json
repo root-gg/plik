@@ -1,9 +1,6 @@
 {
 	"ImportPath": "github.com/root-gg/plik/server",
 	"GoVersion": "go1.5.1",
-	"Packages": [
-		"./..."
-	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/BurntSushi/toml",
@@ -37,7 +34,7 @@
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",
-			"Rev": "50c25fb3b2b3b3cc724e9b6ac75fb44b3bccd0da"
+			"Rev": "215affda49addc4c8ef7e2534915df2c8c35c6cd"
 		},
 		{
 			"ImportPath": "github.com/gorilla/mux",
@@ -46,6 +43,10 @@
 		{
 			"ImportPath": "github.com/ncw/swift",
 			"Rev": "da9274954a59d67d130af988ebf73bb15bc15e1b"
+		},
+		{
+			"ImportPath": "github.com/nu7hatch/gouuid",
+			"Rev": "179d4d0c4d8d407a32af483c2354df1d2c91e6c3"
 		},
 		{
 			"ImportPath": "github.com/root-gg/context",

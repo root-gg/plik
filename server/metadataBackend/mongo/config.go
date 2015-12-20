@@ -35,12 +35,13 @@ import (
 
 // MetadataBackendConfig object
 type MetadataBackendConfig struct {
-	URL        string
-	Database   string
-	Collection string
-	Username   string
-	Password   string
-	Ssl        bool
+	URL             string
+	Database        string
+	Collection      string
+	TokenCollection string
+	Username        string
+	Password        string
+	Ssl             bool
 }
 
 // NewMongoMetadataBackendConfig configures the backend
@@ -50,6 +51,7 @@ func NewMongoMetadataBackendConfig(config map[string]interface{}) (mbc *Metadata
 	mbc.URL = "127.0.0.1:27017"
 	mbc.Database = "plik"
 	mbc.Collection = "meta"
+	mbc.TokenCollection = "tokens"
 	utils.Assign(mbc, config)
 	return
 }

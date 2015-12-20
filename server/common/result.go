@@ -41,8 +41,7 @@ type Result struct {
 	Value   interface{} `json:"value"`
 }
 
-// NewResult takes a message and a interface and
-// creates a new result object with them
+// NewResult create a new Result instance
 func NewResult(message string, value interface{}) (r *Result) {
 	r = new(Result)
 	r.Message = message

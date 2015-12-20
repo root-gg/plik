@@ -64,13 +64,21 @@ func NewBoltMetadataBackend(config map[string]interface{}) (bmb *MetadataBackend
 	err = bmb.db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("metadata"))
 		if err != nil {
-			return fmt.Errorf("Create bucket: %s", err)
+			return fmt.Errorf("Unable to create metadata bucket : %s", err)
 		}
 
 		_, err = tx.CreateBucketIfNotExists([]byte("expired"))
 		if err != nil {
-			return fmt.Errorf("Create bucket: %s", err)
+			return fmt.Errorf("Unable to create expired bucket : %s", err)
 		}
+
+		if common.Config.TokenAuthentication {
+			_, err := tx.CreateBucketIfNotExists([]byte("tokens"))
+			if err != nil {
+				return fmt.Errorf("Unable to create token bucket : %s", err)
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -127,7 +135,6 @@ func (bmb *MetadataBackend) Create(ctx *common.PlikContext, upload *common.Uploa
 		return nil
 	})
 	if err != nil {
-		err = ctx.EWarningf("Unable to save upload metadata : %s", err)
 		return
 	}
 
@@ -138,6 +145,7 @@ func (bmb *MetadataBackend) Create(ctx *common.PlikContext, upload *common.Uploa
 // Get implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) Get(ctx *common.PlikContext, id string) (upload *common.Upload, err error) {
 	defer ctx.Finalize(err)
+	var b []byte
 
 	// Get json metadata from Bolt database
 	err = bmb.db.View(func(tx *bolt.Tx) error {
@@ -146,21 +154,21 @@ func (bmb *MetadataBackend) Get(ctx *common.PlikContext, id string) (upload *com
 			return fmt.Errorf("Unable to get metadata Bolt bucket")
 		}
 
-		b := bucketMetadata.Get([]byte(id))
+		b = bucketMetadata.Get([]byte(id))
 		if b == nil || len(b) == 0 {
 			return fmt.Errorf("Unable to get upload metadata from Bolt bucket")
-		}
-
-		// Unserialize metadata from json
-		upload = new(common.Upload)
-		if err = json.Unmarshal(b, upload); err != nil {
-			return ctx.EWarningf("Unable to unserialize metadata from json \"%s\" : %s", string(b), err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		err = ctx.EWarningf("Unable to save upload metadata : %s", err)
+		return
+	}
+
+	// Unserialize metadata from json
+	upload = new(common.Upload)
+	if err = json.Unmarshal(b, upload); err != nil {
+		err = ctx.EWarningf("Unable to unserialize metadata from json \"%s\" : %s", string(b), err)
 		return
 	}
 
@@ -203,7 +211,6 @@ func (bmb *MetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload *com
 		return bucketMetadata.Put([]byte(upload.ID), j)
 	})
 	if err != nil {
-		err = ctx.EWarningf("Unable to save upload metadata : %s", err)
 		return
 	}
 
@@ -253,7 +260,6 @@ func (bmb *MetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.U
 		return err
 	})
 	if err != nil {
-		err = ctx.EWarningf("Unable to save upload metadata : %s", err)
 		return
 	}
 
@@ -263,6 +269,7 @@ func (bmb *MetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.U
 
 // Remove implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) Remove(ctx *common.PlikContext, upload *common.Upload) (err error) {
+	defer ctx.Finalize(err)
 
 	// Remove upload from bolt database
 	err = bmb.db.Update(func(tx *bolt.Tx) error {
@@ -296,7 +303,6 @@ func (bmb *MetadataBackend) Remove(ctx *common.PlikContext, upload *common.Uploa
 		return nil
 	})
 	if err != nil {
-		err = ctx.EWarningf("Unable to remove upload metadata : %s", err)
 		return
 	}
 
@@ -306,6 +312,7 @@ func (bmb *MetadataBackend) Remove(ctx *common.PlikContext, upload *common.Uploa
 
 // GetUploadsToRemove implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []string, err error) {
+	defer ctx.Finalize(err)
 
 	err = bmb.db.View(func(tx *bolt.Tx) error {
 		c := tx.Bucket([]byte("expired")).Cursor()
@@ -330,6 +337,117 @@ func (bmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []s
 
 		return nil
 	})
+
+	return
+}
+
+// SaveToken implementation for Bolt Metadata Backend
+func (bmb *MetadataBackend) SaveToken(ctx *common.PlikContext, token *common.Token) (err error) {
+	defer ctx.Finalize(err)
+
+	// Serialize token to json
+	j, err := json.Marshal(token)
+	if err != nil {
+		err = ctx.EWarningf("Unable to serialize token to json : %s", err)
+		return
+	}
+
+	// Save json metadata to Bolt database
+	err = bmb.db.Update(func(tx *bolt.Tx) error {
+		bucketMetadata := tx.Bucket([]byte("tokens"))
+		if bucketMetadata == nil {
+			return fmt.Errorf("Unable to get tokens Bolt bucket")
+		}
+
+		err := bucketMetadata.Put([]byte(token.Token), j)
+		if err != nil {
+			return fmt.Errorf("Unable save token : %s", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return
+	}
+	return
+}
+
+// GetToken implementation for Bolt Metadata Backend
+func (bmb *MetadataBackend) GetToken(ctx *common.PlikContext, token string) (t *common.Token, err error) {
+	defer ctx.Finalize(err)
+	var b []byte
+
+	// Get json token from Bolt database
+	err = bmb.db.View(func(tx *bolt.Tx) error {
+		bucketMetadata := tx.Bucket([]byte("tokens"))
+		if bucketMetadata == nil {
+			return fmt.Errorf("Unable to get tokens Bolt bucket")
+		}
+
+		b = bucketMetadata.Get([]byte(token))
+		if b == nil || len(b) == 0 {
+			return fmt.Errorf("Unable to get token from Bolt bucket")
+		}
+
+		return nil
+	})
+	if err != nil {
+		err = ctx.EWarningf("Unable to save token : %s", err)
+		return
+	}
+
+	// Unserialize token from json
+	t = common.NewToken()
+	if err = json.Unmarshal(b, t); err != nil {
+		return
+	}
+
+	return
+}
+
+// ValidateToken implementation for Bolt Metadata Backend
+func (bmb *MetadataBackend) ValidateToken(ctx *common.PlikContext, token string) (ok bool, err error) {
+	defer ctx.Finalize(err)
+
+	// Get json token from Bolt database
+	err = bmb.db.View(func(tx *bolt.Tx) error {
+		bucketMetadata := tx.Bucket([]byte("tokens"))
+		if bucketMetadata == nil {
+			return fmt.Errorf("Unable to get tokens Bolt bucket")
+		}
+
+		b := bucketMetadata.Get([]byte(token))
+		if b == nil || len(b) == 0 {
+			return nil
+		}
+
+		ok = true
+		return nil
+	})
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+// RevokeToken implementation for Bolt Metadata Backend
+func (bmb *MetadataBackend) RevokeToken(ctx *common.PlikContext, token string) (err error) {
+	defer ctx.Finalize(err)
+
+	// Remove upload from bolt database
+	err = bmb.db.Update(func(tx *bolt.Tx) error {
+		bucketMetadata := tx.Bucket([]byte("tokens"))
+		err := bucketMetadata.Delete([]byte(token))
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return
+	}
 
 	return
 }

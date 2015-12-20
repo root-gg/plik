@@ -17,6 +17,7 @@ Plik is an simple and powerful file uploading system written in golang.
    - Password : Protect upload with login/password (Auth Basic)
    - Yubikey : Protect upload with your yubikey. (One Time Password)
    - Comments : Add custom message (in Markdown format)
+   - Upload restriction : Source IP / Token
 
 ### Version
 1.1.1
@@ -169,10 +170,25 @@ Remove file :
 Show server details :
 
    - **GET** /version
-     - Show plik server version, and some build informations (build host, date, git revision,...)
+     - Show plik server version, and some build information (build host, date, git revision,...)
 
    - **GET** /config
      - Show plik server configuration (ttl values, max file size, ...)
+
+Token :
+
+   Plik tokens allow to upload files without source IP restriction.  
+   Tokens can only be generated from a valid source IP.  
+   If you are using the command line client you can use a token by adding a Token = "xxxx" line in the ~/.plirc file  
+
+   - **POST** /token
+    - Generate a new token
+
+   - **GET** /token/{token}
+    - Get token metadata
+
+   - **DELETE** /token/{token}
+    - Revoke a token
 
 QRCode :
 

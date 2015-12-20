@@ -1,9 +1,6 @@
 {
 	"ImportPath": "github.com/root-gg/plik/client",
-	"GoVersion": "go1.3.1",
-	"Packages": [
-		"./..."
-	],
+	"GoVersion": "go1.5.1",
 	"Deps": [
 		{
 			"ImportPath": "github.com/BurntSushi/toml",
@@ -24,8 +21,16 @@
 			"Rev": "c5dac536301992c0371c6115d998fb62944bfad3"
 		},
 		{
+			"ImportPath": "github.com/kardianos/osext",
+			"Rev": "10da29423eb9a6269092eebdc2be32209612d9d2"
+		},
+		{
 			"ImportPath": "github.com/mitchellh/go-homedir",
 			"Rev": "7d2d8c8a4e078ce3c58736ab521a40b37a504c52"
+		},
+		{
+			"ImportPath": "github.com/nu7hatch/gouuid",
+			"Rev": "179d4d0c4d8d407a32af483c2354df1d2c91e6c3"
 		},
 		{
 			"ImportPath": "github.com/olekukonko/ts",
@@ -38,6 +43,11 @@
 		{
 			"ImportPath": "github.com/root-gg/logger",
 			"Rev": "5d9a47a3531200bc20998b96439220812c111707"
+		},
+		{
+			"ImportPath": "github.com/root-gg/plik/server/common",
+			"Comment": "1.1-RC2-25-g7451633",
+			"Rev": "7451633882edbd8bcb726cae0691a79c197641e0"
 		},
 		{
 			"ImportPath": "github.com/root-gg/utils",
