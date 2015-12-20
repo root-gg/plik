@@ -518,7 +518,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
                 });
                 // Redirect to main page if no more files
                 if (!$scope.files.length) {
-                    $location.search('id', null);
+                    $location.search({});
                     $route.reload();
                 }
             })

@@ -149,7 +149,7 @@ function upload {
 
 # Get upload options from server api
 function uploadOpts {
-    UPLOAD_ID=$( cat $CLIENT_LOG | sed -n 's/^.*http.*\/\?id=\(.*\)$/\1/p' )
+    UPLOAD_ID=$( cat $CLIENT_LOG | sed -n 's/^.*http.*\/\?id=\(.*\) .*$/\1/p' )
     local CURL_CMD="curl -s"
     if [ "$UPLOAD_USER" != "" ] && [ "$UPLOAD_PWD" != "" ]; then
         CURL_CMD="$CURL_CMD -u $UPLOAD_USER:$UPLOAD_PWD"
@@ -270,22 +270,6 @@ before
 cp $SPECIMEN $TMPDIR/upload/FILE1
 upload --oneshot && uploadOpts
 echo "$UPLOAD_OPTS" | grep '"oneShot": true' >/dev/null 2>/dev/null
-
-echo "OK"
-
-#---------------------------------------------
-
-echo -n " - removable : "
-
-before
-cp $SPECIMEN $TMPDIR/upload/FILE1
-upload -r && uploadOpts
-echo "$UPLOAD_OPTS" | grep '"removable": true' >/dev/null 2>/dev/null
-
-before
-cp $SPECIMEN $TMPDIR/upload/FILE1
-upload --removable && uploadOpts
-echo "$UPLOAD_OPTS" | grep '"removable": true' >/dev/null 2>/dev/null
 
 echo "OK"
 

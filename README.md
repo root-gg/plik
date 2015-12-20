@@ -112,7 +112,6 @@ Get and create upload :
      - Params (json object in request body) :
       - oneshot (bool)
       - stream (bool)
-      - removable (bool)
       - ttl (int)
       - login (string)
       - password (string)
@@ -234,7 +233,6 @@ Options:
   -d --debug                Enable debug mode
   -q --quiet                Enable quiet mode
   -o, --oneshot             Enable OneShot ( Each file will be deleted on first download )
-  -r, --removable           Enable Removable upload ( Each file can be deleted by anyone at anymoment )
   -S, --stream              Enable Streaming ( It will block until remote user starts downloading )
   -t, --ttl TTL             Time before expiration (Upload will be removed in m|h|d)
   -n, --name NAME           Set file name when piping from STDIN

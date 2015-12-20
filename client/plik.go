@@ -84,7 +84,6 @@ Options:
   -d --debug                Enable debug mode
   -q --quiet                Enable quiet mode
   -o, --oneshot             Enable OneShot ( Each file will be deleted on first download )
-  -r, --removable           Enable Removable upload ( Each file can be deleted by anyone at anymoment )
   -S, --stream              Enable Streaming ( It will block until remote user starts downloading )
   -t, --ttl TTL             Time before expiration (Upload will be removed in m|h|d)
   -n, --name NAME           Set file name when piping from STDIN
@@ -163,7 +162,7 @@ Options:
 
 	// Display upload url
 	printf("Upload successfully created at %s : \n", creationDate)
-	printf("    %s/#/?id=%s\n\n", config.Config.URL, uploadInfo.ID)
+	printf("    %s/#/?id=%s (&uploadToken=%s)\n\n", config.Config.URL, uploadInfo.ID, uploadInfo.UploadToken)
 
 	// Match file id from server using client reference
 	for _, clientFile := range config.Files {

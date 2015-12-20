@@ -50,9 +50,8 @@ type Upload struct {
 	UploadToken string           `json:"uploadToken,omitempty" bson:"uploadToken"`
 	TTL         int              `json:"ttl" bson:"ttl"`
 
-	Stream    bool `json:"stream" bson:"stream"`
-	OneShot   bool `json:"oneShot" bson:"oneShot"`
-	Removable bool `json:"removable" bson:"removable"`
+	Stream  bool `json:"stream" bson:"stream"`
+	OneShot bool `json:"oneShot" bson:"oneShot"`
 
 	ProtectedByPassword bool   `json:"protectedByPassword" bson:"protectedByPassword"`
 	Login               string `json:"login,omitempty" bson:"login"`

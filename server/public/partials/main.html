@@ -45,14 +45,6 @@ THE SOFTWARE.
                     <a tooltip-placement="right" tooltip="The files will not be stored on the server. Upload will begin when the remote user starts downloading.">?</a>
                 </label>
             </div>
-            <!-- REMOVABLE -->
-            <div class="menu-item">
-                <label class="switch-input">
-                    <input name="checkbox-removable" type="checkbox" ng-model="upload.removable">
-                    <i data-swoff-text="OFF" data-swon-text="ON"></i> Removable
-                    <a tooltip-placement="right" tooltip="Allow to manually remove the uploaded files from the server at any moment.">?</a>
-                </label>
-            </div>
             <!-- PASSWORD -->
             <div class="menu-item">
                 <label class="switch-input">
@@ -123,7 +115,7 @@ THE SOFTWARE.
                 <p class="text-center">This upload will {{ getExpirationDate() }}</p>
             </div>
             <!-- ADMIN URL -->
-            <div class="menu-item text-center" ng-show="upload.removable">
+            <div class="menu-item text-center">
                 <a href="" ng-click="setAdminUrl()"
                    tooltip-placement="bottom"
                    tooltip="Use this url to remove files later">
@@ -230,7 +222,7 @@ THE SOFTWARE.
                                 <span class="glyphicon glyphicon-qrcode"></span> <!--<span class="hidden-xs hidden-sm hidden-md">QR Code</span>-->
                             </button>
                             <!-- REMOVE FILE -->
-                            <button title="Delete File" type="button" class="btn btn-danger btn-sm" ng-click="delete(file)" ng-show="upload.removable == '1' && upload.uploadToken">
+                            <button title="Delete File" type="button" class="btn btn-danger btn-sm" ng-click="delete(file)" ng-show="upload.uploadToken">
                                 <span class="glyphicon glyphicon-remove"></span> <!--<span class="hidden-xs hidden-sm hidden-md">Remove</span>-->
                             </button>
                         </div>

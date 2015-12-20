@@ -456,7 +456,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	// If the file is marked as deleted by a previous call, we abort request
-	if upload.Removable && file.Status == "removed" {
+	if file.Status == "removed" {
 		ctx.Warningf("File %s has been removed", file.Name)
 		redirect(req, resp, fmt.Errorf("File %s has been removed", file.Name), 404)
 		return
@@ -795,13 +795,6 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	err = httpBasicAuth(req, resp, upload)
 	if err != nil {
 		ctx.Warningf("Unauthorized : %s", err)
-		return
-	}
-
-	// Test if upload is removable
-	if !upload.Removable {
-		ctx.Warningf("User tried to remove file %s of an non removeable upload", fileID)
-		http.Error(resp, common.NewResult("Can't remove files on this upload", nil).ToJSONString(), 401)
 		return
 	}
 

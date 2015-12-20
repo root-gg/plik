@@ -137,13 +137,10 @@ func TestOneShot(t *testing.T) {
 
 func TestRemovable(t *testing.T) {
 	upload := createUpload(&common.Upload{}, t)
-	uploadRemovable := createUpload(&common.Upload{Removable: true}, t)
+	uploadRemovable := createUpload(&common.Upload{}, t)
 
-	file := uploadFile(upload, "test", "", readerForUpload, t)
+	uploadFile(upload, "test", "", readerForUpload, t)
 	fileRemovable := uploadFile(uploadRemovable, "test", "", readerForUpload, t)
-
-	// Should fail on classic upload
-	test("removeFile", upload, file, 401, t)
 
 	// Should work on removable upload
 	test("removeFile", uploadRemovable, fileRemovable, 200, t)

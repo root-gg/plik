@@ -43,7 +43,6 @@ QUIET=false
 SECURE=false
 ARCHIVE=false
 ONESHOT=false
-REMOVABLE=false
 TTL=0
 
 #
@@ -57,7 +56,6 @@ while [ $# -gt 0 ] ; do
         -s) SECURE=true     ; shift ;;
         -a) ARCHIVE=true    ; shift ;;
         -o) ONESHOT=true    ; shift ;;
-        -r) REMOVABLE=true  ; shift ;;
         -t)                   shift ; setTtl $1       ; shift ;;
         -p) SECURE=true     ; shift ; PASSPHRASE="$1" ; shift ;;
         --) shift ;;
@@ -84,7 +82,7 @@ fi
 #
 
 qecho -e "Creating upload on $PLIK_URL...\n"
-OPTIONS="{ \"OneShot\" : $ONESHOT, \"Removable\" : $REMOVABLE, \"Ttl\" : $TTL }"
+OPTIONS="{ \"OneShot\" : $ONESHOT, \"Ttl\" : $TTL }"
 NEW_UPLOAD_RESP=$(curl -s -X POST -d "$OPTIONS" ${PLIK_URL}/upload)
 UPLOAD_ID=$(echo $NEW_UPLOAD_RESP | jsonValue id)
 UPLOAD_TOKEN=$(echo $NEW_UPLOAD_RESP | jsonValue uploadToken)

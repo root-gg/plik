@@ -71,7 +71,6 @@ type UploadConfig struct {
 	Quiet          bool
 	URL            string
 	OneShot        bool
-	Removable      bool
 	Stream         bool
 	Secure         bool
 	SecureMethod   string
@@ -95,7 +94,6 @@ func NewUploadConfig() (config *UploadConfig) {
 	config.Quiet = false
 	config.URL = "http://127.0.0.1:8080"
 	config.OneShot = false
-	config.Removable = false
 	config.Stream = false
 	config.Secure = false
 	config.Archive = false
@@ -349,10 +347,6 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 	Upload.OneShot = Config.OneShot
 	if arguments["--oneshot"].(bool) {
 		Upload.OneShot = true
-	}
-	Upload.Removable = Config.Removable
-	if arguments["--removable"].(bool) {
-		Upload.Removable = true
 	}
 	Upload.Stream = Config.Stream
 	if arguments["--stream"].(bool) {
