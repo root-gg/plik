@@ -4,7 +4,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) <2015>
+Copyright (c) <2015> Copyright holders list can be found in AUTHORS file
 	- Mathieu Bodjikian <mathieu@bodjikian.fr>
 	- Charles-Antoine Mathieu <skatkatt@root.gg>
 
@@ -27,28 +27,34 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package file
+package common
 
 import (
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/nu7hatch/gouuid"
+	"time"
 )
 
-// MetadataBackendConfig object
-type MetadataBackendConfig struct {
-	Directory      string
-	TokenDirectory string
+// Token provide a very basic authentication mechanism
+type Token struct {
+	Token        string `json:"token" bson:"token"`
+	CreationDate int64  `json:"creationDate" bson:"creationDate"`
+	Comment      string `json:"comment" bson:"comment"`
+	SourceIP     string `json:"sourceIp" bson:"sourceIp"`
 }
 
-// NewFileMetadataBackendConfig configures the backend
-// from config passed as argument
-func NewFileMetadataBackendConfig(config map[string]interface{}) (mbc *MetadataBackendConfig) {
-	mbc = new(MetadataBackendConfig)
-	// Default upload directory is ./files
-	// this is the same as the default file
-	// data backend so by default files and
-	// metadata are colocated
-	mbc.Directory = "files"
-	mbc.TokenDirectory = "tokens"
-	utils.Assign(mbc, config)
+// NewToken create a new Token instance
+func NewToken() (t *Token) {
+	t = new(Token)
+	return
+}
+
+// Create initialize a new Token
+func (t *Token) Create() (err error) {
+	t.CreationDate = time.Now().Unix()
+	uuid, err := uuid.NewV4()
+	if err != nil {
+		return
+	}
+	t.Token = uuid.String()
 	return
 }

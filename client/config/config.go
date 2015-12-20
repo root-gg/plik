@@ -85,6 +85,7 @@ type UploadConfig struct {
 	Password       string
 	TTL            int
 	AutoUpdate     bool
+	Token          string
 }
 
 // NewUploadConfig construct a new configuration with default values
@@ -113,6 +114,7 @@ func NewUploadConfig() (config *UploadConfig) {
 	config.Password = ""
 	config.TTL = 86400 * 30
 	config.AutoUpdate = false
+	config.Token = ""
 	return
 }
 
@@ -224,8 +226,8 @@ func Load() (err error) {
 	return
 }
 
-// UnmarshalArgs into upload informations
-// Argument takes priority over config file param
+// UnmarshalArgs turns command line arguments into upload settings
+// Command line arguments override config file settings
 func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 
 	// Handle flags
@@ -472,13 +474,12 @@ func Debug(message string) {
 	}
 }
 
-// Dump takes a interface{} and print the call
-// to Sdump
+// Dump prints an interface{} as a JSON string
 func Dump(data interface{}) {
 	fmt.Println(Sdump(data))
 }
 
-// Sdump takes a interface{} and turn it to a string
+// Sdump turns an interface{} to a JSON string
 func Sdump(data interface{}) string {
 	buf := new(bytes.Buffer)
 	if json, err := json.MarshalIndent(data, "", "    "); err != nil {

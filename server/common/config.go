@@ -57,8 +57,9 @@ type Configuration struct {
 	YubikeyAPISecret string           `json:"-"`
 	YubiAuth         *yubigo.YubiAuth `json:"-"`
 
-	SourceIPHeader  string   `json:"-"`
-	UploadWhitelist []string `json:"-"`
+	SourceIPHeader      string   `json:"-"`
+	UploadWhitelist     []string `json:"-"`
+	TokenAuthentication bool     `json:"tokenAuthentication"`
 
 	MetadataBackend       string                 `json:"-"`
 	MetadataBackendConfig map[string]interface{} `json:"-"`

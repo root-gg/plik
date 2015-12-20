@@ -172,3 +172,59 @@ func (mmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []s
 
 	return
 }
+
+// SaveToken implementation for MongoDB Metadata Backend
+func (mmb *MetadataBackend) SaveToken(ctx *common.PlikContext, token *common.Token) (err error) {
+	defer ctx.Finalize(err)
+	session := mmb.session.Copy()
+	defer session.Close()
+	collection := session.DB(mmb.config.Database).C(mmb.config.TokenCollection)
+	err = collection.Insert(&token)
+	if err != nil {
+		err = ctx.EWarningf("Unable to append token to mongodb : %s", err)
+	}
+	return
+}
+
+// GetToken implementation for MongoDB Metadata Backend
+func (mmb *MetadataBackend) GetToken(ctx *common.PlikContext, token string) (t *common.Token, err error) {
+	defer ctx.Finalize(err)
+	session := mmb.session.Copy()
+	defer session.Close()
+	collection := session.DB(mmb.config.Database).C(mmb.config.TokenCollection)
+	t = &common.Token{}
+	err = collection.Find(bson.M{"token": token}).One(t)
+	if err != nil {
+		err = ctx.EWarningf("Unable to get token from mongodb : %s", err)
+	}
+	return
+}
+
+// ValidateToken implementation for MongoDB Metadata Backend
+func (mmb *MetadataBackend) ValidateToken(ctx *common.PlikContext, token string) (ok bool, err error) {
+	defer ctx.Finalize(err)
+	session := mmb.session.Copy()
+	defer session.Close()
+	collection := session.DB(mmb.config.Database).C(mmb.config.TokenCollection)
+	count, err := collection.Find(bson.M{"token": token}).Count()
+	if err != nil {
+		err = ctx.EWarningf("Unable to get token from mongodb : %s", err)
+	}
+	if count > 0 {
+		ok = true
+	}
+	return
+}
+
+// RevokeToken implementation for MongoDB Metadata Backend
+func (mmb *MetadataBackend) RevokeToken(ctx *common.PlikContext, token string) (err error) {
+	defer ctx.Finalize(err)
+	session := mmb.session.Copy()
+	defer session.Close()
+	collection := session.DB(mmb.config.Database).C(mmb.config.TokenCollection)
+	err = collection.Remove(bson.M{"token": token})
+	if err != nil {
+		err = ctx.EWarningf("Unable to get remove token from mongodb : %s", err)
+	}
+	return
+}

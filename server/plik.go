@@ -109,6 +109,9 @@ func main() {
 	r.HandleFunc("/stream/{uploadID}/{fileID}/{filename}", removeFileHandler).Methods("DELETE")
 	r.HandleFunc("/stream/{uploadID}/{fileID}/{filename}", getFileHandler).Methods("HEAD", "GET")
 	r.HandleFunc("/stream/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", getFileHandler).Methods("GET")
+	r.HandleFunc("/token", createTokenHandler).Methods("POST")
+	r.HandleFunc("/token/{token}", getTokenHandler).Methods("GET")
+	r.HandleFunc("/token/{token}", revokeTokenHandler).Methods("DELETE")
 	r.HandleFunc("/qrcode", getQrCodeHandler).Methods("GET")
 	r.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
@@ -147,59 +150,14 @@ func main() {
  * HTTP HANDLERS
  */
 
-func getQrCodeHandler(resp http.ResponseWriter, req *http.Request) {
-	var err error
-	ctx := common.NewPlikContext("get qrcode handler", req)
-	defer ctx.Finalize(err)
-
-	// Check that source IP address is valid and whitelisted
-	code, err := checkSourceIP(ctx, true)
-	if err != nil {
-		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), code)
-		return
-	}
-
-	// Check params
-	urlParam := req.FormValue("url")
-	sizeParam := req.FormValue("size")
-
-	// Parse int on size
-	sizeInt, err := strconv.Atoi(sizeParam)
-	if err != nil {
-		sizeInt = 250
-	}
-	if sizeInt > 1000 {
-		http.Error(resp, common.NewResult("QRCode size must be lower than 1000", nil).ToJSONString(), 403)
-		return
-	}
-
-	// Generate QRCode png from url
-	qrcode, err := qr.Encode(urlParam, qr.H, qr.Auto)
-	if err != nil {
-		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), 500)
-		return
-	}
-
-	// Scale QRCode png size
-	qrcode, err = barcode.Scale(qrcode, sizeInt, sizeInt)
-	if err != nil {
-		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), 500)
-		return
-	}
-
-	resp.Header().Add("Content-Type", "image/png")
-	png.Encode(resp, qrcode)
-}
-
 func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	var err error
 	ctx := common.NewPlikContext("create upload handler", req)
 	defer ctx.Finalize(err)
 
-	// Check that source IP address is valid and whitelisted
-	code, err := checkSourceIP(ctx, true)
+	// Authenticate request
+	err = authenticateRequest(req, resp, ctx, true)
 	if err != nil {
-		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), code)
 		return
 	}
 
@@ -358,7 +316,7 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Remove all private informations (ip, data backend details, ...) before
+	// Remove all private information (ip, data backend details, ...) before
 	// sending metadata back to the client
 	upload.Sanitize()
 
@@ -370,6 +328,7 @@ func createUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	if json, err = utils.ToJson(upload); err != nil {
 		ctx.Warningf("Unable to serialize response body : %s", err)
 		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
+		return
 	}
 
 	resp.Write(json)
@@ -380,10 +339,9 @@ func getUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	ctx := common.NewPlikContext("get upload handler", req)
 	defer ctx.Finalize(err)
 
-	// Check that source IP address is valid
-	code, err := checkSourceIP(ctx, false)
+	// Authenticate request
+	err = authenticateRequest(req, resp, ctx, false)
 	if err != nil {
-		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), code)
 		return
 	}
 
@@ -395,12 +353,10 @@ func getUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	// Retrieve upload metadata
 	upload, err := metadataBackend.GetMetaDataBackend().Get(ctx.Fork("get metadata"), uploadID)
 	if err != nil {
-		ctx.Warningf("Upload %s not found : %s", uploadID, err)
+		ctx.Warningf("Upload not found : %s", err)
 		http.Error(resp, common.NewResult(fmt.Sprintf("Upload %s not found", uploadID), nil).ToJSONString(), 404)
 		return
 	}
-
-	ctx.Infof("Got upload from metadata backend")
 
 	// Handle basic auth if upload is password protected
 	err = httpBasicAuth(req, resp, upload)
@@ -409,7 +365,7 @@ func getUploadHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Remove all private informations (ip, data backend details, ...) before
+	// Remove all private information (ip, data backend details, ...) before
 	// sending metadata back to the client
 	upload.Sanitize()
 
@@ -418,6 +374,7 @@ func getUploadHandler(resp http.ResponseWriter, req *http.Request) {
 	if json, err = utils.ToJson(upload); err != nil {
 		ctx.Warningf("Unable to serialize response body : %s", err)
 		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
+		return
 	}
 	resp.Write(json)
 }
@@ -427,10 +384,9 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	ctx := common.NewPlikContext("get file handler", req)
 	defer ctx.Finalize(err)
 
-	// Check that source IP address is valid
-	code, err := checkSourceIP(ctx, false)
+	// Authenticate request
+	err = authenticateRequest(req, resp, ctx, false)
 	if err != nil {
-		redirect(req, resp, err, code)
 		return
 	}
 
@@ -451,10 +407,10 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 	ctx.SetUpload(uploadID)
 
-	// Get the upload informations from the metadata backend
+	// Get the upload information from the metadata backend
 	upload, err := metadataBackend.GetMetaDataBackend().Get(ctx.Fork("get metadata"), uploadID)
 	if err != nil {
-		ctx.Warningf("Upload %s not found : %s", uploadID, err)
+		ctx.Warningf("Upload not found : %s", err)
 		redirect(req, resp, fmt.Errorf("Upload %s not found", uploadID), 404)
 		return
 	}
@@ -564,7 +520,7 @@ func getFileHandler(resp http.ResponseWriter, req *http.Request) {
 
 	// HEAD Request => Do not print file, user just wants http headers
 	// GET  Request => Print file content
-	ctx.Infof("Got a %s request", req.Method)
+	ctx.Infof("%s request", req.Method)
 
 	if req.Method == "GET" {
 		// Get file in data backend
@@ -619,10 +575,9 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	ctx := common.NewPlikContext("add file handler", req)
 	defer ctx.Finalize(err)
 
-	// Check that source IP address is valid
-	code, err := checkSourceIP(ctx, false)
+	// Authenticate request
+	err = authenticateRequest(req, resp, ctx, true)
 	if err != nil {
-		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), code)
 		return
 	}
 
@@ -635,7 +590,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// Get upload metadata
 	upload, err := metadataBackend.GetMetaDataBackend().Get(ctx.Fork("get metadata"), uploadID)
 	if err != nil {
-		ctx.Warningf("Upload metadata not found")
+		ctx.Warningf("Upload not found : %s", err)
 		http.Error(resp, common.NewResult(fmt.Sprintf("Upload %s not found", uploadID), nil).ToJSONString(), 404)
 		return
 	}
@@ -706,6 +661,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 	if newFile.Name == "" {
 		ctx.Warning("Missing file name from multipart request")
 		http.Error(resp, common.NewResult("Missing file name from multipart request", nil).ToJSONString(), 400)
+		return
 	}
 	ctx.SetFile(newFile.Name)
 
@@ -767,7 +723,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Fill-in file informations
+	// Fill-in file information
 	newFile.CurrentSize = int64(totalBytes)
 	if upload.Stream {
 		newFile.Status = "downloaded"
@@ -787,7 +743,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Remove all private informations (ip, data backend details, ...) before
+	// Remove all private information (ip, data backend details, ...) before
 	// sending metadata back to the client
 	newFile.Sanitize()
 
@@ -797,6 +753,7 @@ func addFileHandler(resp http.ResponseWriter, req *http.Request) {
 		resp.Write(json)
 	} else {
 		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
+		return
 	}
 }
 
@@ -805,13 +762,11 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	ctx := common.NewPlikContext("remove file handler", req)
 	defer ctx.Finalize(err)
 
-	// Check that source IP address is valid
-	code, err := checkSourceIP(ctx, false)
+	// Authenticate request
+	err = authenticateRequest(req, resp, ctx, true)
 	if err != nil {
-		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), code)
 		return
 	}
-
 	// Get the upload id and file id from the url params
 	vars := mux.Vars(req)
 	uploadID := vars["uploadID"]
@@ -831,7 +786,7 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	// Retrieve Upload
 	upload, err := metadataBackend.GetMetaDataBackend().Get(ctx.Fork("get metadata"), uploadID)
 	if err != nil {
-		ctx.Warning("Upload not found")
+		ctx.Warningf("Upload not found : %s", err)
 		http.Error(resp, common.NewResult(fmt.Sprintf("Upload not %s found", uploadID), nil).ToJSONString(), 404)
 		return
 	}
@@ -857,7 +812,7 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Retrieve file informations in upload
+	// Retrieve file information in upload
 	file, ok := upload.Files[fileID]
 	if !ok {
 		ctx.Warningf("File not found")
@@ -906,8 +861,52 @@ func removeFileHandler(resp http.ResponseWriter, req *http.Request) {
 	if json, err = utils.ToJson(upload); err != nil {
 		ctx.Warningf("Unable to serialize response body : %s", err)
 		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
+		return
 	}
 	resp.Write(json)
+}
+
+func getQrCodeHandler(resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx := common.NewPlikContext("get qrcode handler", req)
+	defer ctx.Finalize(err)
+
+	// Authenticate request
+	err = authenticateRequest(req, resp, ctx, false)
+	if err != nil {
+		return
+	}
+
+	// Check params
+	urlParam := req.FormValue("url")
+	sizeParam := req.FormValue("size")
+
+	// Parse int on size
+	sizeInt, err := strconv.Atoi(sizeParam)
+	if err != nil {
+		sizeInt = 250
+	}
+	if sizeInt > 1000 {
+		http.Error(resp, common.NewResult("QRCode size must be lower than 1000", nil).ToJSONString(), 403)
+		return
+	}
+
+	// Generate QRCode png from url
+	qrcode, err := qr.Encode(urlParam, qr.H, qr.Auto)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), 500)
+		return
+	}
+
+	// Scale QRCode png size
+	qrcode, err = barcode.Scale(qrcode, sizeInt, sizeInt)
+	if err != nil {
+		http.Error(resp, common.NewResult(err.Error(), nil).ToJSONString(), 500)
+		return
+	}
+
+	resp.Header().Add("Content-Type", "image/png")
+	png.Encode(resp, qrcode)
 }
 
 func getConfigurationHandler(resp http.ResponseWriter, req *http.Request) {
@@ -915,11 +914,18 @@ func getConfigurationHandler(resp http.ResponseWriter, req *http.Request) {
 	ctx := common.NewPlikContext("get configuration handler", req)
 	defer ctx.Finalize(err)
 
+	// Authenticate request
+	err = authenticateRequest(req, resp, ctx, false)
+	if err != nil {
+		return
+	}
+
 	// Print configuration in the json response.
 	var json []byte
 	if json, err = utils.ToJson(common.Config); err != nil {
 		ctx.Warningf("Unable to serialize response body : %s", err)
 		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
+		return
 	}
 	resp.Write(json)
 }
@@ -929,50 +935,202 @@ func getVersionHandler(resp http.ResponseWriter, req *http.Request) {
 	ctx := common.NewPlikContext("get version handler", req)
 	defer ctx.Finalize(err)
 
-	// Print version and build informations in the json response.
+	// Authenticate request
+	err = authenticateRequest(req, resp, ctx, false)
+	if err != nil {
+		return
+	}
+
+	// Print version and build information in the json response.
 	var json []byte
 	if json, err = utils.ToJson(common.GetBuildInfo()); err != nil {
 		ctx.Warningf("Unable to serialize response body : %s", err)
 		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
+		return
 	}
 	resp.Write(json)
+}
+
+func createTokenHandler(resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx := common.NewPlikContext("create token handler", req)
+	defer ctx.Finalize(err)
+
+	// Authenticate request
+	err = authenticateRequest(req, resp, ctx, true)
+	if err != nil {
+		return
+	}
+
+	if !common.Config.TokenAuthentication {
+		ctx.Warning("Token authentication is not enabled")
+		http.Error(resp, common.NewResult("Token authentication is not enabled", nil).ToJSONString(), 405)
+		return
+	}
+
+	// Read request body
+	defer req.Body.Close()
+	req.Body = http.MaxBytesReader(resp, req.Body, 1048576)
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		ctx.Warningf("Unable to read request body : %s", err)
+		http.Error(resp, common.NewResult("Unable to read request body", nil).ToJSONString(), 500)
+		return
+	}
+
+	// Create token
+	token := common.NewToken()
+
+	// Deserialize json body
+	if len(body) > 0 {
+		err = json.Unmarshal(body, token)
+		if err != nil {
+			ctx.Warningf("Unable to deserialize request body : %s", err)
+			http.Error(resp, common.NewResult("Unable to deserialize json request body", nil).ToJSONString(), 500)
+			return
+		}
+	}
+
+	// Initialize token
+	token.Create()
+	if sourceIP, ok := ctx.Get("RemoteIP"); ok {
+		token.SourceIP = sourceIP.(string)
+	}
+
+	// Save token
+	err = metadataBackend.GetMetaDataBackend().SaveToken(ctx.Fork("create token"), token)
+	if err != nil {
+		ctx.Warningf("Unable to create token : %s", err)
+		http.Error(resp, common.NewResult("Unable to create token", nil).ToJSONString(), 404)
+		return
+	}
+
+	resp.Write([]byte(token.Token))
+}
+
+func getTokenHandler(resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx := common.NewPlikContext("create token handler", req)
+	defer ctx.Finalize(err)
+
+	// Authenticate request
+	err = authenticateRequest(req, resp, ctx, true)
+	if err != nil {
+		return
+	}
+
+	if !common.Config.TokenAuthentication {
+		ctx.Warning("Token authentication is not enabled")
+		http.Error(resp, common.NewResult("Token authentication is not enabled", nil).ToJSONString(), 405)
+		return
+	}
+
+	// Get token from the url params
+	vars := mux.Vars(req)
+	token := vars["token"]
+
+	// Get token
+	t, err := metadataBackend.GetMetaDataBackend().GetToken(ctx.Fork("get token"), token)
+	if err != nil {
+		ctx.Warningf("Unable to get token %s : %s", token, err)
+		http.Error(resp, common.NewResult("Unable to get token", nil).ToJSONString(), 404)
+		return
+	}
+
+	// Print token in the json response.
+	var json []byte
+	if json, err = utils.ToJson(t); err != nil {
+		ctx.Warningf("Unable to serialize response body : %s", err)
+		http.Error(resp, common.NewResult("Unable to serialize response body", nil).ToJSONString(), 500)
+		return
+	}
+	resp.Write(json)
+}
+
+func revokeTokenHandler(resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx := common.NewPlikContext("revoke token handler", req)
+	defer ctx.Finalize(err)
+
+	// Authenticate request
+	err = authenticateRequest(req, resp, ctx, true)
+	if err != nil {
+		return
+	}
+
+	if !common.Config.TokenAuthentication {
+		ctx.Warning("Token authentication is not enabled")
+		http.Error(resp, common.NewResult("Token authentication is not enabled", nil).ToJSONString(), 405)
+		return
+	}
+
+	// Get token from the url params
+	vars := mux.Vars(req)
+	token := vars["token"]
+
+	// Revoke token
+	err = metadataBackend.GetMetaDataBackend().RevokeToken(ctx.Fork("revoke token"), token)
+	if err != nil {
+		ctx.Warningf("Unable to revoke token %s : %s", token, err)
+		http.Error(resp, common.NewResult("Unable to revoke token ", nil).ToJSONString(), 404)
+		return
+	}
 }
 
 //
 //// Misc functions
 //
 
-// Check if source IP address is valid and whitelisted
-func checkSourceIP(ctx *common.PlikContext, whitelist bool) (code int, err error) {
+func authenticateRequest(req *http.Request, resp http.ResponseWriter, ctx *common.PlikContext, auth bool) (err error) {
 	// Get source IP address from context
 	sourceIPstr, ok := ctx.Get("RemoteIP")
 	if !ok || sourceIPstr.(string) == "" {
-		ctx.Warning("Unable to get source IP address from context")
-		err = errors.New("Unable to get source IP address")
-		code = 401
+		err = ctx.Error(logger.WARNING, "Unable to get source IP address from context")
+		http.Error(resp, common.NewResult("Unable to get source IP address", nil).ToJSONString(), 401)
 		return
 	}
 
 	// Parse source IP address
 	sourceIP := net.ParseIP(sourceIPstr.(string))
 	if sourceIP == nil {
-		ctx.Warningf("Unable to parse source IP address %s", sourceIPstr)
-		err = errors.New("Unable to parse source IP address")
-		code = 401
+		err = ctx.Error(logger.WARNING, fmt.Sprintf("Unable to parse source IP address %s", sourceIPstr))
+		http.Error(resp, common.NewResult("Unable to parse source IP address", nil).ToJSONString(), 401)
 		return
 	}
 
-	// If needed check that source IP address is in whitelist
-	if whitelist && len(common.UploadWhitelist) > 0 {
+	// Check if the source IP address is in whitelist
+	if auth && len(common.UploadWhitelist) > 0 {
 		for _, net := range common.UploadWhitelist {
 			if net.Contains(sourceIP) {
 				return
 			}
 		}
-		ctx.Warningf("Unauthorized source IP address %s", sourceIPstr)
-		err = errors.New("Unauthorized source IP address")
-		code = 403
+
+		// Check if a valid token had been provided
+		if auth && common.Config.TokenAuthentication {
+			token := req.Header.Get("X-AuthToken")
+			if token != "" {
+				ok, err = metadataBackend.GetMetaDataBackend().ValidateToken(ctx.Fork("validate token"), token)
+				if err != nil {
+					err = ctx.Error(logger.WARNING, fmt.Sprintf("Unable to validate token %s : %s", token, err))
+					http.Error(resp, common.NewResult("Unable to validate token", nil).ToJSONString(), 401)
+					return
+				}
+
+				if !ok {
+					err = ctx.Error(logger.WARNING, fmt.Sprintf("Invalid token %s : %s", token, err))
+					http.Error(resp, common.NewResult("Invalid token", nil).ToJSONString(), 403)
+					return
+				}
+				return
+			}
+		}
+
+		err = ctx.Error(logger.WARNING, fmt.Sprintf("Unauthorized source IP address %s", sourceIPstr))
+		http.Error(resp, common.NewResult("Unauthorized source IP address", nil).ToJSONString(), 403)
+		return
 	}
+
 	return
 }
 
@@ -1005,6 +1163,7 @@ func httpBasicAuth(req *http.Request, resp http.ResponseWriter, upload *common.U
 			// with valid http basic credentials set in the Authorization headers.
 			resp.Header().Set("WWW-Authenticate", "Basic realm=\"plik\"")
 			http.Error(resp, "Please provide valid credentials to download this file", 401)
+			return
 		}
 	}
 	return
@@ -1093,7 +1252,7 @@ func RemoveUploadIfNoFileAvailable(ctx *common.PlikContext, upload *common.Uploa
 
 	if filesInUpload == 0 {
 
-		ctx.Debugf("No more files in upload. Removing all informations.")
+		ctx.Debugf("No more files in upload. Removing all information.")
 
 		if !upload.Stream {
 			err = dataBackend.GetDataBackend().RemoveUpload(ctx, upload)

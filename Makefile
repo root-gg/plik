@@ -230,10 +230,10 @@ test:
 		done; \
 		echo -n "go vet $$directory : "; \
 		VET=`go vet ./... 2>&1`; \
-		if [ $$? = 0 ] ; then echo "OK" ; else echo "FAIL" && echo $$VET && ERR="1" ; fi ; \
+		if [ $$? = 0 ] ; then echo "OK" ; else echo "FAIL" && echo "$$VET" && ERR="1" ; fi ; \
 		echo -n "go lint $$directory : "; \
 		LINT=`golint ./...`; \
-		if [ "$$LINT" = "" ] ; then echo "OK" ; else echo "FAIL" && echo $$LINT && ERR="1" ; fi ; \
+		if [ "$$LINT" = "" ] ; then echo "OK" ; else echo "FAIL" && echo "$$LINT" && ERR="1" ; fi ; \
 		cd - 2>&1 > /dev/null; \
 	done ; if [ "$$ERR" = "1" ] ; then exit 1 ; fi
 	@echo "cli client integration tests :\n" && cd client && ./test.sh
