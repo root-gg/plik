@@ -30,16 +30,17 @@ THE SOFTWARE.
 package common
 
 import (
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/nu7hatch/gouuid"
 	"time"
+
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/nu7hatch/gouuid"
 )
 
 // Token provide a very basic authentication mechanism
 type Token struct {
 	Token        string `json:"token" bson:"token"`
 	CreationDate int64  `json:"creationDate" bson:"creationDate"`
-	Comment      string `json:"comment" bson:"comment"`
-	SourceIP     string `json:"sourceIp" bson:"sourceIp"`
+	Comment      string `json:"comment,omitempty" bson:"comment"`
+	SourceIP     string `json:"sourceIp,omitempty" bson:"sourceIp"`
 }
 
 // NewToken create a new Token instance

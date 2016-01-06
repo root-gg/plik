@@ -32,6 +32,7 @@ package dataBackend
 import (
 	"io"
 
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/dataBackend/file"
 	"github.com/root-gg/plik/server/dataBackend/stream"
@@ -45,10 +46,10 @@ var streamBackend DataBackend
 // DataBackend interface describes methods that data backends
 // must implements to be compatible with plik.
 type DataBackend interface {
-	GetFile(ctx *common.PlikContext, u *common.Upload, id string) (rc io.ReadCloser, err error)
-	AddFile(ctx *common.PlikContext, u *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error)
-	RemoveFile(ctx *common.PlikContext, u *common.Upload, id string) (err error)
-	RemoveUpload(ctx *common.PlikContext, u *common.Upload) (err error)
+	GetFile(ctx *juliet.Context, u *common.Upload, id string) (rc io.ReadCloser, err error)
+	AddFile(ctx *juliet.Context, u *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error)
+	RemoveFile(ctx *juliet.Context, u *common.Upload, id string) (err error)
+	RemoveUpload(ctx *juliet.Context, u *common.Upload) (err error)
 }
 
 // GetDataBackend return the primary data backend

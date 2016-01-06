@@ -127,7 +127,7 @@ angular.module('api', ['ngFileUpload']).
         var api = {base: ''};
 
         // Make the actual HTTP call and return a promise
-        api.call = function (url, method, params, uploadToken) {
+        api.call = function (url, method, params, data, uploadToken) {
             var promise = $q.defer();
             var headers = {};
             var authToken = localStorage.getItem('AuthToken');
@@ -138,7 +138,8 @@ angular.module('api', ['ngFileUpload']).
             $http({
                 url: url,
                 method: method,
-                data: params,
+                params: params,
+                data: data,
                 headers: headers
             })
                 .success(function (data) {
@@ -185,13 +186,19 @@ angular.module('api', ['ngFileUpload']).
         // Get upload metadata
         api.getUpload = function(uploadId) {
             var url = api.base + '/upload/' + uploadId;
-            return api.call(url, 'GET', {});
+            return api.call(url, 'GET');
         };
 
         // Create an upload with current settings
         api.createUpload = function(upload) {
             var url = api.base + '/upload';
-            return api.call(url, 'POST', upload);
+            return api.call(url, 'POST', {}, upload);
+        };
+
+        // Remove an upload
+        api.removeUpload = function(upload) {
+            var url = api.base + '/upload/' + upload.id;
+            return api.call(url, 'DELETE', {}, {}, upload.uploadToken);
         };
 
         // Upload a file
@@ -205,31 +212,37 @@ angular.module('api', ['ngFileUpload']).
         api.removeFile = function(upload, file) {
             var mode = upload.stream ? "stream" : "file";
             var url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
-            return api.call(url, 'DELETE', {}, upload.uploadToken);
+            return api.call(url, 'DELETE', {}, {}, upload.uploadToken);
         };
 
         // Generate a token
         api.generateToken = function() {
             var url = api.base + '/token';
-            return api.call(url, 'POST', {});
+            return api.call(url, 'POST');
         };
 
-        // Rovoke a token
-        api.revokeToken = function(token) {
+        // Revoke a token
+        api.revokeToken = function(token, removeUploads) {
             var url = api.base + '/token/' + token;
-            return api.call(url, 'DELETE', {});
+            return api.call(url, 'DELETE', { removeUploads : removeUploads });
+        };
+
+        // List all upload owned by a token
+        api.getUploadWithToken = function(token) {
+            var url = api.base + '/token/' + token + '/uploads';
+            return api.call(url, 'GET');
         };
 
         // Get server version
         api.getVersion = function() {
             var url = api.base + '/version';
-            return api.call(url, 'GET', {});
+            return api.call(url, 'GET');
         };
 
         // Get server config
         api.getConfig = function() {
             var url = api.base + '/config';
-            return api.call(url, 'GET', {});
+            return api.call(url, 'GET');
         };
 
         return api;
@@ -508,9 +521,24 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         });
     };
 
+    // Remove the whole upload
     // Remove a file from the servers
-    $scope.delete = function (file) {
-        if (!$scope.upload.uploadToken) return;
+    $scope.removeUpload = function () {
+        if (!$scope.upload.removable && !$scope.upload.admin) return;
+        $api.removeUpload($scope.upload)
+            .then(function () {
+                // Redirect to main page
+                $location.search('id', null);
+                $route.reload();
+            })
+            .then(null, function (error) {
+                $dialog.alert(error);
+            });
+    };
+
+    // Remove a file from the servers
+    $scope.removeFile = function (file) {
+        if (!$scope.upload.removable && !$scope.upload.admin) return;
         $api.removeFile($scope.upload, file)
             .then(function () {
                 $scope.files = _.reject($scope.files, function (f) {
@@ -759,7 +787,6 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             var d = new Date(($scope.upload.ttl + $scope.upload.uploadDate) * 1000);
             return "expire the " + d.toLocaleDateString() + " at " + d.toLocaleTimeString();
         }
-
     };
 
     // Add upload token in url so one can add/remove files later
@@ -808,10 +835,9 @@ function TokenCtrl($scope, $api, $dialog, $location) {
 
     // Generate a new token
     $scope.generate = function(){
-        console.log("generate");
         $api.generateToken()
             .then(function (token) {
-                $scope.token = token;
+                $scope.token = token.token;
             })
             .then(null, function (error) {
                 $dialog.alert(error);
@@ -829,16 +855,17 @@ function TokenCtrl($scope, $api, $dialog, $location) {
     };
 
     // Revoke a token
-    $scope.revoke = function(){
+    $scope.revoke = function(removeUploads){
         if ($scope.token == "") return;
-        console.log("revoke");
-        $api.revokeToken($scope.token)
+        removeUploads = true;
+        $api.revokeToken($scope.token, removeUploads)
             .then(function () {
                 // Remove token from localStorage if needed
                 var localToken = localStorage.getItem("AuthToken");
                 if ( localToken == $scope.token ) {
                     localStorage.removeItem("AuthToken");
                 }
+                if (removeUploads) $scope.uploads = [];
                 $dialog.alert({
                     status : 100,
                     message : "Token " + $scope.token + " has been revoked"
@@ -848,6 +875,54 @@ function TokenCtrl($scope, $api, $dialog, $location) {
             .then(null, function (error) {
                 $dialog.alert(error);
             });
+    };
+
+    // Get upload list
+    $scope.browse = function(){
+        if ($scope.token == "") return;
+        $api.getUploadWithToken($scope.token)
+            .then(function(uploads) {
+                $scope.uploads = uploads;
+                _.each(uploads,function(upload){
+                    // Map file object to array
+                    var files = _.map(upload.files);
+                    upload.files = _.sortBy(files, function(file){
+                        return -file.fileSize;
+                    });
+                });
+            })
+            .then(null, function(error) {
+                $dialog.alert(error);
+            });
+    };
+
+    // Remove an upload
+    $scope.remove = function(upload){
+        $api.removeUpload(upload)
+            .then(function(){
+                $scope.uploads = _.reject($scope.uploads,function(u){
+                    return u.id == upload.id;
+                });
+            })
+            .then(null, function(error) {
+                $dialog.alert(error);
+            });
+    };
+
+    // Get upload url
+    $scope.getUploadUrl = function(upload){
+        return location.origin + '/#/?id=' + upload.id;
+    };
+
+    // Get file url
+    $scope.getFileUrl = function(upload,file){
+        return location.origin + '/file/' + upload.id + '/' + file.id + '/' + file.fileName;
+    };
+
+    // Compute human readable size
+    $scope.humanReadableSize = function (size) {
+        if (_.isUndefined(size)) return;
+        return filesize(size, {base: 2});
     };
 }
 

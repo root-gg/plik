@@ -39,6 +39,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
 	"github.com/root-gg/plik/server/common"
 )
@@ -65,15 +66,15 @@ func NewW000tMeShortenBackend(config map[string]interface{}) *ShortenBackendW000
 }
 
 // Shorten implementation for w000t.me shorten backend
-func (sb *ShortenBackendW000t) Shorten(ctx *common.PlikContext, longURL string) (shortURL string, err error) {
-	defer ctx.Finalize(err)
+func (sb *ShortenBackendW000t) Shorten(ctx *juliet.Context, longURL string) (shortURL string, err error) {
+	log := common.GetLogger(ctx)
 
 	// Request short url
 	str := `{"w000t":{"long_url":"` + longURL + `", "status":"hidden"}, "token":"` + sb.Token + `" }`
 	b := strings.NewReader(str)
 	resp, err := client.Post(sb.URL, "application/json", b)
 	if err != nil {
-		err = ctx.EWarningf("Unable to request short url from w000t.me : %s", err)
+		err = log.EWarningf("Unable to request short url from w000t.me : %s", err)
 		return
 	}
 	defer resp.Body.Close()
@@ -81,16 +82,16 @@ func (sb *ShortenBackendW000t) Shorten(ctx *common.PlikContext, longURL string) 
 	// Read response body
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		err = ctx.EWarningf("Unable to read response from w000t.me : %s", err)
+		err = log.EWarningf("Unable to read response from w000t.me : %s", err)
 		return
 	}
 
 	// Got url ? :)
 	if !strings.HasPrefix(string(respBody), "http") {
-		err = ctx.EWarningf("Invalid response from w000t.me")
+		err = log.EWarningf("Invalid response from w000t.me")
 		return
 	}
 
-	ctx.Infof("Shortlink successfully created : %s", string(respBody))
+	log.Infof("Shortlink successfully created : %s", string(respBody))
 	return string(respBody), nil
 }

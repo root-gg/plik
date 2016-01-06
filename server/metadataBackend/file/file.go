@@ -37,6 +37,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -59,13 +60,13 @@ func NewFileMetadataBackend(config map[string]interface{}) (fmb *MetadataBackend
 }
 
 // Create implementation for File Metadata Backend
-func (fmb *MetadataBackend) Create(ctx *common.PlikContext, upload *common.Upload) (err error) {
-	defer ctx.Finalize(err)
+func (fmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (err error) {
+	log := common.GetLogger(ctx)
 
 	// Get upload directory
 	directory, err := fmb.getDirectoryFromUploadID(upload.ID)
 	if err != nil {
-		ctx.Warningf("Unable to get upload directory : %s", err)
+		log.Warningf("Unable to get upload directory : %s", err)
 		return
 	}
 
@@ -75,23 +76,23 @@ func (fmb *MetadataBackend) Create(ctx *common.PlikContext, upload *common.Uploa
 	// Serialize metadata to json
 	b, err := json.MarshalIndent(upload, "", "    ")
 	if err != nil {
-		err = ctx.EWarningf("Unable to serialize metadata to json : %s", err)
+		err = log.EWarningf("Unable to serialize metadata to json : %s", err)
 		return
 	}
 
 	// Create upload directory if needed
 	if _, err = os.Stat(directory); err != nil {
 		if err = os.MkdirAll(directory, 0777); err != nil {
-			err = ctx.EWarningf("Unable to create upload directory %s : %s", directory, err)
+			err = log.EWarningf("Unable to create upload directory %s : %s", directory, err)
 			return
 		}
-		ctx.Infof("Upload directory %s successfully created", directory)
+		log.Infof("Upload directory %s successfully created", directory)
 	}
 
 	// Create metadata file
 	f, err := os.OpenFile(metadataFile, os.O_RDWR|os.O_CREATE, os.FileMode(0666))
 	if err != nil {
-		err = ctx.EWarningf("Unable to create metadata file %s : %s", metadataFile, err)
+		err = log.EWarningf("Unable to create metadata file %s : %s", metadataFile, err)
 		return
 	}
 	defer f.Close()
@@ -99,29 +100,29 @@ func (fmb *MetadataBackend) Create(ctx *common.PlikContext, upload *common.Uploa
 	// Print content
 	_, err = f.Write(b)
 	if err != nil {
-		err = ctx.EWarningf("Unable to write metadata file %s : %s", metadataFile, err)
+		err = log.EWarningf("Unable to write metadata file %s : %s", metadataFile, err)
 		return
 	}
 
 	// Sync on disk
 	err = f.Sync()
 	if err != nil {
-		err = ctx.EWarningf("Unable to sync metadata file %s : %s", metadataFile, err)
+		err = log.EWarningf("Unable to sync metadata file %s : %s", metadataFile, err)
 		return
 	}
 
-	ctx.Infof("Metadata file successfully saved %s", metadataFile)
+	log.Infof("Metadata file successfully saved %s", metadataFile)
 	return
 }
 
 // Get implementation for File Metadata Backend
-func (fmb *MetadataBackend) Get(ctx *common.PlikContext, id string) (upload *common.Upload, err error) {
-	defer ctx.Finalize(err)
+func (fmb *MetadataBackend) Get(ctx *juliet.Context, id string) (upload *common.Upload, err error) {
+	log := common.GetLogger(ctx)
 
 	// Get upload directory
 	directory, err := fmb.getDirectoryFromUploadID(id)
 	if err != nil {
-		ctx.Warningf("Unable to get upload directory : %s", err)
+		log.Warningf("Unable to get upload directory : %s", err)
 		return
 	}
 
@@ -132,14 +133,14 @@ func (fmb *MetadataBackend) Get(ctx *common.PlikContext, id string) (upload *com
 	var buffer []byte
 	buffer, err = ioutil.ReadFile(metadataFile)
 	if err != nil {
-		err = ctx.EWarningf("Unable read metadata file %s : %s", metadataFile, err)
+		err = log.EWarningf("Unable read metadata file %s : %s", metadataFile, err)
 		return
 	}
 
 	// Unserialize metadata from json
 	upload = new(common.Upload)
 	if err = json.Unmarshal(buffer, upload); err != nil {
-		err = ctx.EWarningf("Unable to unserialize metadata from json \"%s\" : %s", string(buffer), err)
+		err = log.EWarningf("Unable to unserialize metadata from json \"%s\" : %s", string(buffer), err)
 		return
 	}
 
@@ -147,15 +148,15 @@ func (fmb *MetadataBackend) Get(ctx *common.PlikContext, id string) (upload *com
 }
 
 // AddOrUpdateFile implementation for File Metadata Backend
-func (fmb *MetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
-	defer ctx.Finalize(err)
+func (fmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
+	log := common.GetLogger(ctx)
 
 	// avoid race condition
 	lock(upload.ID)
 	defer unlock(upload.ID)
 
 	// The first thing to do is to reload the file from disk
-	upload, err = fmb.Get(ctx.Fork("reload metadata"), upload.ID)
+	upload, err = fmb.Get(ctx, upload.ID)
 
 	// Add file metadata to upload metadata
 	upload.Files[file.ID] = file
@@ -163,14 +164,14 @@ func (fmb *MetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload *com
 	// Serialize metadata to json
 	b, err := json.MarshalIndent(upload, "", "    ")
 	if err != nil {
-		err = ctx.EWarningf("Unable to serialize metadata to json : %s", err)
+		err = log.EWarningf("Unable to serialize metadata to json : %s", err)
 		return
 	}
 
 	// Get upload directory
 	directory, err := fmb.getDirectoryFromUploadID(upload.ID)
 	if err != nil {
-		ctx.Warningf("Unable to get upload directory : %s", err)
+		log.Warningf("Unable to get upload directory : %s", err)
 		return
 	}
 
@@ -180,47 +181,47 @@ func (fmb *MetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload *com
 	// Create directory if needed
 	if _, err = os.Stat(directory); err != nil {
 		if err = os.MkdirAll(directory, 0777); err != nil {
-			err = ctx.EWarningf("Unable to create upload directory %s : %s", directory, err)
+			err = log.EWarningf("Unable to create upload directory %s : %s", directory, err)
 			return
 		}
-		ctx.Infof("Upload directory %s successfully created", directory)
+		log.Infof("Upload directory %s successfully created", directory)
 	}
 
 	// Override metadata file
 	f, err := os.OpenFile(metadataFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0666))
 	if err != nil {
-		err = ctx.EWarningf("Unable to create metadata file %s : %s", metadataFile, err)
+		err = log.EWarningf("Unable to create metadata file %s : %s", metadataFile, err)
 		return
 	}
 
 	// Print content
 	_, err = f.Write(b)
 	if err != nil {
-		err = ctx.EWarningf("Unable to write metadata file %s : %s", metadataFile, err)
+		err = log.EWarningf("Unable to write metadata file %s : %s", metadataFile, err)
 		return
 	}
 
 	// Sync on disk
 	err = f.Sync()
 	if err != nil {
-		err = ctx.EWarningf("Unable to sync metadata file %s : %s", metadataFile, err)
+		err = log.EWarningf("Unable to sync metadata file %s : %s", metadataFile, err)
 		return
 	}
 
-	ctx.Infof("Metadata file successfully updated %s", metadataFile)
+	log.Infof("Metadata file successfully updated %s", metadataFile)
 	return
 }
 
 // RemoveFile implementation for File Metadata Backend
-func (fmb *MetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
-	defer ctx.Finalize(err)
+func (fmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
+	log := common.GetLogger(ctx)
 
 	// avoid race condition
 	lock(upload.ID)
 	defer unlock(upload.ID)
 
 	// The first thing to do is to reload the file from disk
-	upload, err = fmb.Get(ctx.Fork("reload metadata"), upload.ID)
+	upload, err = fmb.Get(ctx, upload.ID)
 
 	// Remove file metadata from upload metadata
 	delete(upload.Files, file.Name)
@@ -228,14 +229,14 @@ func (fmb *MetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.U
 	// Serialize metadata to json
 	b, err := json.MarshalIndent(upload, "", "    ")
 	if err != nil {
-		err = ctx.EWarningf("Unable to serialize metadata to json : %s", err)
+		err = log.EWarningf("Unable to serialize metadata to json : %s", err)
 		return
 	}
 
 	// Get upload directory
 	directory, err := fmb.getDirectoryFromUploadID(upload.ID)
 	if err != nil {
-		ctx.Warningf("Unable to get upload directory : %s", err)
+		log.Warningf("Unable to get upload directory : %s", err)
 		return
 	}
 
@@ -245,35 +246,36 @@ func (fmb *MetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.U
 	// Override metadata file
 	f, err := os.OpenFile(metadataFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.FileMode(0666))
 	if err != nil {
-		err = ctx.EWarningf("Unable to create metadata file %s : %s", metadataFile, err)
+		err = log.EWarningf("Unable to create metadata file %s : %s", metadataFile, err)
 		return
 	}
 
 	// Print content
 	_, err = f.Write(b)
 	if err != nil {
-		err = ctx.EWarningf("Unable to write metadata file %s : %s", metadataFile, err)
+		err = log.EWarningf("Unable to write metadata file %s : %s", metadataFile, err)
 		return
 	}
 
 	// Sync on disk
 	err = f.Sync()
 	if err != nil {
-		err = ctx.EWarningf("Unable to sync metadata file %s : %s", metadataFile, err)
+		err = log.EWarningf("Unable to sync metadata file %s : %s", metadataFile, err)
 		return
 	}
 
-	ctx.Infof("Metadata file successfully updated %s", metadataFile)
+	log.Infof("Metadata file successfully updated %s", metadataFile)
 	return nil
 }
 
 // Remove implementation for File Metadata Backend
-func (fmb *MetadataBackend) Remove(ctx *common.PlikContext, upload *common.Upload) (err error) {
+func (fmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (err error) {
+	log := common.GetLogger(ctx)
 
 	// Get upload directory
 	directory, err := fmb.getDirectoryFromUploadID(upload.ID)
 	if err != nil {
-		ctx.Warningf("Unable to get upload directory : %s", err)
+		log.Warningf("Unable to get upload directory : %s", err)
 		return
 	}
 
@@ -283,23 +285,24 @@ func (fmb *MetadataBackend) Remove(ctx *common.PlikContext, upload *common.Uploa
 	// Test if file exist
 	_, err = os.Stat(metadataFile)
 	if err != nil {
-		ctx.Infof("Metadata file is already deleted")
+		log.Infof("Metadata file is already deleted")
 		return nil
 	}
 
 	// Remove all metadata at once
 	err = os.Remove(metadataFile)
 	if err != nil {
-		err = ctx.EWarningf("Unable to remove upload directory %s : %s", metadataFile, err)
+		err = log.EWarningf("Unable to remove upload directory %s : %s", metadataFile, err)
 		return
 	}
 
-	ctx.Infof("Metadata file successfully removed : %s", metadataFile)
+	log.Infof("Metadata file successfully removed : %s", metadataFile)
 	return
 }
 
 // GetUploadsToRemove implementation for File Metadata Backend
-func (fmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []string, err error) {
+func (fmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error) {
+	log := common.GetLogger(ctx)
 
 	// Init ids list
 	ids = make([]string, 0)
@@ -322,7 +325,7 @@ func (fmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []s
 			// Get upload metadata
 			upload, err := fmb.Get(ctx, uploadDirectory.Name())
 			if err != nil {
-				ctx.EWarningf("Unable to get upload metadata %s : %s", uploadDirectory.Name(), err)
+				log.EWarningf("Unable to get upload metadata %s : %s", uploadDirectory.Name(), err)
 				continue
 			}
 
@@ -337,23 +340,23 @@ func (fmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []s
 }
 
 // SaveToken implementation for File Metadata Backend
-func (fmb *MetadataBackend) SaveToken(ctx *common.PlikContext, token *common.Token) (err error) {
-	defer ctx.Finalize(err)
+func (fmb *MetadataBackend) SaveToken(ctx *juliet.Context, token *common.Token) (err error) {
+	log := common.GetLogger(ctx)
 
 	// Serialize token to json
 	b, err := json.MarshalIndent(token, "", "    ")
 	if err != nil {
-		err = ctx.EWarningf("Unable to serialize token to json : %s", err)
+		err = log.EWarningf("Unable to serialize token to json : %s", err)
 		return
 	}
 
 	// Create token directory if needed
 	if _, err = os.Stat(fmb.Config.TokenDirectory); err != nil {
 		if err = os.MkdirAll(fmb.Config.TokenDirectory, 0777); err != nil {
-			err = ctx.EWarningf("Unable to create token directory %s : %s", fmb.Config.TokenDirectory, err)
+			err = log.EWarningf("Unable to create token directory %s : %s", fmb.Config.TokenDirectory, err)
 			return
 		}
-		ctx.Infof("Token directory %s successfully created", fmb.Config.TokenDirectory)
+		log.Infof("Token directory %s successfully created", fmb.Config.TokenDirectory)
 	}
 
 	tokenFile := fmb.Config.TokenDirectory + "/" + token.Token
@@ -361,7 +364,7 @@ func (fmb *MetadataBackend) SaveToken(ctx *common.PlikContext, token *common.Tok
 	// Create token file
 	f, err := os.OpenFile(tokenFile, os.O_RDWR|os.O_CREATE, os.FileMode(0666))
 	if err != nil {
-		err = ctx.EWarningf("Unable to create token file %s : %s", tokenFile, err)
+		err = log.EWarningf("Unable to create token file %s : %s", tokenFile, err)
 		return
 	}
 	defer f.Close()
@@ -369,24 +372,24 @@ func (fmb *MetadataBackend) SaveToken(ctx *common.PlikContext, token *common.Tok
 	// Print content
 	_, err = f.Write(b)
 	if err != nil {
-		err = ctx.EWarningf("Unable to write token file %s : %s", tokenFile, err)
+		err = log.EWarningf("Unable to write token file %s : %s", tokenFile, err)
 		return
 	}
 
 	// Sync on disk
 	err = f.Sync()
 	if err != nil {
-		err = ctx.EWarningf("Unable to sync token file %s : %s", tokenFile, err)
+		err = log.EWarningf("Unable to sync token file %s : %s", tokenFile, err)
 		return
 	}
 
-	ctx.Infof("Token file successfully saved %s", tokenFile)
+	log.Infof("Token file successfully saved %s", tokenFile)
 	return
 }
 
 // GetToken implementation for File Metadata Backend
-func (fmb *MetadataBackend) GetToken(ctx *common.PlikContext, token string) (t *common.Token, err error) {
-	defer ctx.Finalize(err)
+func (fmb *MetadataBackend) GetToken(ctx *juliet.Context, token string) (t *common.Token, err error) {
+	log := common.GetLogger(ctx)
 
 	// Get metadata file path
 	tokenFile := fmb.Config.TokenDirectory + "/" + token
@@ -395,23 +398,21 @@ func (fmb *MetadataBackend) GetToken(ctx *common.PlikContext, token string) (t *
 	var buffer []byte
 	buffer, err = ioutil.ReadFile(tokenFile)
 	if err != nil {
-		err = ctx.EWarningf("Unable read token file %s : %s", tokenFile, err)
+		err = log.EWarningf("Unable read token file %s : %s", tokenFile, err)
 		return
 	}
 
 	// Unserialize token from json
 	t = new(common.Token)
 	if err = json.Unmarshal(buffer, t); err != nil {
-		err = ctx.EWarningf("Unable to unserialize token from json \"%s\" : %s", string(buffer), err)
+		err = log.EWarningf("Unable to unserialize token from json \"%s\" : %s", string(buffer), err)
 		return
 	}
 	return
 }
 
 // ValidateToken implementation for File Metadata Backend
-func (fmb *MetadataBackend) ValidateToken(ctx *common.PlikContext, token string) (ok bool, err error) {
-	defer ctx.Finalize(err)
-
+func (fmb *MetadataBackend) ValidateToken(ctx *juliet.Context, token string) (ok bool, err error) {
 	// Get token file path
 	tokenFile := fmb.Config.TokenDirectory + "/" + token
 
@@ -424,8 +425,8 @@ func (fmb *MetadataBackend) ValidateToken(ctx *common.PlikContext, token string)
 }
 
 // RevokeToken implementation for File Metadata Backend
-func (fmb *MetadataBackend) RevokeToken(ctx *common.PlikContext, token string) (err error) {
-	defer ctx.Finalize(err)
+func (fmb *MetadataBackend) RevokeToken(ctx *juliet.Context, token string) (err error) {
+	log := common.GetLogger(ctx)
 
 	// Get token file path
 	tokenFile := fmb.Config.TokenDirectory + "/" + token
@@ -435,6 +436,9 @@ func (fmb *MetadataBackend) RevokeToken(ctx *common.PlikContext, token string) (
 
 		// Remove token file
 		err = os.Remove(tokenFile)
+		if err != nil {
+			log.Warningf("Unable to remove token file %s : %s", tokenFile, err)
+		}
 	}
 
 	return

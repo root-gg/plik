@@ -1,11 +1,14 @@
 {
 	"ImportPath": "github.com/root-gg/plik/server",
 	"GoVersion": "go1.5.1",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/BurntSushi/toml",
-			"Comment": "v0.1.0",
-			"Rev": "2ceedfee35ad3848e49308ab0c9a4f640cfb5fb2"
+			"Comment": "v0.1.0-18-g443a628",
+			"Rev": "443a628bc233f634a75bcbdd71fe5350789f1afa"
 		},
 		{
 			"ImportPath": "github.com/GeertJohan/yubigo",
@@ -38,7 +41,7 @@
 		},
 		{
 			"ImportPath": "github.com/gorilla/mux",
-			"Rev": "e444e69cbd2e2e3e0749a2f3c717cec491552bbf"
+			"Rev": "8096f47503459bcc74d1f4c487b7e6e42e5746b5"
 		},
 		{
 			"ImportPath": "github.com/ncw/swift",
@@ -49,8 +52,9 @@
 			"Rev": "179d4d0c4d8d407a32af483c2354df1d2c91e6c3"
 		},
 		{
-			"ImportPath": "github.com/root-gg/context",
-			"Rev": "eb01ea15154712b6b44ee3bbf07863af6525afc6"
+			"ImportPath": "github.com/root-gg/juliet",
+			"Comment": "v1.0",
+			"Rev": "f7abeae007897a156a3a5af8fe8e5e653cb15f13"
 		},
 		{
 			"ImportPath": "github.com/root-gg/logger",
@@ -58,7 +62,7 @@
 		},
 		{
 			"ImportPath": "github.com/root-gg/utils",
-			"Rev": "075b52a8bb434c1e2f156f004a994976bf6a8173"
+			"Rev": "38f45ede2ce220d9c08734edd8a13107022cc20d"
 		},
 		{
 			"ImportPath": "gopkg.in/mgo.v2",
