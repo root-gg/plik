@@ -41,14 +41,18 @@ var (
 
 // Upload object
 type Upload struct {
-	ID          string           `json:"id" bson:"id"`
-	Creation    int64            `json:"uploadDate" bson:"uploadDate"`
-	Comments    string           `json:"comments" bson:"comments"`
-	Files       map[string]*File `json:"files" bson:"files"`
-	RemoteIP    string           `json:"uploadIp,omitempty" bson:"uploadIp"`
-	ShortURL    string           `json:"shortUrl" bson:"shortUrl"`
-	UploadToken string           `json:"uploadToken,omitempty" bson:"uploadToken"`
-	TTL         int              `json:"ttl" bson:"ttl"`
+	ID       string `json:"id" bson:"id"`
+	Creation int64  `json:"uploadDate" bson:"uploadDate"`
+	TTL      int    `json:"ttl" bson:"ttl"`
+	ShortURL string `json:"shortUrl" bson:"shortUrl"`
+	RemoteIP string `json:"uploadIp,omitempty" bson:"uploadIp"`
+	Comments string `json:"comments" bson:"comments"`
+
+	Files map[string]*File `json:"files" bson:"files"`
+
+	UploadToken string `json:"uploadToken,omitempty" bson:"uploadToken"`
+	AuthToken   string `json:"authToken,omitempty" bson:"authToken"`
+	IsAdmin     bool   `json:"admin"`
 
 	Stream    bool `json:"stream" bson:"stream"`
 	OneShot   bool `json:"oneShot" bson:"oneShot"`
@@ -88,6 +92,7 @@ func (upload *Upload) Sanitize() {
 	upload.Password = ""
 	upload.Yubikey = ""
 	upload.UploadToken = ""
+	upload.AuthToken = ""
 	for _, file := range upload.Files {
 		file.Sanitize()
 	}
@@ -104,4 +109,14 @@ func GenerateRandomID(length int) string {
 	}
 
 	return string(b)
+}
+
+// IsExpired check if the upload is expired
+func (upload *Upload) IsExpired() bool {
+	if upload.TTL > 0 {
+		if time.Now().Unix() >= (upload.Creation + int64(upload.TTL)) {
+			return true
+		}
+	}
+	return false
 }

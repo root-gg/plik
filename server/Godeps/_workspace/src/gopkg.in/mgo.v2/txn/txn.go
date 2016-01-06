@@ -14,9 +14,10 @@ import (
 	"strings"
 	"sync"
 
-	crand "crypto/rand"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/gopkg.in/mgo.v2"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/gopkg.in/mgo.v2/bson"
+
+	crand "crypto/rand"
 	mrand "math/rand"
 )
 

@@ -30,10 +30,11 @@ THE SOFTWARE.
 package metadataBackend
 
 import (
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadataBackend/bolt"
-	"github.com/root-gg/plik/server/metadataBackend/file"
-	"github.com/root-gg/plik/server/metadataBackend/mongo"
+	//"github.com/root-gg/plik/server/metadataBackend/file"
+	//"github.com/root-gg/plik/server/metadataBackend/mongo"
 )
 
 var metadataBackend MetadataBackend
@@ -41,18 +42,19 @@ var metadataBackend MetadataBackend
 // MetadataBackend interface describes methods that metadata backends
 // must implements to be compatible with plik.
 type MetadataBackend interface {
-	Create(ctx *common.PlikContext, u *common.Upload) (err error)
-	Get(ctx *common.PlikContext, id string) (u *common.Upload, err error)
-	AddOrUpdateFile(ctx *common.PlikContext, u *common.Upload, file *common.File) (err error)
-	RemoveFile(ctx *common.PlikContext, u *common.Upload, file *common.File) (err error)
-	Remove(ctx *common.PlikContext, u *common.Upload) (err error)
-	GetUploadsToRemove(ctx *common.PlikContext) (ids []string, err error)
+	Create(ctx *juliet.Context, u *common.Upload) (err error)
+	Get(ctx *juliet.Context, id string) (u *common.Upload, err error)
+	AddOrUpdateFile(ctx *juliet.Context, u *common.Upload, file *common.File) (err error)
+	RemoveFile(ctx *juliet.Context, u *common.Upload, file *common.File) (err error)
+	Remove(ctx *juliet.Context, u *common.Upload) (err error)
+	GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error)
+	GetUploadsWithToken(ctx *juliet.Context, token string) (ids []string, err error)
 
 	// Tokens
-	SaveToken(ctx *common.PlikContext, t *common.Token) (err error)
-	GetToken(ctx *common.PlikContext, token string) (t *common.Token, err error)
-	ValidateToken(ctx *common.PlikContext, token string) (ok bool, err error)
-	RevokeToken(ctx *common.PlikContext, token string) (err error)
+	SaveToken(ctx *juliet.Context, t *common.Token) (err error)
+	GetToken(ctx *juliet.Context, token string) (t *common.Token, err error)
+	ValidateToken(ctx *juliet.Context, token string) (ok bool, err error)
+	RevokeToken(ctx *juliet.Context, token string) (err error)
 }
 
 // GetMetaDataBackend is a singleton pattern.
@@ -69,9 +71,9 @@ func Initialize() {
 	if metadataBackend == nil {
 		switch common.Config.MetadataBackend {
 		case "file":
-			metadataBackend = file.NewFileMetadataBackend(common.Config.MetadataBackendConfig)
+			//metadataBackend = file.NewFileMetadataBackend(common.Config.MetadataBackendConfig)
 		case "mongo":
-			metadataBackend = mongo.NewMongoMetadataBackend(common.Config.MetadataBackendConfig)
+			//metadataBackend = mongo.NewMongoMetadataBackend(common.Config.MetadataBackendConfig)
 		case "bolt":
 			metadataBackend = bolt.NewBoltMetadataBackend(common.Config.MetadataBackendConfig)
 		default:

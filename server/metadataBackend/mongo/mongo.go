@@ -35,6 +35,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	mgo "github.com/root-gg/plik/server/Godeps/_workspace/src/gopkg.in/mgo.v2"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/gopkg.in/mgo.v2/bson"
 	"github.com/root-gg/plik/server/common"
@@ -83,74 +84,80 @@ func NewMongoMetadataBackend(config map[string]interface{}) (mmb *MetadataBacken
 }
 
 // Create implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) Create(ctx *common.PlikContext, upload *common.Upload) (err error) {
-	defer ctx.Finalize(err)
+func (mmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (err error) {
+	log := common.GetLogger(ctx)
+
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 	err = collection.Insert(&upload)
 	if err != nil {
-		err = ctx.EWarningf("Unable to append metadata to mongodb : %s", err)
+		err = log.EWarningf("Unable to append metadata to mongodb : %s", err)
 	}
 	return
 }
 
 // Get implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) Get(ctx *common.PlikContext, id string) (u *common.Upload, err error) {
-	defer ctx.Finalize(err)
+func (mmb *MetadataBackend) Get(ctx *juliet.Context, id string) (u *common.Upload, err error) {
+	log := common.GetLogger(ctx)
+
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 	u = &common.Upload{}
 	err = collection.Find(bson.M{"id": id}).One(u)
 	if err != nil {
-		err = ctx.EWarningf("Unable to get metadata from mongodb : %s", err)
+		err = log.EWarningf("Unable to get metadata from mongodb : %s", err)
 	}
 	return
 }
 
 // AddOrUpdateFile implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
-	defer ctx.Finalize(err)
+func (mmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
+	log := common.GetLogger(ctx)
+
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 	err = collection.Update(bson.M{"id": upload.ID}, bson.M{"$set": bson.M{"files." + file.ID: file}})
 	if err != nil {
-		err = ctx.EWarningf("Unable to get metadata from mongodb : %s", err)
+		err = log.EWarningf("Unable to get metadata from mongodb : %s", err)
 	}
 	return
 }
 
 // RemoveFile implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
-	defer ctx.Finalize(err)
+func (mmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
+	log := common.GetLogger(ctx)
+
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 	err = collection.Update(bson.M{"id": upload.ID}, bson.M{"$unset": bson.M{"files." + file.Name: ""}})
 	if err != nil {
-		err = ctx.EWarningf("Unable to get remove file from mongodb : %s", err)
+		err = log.EWarningf("Unable to get remove file from mongodb : %s", err)
 	}
 	return
 }
 
 // Remove implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) Remove(ctx *common.PlikContext, upload *common.Upload) (err error) {
-	defer ctx.Finalize(err)
+func (mmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (err error) {
+	log := common.GetLogger(ctx)
+
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 	err = collection.Remove(bson.M{"id": upload.ID})
 	if err != nil {
-		err = ctx.EWarningf("Unable to get remove file from mongodb : %s", err)
+		err = log.EWarningf("Unable to get remove file from mongodb : %s", err)
 	}
 	return
 }
 
 // GetUploadsToRemove implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []string, err error) {
-	defer ctx.Finalize(err)
+func (mmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error) {
+	log := common.GetLogger(ctx)
+
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
@@ -161,7 +168,7 @@ func (mmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []s
 
 	err = collection.Find(b).All(&uploads)
 	if err != nil {
-		err = ctx.EWarningf("Unable to get uploads to remove : %s", err)
+		err = log.EWarningf("Unable to get uploads to remove : %s", err)
 		return
 	}
 
@@ -174,41 +181,44 @@ func (mmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []s
 }
 
 // SaveToken implementation for MongoDB Metadata Backend
-func (mmb *MetadataBackend) SaveToken(ctx *common.PlikContext, token *common.Token) (err error) {
-	defer ctx.Finalize(err)
+func (mmb *MetadataBackend) SaveToken(ctx *juliet.Context, token *common.Token) (err error) {
+	log := common.GetLogger(ctx)
+
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.TokenCollection)
 	err = collection.Insert(&token)
 	if err != nil {
-		err = ctx.EWarningf("Unable to append token to mongodb : %s", err)
+		err = log.EWarningf("Unable to append token to mongodb : %s", err)
 	}
 	return
 }
 
 // GetToken implementation for MongoDB Metadata Backend
-func (mmb *MetadataBackend) GetToken(ctx *common.PlikContext, token string) (t *common.Token, err error) {
-	defer ctx.Finalize(err)
+func (mmb *MetadataBackend) GetToken(ctx *juliet.Context, token string) (t *common.Token, err error) {
+	log := common.GetLogger(ctx)
+
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.TokenCollection)
 	t = &common.Token{}
 	err = collection.Find(bson.M{"token": token}).One(t)
 	if err != nil {
-		err = ctx.EWarningf("Unable to get token from mongodb : %s", err)
+		err = log.EWarningf("Unable to get token from mongodb : %s", err)
 	}
 	return
 }
 
 // ValidateToken implementation for MongoDB Metadata Backend
-func (mmb *MetadataBackend) ValidateToken(ctx *common.PlikContext, token string) (ok bool, err error) {
-	defer ctx.Finalize(err)
+func (mmb *MetadataBackend) ValidateToken(ctx *juliet.Context, token string) (ok bool, err error) {
+	log := common.GetLogger(ctx)
+
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.TokenCollection)
 	count, err := collection.Find(bson.M{"token": token}).Count()
 	if err != nil {
-		err = ctx.EWarningf("Unable to get token from mongodb : %s", err)
+		err = log.EWarningf("Unable to get token from mongodb : %s", err)
 	}
 	if count > 0 {
 		ok = true
@@ -217,14 +227,15 @@ func (mmb *MetadataBackend) ValidateToken(ctx *common.PlikContext, token string)
 }
 
 // RevokeToken implementation for MongoDB Metadata Backend
-func (mmb *MetadataBackend) RevokeToken(ctx *common.PlikContext, token string) (err error) {
-	defer ctx.Finalize(err)
+func (mmb *MetadataBackend) RevokeToken(ctx *juliet.Context, token string) (err error) {
+	log := common.GetLogger(ctx)
+
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.TokenCollection)
 	err = collection.Remove(bson.M{"token": token})
 	if err != nil {
-		err = ctx.EWarningf("Unable to get remove token from mongodb : %s", err)
+		err = log.EWarningf("Unable to get remove token from mongodb : %s", err)
 	}
 	return
 }

@@ -30,6 +30,7 @@ THE SOFTWARE.
 package shortenBackend
 
 import (
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/shortenBackend/isgd"
 	"github.com/root-gg/plik/server/shortenBackend/w000t"
@@ -40,7 +41,7 @@ var shortenBackend ShortenBackend
 // ShortenBackend interface describes methods that shorten backends
 // must implements to be compatible with plik.
 type ShortenBackend interface {
-	Shorten(ctx *common.PlikContext, longURL string) (string, error)
+	Shorten(ctx *juliet.Context, longURL string) (string, error)
 }
 
 // GetShortenBackend is a singleton pattern.

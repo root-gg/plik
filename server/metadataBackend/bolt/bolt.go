@@ -36,7 +36,9 @@ import (
 	"log"
 	"time"
 
+	"bytes"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/boltdb/bolt"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -77,6 +79,10 @@ func NewBoltMetadataBackend(config map[string]interface{}) (bmb *MetadataBackend
 			if err != nil {
 				return fmt.Errorf("Unable to create token bucket : %s", err)
 			}
+			_, err = tx.CreateBucketIfNotExists([]byte("tokens_index"))
+			if err != nil {
+				return fmt.Errorf("Unable to create token bucket : %s", err)
+			}
 		}
 
 		return nil
@@ -89,13 +95,13 @@ func NewBoltMetadataBackend(config map[string]interface{}) (bmb *MetadataBackend
 }
 
 // Create implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) Create(ctx *common.PlikContext, upload *common.Upload) (err error) {
-	defer ctx.Finalize(err)
+func (bmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (err error) {
+	log := common.GetLogger(ctx)
 
 	// Serialize metadata to json
 	j, err := json.Marshal(upload)
 	if err != nil {
-		err = ctx.EWarningf("Unable to serialize metadata to json : %s", err)
+		err = log.EWarningf("Unable to serialize metadata to json : %s", err)
 		return
 	}
 
@@ -121,12 +127,33 @@ func (bmb *MetadataBackend) Create(ctx *common.PlikContext, upload *common.Uploa
 			// Key is the expire timestamp ( 8 bytes )
 			// concatenated with the upload id ( 16 bytes )
 			// Upload id is stored in the key to ensure uniqueness
-			ba := make([]byte, 8)
+			key := make([]byte, 8)
 			expiredTs := upload.Creation + int64(upload.TTL)
-			binary.BigEndian.PutUint64(ba, uint64(expiredTs))
-			ba = append(ba, []byte(upload.ID)...)
+			binary.BigEndian.PutUint64(key, uint64(expiredTs))
+			key = append(key, []byte(upload.ID)...)
 
-			err := bucketExpired.Put(ba, []byte{})
+			err := bucketExpired.Put(key, []byte{})
+			if err != nil {
+				return fmt.Errorf("Unable to save expire index : %s", err)
+			}
+		}
+
+		// Index auth token in the token index bucket
+		if upload.AuthToken != "" {
+			bucketToken := tx.Bucket([]byte("tokens_index"))
+			if bucketToken == nil {
+				return fmt.Errorf("Unable to get token index Bolt bucket")
+			}
+
+			// Key is the auth token ( 36 bytes )
+			// concatenated with the upload date reversed ( 8 bytes )
+			// concatenated with the upload id ( 16 bytes )
+			key := make([]byte, 60)
+			copy(key[:36], []byte(upload.AuthToken))
+			binary.BigEndian.PutUint64(key[36:44], ^uint64(0)-uint64(upload.Creation))
+			copy(key[44:], []byte(upload.ID))
+
+			err := bucketToken.Put(key, []byte{})
 			if err != nil {
 				return fmt.Errorf("Unable to save expire index : %s", err)
 			}
@@ -138,13 +165,13 @@ func (bmb *MetadataBackend) Create(ctx *common.PlikContext, upload *common.Uploa
 		return
 	}
 
-	ctx.Infof("Metadata file successfully saved")
+	log.Infof("Metadata file successfully saved")
 	return
 }
 
 // Get implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) Get(ctx *common.PlikContext, id string) (upload *common.Upload, err error) {
-	defer ctx.Finalize(err)
+func (bmb *MetadataBackend) Get(ctx *juliet.Context, id string) (upload *common.Upload, err error) {
+	log := common.GetLogger(ctx)
 	var b []byte
 
 	// Get json metadata from Bolt database
@@ -168,7 +195,7 @@ func (bmb *MetadataBackend) Get(ctx *common.PlikContext, id string) (upload *com
 	// Unserialize metadata from json
 	upload = new(common.Upload)
 	if err = json.Unmarshal(b, upload); err != nil {
-		err = ctx.EWarningf("Unable to unserialize metadata from json \"%s\" : %s", string(b), err)
+		err = log.EWarningf("Unable to unserialize metadata from json \"%s\" : %s", string(b), err)
 		return
 	}
 
@@ -176,8 +203,8 @@ func (bmb *MetadataBackend) Get(ctx *common.PlikContext, id string) (upload *com
 }
 
 // AddOrUpdateFile implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
-	defer ctx.Finalize(err)
+func (bmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
+	log := common.GetLogger(ctx)
 
 	// Update json metadata to Bolt database
 	err = bmb.db.Update(func(tx *bolt.Tx) error {
@@ -195,7 +222,7 @@ func (bmb *MetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload *com
 		// Unserialize metadata from json
 		upload := new(common.Upload)
 		if err = json.Unmarshal(b, upload); err != nil {
-			return ctx.EWarningf("Unable to unserialize metadata from json \"%s\" : %s", string(b), err)
+			return log.EWarningf("Unable to unserialize metadata from json \"%s\" : %s", string(b), err)
 		}
 
 		// Add file to upload
@@ -204,7 +231,7 @@ func (bmb *MetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload *com
 		// Serialize metadata to json
 		j, err := json.Marshal(upload)
 		if err != nil {
-			return ctx.EWarningf("Unable to serialize metadata to json : %s", err)
+			return log.EWarningf("Unable to serialize metadata to json : %s", err)
 		}
 
 		// Update Bolt database
@@ -214,13 +241,13 @@ func (bmb *MetadataBackend) AddOrUpdateFile(ctx *common.PlikContext, upload *com
 		return
 	}
 
-	ctx.Infof("Metadata file successfully updated")
+	log.Infof("Metadata file successfully updated")
 	return
 }
 
 // RemoveFile implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, file *common.File) (err error) {
-	defer ctx.Finalize(err)
+func (bmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
+	log := common.GetLogger(ctx)
 
 	// Update json metadata to Bolt database
 	err = bmb.db.Update(func(tx *bolt.Tx) error {
@@ -238,7 +265,7 @@ func (bmb *MetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.U
 		var j []byte
 		upload = new(common.Upload)
 		if err = json.Unmarshal(b, upload); err != nil {
-			return ctx.EWarningf("Unable to unserialize metadata from json \"%s\" : %s", string(j), err)
+			return log.EWarningf("Unable to unserialize metadata from json \"%s\" : %s", string(j), err)
 		}
 
 		// Remove file from upload
@@ -249,7 +276,7 @@ func (bmb *MetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.U
 			// Serialize metadata to json
 			j, err := json.Marshal(upload)
 			if err != nil {
-				return ctx.EWarningf("Unable to serialize metadata to json : %s", err)
+				return log.EWarningf("Unable to serialize metadata to json : %s", err)
 			}
 
 			// Update bolt database
@@ -263,13 +290,13 @@ func (bmb *MetadataBackend) RemoveFile(ctx *common.PlikContext, upload *common.U
 		return
 	}
 
-	ctx.Infof("Metadata successfully updated")
+	log.Infof("Metadata successfully updated")
 	return nil
 }
 
 // Remove implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) Remove(ctx *common.PlikContext, upload *common.Upload) (err error) {
-	defer ctx.Finalize(err)
+func (bmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (err error) {
+	log := common.GetLogger(ctx)
 
 	// Remove upload from bolt database
 	err = bmb.db.Update(func(tx *bolt.Tx) error {
@@ -289,12 +316,33 @@ func (bmb *MetadataBackend) Remove(ctx *common.PlikContext, upload *common.Uploa
 			// Key is the expire timestamps ( 8 bytes )
 			// concatenated with the upload id ( 16 bytes )
 			// Upload id is stored in the key to ensure uniqueness
-			ba := make([]byte, 8)
+			key := make([]byte, 8)
 			expiredTs := upload.Creation + int64(upload.TTL)
-			binary.BigEndian.PutUint64(ba, uint64(expiredTs))
-			ba = append(ba, []byte(upload.ID)...)
+			binary.BigEndian.PutUint64(key, uint64(expiredTs))
+			key = append(key, []byte(upload.ID)...)
 
-			err := bucketExpired.Delete(ba)
+			err := bucketExpired.Delete(key)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Clean the auth token index bucket
+		if upload.AuthToken != "" {
+			bucketToken := tx.Bucket([]byte("tokens_index"))
+			if bucketToken == nil {
+				return fmt.Errorf("Unable to get token index Bolt bucket")
+			}
+
+			// Key is the auth token ( 36 bytes )
+			// concatenated with the upload date ( 8 bytes )
+			// concatenated with the upload id ( 8 bytes )
+			key := make([]byte, 60)
+			copy(key[:36], []byte(upload.AuthToken))
+			binary.BigEndian.PutUint64(key[36:44], ^uint64(0)-uint64(upload.Creation))
+			copy(key[44:], []byte(upload.ID))
+
+			err := bucketToken.Delete(key)
 			if err != nil {
 				return err
 			}
@@ -306,13 +354,13 @@ func (bmb *MetadataBackend) Remove(ctx *common.PlikContext, upload *common.Uploa
 		return
 	}
 
-	ctx.Infof("Metadata successfully removed")
+	log.Infof("Metadata successfully removed")
 	return
 }
 
 // GetUploadsToRemove implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []string, err error) {
-	defer ctx.Finalize(err)
+func (bmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error) {
+	//log := common.GetLogger(ctx)
 
 	err = bmb.db.View(func(tx *bolt.Tx) error {
 		c := tx.Bucket([]byte("expired")).Cursor()
@@ -337,18 +385,48 @@ func (bmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []s
 
 		return nil
 	})
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+// GetUploadsWithToken implementation for Bolt Metadata Backend
+func (bmb *MetadataBackend) GetUploadsWithToken(ctx *juliet.Context, token string) (ids []string, err error) {
+	log := common.GetLogger(ctx)
+
+	err = bmb.db.View(func(tx *bolt.Tx) error {
+		c := tx.Bucket([]byte("tokens_index")).Cursor()
+
+		tokenBytes := []byte(token)
+		k, _ := c.Seek(tokenBytes)
+		for k != nil && bytes.HasPrefix(k, tokenBytes) {
+			// Extract upload id from key ( 16 last bytes )
+			ids = append(ids, string(k[44:]))
+
+			// Scan the bucket forward
+			k, _ = c.Next()
+		}
+
+		return nil
+	})
+	if err != nil {
+		log.Warningf("daffouk : %v", err)
+		return
+	}
 
 	return
 }
 
 // SaveToken implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) SaveToken(ctx *common.PlikContext, token *common.Token) (err error) {
-	defer ctx.Finalize(err)
+func (bmb *MetadataBackend) SaveToken(ctx *juliet.Context, token *common.Token) (err error) {
+	log := common.GetLogger(ctx)
 
 	// Serialize token to json
 	j, err := json.Marshal(token)
 	if err != nil {
-		err = ctx.EWarningf("Unable to serialize token to json : %s", err)
+		err = log.EWarningf("Unable to serialize token to json : %s", err)
 		return
 	}
 
@@ -373,8 +451,8 @@ func (bmb *MetadataBackend) SaveToken(ctx *common.PlikContext, token *common.Tok
 }
 
 // GetToken implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) GetToken(ctx *common.PlikContext, token string) (t *common.Token, err error) {
-	defer ctx.Finalize(err)
+func (bmb *MetadataBackend) GetToken(ctx *juliet.Context, token string) (t *common.Token, err error) {
+	log := common.GetLogger(ctx)
 	var b []byte
 
 	// Get json token from Bolt database
@@ -392,7 +470,7 @@ func (bmb *MetadataBackend) GetToken(ctx *common.PlikContext, token string) (t *
 		return nil
 	})
 	if err != nil {
-		err = ctx.EWarningf("Unable to save token : %s", err)
+		err = log.EWarningf("Unable to save token : %s", err)
 		return
 	}
 
@@ -406,9 +484,7 @@ func (bmb *MetadataBackend) GetToken(ctx *common.PlikContext, token string) (t *
 }
 
 // ValidateToken implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) ValidateToken(ctx *common.PlikContext, token string) (ok bool, err error) {
-	defer ctx.Finalize(err)
-
+func (bmb *MetadataBackend) ValidateToken(ctx *juliet.Context, token string) (ok bool, err error) {
 	// Get json token from Bolt database
 	err = bmb.db.View(func(tx *bolt.Tx) error {
 		bucketMetadata := tx.Bucket([]byte("tokens"))
@@ -432,9 +508,7 @@ func (bmb *MetadataBackend) ValidateToken(ctx *common.PlikContext, token string)
 }
 
 // RevokeToken implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) RevokeToken(ctx *common.PlikContext, token string) (err error) {
-	defer ctx.Finalize(err)
-
+func (bmb *MetadataBackend) RevokeToken(ctx *juliet.Context, token string) (err error) {
 	// Remove upload from bolt database
 	err = bmb.db.Update(func(tx *bolt.Tx) error {
 		bucketMetadata := tx.Bucket([]byte("tokens"))

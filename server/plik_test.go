@@ -135,20 +135,27 @@ func TestOneShot(t *testing.T) {
 	test("getFile", upload, file, 404, t)
 }
 
-func TestRemovable(t *testing.T) {
+func TestRemoveUpload(t *testing.T) {
 	upload := createUpload(&common.Upload{}, t)
-	uploadRemovable := createUpload(&common.Upload{Removable: true}, t)
 
-	file := uploadFile(upload, "test", "", readerForUpload, t)
+	// Remove upload
+	test("removeUpload", upload, nil, 200, t)
+
+	// Get removed upload
+	test("getUpload", upload, nil, 404, t)
+}
+
+func TestRemoveFile(t *testing.T) {
+	upload := createUpload(&common.Upload{}, t)
+	uploadRemovable := createUpload(&common.Upload{}, t)
+
+	uploadFile(upload, "test", "", readerForUpload, t)
 	fileRemovable := uploadFile(uploadRemovable, "test", "", readerForUpload, t)
 
-	// Should fail on classic upload
-	test("removeFile", upload, file, 401, t)
-
-	// Should work on removable upload
+	// Remove file
 	test("removeFile", uploadRemovable, fileRemovable, 200, t)
 
-	// Test if it worked on removable
+	// Test if file has been removed
 	test("getFile", uploadRemovable, fileRemovable, 404, t)
 }
 
@@ -216,6 +223,69 @@ func TestStream(t *testing.T) {
 	}
 
 	return
+}
+
+func TestToken(t *testing.T) {
+
+	// Generate a new token
+	code, token, err := createToken()
+	if err != nil {
+		t.Fatalf("Failed to create token : %s", err)
+	}
+
+	// Test code
+	if code != 200 {
+		t.Fatalf("We got http code %d on create token. We expected %d", code, 200)
+	} else {
+		t.Logf(" -> Got a %d. Good", code)
+	}
+
+	if len(token.Token) != 36 {
+		t.Fatalf("Invalid token %v", token.Token)
+	}
+
+	// Get token
+	code, gotToken, err := getToken(token.Token)
+	if err != nil {
+		t.Fatalf("Failed to get token %s : %s", token.Token, err)
+	}
+
+	// Test code
+	if code != 200 {
+		t.Fatalf("We got http code %d on get token. We expected %d", code, 200)
+	} else {
+		t.Logf(" -> Got a %d. Good", code)
+	}
+
+	if gotToken.Token != token.Token {
+		t.Fatalf("Invalid token %s, We expected %s", gotToken.Token, token.Token)
+	}
+
+	// Revoke token
+	code, err = revokeToken(token.Token)
+	if err != nil {
+		t.Fatalf("Failed to revoke token : %s", err)
+	}
+
+	// Test code
+	if code != 200 {
+		t.Fatalf("We got http code %d on revoke token. We expected %d", code, 200)
+	} else {
+		t.Logf(" -> Got a %d. Good", code)
+	}
+
+	// Get revoked token
+	code, _, err = getToken(token.Token)
+	if err != nil {
+		t.Fatalf("Failed to get token %s : %s", token.Token, err)
+	}
+
+	// Test code
+	if code != 404 {
+		t.Fatalf("We got http code %d on get revoked token. We expected %d", code, 404)
+	} else {
+		t.Logf(" -> Got a %d. Good", code)
+	}
 }
 
 //
@@ -378,6 +448,30 @@ func getUpload(uploadID string) (httpCode int, upload *common.Upload, err error)
 	return
 }
 
+func removeUpload(uploadID string) (httpCode int, err error) {
+	var URL *url.URL
+	URL, err = url.Parse(plikURL + "/upload/" + uploadID)
+	if err != nil {
+		return
+	}
+
+	var req *http.Request
+	req, err = http.NewRequest("DELETE", URL.String(), nil)
+	if err != nil {
+		return
+	}
+
+	req.Header.Set("User-Agent", "curl")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+	httpCode = resp.StatusCode
+
+	return
+}
+
 func getFile(upload *common.Upload, file *common.File) (httpCode int, content string, err error) {
 
 	var URL *url.URL
@@ -441,6 +535,107 @@ func removeFile(upload *common.Upload, file *common.File) (httpCode int, err err
 	return
 }
 
+func createToken() (httpCode int, token *common.Token, err error) {
+	var URL *url.URL
+	URL, err = url.Parse(plikURL + "/token")
+	if err != nil {
+		return
+	}
+
+	var req *http.Request
+	req, err = http.NewRequest("POST", URL.String(), nil)
+	if err != nil {
+		return
+	}
+
+	req.Header.Set("User-Agent", "curl")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+
+	httpCode = resp.StatusCode
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+
+	// Parse return
+	token = new(common.Token)
+	err = json.Unmarshal(responseBody, token)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func getToken(token string) (httpCode int, t *common.Token, err error) {
+	var URL *url.URL
+	URL, err = url.Parse(plikURL + "/token/" + token)
+	if err != nil {
+		return
+	}
+
+	var req *http.Request
+	req, err = http.NewRequest("GET", URL.String(), nil)
+	if err != nil {
+		return
+	}
+
+	req.Header.Set("User-Agent", "curl")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+
+	httpCode = resp.StatusCode
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+
+	// Parse return
+	t = new(common.Token)
+	err = json.Unmarshal(responseBody, t)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func revokeToken(token string) (httpCode int, err error) {
+	var URL *url.URL
+	URL, err = url.Parse(plikURL + "/token/" + token)
+	if err != nil {
+		return
+	}
+
+	var req *http.Request
+	req, err = http.NewRequest("DELETE", URL.String(), nil)
+	if err != nil {
+		return
+	}
+
+	req.Header.Set("User-Agent", "curl")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+
+	httpCode = resp.StatusCode
+	_, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 func test(action string, upload *common.Upload, file *common.File, expectedHTTPCode int, t *testing.T) {
 	switch action {
 
@@ -451,6 +646,22 @@ func test(action string, upload *common.Upload, file *common.File, expectedHTTPC
 		code, upload, err := getUpload(upload.ID)
 		if err != nil {
 			t.Fatalf("Failed to get upload : %s", err)
+		}
+
+		// Test code
+		if code != expectedHTTPCode {
+			t.Fatalf("We got http code %d on action %s on upload %s. We expected %d", code, action, upload.ID, expectedHTTPCode)
+		} else {
+			t.Logf(" -> Got a %d. Good", code)
+		}
+
+	case "removeUpload":
+
+		t.Logf("Try to %s on upload %s. We should get a %d : ", action, upload.ID, expectedHTTPCode)
+
+		code, err := removeUpload(upload.ID)
+		if err != nil {
+			t.Fatalf("Failed to remove upload : %s", err)
 		}
 
 		// Test code
