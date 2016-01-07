@@ -275,22 +275,6 @@ echo "OK"
 
 #---------------------------------------------
 
-echo -n " - removable : "
-
-before
-cp $SPECIMEN $TMPDIR/upload/FILE1
-upload -r && uploadOpts
-echo "$UPLOAD_OPTS" | grep '"removable": true' >/dev/null 2>/dev/null
-
-before
-cp $SPECIMEN $TMPDIR/upload/FILE1
-upload --removable && uploadOpts
-echo "$UPLOAD_OPTS" | grep '"removable": true' >/dev/null 2>/dev/null
-
-echo "OK"
-
-#---------------------------------------------
-
 echo -n " - streaming : "
 
 before
@@ -661,9 +645,9 @@ rm $SERVER_LOG
 rm $CLIENT_LOG
 cd $ORIGIN
 
-echo " - upgrade : ( this might take a long time ... )"
-./test_upgrade.sh
-echo " - downgrade : ( this might take a long time ... )"
-./test_downgrade.sh
+#echo " - upgrade : ( this might take a long time ... )"
+#./test_upgrade.sh
+#echo " - downgrade : ( this might take a long time ... )"
+#./test_downgrade.sh
 
 exit 0
