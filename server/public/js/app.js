@@ -184,9 +184,9 @@ angular.module('api', ['ngFileUpload']).
         };
 
         // Get upload metadata
-        api.getUpload = function(uploadId) {
+        api.getUpload = function(uploadId, uploadToken) {
             var url = api.base + '/upload/' + uploadId;
-            return api.call(url, 'GET');
+            return api.call(url, 'GET', {}, {}, uploadToken);
         };
 
         // Create an upload with current settings
@@ -314,7 +314,6 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         } else {
             // Load current upload id
             $scope.load($location.search().id);
-            $scope.upload.uploadToken = $location.search().uploadToken;
         }
     };
 
@@ -322,7 +321,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     $scope.load = function (id) {
         if (!id) return;
         $scope.upload.id = id;
-        $api.getUpload($scope.upload.id)
+        $api.getUpload($scope.upload.id, $location.search().uploadToken)
             .then(function (upload) {
                 _.extend($scope.upload, upload);
                 $scope.files = _.map($scope.upload.files, function (file) {

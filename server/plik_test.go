@@ -448,9 +448,9 @@ func getUpload(uploadID string) (httpCode int, upload *common.Upload, err error)
 	return
 }
 
-func removeUpload(uploadID string) (httpCode int, err error) {
+func removeUpload(upload *common.Upload) (httpCode int, err error) {
 	var URL *url.URL
-	URL, err = url.Parse(plikURL + "/upload/" + uploadID)
+	URL, err = url.Parse(plikURL + "/upload/" + upload.ID)
 	if err != nil {
 		return
 	}
@@ -461,6 +461,7 @@ func removeUpload(uploadID string) (httpCode int, err error) {
 		return
 	}
 
+	req.Header.Set("X-UploadToken", upload.UploadToken)
 	req.Header.Set("User-Agent", "curl")
 
 	resp, err := client.Do(req)
@@ -659,7 +660,7 @@ func test(action string, upload *common.Upload, file *common.File, expectedHTTPC
 
 		t.Logf("Try to %s on upload %s. We should get a %d : ", action, upload.ID, expectedHTTPCode)
 
-		code, err := removeUpload(upload.ID)
+		code, err := removeUpload(upload)
 		if err != nil {
 			t.Fatalf("Failed to remove upload : %s", err)
 		}
