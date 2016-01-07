@@ -294,6 +294,7 @@ func (fmb *MetadataBackend) Remove(ctx *common.PlikContext, upload *common.Uploa
 		return
 	}
 
+	ctx.Infof("Metadata file successfully removed : %s", metadataFile)
 	return
 }
 
@@ -321,7 +322,8 @@ func (fmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []s
 			// Get upload metadata
 			upload, err := fmb.Get(ctx, uploadDirectory.Name())
 			if err != nil {
-				return ids, err
+				ctx.EWarningf("Unable to get upload metadata %s : %s", uploadDirectory.Name(), err)
+				continue
 			}
 
 			// If a TTL is set, test if expired or not
@@ -332,6 +334,110 @@ func (fmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []s
 	}
 
 	return ids, nil
+}
+
+// SaveToken implementation for File Metadata Backend
+func (fmb *MetadataBackend) SaveToken(ctx *common.PlikContext, token *common.Token) (err error) {
+	defer ctx.Finalize(err)
+
+	// Serialize token to json
+	b, err := json.MarshalIndent(token, "", "    ")
+	if err != nil {
+		err = ctx.EWarningf("Unable to serialize token to json : %s", err)
+		return
+	}
+
+	// Create token directory if needed
+	if _, err = os.Stat(fmb.Config.TokenDirectory); err != nil {
+		if err = os.MkdirAll(fmb.Config.TokenDirectory, 0777); err != nil {
+			err = ctx.EWarningf("Unable to create token directory %s : %s", fmb.Config.TokenDirectory, err)
+			return
+		}
+		ctx.Infof("Token directory %s successfully created", fmb.Config.TokenDirectory)
+	}
+
+	tokenFile := fmb.Config.TokenDirectory + "/" + token.Token
+
+	// Create token file
+	f, err := os.OpenFile(tokenFile, os.O_RDWR|os.O_CREATE, os.FileMode(0666))
+	if err != nil {
+		err = ctx.EWarningf("Unable to create token file %s : %s", tokenFile, err)
+		return
+	}
+	defer f.Close()
+
+	// Print content
+	_, err = f.Write(b)
+	if err != nil {
+		err = ctx.EWarningf("Unable to write token file %s : %s", tokenFile, err)
+		return
+	}
+
+	// Sync on disk
+	err = f.Sync()
+	if err != nil {
+		err = ctx.EWarningf("Unable to sync token file %s : %s", tokenFile, err)
+		return
+	}
+
+	ctx.Infof("Token file successfully saved %s", tokenFile)
+	return
+}
+
+// GetToken implementation for File Metadata Backend
+func (fmb *MetadataBackend) GetToken(ctx *common.PlikContext, token string) (t *common.Token, err error) {
+	defer ctx.Finalize(err)
+
+	// Get metadata file path
+	tokenFile := fmb.Config.TokenDirectory + "/" + token
+
+	// Open and read token
+	var buffer []byte
+	buffer, err = ioutil.ReadFile(tokenFile)
+	if err != nil {
+		err = ctx.EWarningf("Unable read token file %s : %s", tokenFile, err)
+		return
+	}
+
+	// Unserialize token from json
+	t = new(common.Token)
+	if err = json.Unmarshal(buffer, t); err != nil {
+		err = ctx.EWarningf("Unable to unserialize token from json \"%s\" : %s", string(buffer), err)
+		return
+	}
+	return
+}
+
+// ValidateToken implementation for File Metadata Backend
+func (fmb *MetadataBackend) ValidateToken(ctx *common.PlikContext, token string) (ok bool, err error) {
+	defer ctx.Finalize(err)
+
+	// Get token file path
+	tokenFile := fmb.Config.TokenDirectory + "/" + token
+
+	// Check if token file exists
+	if _, err = os.Stat(tokenFile); err == nil {
+		ok = true
+	}
+
+	return
+}
+
+// RevokeToken implementation for File Metadata Backend
+func (fmb *MetadataBackend) RevokeToken(ctx *common.PlikContext, token string) (err error) {
+	defer ctx.Finalize(err)
+
+	// Get token file path
+	tokenFile := fmb.Config.TokenDirectory + "/" + token
+
+	// Check if token file exists
+	if _, err = os.Stat(tokenFile); err == nil {
+
+		// Remove token file
+		err = os.Remove(tokenFile)
+	}
+
+	return
 }
 
 func (fmb *MetadataBackend) getDirectoryFromUploadID(uploadID string) (string, error) {

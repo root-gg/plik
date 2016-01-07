@@ -8,7 +8,7 @@ Plik is an simple and powerful file uploading system written in golang.
 
 ### Main features
    - Multiple data backends : File, OpenStack Swift, WeedFS
-   - Multiple metadata backends : File, MongoDB
+   - Multiple metadata backends : File, MongoDB, Bolt
    - Shorten backends : Shorten upload urls (is.gd && w000t.me available)
    - OneShot : Files are destructed after the first download
    - Stream : Files are streamed from the uploader to the downloader (nothing stored server side)  
@@ -17,6 +17,7 @@ Plik is an simple and powerful file uploading system written in golang.
    - Password : Protect upload with login/password (Auth Basic)
    - Yubikey : Protect upload with your yubikey. (One Time Password)
    - Comments : Add custom message (in Markdown format)
+   - Upload restriction : Source IP / Token
 
 ### Version
 1.1
@@ -169,10 +170,25 @@ Remove file :
 Show server details :
 
    - **GET** /version
-     - Show plik server version, and some build informations (build host, date, git revision,...)
+     - Show plik server version, and some build information (build host, date, git revision,...)
 
    - **GET** /config
      - Show plik server configuration (ttl values, max file size, ...)
+
+Token :
+
+   Plik tokens allow to upload files without source IP restriction.  
+   Tokens can only be generated from a valid source IP.  
+   If you are using the command line client you can use a token by adding a Token = "xxxx" line in the ~/.plirc file  
+
+   - **POST** /token
+    - Generate a new token
+
+   - **GET** /token/{token}
+    - Get token metadata
+
+   - **DELETE** /token/{token}
+    - Revoke a token
 
 QRCode :
 
@@ -279,7 +295,7 @@ Beacause stream mode isn't stateless. As the uploader request will block on one 
 The load balancing strategy **MUST** be aware of this and route stream requests to the same instance by hashing the file id.
 
 Here is an example of how to achieve this using nginx and a little piece of LUA.
-Make sur your nginx server is built with LUA scripting support.
+Make sure your nginx server is built with LUA scripting support.
 You might want to install the "nginx-extras" Debian package (>1.7.2) with built-in LUA support.
 ```
 upstream plik {
@@ -348,5 +364,5 @@ The screenshot is then removed of your home directory to avoid garbage.
 
 ##### How to contribute to the project ?
 
-Contributions are welcome, you are free to implement other data/metadata/shorten backends and submit them via
-pull requests. We will be happy to add them in the future releases.
+Contributions are welcome, feel free to open issues and/or submit pull requests.
+Please run/update the test suite using the makefile test target.

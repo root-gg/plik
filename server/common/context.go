@@ -32,6 +32,7 @@ package common
 import (
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/context"
@@ -69,6 +70,18 @@ func NewPlikContext(name string, req *http.Request) (ctx *PlikContext) {
 	ctx = new(PlikContext)
 	ctx.Context = rootContext.Context.Fork(name).AutoDetach()
 	ctx.Logger = rootContext.Logger.Copy()
+
+	// Log request
+	if ctx.LogIf(logger.DEBUG) {
+		dump, err := httputil.DumpRequest(req, true)
+		if err == nil {
+			ctx.Debug(string(dump))
+		} else {
+			ctx.Warningf("Unable to dump HTTP request : %s", err)
+		}
+	} else {
+		ctx.Infof("%v %v", req.Method, req.RequestURI)
+	}
 
 	var sourceIP string
 	if Config.SourceIPHeader != "" {

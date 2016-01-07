@@ -37,6 +37,7 @@ RELEASES=(
     1.0
     1.0.1
     1.1-RC1
+    1.1-RC2
 )
 
 ###
@@ -91,7 +92,7 @@ do
     # Build server and clients
     echo "Compiling server and clients v$RELEASE :"
 
-    if grep deps Makefile ; then
+    if grep "^deps:" Makefile ; then
         make deps
     fi
 

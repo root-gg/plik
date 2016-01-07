@@ -7,7 +7,7 @@
 # Let's start with a fresh debian jessie
 FROM debian:jessie
 
-# Some generic informations
+# Some generic information
 MAINTAINER Charles-Antoine Mathieu
 MAINTAINER Mathieu Bodjikian
 
