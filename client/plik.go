@@ -98,7 +98,7 @@ Options:
   --archive MODE            Archive upload using specified archive backend : tar|zip
   --compress MODE           [tar] Compression codec : gzip|bzip2|xz|lzip|lzma|lzop|compress|no
   --archive-options OPTIONS [tar|zip] Additional command line options
-  -s                        Encrypt upload usnig default encrypt params ( see ~/.plikrc )
+  -s                        Encrypt upload using default encrypt params ( see ~/.plikrc )
   --secure MODE             Archive upload using specified archive backend : openssl|pgp
   --cipher CIPHER           [openssl] Openssl cipher to use ( see openssl help )
   --passphrase PASSPHRASE   [openssl] Passphrase or '-' to be prompted for a passphrase
