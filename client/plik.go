@@ -42,7 +42,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -605,13 +604,17 @@ func updateClient(updateFlag bool) (err error) {
 		return
 	}
 
-	// Download new client
-	tmpPath := filepath.Dir(path) + "/" + "." + filepath.Base(path) + ".tmp"
-	tmpFile, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
+	// Create tmp file
+	tmpFile, err := ioutil.TempFile("", ".plik_update_")
 	if err != nil {
 		return
 	}
-	defer tmpFile.Close()
+	defer func() {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+	}()
+
+	// Download new client
 	URL, err = url.Parse(downloadURL)
 	if err != nil {
 		err = fmt.Errorf("Unable to download client : %s", err)
@@ -637,9 +640,14 @@ func updateClient(updateFlag bool) (err error) {
 		err = fmt.Errorf("Unable to download client : %s", err)
 		return
 	}
+	err = tmpFile.Close()
+	if err != nil {
+		err = fmt.Errorf("Unable to download client : %s", err)
+		return
+	}
 
 	// Check download integrity
-	downloadMD5, err := utils.FileMd5sum(tmpPath)
+	downloadMD5, err := utils.FileMd5sum(tmpFile.Name())
 	if err != nil {
 		err = fmt.Errorf("Unable to download client : %s", err)
 		return
@@ -650,7 +658,7 @@ func updateClient(updateFlag bool) (err error) {
 	}
 
 	// Replace old client
-	err = os.Rename(tmpPath, path)
+	err = os.Rename(tmpFile.Name(), path)
 	if err != nil {
 		err = fmt.Errorf("Unable to replace client : %s", err)
 		return
