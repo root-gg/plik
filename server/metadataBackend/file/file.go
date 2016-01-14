@@ -321,7 +321,8 @@ func (fmb *MetadataBackend) GetUploadsToRemove(ctx *common.PlikContext) (ids []s
 			// Get upload metadata
 			upload, err := fmb.Get(ctx, uploadDirectory.Name())
 			if err != nil {
-				return ids, err
+				ctx.EWarningf("Unable to get upload metadata %s : %s", uploadDirectory.Name(), err)
+				continue
 			}
 
 			// If a TTL is set, test if expired or not
