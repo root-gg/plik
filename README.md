@@ -17,10 +17,11 @@ Plik is an simple and powerful file uploading system written in golang.
    - Password : Protect upload with login/password (Auth Basic)
    - Yubikey : Protect upload with your yubikey. (One Time Password)
    - Comments : Add custom message (in Markdown format)
+   - User authentication : Google / OVH
    - Upload restriction : Source IP / Token
 
 ### Version
-1.1
+1.2-RC1
 
 ### Installation
 
@@ -175,20 +176,64 @@ Show server details :
    - **GET** /config
      - Show plik server configuration (ttl values, max file size, ...)
 
-Token :
+User authentication :
 
-   Plik tokens allow to upload files without source IP restriction.  
-   Tokens can only be generated from a valid source IP.  
-   If you are using the command line client you can use a token by adding a Token = "xxxx" line in the ~/.plirc file  
+   - 
+   Plik can authenticate users using Google and/or OVH third-party API. Once authenticated 
+   the only call Plik will ever make to those API is get the user ID, name and email. It will never forward any
+   upload data or metadata.   
+   The /auth API is designed for the Plik web application nevertheless if you want to automatize it just provide a valid
+   Referrer HTTP header and forward all session cookies.   
+   To avoid CSRF attacks the value of the plik-xsrf cookie MUST be copied in the X-XRSFToken HTTP header of each
+   authenticated request.   
+   Once authenticated a user can generate upload tokens. Those tokens can be used in the X-PlikToken HTTP header used to link
+   an upload to the user account. It can be put in the ~/.plikrc file of the Plik command line client.   
+   
+   - **Google** :
+      - You'll need to create a new application in the [Google Developper Console](https://console.developers.google.com)
+      - You'll be handed a Google API ClientID and a Google API ClientSecret that you'll need to put in the plikd.cfg file.
+      - Do not forget to whitelist valid origin and redirect url ( https://yourdomain/auth/google/callback ) for your domain.
+   
+   - **OVH** :
+      - You'll need to create a new application in the OVH API : https://eu.api.ovh.com/createApp/
+      - You'll be handed an OVH application key and an OVH application secret key that you'll need to put in the plikd.cfg file.
 
-   - **POST** /token
-    - Generate a new token
+   - **GET** /auth/google/login
+      - Get Google user consent URL. User have to visit this URL to authenticate.
 
-   - **GET** /token/{token}
-    - Get token metadata
+   - **GET** /auth/google/callback
+     - Callback of the user consent dialog.
+     - The user will be redirected back to the web application with a Plik session cookie at the end of this call.
 
-   - **DELETE** /token/{token}
-    - Revoke a token
+   - **GET** /auth/ovh/login
+     - Get OVH user consent URL. User have to visit this URL to authenticate. 
+     - The response will contain a temporary session cookie to forward the API endpoint and OVH consumer key to the callback.
+
+   - **GET** /auth/google/callback
+     - Callback of the user consent dialog. 
+     - The user will be redirected back to the web application with a Plik session cookie at the end of this call.
+
+   - **GET** /auth/logout
+     - Invalidate Plik session cookies.
+
+   - **GET** /me
+     - Return basic user info ( ID, name, email ) and tokens.
+
+   - **DELETE** /me
+     - Remove user account.
+
+   - **POST** /me/token
+     - Create a new upload token.
+     - A comment can be passed in the json body.
+
+   - **DELETE** /me/token/{token}
+     - Revoke an upload token.
+
+   - **GET** /me/uploads
+     - Return all uploads linked to a user account.
+
+   - **DELETE** /me/uploads
+     - Remove all uploads linked to a user account.
 
 QRCode :
 
