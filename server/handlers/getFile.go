@@ -42,8 +42,8 @@ import (
 	"github.com/root-gg/plik/server/metadataBackend"
 )
 
-// GetFileHandler download a file
-func GetFileHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+// GetFile download a file
+func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 
 	// Get upload from context

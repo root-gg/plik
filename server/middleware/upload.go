@@ -125,10 +125,12 @@ func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 		if uploadToken != "" && uploadToken == upload.UploadToken {
 			upload.IsAdmin = true
 		} else {
-			// Check auth token
-			authToken := req.Header.Get("X-AuthToken")
-			if authToken != "" && authToken == upload.AuthToken {
-				upload.IsAdmin = true
+			// Check if upload belongs to user
+			if common.Config.Authentication && upload.User != "" {
+				user := common.GetUser(ctx)
+				if user != nil && user.ID == upload.User {
+					upload.IsAdmin = true
+				}
 			}
 		}
 

@@ -44,9 +44,16 @@ import (
 	"github.com/root-gg/plik/server/metadataBackend"
 )
 
-// AddFileHandler add a file to an existing upload.
-func AddFileHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+// AddFile add a file to an existing upload.
+func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
+
+	user := common.GetUser(ctx)
+	if user == nil && !common.IsWhitelisted(ctx) {
+		log.Warning("Unable to add file from untrusted source IP address")
+		common.Fail(ctx, req, resp, "Unable to add file from untrusted source IP address. Please login or use a cli token.", 403)
+		return
+	}
 
 	// Get upload from context
 	upload := common.GetUpload(ctx)

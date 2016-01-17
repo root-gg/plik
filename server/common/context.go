@@ -41,12 +41,12 @@ import (
 
 var rootLogger = logger.NewLogger()
 
-// Log is a shortcut to get rootLogger.
-func Log() *logger.Logger {
+// Logger return the root logger.
+func Logger() *logger.Logger {
 	return rootLogger
 }
 
-// GetLogger return the logger associated to the request context ( defaults to rootLogger ).
+// GetLogger from the request context ( defaults to rootLogger ).
 func GetLogger(ctx *juliet.Context) *logger.Logger {
 	if log, ok := ctx.Get("logger"); ok {
 		return log.(*logger.Logger)
@@ -54,7 +54,7 @@ func GetLogger(ctx *juliet.Context) *logger.Logger {
 	return rootLogger
 }
 
-// GetSourceIP return the IP address associated to the request context.
+// GetSourceIP from the request context.
 func GetSourceIP(ctx *juliet.Context) net.IP {
 	if sourceIP, ok := ctx.Get("ip"); ok {
 		return sourceIP.(net.IP)
@@ -62,7 +62,7 @@ func GetSourceIP(ctx *juliet.Context) net.IP {
 	return nil
 }
 
-// IsWhitelisted return true if the IP address associated to the request context is whitelisted.
+// IsWhitelisted return true if the IP address in the request context is whitelisted.
 func IsWhitelisted(ctx *juliet.Context) bool {
 	if whitelisted, ok := ctx.Get("IsWhitelisted"); ok {
 		return whitelisted.(bool)
@@ -87,7 +87,23 @@ func IsWhitelisted(ctx *juliet.Context) bool {
 	return whitelisted
 }
 
-// GetFile return the file associated to the request context.
+// GetUser from the request context.
+func GetUser(ctx *juliet.Context) *User {
+	if user, ok := ctx.Get("user"); ok {
+		return user.(*User)
+	}
+	return nil
+}
+
+// GetToken from the request context.
+func GetToken(ctx *juliet.Context) *Token {
+	if token, ok := ctx.Get("token"); ok {
+		return token.(*Token)
+	}
+	return nil
+}
+
+// GetFile from the request context.
 func GetFile(ctx *juliet.Context) *File {
 	if file, ok := ctx.Get("file"); ok {
 		return file.(*File)
@@ -95,7 +111,7 @@ func GetFile(ctx *juliet.Context) *File {
 	return nil
 }
 
-// GetUpload return the upload associated to the request context.
+// GetUpload from the request context.
 func GetUpload(ctx *juliet.Context) *Upload {
 	if upload, ok := ctx.Get("upload"); ok {
 		return upload.(*Upload)

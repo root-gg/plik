@@ -39,7 +39,7 @@ import (
 // Logger create a new Logger instance for this request and save it to the request context
 func Logger(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		log := common.Log().Copy()
+		log := common.Logger().Copy()
 		log.Debug("Logger handler")
 		ctx.Set("logger", log)
 		next.ServeHTTP(resp, req)

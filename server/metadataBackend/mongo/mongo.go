@@ -74,7 +74,7 @@ func NewMongoMetadataBackend(config map[string]interface{}) (mmb *MetadataBacken
 	var err error
 	mmb.session, err = mgo.DialWithInfo(dialInfo)
 	if err != nil {
-		common.Log().Fatalf("Unable to contact mongodb at %s : %s", mmb.config.URL, err.Error())
+		common.Logger().Fatalf("Unable to contact mongodb at %s : %s", mmb.config.URL, err.Error())
 	}
 
 	// Ensure everything is persisted and replicated

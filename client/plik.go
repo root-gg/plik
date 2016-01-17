@@ -663,7 +663,7 @@ func makeRequest(req *http.Request) (resp *http.Response, err error) {
 
 	// Set authentication header
 	if config.Config.Token != "" {
-		req.Header.Set("X-AuthToken", config.Config.Token)
+		req.Header.Set("X-PlikToken", config.Config.Token)
 	}
 
 	// Log request

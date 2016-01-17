@@ -43,8 +43,8 @@ import (
 	"github.com/root-gg/plik/server/metadataBackend"
 )
 
-// GetVersionHandler return the build information.
-func GetVersionHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+// GetVersion return the build information.
+func GetVersion(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 
 	// Print version and build information in the json response.
@@ -58,8 +58,8 @@ func GetVersionHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 	resp.Write(json)
 }
 
-// GetConfigurationHandler return the server configuration
-func GetConfigurationHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+// GetConfiguration return the server configuration
+func GetConfiguration(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 
 	// Print configuration in the json response.
@@ -72,8 +72,13 @@ func GetConfigurationHandler(ctx *juliet.Context, resp http.ResponseWriter, req 
 	resp.Write(json)
 }
 
-// GetQrCodeHandler return a QRCode for the requested URL
-func GetQrCodeHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+// Logout return the server configuration
+func Logout(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+	common.Logout(resp)
+}
+
+// GetQrCode return a QRCode for the requested URL
+func GetQrCode(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 
 	// Check params

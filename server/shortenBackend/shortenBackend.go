@@ -63,7 +63,7 @@ func Initialize() {
 			case "is.gd":
 				shortenBackend = isgd.NewIsGdShortenBackend(common.Config.ShortenBackendConfig)
 			default:
-				common.Log().Fatalf("Invalid shorten backend %s", common.Config.DataBackend)
+				common.Logger().Fatalf("Invalid shorten backend %s", common.Config.DataBackend)
 			}
 		}
 	}

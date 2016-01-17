@@ -130,10 +130,6 @@ angular.module('api', ['ngFileUpload']).
         api.call = function (url, method, params, data, uploadToken) {
             var promise = $q.defer();
             var headers = {};
-            var authToken = localStorage.getItem('AuthToken');
-            if (authToken){
-                headers['X-AuthToken'] = authToken;
-            }
             if (uploadToken) headers['X-UploadToken'] = uploadToken;
             $http({
                 url: url,
@@ -156,10 +152,6 @@ angular.module('api', ['ngFileUpload']).
         api.upload = function (url, file, params, progress_cb, basicAuth, uploadToken) {
             var promise = $q.defer();
             var headers = {};
-            var authToken = localStorage.getItem('AuthToken');
-            if (authToken){
-                headers['X-AuthToken'] = authToken;
-            }
             if (uploadToken) headers['X-UploadToken'] = uploadToken;
             if (basicAuth) headers['Authorization'] = "Basic " + basicAuth;
             Upload
@@ -215,22 +207,52 @@ angular.module('api', ['ngFileUpload']).
             return api.call(url, 'DELETE', {}, {}, upload.uploadToken);
         };
 
-        // Generate a token
-        api.generateToken = function() {
-            var url = api.base + '/token';
-            return api.call(url, 'POST');
-        };
-
-        // Revoke a token
-        api.revokeToken = function(token, removeUploads) {
-            var url = api.base + '/token/' + token;
-            return api.call(url, 'DELETE', { removeUploads : removeUploads });
-        };
-
-        // List all upload owned by a token
-        api.getUploadWithToken = function(token) {
-            var url = api.base + '/token/' + token + '/uploads';
+        // Log in
+        api.login = function(provider) {
+            var url = api.base + '/auth/'+ provider + '/login' ;
             return api.call(url, 'GET');
+        };
+
+        // Log out
+        api.logout = function() {
+            var url = api.base + '/auth/logout' ;
+            return api.call(url, 'GET');
+        };
+
+        // Get user info
+        api.getUser = function() {
+            var url = api.base + '/me';
+            return api.call(url, 'GET');
+        };
+
+        // Get upload metadata
+        api.getUploads = function(token) {
+            var url = api.base + '/me/uploads';
+            return api.call(url, 'GET', { token : token });
+        };
+
+        // Remove uploads
+        api.deleteUploads = function(token) {
+            var url = api.base + '/me/uploads';
+            return api.call(url, 'DELETE', { token : token });
+        };
+
+        // Delete account
+        api.deleteAccount = function() {
+            var url = api.base + '/me';
+            return api.call(url, 'DELETE');
+        };
+
+        // Create a new upload token
+        api.createToken = function(comment) {
+            var url = api.base + '/me/token';
+            return api.call(url, 'POST', {}, { comment : comment });
+        };
+
+        // Revoke an upload token
+        api.revokeToken = function(token) {
+            var url = api.base + '/me/token/' + token;
+            return api.call(url, 'DELETE');
         };
 
         // Get server version
@@ -254,11 +276,14 @@ angular.module('plik', ['ngRoute', 'api', 'dialog', 'contentEditable', 'btford.m
         $routeProvider
             .when('/', {controller: MainCtrl, templateUrl: 'partials/main.html', reloadOnSearch: false})
             .when('/clients', {controller: ClientListCtrl, templateUrl: 'partials/clients.html'})
-            .when('/token', {controller: TokenCtrl, templateUrl: 'partials/token.html'})
+            .when('/login', {controller: LoginCtrl, templateUrl: 'partials/login.html'})
+            .when('/home', {controller: HomeCtrl, templateUrl: 'partials/home.html'})
             .otherwise({redirectTo: '/'});
     })
     .config(['$httpProvider', function ($httpProvider) {
         $httpProvider.defaults.headers.common['X-ClientApp'] = 'web_client';
+        $httpProvider.defaults.xsrfCookieName = 'plik-xsrf';
+        $httpProvider.defaults.xsrfHeaderName = 'X-XRSFToken';
     }])
     .filter('collapseClass', function () {
         return function (opened) {
@@ -814,14 +839,14 @@ function ClientListCtrl($scope, $api, $dialog) {
         });
 }
 
-// Token controller
-function TokenCtrl($scope, $api, $dialog, $location) {
-
+// Login controller
+function LoginCtrl($scope, $api, $dialog, $location){
     // Get server config
     $api.getConfig()
         .then(function (config) {
+            $scope.config = config;
             // Check if token authentication is enabled server side
-            if ( ! config.tokenAuthentication ) {
+            if ( ! config.authentication ) {
                 $location.path('/');
             }
         })
@@ -829,74 +854,100 @@ function TokenCtrl($scope, $api, $dialog, $location) {
             $dialog.alert(error);
         });
 
-    // Load current token from local storage
-    $scope.token = localStorage.getItem("AuthToken");
-
-    // Generate a new token
-    $scope.generate = function(){
-        $api.generateToken()
-            .then(function (token) {
-                $scope.token = token.token;
-            })
-            .then(null, function (error) {
+    // Get user from session
+    $api.getUser()
+        .then(function () {
+            $location.path('/home');
+        })
+        .then(null, function (error) {
+            if (error.status != 401) {
                 $dialog.alert(error);
-            });
-    };
-
-    // Save token in local storage
-    $scope.save = function(){
-        if ($scope.token == "") return;
-        localStorage.setItem("AuthToken",$scope.token);
-        $dialog.alert({
-            status : 100,
-            message : "Token " + $scope.token + " has been saved in local storage"
+            }
         });
-    };
 
-    // Revoke a token
-    $scope.revoke = function(removeUploads){
-        if ($scope.token == "") return;
-        removeUploads = true;
-        $api.revokeToken($scope.token, removeUploads)
-            .then(function () {
-                // Remove token from localStorage if needed
-                var localToken = localStorage.getItem("AuthToken");
-                if ( localToken == $scope.token ) {
-                    localStorage.removeItem("AuthToken");
-                }
-                if (removeUploads) $scope.uploads = [];
-                $dialog.alert({
-                    status : 100,
-                    message : "Token " + $scope.token + " has been revoked"
-                });
-                $scope.token = "";
+    // Google authentication
+    $scope.google = function(){
+        $api.login("google")
+            .then(function (url) {
+                // Redirect to Google user consent dialog
+                window.location.replace(url);
             })
             .then(null, function (error) {
                 $dialog.alert(error);
             });
     };
 
-    // Get upload list
-    $scope.browse = function(){
-        if ($scope.token == "") return;
-        $api.getUploadWithToken($scope.token)
-            .then(function(uploads) {
-                $scope.uploads = uploads;
-                _.each(uploads,function(upload){
-                    // Map file object to array
-                    var files = _.map(upload.files);
-                    upload.files = _.sortBy(files, function(file){
-                        return -file.fileSize;
-                    });
-                });
+    // OVH authentication
+    $scope.ovh = function(){
+        $api.login("ovh")
+            .then(function (url) {
+                // Redirect to OVH user consent dialog
+                window.location.replace(url);
             })
-            .then(null, function(error) {
+            .then(null, function (error) {
+                $dialog.alert(error);
+            });
+    };
+}
+
+// Token controller
+function HomeCtrl($scope, $api, $dialog, $location) {
+
+    $scope.display = 'uploads';
+    $scope.displayUploads = function(){
+        $scope.uploads = [];
+        $scope.display = 'uploads';
+        $scope.getUploads();
+    };
+
+    $scope.displayTokens = function(){
+        $scope.display = 'tokens';
+        $scope.getUser();
+    };
+
+    // Get server config
+    $api.getConfig()
+        .then(function (config) {
+            // Check if token authentication is enabled server side
+            if ( ! config.authentication ) {
+                $location.path('/');
+            }
+        })
+        .then(null, function (error) {
+            $dialog.alert(error);
+        });
+
+    // Get user from session
+    $scope.getUser = function(){
+        $api.getUser()
+            .then(function (user) {
+                $scope.user = user;
+                $scope.getUploads();
+            })
+            .then(null, function (error) {
+                if (error.status == 401) {
+                    $location.path('/login');
+                } else {
+                    $dialog.alert(error);
+                }
+            });
+    };
+
+    // Get user upload list
+    $scope.getUploads = function(){
+        $scope.uploads = [];
+        // Get user uploads
+        $api.getUploads()
+            .then(function (uploads) {
+                $scope.uploads = uploads;
+            })
+            .then(null, function (error) {
                 $dialog.alert(error);
             });
     };
 
     // Remove an upload
-    $scope.remove = function(upload){
+    $scope.deleteUpload = function(upload){
         $api.removeUpload(upload)
             .then(function(){
                 $scope.uploads = _.reject($scope.uploads,function(u){
@@ -906,6 +957,74 @@ function TokenCtrl($scope, $api, $dialog, $location) {
             .then(null, function(error) {
                 $dialog.alert(error);
             });
+    };
+
+    // Delete all user uploads
+    $scope.deleteUploads = function(token){
+        if (token) token = token.token;
+        $api.deleteUploads(token)
+            .then(function () {
+                $scope.uploads = [];
+                $scope.getUploads();
+            })
+            .then(null, function (error) {
+                $dialog.alert(error);
+            });
+    };
+
+    // Generate a new token
+    $scope.createToken = function(comment){
+        $api.createToken(comment)
+            .then(function () {
+                $scope.getUser();
+            })
+            .then(null, function (error) {
+                $dialog.alert(error);
+            });
+    };
+
+    // Revoke a token
+    $scope.revokeToken = function(token){
+        if ($scope.token == "") return;
+        $api.revokeToken(token.token)
+            .then(function () {
+                $scope.getUser();
+            })
+            .then(null, function (error) {
+                $dialog.alert(error);
+            });
+    };
+
+    // Log out
+    $scope.logout = function(){
+        $api.logout()
+            .then(function () {
+                $location.path('/');
+            })
+            .then(null, function (error) {
+                $dialog.alert(error);
+            });
+    };
+
+    // Sign out
+    $scope.deleteAccount = function(){
+        $dialog.alert({
+            title : "Really ?",
+            message : "Deleting your account will not delete your uploads.",
+            confirm : true,
+            callback : function(result){
+                console.log("callback" + result);
+                if (result) {
+                    $api.deleteAccount()
+                        .then(function () {
+                            $location.path('/');
+                        })
+                        .then(null, function (error) {
+                            $dialog.alert(error);
+                        });
+                }
+            }
+        });
     };
 
     // Get upload url
@@ -923,22 +1042,31 @@ function TokenCtrl($scope, $api, $dialog, $location) {
         if (_.isUndefined(size)) return;
         return filesize(size, {base: 2});
     };
+
+    $scope.getUser();
 }
 
 // Alert modal dialog controller
 function AlertDialogController($rootScope, $scope, $modalInstance, args) {
     $rootScope.registerDialog($scope);
 
-    $scope.title = 'Success !';
-    if (args.data.status != 100) $scope.title = 'Oops !';
+    _.extend($scope,args.data);
 
-    $scope.data = args.data;
+    if (!$scope.title) {
+        if ($scope.status) {
+            if ($scope.status == 100) {
+                $scope.title = 'Success !';
+            } else {
+                $scope.title = 'Oops ! (' + $scope.status + ')';
+            }
+        }
+    }
 
     $scope.close = function (result) {
         $rootScope.dismissDialog($scope);
         $modalInstance.close(result);
-        if (args.callback) {
-            args.callback(result);
+        if ($scope.callback) {
+            $scope.callback(result);
         }
     };
 }

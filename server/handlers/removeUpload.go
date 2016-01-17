@@ -38,8 +38,8 @@ import (
 	"github.com/root-gg/plik/server/metadataBackend"
 )
 
-// RemoveUploadHandler create a new upload
-func RemoveUploadHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+// RemoveUpload create a new upload
+func RemoveUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 
 	// Get upload from context

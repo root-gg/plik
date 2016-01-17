@@ -44,12 +44,18 @@ import (
 	"github.com/root-gg/plik/server/shortenBackend"
 )
 
-// CreateUploadHandler create a new upload
-func CreateUploadHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+// CreateUpload create a new upload
+func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 
-	upload := common.NewUpload()
+	user := common.GetUser(ctx)
+	if user == nil && !common.IsWhitelisted(ctx) {
+		log.Warning("Unable to create upload from untrusted source IP address")
+		common.Fail(ctx, req, resp, "Unable to create upload from untrusted source IP address. Please login or use a cli token.", 403)
+		return
+	}
 
+	upload := common.NewUpload()
 	// Save upload in the request context
 	ctx.Set("upload", upload)
 
@@ -81,8 +87,17 @@ func CreateUploadHandler(ctx *juliet.Context, resp http.ResponseWriter, req *htt
 	log.SetPrefix(prefix)
 	ctx.Set("upload", upload)
 
+	// Set upload remote IP
 	upload.RemoteIP = common.GetSourceIP(ctx).String()
-	upload.AuthToken = req.Header.Get("X-AuthToken")
+
+	// Set upload user and token
+	if user != nil {
+		upload.User = user.ID
+		token := common.GetToken(ctx)
+		if token != nil {
+			upload.Token = token.Token
+		}
+	}
 
 	if upload.Stream {
 		if !common.Config.StreamMode {
