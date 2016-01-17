@@ -73,7 +73,7 @@ func Initialize() {
 		case "weedfs":
 			dataBackend = weedfs.NewWeedFsBackend(common.Config.DataBackendConfig)
 		default:
-			common.Log().Fatalf("Invalid data backend %s", common.Config.DataBackend)
+			common.Logger().Fatalf("Invalid data backend %s", common.Config.DataBackend)
 		}
 	}
 	if common.Config.StreamMode {

@@ -47,14 +47,13 @@ type MetadataBackend interface {
 	AddOrUpdateFile(ctx *juliet.Context, u *common.Upload, file *common.File) (err error)
 	RemoveFile(ctx *juliet.Context, u *common.Upload, file *common.File) (err error)
 	Remove(ctx *juliet.Context, u *common.Upload) (err error)
-	GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error)
-	GetUploadsWithToken(ctx *juliet.Context, token string) (ids []string, err error)
 
-	// Tokens
-	SaveToken(ctx *juliet.Context, t *common.Token) (err error)
-	GetToken(ctx *juliet.Context, token string) (t *common.Token, err error)
-	ValidateToken(ctx *juliet.Context, token string) (ok bool, err error)
-	RevokeToken(ctx *juliet.Context, token string) (err error)
+	SaveUser(ctx *juliet.Context, u *common.User) (err error)
+	GetUser(ctx *juliet.Context, id string, token string) (u *common.User, err error)
+	RemoveUser(ctx *juliet.Context, u *common.User) (err error)
+
+	GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error)
+	GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error)
 }
 
 // GetMetaDataBackend is a singleton pattern.
@@ -77,7 +76,7 @@ func Initialize() {
 		case "bolt":
 			metadataBackend = bolt.NewBoltMetadataBackend(common.Config.MetadataBackendConfig)
 		default:
-			common.Log().Fatalf("Invalid metadata backend %s", common.Config.DataBackend)
+			common.Logger().Fatalf("Invalid metadata backend %s", common.Config.DataBackend)
 		}
 	}
 }

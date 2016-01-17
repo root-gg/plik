@@ -37,8 +37,8 @@ import (
 	"github.com/root-gg/plik/server/common"
 )
 
-// GetUploadHandler return upload metadata
-func GetUploadHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+// GetUpload return upload metadata
+func GetUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 
 	// Get upload from context

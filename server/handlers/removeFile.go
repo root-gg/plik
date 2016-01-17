@@ -40,8 +40,8 @@ import (
 	"github.com/root-gg/plik/server/metadataBackend"
 )
 
-// RemoveFileHandler remove a file from an existing upload
-func RemoveFileHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+// RemoveFile remove a file from an existing upload
+func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 
 	// Get upload from context

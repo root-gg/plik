@@ -38,23 +38,17 @@ import (
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/dataBackend"
 	"github.com/root-gg/plik/server/metadataBackend"
 )
 
-// CreateTokenHandler create a new auth token
-func CreateTokenHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+// CreateToken create a new token
+func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 
-	if !common.Config.TokenAuthentication {
-		log.Warning("Token authentication is not enabled")
-		common.Fail(ctx, req, resp, "Token authentication is not enabled", 403)
-		return
-	}
-
-	if !common.IsWhitelisted(ctx) {
-		log.Warning("Unable to create a token from an untrusted IP")
-		common.Fail(ctx, req, resp, "Unauthorized source IP address", 403)
+	// Get user from context
+	user := common.GetUser(ctx)
+	if user == nil {
+		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
 		return
 	}
 
@@ -83,12 +77,14 @@ func CreateTokenHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http
 
 	// Initialize token
 	token.Create()
-	token.SourceIP = common.GetSourceIP(ctx).String()
+
+	// Add token to user
+	user.Tokens = append(user.Tokens, token)
 
 	// Save token
-	err = metadataBackend.GetMetaDataBackend().SaveToken(ctx, token)
+	err = metadataBackend.GetMetaDataBackend().SaveUser(ctx, user)
 	if err != nil {
-		log.Warningf("Unable to create token : %s", err)
+		log.Warningf("Unable to save user to metadata backend : %s", err)
 		common.Fail(ctx, req, resp, "Unable to create token", 500)
 		return
 	}
@@ -103,187 +99,48 @@ func CreateTokenHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http
 	resp.Write(json)
 }
 
-// GetTokenHandler return token's metadata
-func GetTokenHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+// RevokeToken remove a token
+func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 
-	if !common.Config.TokenAuthentication {
-		log.Warning("Token authentication is not enabled")
-		common.Fail(ctx, req, resp, "Token authentication is not enabled", 403)
+	// Get user from context
+	user := common.GetUser(ctx)
+	if user == nil {
+		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
 		return
 	}
 
-	// Get token from the url params
+	// Get token to remove from URL params
 	vars := mux.Vars(req)
-	token := vars["token"]
+	tokenStr, ok := vars["token"]
+	if !ok || tokenStr == "" {
+		common.Fail(ctx, req, resp, "Missing token", 400)
+	}
 
-	// Get token
-	t, err := metadataBackend.GetMetaDataBackend().GetToken(ctx, token)
+	// Get token from user
+	index := -1
+	for i, t := range user.Tokens {
+		if t.Token == tokenStr {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		log.Warningf("Unable to get token %s from user %s", tokenStr, user.ID)
+		common.Fail(ctx, req, resp, "Invalid token", 403)
+		return
+	}
+
+	// TODO RACE CONDITION if simulatneous delete occur
+
+	// Delete token
+	user.Tokens = append(user.Tokens[:index], user.Tokens[index+1:]...)
+
+	// Save user to metadata backend
+	err := metadataBackend.GetMetaDataBackend().SaveUser(ctx, user)
 	if err != nil {
-		log.Warningf("Unable to get token %s : %s", token, err)
-		common.Fail(ctx, req, resp, "Unable to get token", 404)
+		log.Warningf("Unable to save user to metadata backend : %s", err)
+		common.Fail(ctx, req, resp, "Unable to create token", 500)
 		return
-	}
-
-	// Print token in the json response.
-	var json []byte
-	if json, err = utils.ToJson(t); err != nil {
-		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
-		return
-	}
-	resp.Write(json)
-}
-
-// RevokeTokenHandler revoke an existing token
-func RevokeTokenHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
-
-	if !common.Config.TokenAuthentication {
-		log.Warning("Token authentication is not enabled")
-		common.Fail(ctx, req, resp, "Token authentication is not enabled", 403)
-		return
-	}
-
-	// Get token from the url params
-	vars := mux.Vars(req)
-	token := vars["token"]
-
-	// Revoke token
-	err := metadataBackend.GetMetaDataBackend().RevokeToken(ctx, token)
-	if err != nil {
-		log.Warningf("Unable to revoke token %s : %s", token, err)
-		common.Fail(ctx, req, resp, "Unable to revoke token", 500)
-		return
-	}
-
-	// Remove uploads
-	params := req.URL.Query()
-	if _, ok := params["removeUploads"]; ok {
-		// Get uploads
-		ids, err := metadataBackend.GetMetaDataBackend().GetUploadsWithToken(ctx, token)
-		if err != nil {
-			log.Warningf("Unable to revoke token %s : %s", token, err)
-			common.Fail(ctx, req, resp, "Unable to revoke token", 500)
-			return
-		}
-
-		// Remove uploads
-		for _, id := range ids {
-			upload, err := metadataBackend.GetMetaDataBackend().Get(ctx, id)
-			if err != nil {
-				log.Warningf("Unable to get upload %s : %s", id, err)
-				continue
-			}
-
-			// Remove from data backend
-			err = dataBackend.GetDataBackend().RemoveUpload(ctx, upload)
-			if err != nil {
-				log.Warningf("Unable to remove upload data : %s", err)
-				continue
-			}
-
-			// Remove from metadata backend
-			err = metadataBackend.GetMetaDataBackend().Remove(ctx, upload)
-			if err != nil {
-				log.Warningf("Unable to remove upload metadata %s : %s", id, err)
-				continue
-			}
-		}
-	}
-}
-
-// GetUploadsWithTokenHandler list return upload belonging to a specific auth token
-func GetUploadsWithTokenHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
-
-	if !common.Config.TokenAuthentication {
-		log.Warning("Token authentication is not enabled")
-		common.Fail(ctx, req, resp, "Token authentication is not enabled", 403)
-		return
-	}
-
-	// Get token from the url params
-	vars := mux.Vars(req)
-	token := vars["token"]
-
-	// Get uploads
-	ids, err := metadataBackend.GetMetaDataBackend().GetUploadsWithToken(ctx, token)
-	if err != nil {
-		log.Warningf("Unable to revoke token %s : %s", token, err)
-		common.Fail(ctx, req, resp, "Unable to revoke token", 500)
-		return
-	}
-
-	// Fix golint warning
-	var uploads []*common.Upload
-	uploads = make([]*common.Upload, 0)
-
-	for _, id := range ids {
-		upload, err := metadataBackend.GetMetaDataBackend().Get(ctx, id)
-		if err != nil {
-			log.Warningf("Unable to get upload %s : %s", id, err)
-			continue
-		}
-
-		if !upload.IsExpired() {
-			upload.Sanitize()
-			uploads = append(uploads, upload)
-		}
-	}
-
-	// Print uploads in the json response.
-	var json []byte
-	if json, err = utils.ToJson(uploads); err != nil {
-		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
-		return
-	}
-	resp.Write(json)
-}
-
-// RemoveUploadsWithTokenHandler remove all uploads belonging to a specific auth token
-func RemoveUploadsWithTokenHandler(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
-
-	if !common.Config.TokenAuthentication {
-		log.Warning("Token authentication is not enabled")
-		common.Fail(ctx, req, resp, "Token authentication is not enabled", 403)
-		return
-	}
-
-	// Get token from the url params
-	vars := mux.Vars(req)
-	token := vars["token"]
-
-	// Get uploads
-	ids, err := metadataBackend.GetMetaDataBackend().GetUploadsWithToken(ctx, token)
-	if err != nil {
-		log.Warningf("Unable to revoke token %s : %s", token, err)
-		common.Fail(ctx, req, resp, "Unable to revoke token", 500)
-		return
-	}
-
-	// Remove uploads
-	for _, id := range ids {
-		upload, err := metadataBackend.GetMetaDataBackend().Get(ctx, id)
-		if err != nil {
-			log.Warningf("Unable to get upload %s : %s", id, err)
-			continue
-		}
-
-		// Remove from data backend
-		err = dataBackend.GetDataBackend().RemoveUpload(ctx, upload)
-		if err != nil {
-			log.Warningf("Unable to remove upload data : %s", err)
-			continue
-		}
-
-		// Remove from metadata backend
-		err = metadataBackend.GetMetaDataBackend().Remove(ctx, upload)
-		if err != nil {
-			log.Warningf("Unable to remove upload metadata %s : %s", id, err)
-			continue
-		}
 	}
 }
