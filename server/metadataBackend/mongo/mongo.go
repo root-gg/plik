@@ -135,7 +135,7 @@ func (mmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Uploa
 	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 	err = collection.Update(bson.M{"id": upload.ID}, bson.M{"$unset": bson.M{"files." + file.Name: ""}})
 	if err != nil {
-		err = log.EWarningf("Unable to get remove file from mongodb : %s", err)
+		err = log.EWarningf("Unable to remove file from mongodb : %s", err)
 	}
 	return
 }
@@ -149,8 +149,101 @@ func (mmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (
 	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 	err = collection.Remove(bson.M{"id": upload.ID})
 	if err != nil {
-		err = log.EWarningf("Unable to get remove file from mongodb : %s", err)
+		err = log.EWarningf("Unable to remove upload from mongodb : %s", err)
 	}
+	return
+}
+
+// SaveUser implementation from MongoDB Metadata Backend
+func (mmb *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (err error) {
+	log := common.GetLogger(ctx)
+
+	session := mmb.session.Copy()
+	defer session.Close()
+	collection := session.DB(mmb.config.Database).C(mmb.config.UserCollection)
+
+	_, err = collection.Upsert(bson.M{"id": user.ID}, &user)
+	if err != nil {
+		err = log.EWarningf("Unable to save user to mongodb : %s", err)
+	}
+	return
+}
+
+// GetUser implementation from MongoDB Metadata Backend
+func (mmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error) {
+	log := common.GetLogger(ctx)
+
+	session := mmb.session.Copy()
+	defer session.Close()
+	collection := session.DB(mmb.config.Database).C(mmb.config.UserCollection)
+
+	user = &common.User{}
+	if id != "" {
+		err = collection.Find(bson.M{"id": id}).One(user)
+		if err == mgo.ErrNotFound {
+			return nil, nil
+		} else if err != nil {
+			err = log.EWarningf("Unable to get user from mongodb : %s", err)
+		}
+	} else if token != "" {
+		err = collection.Find(bson.M{"token": token}).One(user)
+		if err == mgo.ErrNotFound {
+			return nil, nil
+		} else if err != nil {
+			err = log.EWarningf("Unable to get user from mongodb : %s", err)
+		}
+	} else {
+		err = log.EWarning("Unable to get user from mongodb : Missing user id or token")
+	}
+
+	return
+}
+
+// RemoveUser implementation from MongoDB Metadata Backend
+func (mmb *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (err error) {
+	log := common.GetLogger(ctx)
+
+	session := mmb.session.Copy()
+	defer session.Close()
+	collection := session.DB(mmb.config.Database).C(mmb.config.UserCollection)
+
+	err = collection.Remove(bson.M{"id": user.ID})
+	if err != nil {
+		err = log.EWarningf("Unable to remove user from mongodb : %s", err)
+	}
+
+	return
+}
+
+// GetUserUploads implementation from MongoDB Metadata Backend
+func (mmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error) {
+	log := common.GetLogger(ctx)
+
+	session := mmb.session.Copy()
+	defer session.Close()
+	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
+
+	var b bson.M
+	if user != nil {
+		b = bson.M{"user": user.ID}
+	} else if token != nil {
+		b = bson.M{"token": token.Token}
+	} else {
+		err = log.EWarning("Unable to get user uploads : Missing user id or token")
+	}
+
+	var uploads []*common.Upload
+	err = collection.Find(b).Select(bson.M{"id": 1}).All(&uploads)
+	if err != nil {
+		err = log.EWarningf("Unable to get user uploads : %s", err)
+		return
+	}
+
+	// Get all ids
+	for _, upload := range uploads {
+		ids = append(ids, upload.ID)
+	}
+
 	return
 }
 
@@ -166,76 +259,16 @@ func (mmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []strin
 	var uploads []*common.Upload
 	b := bson.M{"$where": "this.ttl > 0 && " + strconv.Itoa(int(time.Now().Unix())) + " > this.uploadDate + this.ttl"}
 
-	err = collection.Find(b).All(&uploads)
+	err = collection.Find(b).Select(bson.M{"id": 1}).All(&uploads)
 	if err != nil {
 		err = log.EWarningf("Unable to get uploads to remove : %s", err)
 		return
 	}
 
-	// Append all ids to the toRemove list
+	// Get all ids
 	for _, upload := range uploads {
 		ids = append(ids, upload.ID)
 	}
 
-	return
-}
-
-// SaveToken implementation for MongoDB Metadata Backend
-func (mmb *MetadataBackend) SaveToken(ctx *juliet.Context, token *common.Token) (err error) {
-	log := common.GetLogger(ctx)
-
-	session := mmb.session.Copy()
-	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.TokenCollection)
-	err = collection.Insert(&token)
-	if err != nil {
-		err = log.EWarningf("Unable to append token to mongodb : %s", err)
-	}
-	return
-}
-
-// GetToken implementation for MongoDB Metadata Backend
-func (mmb *MetadataBackend) GetToken(ctx *juliet.Context, token string) (t *common.Token, err error) {
-	log := common.GetLogger(ctx)
-
-	session := mmb.session.Copy()
-	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.TokenCollection)
-	t = &common.Token{}
-	err = collection.Find(bson.M{"token": token}).One(t)
-	if err != nil {
-		err = log.EWarningf("Unable to get token from mongodb : %s", err)
-	}
-	return
-}
-
-// ValidateToken implementation for MongoDB Metadata Backend
-func (mmb *MetadataBackend) ValidateToken(ctx *juliet.Context, token string) (ok bool, err error) {
-	log := common.GetLogger(ctx)
-
-	session := mmb.session.Copy()
-	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.TokenCollection)
-	count, err := collection.Find(bson.M{"token": token}).Count()
-	if err != nil {
-		err = log.EWarningf("Unable to get token from mongodb : %s", err)
-	}
-	if count > 0 {
-		ok = true
-	}
-	return
-}
-
-// RevokeToken implementation for MongoDB Metadata Backend
-func (mmb *MetadataBackend) RevokeToken(ctx *juliet.Context, token string) (err error) {
-	log := common.GetLogger(ctx)
-
-	session := mmb.session.Copy()
-	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.TokenCollection)
-	err = collection.Remove(bson.M{"token": token})
-	if err != nil {
-		err = log.EWarningf("Unable to get remove token from mongodb : %s", err)
-	}
 	return
 }
