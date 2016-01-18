@@ -118,6 +118,7 @@ func Authenticate(ctx *juliet.Context, next http.Handler) http.Handler {
 					user, err := metadataBackend.GetMetaDataBackend().GetUser(ctx, userID.(string), "")
 					if err != nil {
 						log.Warningf("Unable to get user from session %s : %s", tokenHeader, err)
+						common.Logout(resp)
 						common.Fail(ctx, req, resp, "Unable to get user", 500)
 						return
 					}
