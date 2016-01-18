@@ -6,7 +6,5 @@ go:
 before_install:
   - npm install -g bower
 
-before_script: 
-  - make client
-  - make server
-  - cd server
+before_script:
+  - make test
