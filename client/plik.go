@@ -589,7 +589,11 @@ func updateClient(updateFlag bool) (err error) {
 	if err != nil {
 		return
 	}
-	defer tmpFile.Close()
+	defer func() {
+		tmpFile.Close()
+		os.Remove(tmpPath)
+	}()
+
 	URL, err = url.Parse(downloadURL)
 	if err != nil {
 		err = fmt.Errorf("Unable to download client : %s", err)
@@ -611,6 +615,11 @@ func updateClient(updateFlag bool) (err error) {
 	}
 	defer resp.Body.Close()
 	_, err = io.Copy(tmpFile, resp.Body)
+	if err != nil {
+		err = fmt.Errorf("Unable to download client : %s", err)
+		return
+	}
+	err = tmpFile.Close()
 	if err != nil {
 		err = fmt.Errorf("Unable to download client : %s", err)
 		return
