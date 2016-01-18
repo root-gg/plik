@@ -339,111 +339,6 @@ func (fmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []strin
 	return ids, nil
 }
 
-// SaveToken implementation for File Metadata Backend
-func (fmb *MetadataBackend) SaveToken(ctx *juliet.Context, token *common.Token) (err error) {
-	log := common.GetLogger(ctx)
-
-	// Serialize token to json
-	b, err := json.MarshalIndent(token, "", "    ")
-	if err != nil {
-		err = log.EWarningf("Unable to serialize token to json : %s", err)
-		return
-	}
-
-	// Create token directory if needed
-	if _, err = os.Stat(fmb.Config.TokenDirectory); err != nil {
-		if err = os.MkdirAll(fmb.Config.TokenDirectory, 0777); err != nil {
-			err = log.EWarningf("Unable to create token directory %s : %s", fmb.Config.TokenDirectory, err)
-			return
-		}
-		log.Infof("Token directory %s successfully created", fmb.Config.TokenDirectory)
-	}
-
-	tokenFile := fmb.Config.TokenDirectory + "/" + token.Token
-
-	// Create token file
-	f, err := os.OpenFile(tokenFile, os.O_RDWR|os.O_CREATE, os.FileMode(0666))
-	if err != nil {
-		err = log.EWarningf("Unable to create token file %s : %s", tokenFile, err)
-		return
-	}
-	defer f.Close()
-
-	// Print content
-	_, err = f.Write(b)
-	if err != nil {
-		err = log.EWarningf("Unable to write token file %s : %s", tokenFile, err)
-		return
-	}
-
-	// Sync on disk
-	err = f.Sync()
-	if err != nil {
-		err = log.EWarningf("Unable to sync token file %s : %s", tokenFile, err)
-		return
-	}
-
-	log.Infof("Token file successfully saved %s", tokenFile)
-	return
-}
-
-// GetToken implementation for File Metadata Backend
-func (fmb *MetadataBackend) GetToken(ctx *juliet.Context, token string) (t *common.Token, err error) {
-	log := common.GetLogger(ctx)
-
-	// Get metadata file path
-	tokenFile := fmb.Config.TokenDirectory + "/" + token
-
-	// Open and read token
-	var buffer []byte
-	buffer, err = ioutil.ReadFile(tokenFile)
-	if err != nil {
-		err = log.EWarningf("Unable read token file %s : %s", tokenFile, err)
-		return
-	}
-
-	// Unserialize token from json
-	t = new(common.Token)
-	if err = json.Unmarshal(buffer, t); err != nil {
-		err = log.EWarningf("Unable to unserialize token from json \"%s\" : %s", string(buffer), err)
-		return
-	}
-	return
-}
-
-// ValidateToken implementation for File Metadata Backend
-func (fmb *MetadataBackend) ValidateToken(ctx *juliet.Context, token string) (ok bool, err error) {
-	// Get token file path
-	tokenFile := fmb.Config.TokenDirectory + "/" + token
-
-	// Check if token file exists
-	if _, err = os.Stat(tokenFile); err == nil {
-		ok = true
-	}
-
-	return
-}
-
-// RevokeToken implementation for File Metadata Backend
-func (fmb *MetadataBackend) RevokeToken(ctx *juliet.Context, token string) (err error) {
-	log := common.GetLogger(ctx)
-
-	// Get token file path
-	tokenFile := fmb.Config.TokenDirectory + "/" + token
-
-	// Check if token file exists
-	if _, err = os.Stat(tokenFile); err == nil {
-
-		// Remove token file
-		err = os.Remove(tokenFile)
-		if err != nil {
-			log.Warningf("Unable to remove token file %s : %s", tokenFile, err)
-		}
-	}
-
-	return
-}
-
 func (fmb *MetadataBackend) getDirectoryFromUploadID(uploadID string) (string, error) {
 	// To avoid too many files in the same directory
 	// data directory is splitted in two levels the
@@ -477,4 +372,34 @@ func unlock(uploadID string) {
 		time.Sleep(time.Minute)
 		delete(locks, uploadID)
 	}()
+}
+
+/* !!! NOT IMPLEMENTED IN FILE METADATA BACKEND !!! */
+
+// SaveUser implementation for File Metadata Backend
+func (fmb *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (err error) {
+	log := common.GetLogger(ctx)
+	err = log.EWarningf("Unable to save user : Not implemented")
+	return
+}
+
+// GetUser implementation for File Metadata Backend
+func (fmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error) {
+	log := common.GetLogger(ctx)
+	err = log.EWarningf("Unable to get user : Not implemented")
+	return
+}
+
+// RemoveUser implementation for File Metadata Backend
+func (fmb *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (err error) {
+	log := common.GetLogger(ctx)
+	err = log.EWarningf("Unable to remove user : Not implemented")
+	return
+}
+
+// GetUserUploads implementation for File Metadata Backend
+func (fmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error) {
+	log := common.GetLogger(ctx)
+	err = log.EWarningf("Unable to get user uploads : Not implemented")
+	return
 }

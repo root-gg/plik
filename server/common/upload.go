@@ -51,7 +51,7 @@ type Upload struct {
 	Files map[string]*File `json:"files" bson:"files"`
 
 	UploadToken string `json:"uploadToken,omitempty" bson:"uploadToken"`
-	User        string `json:"user,omitempty" bson:"uploadToken"`
+	User        string `json:"user,omitempty" bson:"user"`
 	Token       string `json:"token,omitempty" bson:"token"`
 	IsAdmin     bool   `json:"admin"`
 
