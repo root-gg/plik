@@ -166,19 +166,22 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 
 	token, err := conf.Exchange(oauth2.NoContext, code)
 	if err != nil {
-		err = fmt.Errorf("Unable to get google API token : %s", err)
+		log.Warningf("Unable to create google API token : %s", err)
+		common.Fail(ctx, req, resp, "Unable to get user info from google API", 500)
 		return
 	}
 
 	client, err := api_oauth2.New(conf.Client(oauth2.NoContext, token))
 	if err != nil {
-		err = fmt.Errorf("Unable to create API client : %s", err)
+		log.Warningf("Unable to create google API client : %s", err)
+		common.Fail(ctx, req, resp, "Unable to get user info from google API", 500)
 		return
 	}
 
 	userInfo, err := client.Userinfo.Get().Do()
 	if err != nil {
-		err = fmt.Errorf("Unable to get userinfo : %s", err)
+		log.Warningf("Unable to get userinfo from google API : %s", err)
+		common.Fail(ctx, req, resp, "Unable to get user info from google API", 500)
 		return
 	}
 	userID := "google:" + userInfo.Id
@@ -186,7 +189,8 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 	// Get user from metadata backend
 	user, err := metadataBackend.GetMetaDataBackend().GetUser(ctx, userID, "")
 	if err != nil {
-		err = fmt.Errorf("Unable to get user from metadata backend : %s", err)
+		log.Warningf("Unable to get user : %s", err)
+		common.Fail(ctx, req, resp, "Unable to get user", 500)
 		return
 	}
 
