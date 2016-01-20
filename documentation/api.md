@@ -35,6 +35,7 @@ Get and create upload :
     },...
   }
   ```
+  
    - **GET** /upload/:uploadid:
      - Get upload metadata (files list, upload date, ttl,...)
 
@@ -83,7 +84,8 @@ User authentication :
    Once authenticated a user can generate upload tokens. Those tokens can be used in the X-PlikToken HTTP header used to link
    an upload to the user account. It can be put in the ~/.plikrc file of the Plik command line client.   
    
-   - **Google ** :
+   
+   - **Google** :
       - You'll need to create a new application in the [Google Developper Console](https://console.developers.google.com)
       - You'll be handed a Google API ClientID and a Google API ClientSecret that you'll need to put in the plikd.cfg file.
       - Do not forget to whitelist valid origin and redirect url ( https://yourdomain/auth/google/callback ) for your domain.
