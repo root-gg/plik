@@ -76,197 +76,6 @@ To make release archives :
 $ make releases
 ```
 
-
-### Docker
-Plik comes with a simple Dockerfile that allows you to run it in a container.
-
-First, you need to build the docker image :
-```sh
-$ make docker
-```
-
-Then you can run an instance and map the local port 80 to the plik port :
-```sh
-$ docker run -t -d -p 80:8080 plik
-ab9b2c99da1f3e309cd3b12392b9084b5cafcca0325d7d47ff76f5b1e475d1b9
-```
-
-You can also use a volume to store uploads on a local folder.
-Here, we map local folder /data to the /home/plik/server/files folder of the container (this is the default uploads directory) :
-```sh
-$ docker run -t -d -p 80:8080 -v /data:/home/plik/server/files plik
-ab9b2c99da1f3e309cd3b12392b9084b5cafcca0325d7d47ff76f5b1e475d1b9
-```
-
-To use a different config file, you can also map a single file to the container at runtime :
-```sh
-$ docker run -t -d -p 80:8080 -v plikd.cfg:/home/plik/server/plikd.cfg plik
-ab9b2c99da1f3e309cd3b12392b9084b5cafcca0325d7d47ff76f5b1e475d1b9
-```
-
-### API
-Plik server expose a REST-full API to manage uploads and get files :
-
-Get and create upload :
- 
-   - **POST**        /upload
-     - Params (json object in request body) :
-      - oneshot (bool)
-      - stream (bool)
-      - removable (bool)
-      - ttl (int)
-      - login (string)
-      - password (string)
-      - files (see below)
-     - Return :
-         JSON formatted upload object.
-         Important fields :
-           - id (required to upload files)
-           - uploadToken (required to upload/remove files)
-           - files (see below)
-
-   For stream mode you need to know the file id before the upload starts as it will block.
-   File size and/or file type also need to be known before the upload starts as they have to be printed 
-   in HTTP response headers.
-   To get the file ids pass a "files" json object with each file you are about to upload.
-   Fill the reference field with an arbitrary string to avoid matching file ids using the fileName field.
-   This is also used to notify of MISSING files when file upload is not yet finished or has failed.
-  ```
-  "files" : {
-    "0" : {
-      "fileName": "file.txt",
-      "fileSize": 12345,
-      "fileType": "text/plain",
-      "reference": "0"
-    },...
-  }
-  ```
-   - **GET** /upload/:uploadid:
-     - Get upload metadata (files list, upload date, ttl,...)
-
-Upload file :
-
-   - **POST** /$mode/:uploadid:/:fileid:/:filename:
-     - Request body must be a multipart request with a part named "file" containing file data.
-
-   - **POST** /file/:uploadid:
-     - Same as above without passing file id, won't work for stream mode.
-
-Get file :
-
-  - **HEAD** /$mode/:uploadid:/:fileid:/:filename:
-    - Returns only HTTP headers. Usefull to know Content-Type and Content-Type without downloading the file. Especially if upload has OneShot option enabled.
-
-  - **GET**  /$mode/:uploadid:/:fileid:/:filename:
-    - Download file. Filename **MUST** match. A browser, might try to display the file if it's a jpeg for example. You may try to force download with ?dl=1 in url.
-
-  - **GET**  /$mode/:uploadid:/:fileid:/:filename:/yubikey/:yubikeyOtp:
-    - Same as previous call, except that you can specify a Yubikey OTP in the URL if the upload is Yubikey restricted.
-
-Remove file :
-
-   - **DELETE** /$mode/:uploadid:/:fileid:/:filename:
-     - Delete file. Upload **MUST** have "removable" option enabled.
-
-Show server details :
-
-   - **GET** /version
-     - Show plik server version, and some build information (build host, date, git revision,...)
-
-   - **GET** /config
-     - Show plik server configuration (ttl values, max file size, ...)
-
-User authentication :
-
-   - 
-   Plik can authenticate users using Google and/or OVH third-party API. Once authenticated 
-   the only call Plik will ever make to those API is get the user ID, name and email. It will never forward any
-   upload data or metadata.   
-   The /auth API is designed for the Plik web application nevertheless if you want to automatize it just provide a valid
-   Referrer HTTP header and forward all session cookies.   
-   To avoid CSRF attacks the value of the plik-xsrf cookie MUST be copied in the X-XRSFToken HTTP header of each
-   authenticated request.   
-   Once authenticated a user can generate upload tokens. Those tokens can be used in the X-PlikToken HTTP header used to link
-   an upload to the user account. It can be put in the ~/.plikrc file of the Plik command line client.   
-   
-   - **Google** :
-      - You'll need to create a new application in the [Google Developper Console](https://console.developers.google.com)
-      - You'll be handed a Google API ClientID and a Google API ClientSecret that you'll need to put in the plikd.cfg file.
-      - Do not forget to whitelist valid origin and redirect url ( https://yourdomain/auth/google/callback ) for your domain.
-   
-   - **OVH** :
-      - You'll need to create a new application in the OVH API : https://eu.api.ovh.com/createApp/
-      - You'll be handed an OVH application key and an OVH application secret key that you'll need to put in the plikd.cfg file.
-
-   - **GET** /auth/google/login
-      - Get Google user consent URL. User have to visit this URL to authenticate.
-
-   - **GET** /auth/google/callback
-     - Callback of the user consent dialog.
-     - The user will be redirected back to the web application with a Plik session cookie at the end of this call.
-
-   - **GET** /auth/ovh/login
-     - Get OVH user consent URL. User have to visit this URL to authenticate. 
-     - The response will contain a temporary session cookie to forward the API endpoint and OVH consumer key to the callback.
-
-   - **GET** /auth/google/callback
-     - Callback of the user consent dialog. 
-     - The user will be redirected back to the web application with a Plik session cookie at the end of this call.
-
-   - **GET** /auth/logout
-     - Invalidate Plik session cookies.
-
-   - **GET** /me
-     - Return basic user info ( ID, name, email ) and tokens.
-
-   - **DELETE** /me
-     - Remove user account.
-
-   - **POST** /me/token
-     - Create a new upload token.
-     - A comment can be passed in the json body.
-
-   - **DELETE** /me/token/{token}
-     - Revoke an upload token.
-
-   - **GET** /me/uploads
-     - Return all uploads linked to a user account.
-
-   - **DELETE** /me/uploads
-     - Remove all uploads linked to a user account.
-
-QRCode :
-
-   - **GET** /qrcode
-     - Generate a QRCode image from an url
-     - Params :
-        - url  : The url you want to store in the QRCode
-        - size : The size of the generated image in pixels (default: 250, max: 1000)
-
-
-$mode can be "file" or "stream" depending if stream mode is enabled. See FAQ for more details.
-
-Examples :
-```sh
-Create an upload (in the json response, you'll have upload id and upload token)
-$ curl -X POST http://127.0.0.1:8080/upload
-
-Create a OneShot upload
-$ curl -X POST -d '{ "OneShot" : true }' http://127.0.0.1:8080/upload
-
-Upload a file to upload
-$ curl -X POST --header "X-UploadToken: M9PJftiApG1Kqr81gN3Fq1HJItPENMhl" -F "file=@test.txt" http://127.0.0.1:8080/file/IsrIPIsDskFpN12E
-
-Get headers
-$ curl -I http://127.0.0.1:8080/file/IsrIPIsDskFpN12E/sFjIeokH23M35tN4/test.txt
-HTTP/1.1 200 OK
-Content-Disposition: filename=test.txt
-Content-Length: 3486
-Content-Type: text/plain; charset=utf-8
-Date: Fri, 15 May 2015 09:16:20 GMT
-
-```
-
 ### Cli client
 Plik is shipped with a powerful golang multiplatform cli client (downloadable in web interface) :  
 
@@ -317,22 +126,59 @@ curl -s 'https://127.0.0.1:8080/file/0KfNj6eMb93ilCrl/q73tEBEqM04b22GP/mydirecto
 
 Client configuration and preferences are stored at ~/.plikrc ( overridable with PLIKRC environement variable )
 
+### Available data backends
+
+Plik is shipped with multiple data backend for uploaded files and metadata backend for the upload metadata.
+
+ - File databackend :
+
+Store uploaded files in a local or mounted file system directory. This is suitable for multiple instance deployment if all instances can share the directory.
+
+ - Openstack Swift databackend : http://docs.openstack.org/developer/swift/
+
+Openstack Swift is a highly available, distributed, eventually consistent object/blob store.
+
+ - SeaweedFS databackend : https://github.com/chrislusf/seaweedfs
+
+SeaweedFS is a simple and highly scalable distributed file system.
+
+### Available metadata backends
+
+ - File metadata backend : (DEPRECATED)
+
+This backend has been deprecated in Plik 1.2 in favor of BoltDB backend.
+The authentication mechanisms ( User / Tokens ) are NOT implemented in this backend.
+Migration from file backend to BoltDB backend can be done using the migrate_from_file_to_bolt script.
+
+go build server/migrate_from_file_to_bolt.go
+
+This backend save upload metadata as JSON in a .config file in the upload directory.
+This is only suitable for a single instance deployment as locking append at the process level. 
+Using multiple plik instance with this backend will result in corrupted metadata JSON files. Use mongodb backend instead.
+
+ - Bolt metadata backend : https://github.com/boltdb/bolt
+
+This is the successor of the file metadata backend, it store all the metadata in a single bolt.db file. 
+Performance is improved by keeping all metadata in memory to avoid costly filesystem stat operations.  
+Boltdb also support of atomic transactions that ensure the metadata consistency over time.
+
+Only suitable for a single instance deployment as the Bolt database can only be opened by a single process at a time.
+
+ - Mongodb metadata backend : https://www.mongodb.org
+
+Suitable for distributed / High Availability deployment. 
+
+### API
+Plik server expose a HTTP API to manage uploads and get files :
+
+See the [API reference](documentation/api.md)
+
+### Docker
+Plik comes with a simple Dockerfile that allows you to run it in a container :
+
+See the [Docker reference](documentation/docker.md)
+
 ### FAQ
-
-##### I have an error when uploading from client : "Unable to upload file : HTTP error 411 Length Required"
-
-Under nginx < 1.3.9, you must enable HttpChunkin module to allow transfer-encoding "chunked".  
-You might want to install the "nginx-extras" Debian package with built-in HttpChunkin module.
-
-And add in your server configuration :
-
-```sh
-        chunkin on;
-        error_page 411 = @my_411_error;
-        location @my_411_error {
-                chunkin_resume;
-        }
-```
 
 ##### Why is stream mode broken in multiple instance deployement ?
 
@@ -374,14 +220,20 @@ server {
 }
 ```
 
-##### Is "file" metadata backend compatible with multi-instance ?
+##### I have an error when uploading from client : "Unable to upload file : HTTP error 411 Length Required"
 
-Unfortunately, you may experience some weird behaviour using file metadata backend with multiple instances of plik.
+Under nginx < 1.3.9, you must enable HttpChunkin module to allow transfer-encoding "chunked".  
+You might want to install the "nginx-extras" Debian package with built-in HttpChunkin module.
 
-The lock used in this backend is specific to a given instance, so the metadata file could be corrupted on concurrent requests.
+And add in your server configuration :
 
-You can set a 'sticky' on the source ip but we recommend using the MongoDB metadata backend, when deploying a high available plik installation.
-
+```sh
+        chunkin on;
+        error_page 411 = @my_411_error;
+        location @my_411_error {
+                chunkin_resume;
+        }
+```
 
 ##### How to disable nginx buffering ?
 
@@ -396,6 +248,7 @@ Detailed documentation : http://nginx.org/en/docs/http/ngx_http_proxy_module.htm
    proxy_buffers 8 1M;
    client_body_buffer_size 1M;
 ```
+
 ##### How to take and upload screenshots like a boss ?
 
 ```
@@ -410,4 +263,5 @@ The screenshot is then removed of your home directory to avoid garbage.
 ##### How to contribute to the project ?
 
 Contributions are welcome, feel free to open issues and/or submit pull requests.
+Please make your pull requests against the current development (RC) branch, not against master.
 Please run/update the test suite using the makefile test target.
