@@ -90,6 +90,7 @@ Options:
   -t, --ttl TTL             Time before expiration (Upload will be removed in m|h|d)
   -n, --name NAME           Set file name when piping from STDIN
   --server SERVER           Overrides plik url
+  --token TOKEN             Specify an upload token
   --comments COMMENT        Set comments of the upload ( MarkDown compatible )
   -p                        Protect the upload with login and password
   --password PASSWD         Protect the upload with login:password ( if omitted default login is "plik" )
@@ -589,7 +590,7 @@ func updateClient(updateFlag bool) (err error) {
 	if err != nil {
 		return
 	}
-	defer func() {
+	defer func(){
 		tmpFile.Close()
 		os.Remove(tmpPath)
 	}()
