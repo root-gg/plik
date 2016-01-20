@@ -447,6 +447,11 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		}
 	}
 
+	// Override upload token ?
+	if arguments["--token"] != nil && arguments["--token"].(string) != "" {
+		Config.Token = arguments["--token"].(string)
+	}
+
 	return
 }
 
