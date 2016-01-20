@@ -186,7 +186,7 @@ func (mmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string
 			err = log.EWarningf("Unable to get user from mongodb : %s", err)
 		}
 	} else if token != "" {
-		err = collection.Find(bson.M{"token": token}).One(user)
+		err = collection.Find(bson.M{"tokens.token": token}).One(user)
 		if err == mgo.ErrNotFound {
 			return nil, nil
 		} else if err != nil {
@@ -227,7 +227,7 @@ func (mmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.Use
 	if user != nil {
 		b = bson.M{"user": user.ID}
 	} else if token != nil {
-		b = bson.M{"token": token.Token}
+		b = bson.M{"tokens.token": token.Token}
 	} else {
 		err = log.EWarning("Unable to get user uploads : Missing user id or token")
 	}
