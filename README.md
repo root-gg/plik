@@ -171,12 +171,12 @@ Suitable for distributed / High Availability deployment.
 ### API
 Plik server expose a HTTP API to manage uploads and get files :
 
-See the [API reference](documentation/api.md)
+See the [Plik API reference](documentation/api.md)
 
 ### Docker
 Plik comes with a simple Dockerfile that allows you to run it in a container :
 
-See the [Docker reference](documentation/docker.md)
+See the [Plik Docker reference](documentation/docker.md)
 
 ### FAQ
 
@@ -262,6 +262,6 @@ The screenshot is then removed of your home directory to avoid garbage.
 
 ##### How to contribute to the project ?
 
-Contributions are welcome, feel free to open issues and/or submit pull requests.
-Please make your pull requests against the current development (RC) branch, not against master.
-Please run/update the test suite using the makefile test target.
+Contributions are welcome, feel free to open issues and/or submit pull requests.  
+Please make your pull requests against the current development (RC) branch, not against master.  
+Please run/update the test suite using the makefile test target.  
