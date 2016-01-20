@@ -102,7 +102,7 @@ clients:
 ##
 docker: release
 	@cp Dockerfile $(RELEASE_DIR)
-	@cd $(RELEASE_DIR) && docker build -t plik .
+	@cd $(RELEASE_DIR) && docker build -t rootgg/plik .
 
 ###
 # Make server and clients Debian packages
