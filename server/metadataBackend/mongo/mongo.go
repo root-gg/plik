@@ -87,6 +87,11 @@ func NewMongoMetadataBackend(config map[string]interface{}) (mmb *MetadataBacken
 func (mmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (err error) {
 	log := common.GetLogger(ctx)
 
+	if upload == nil {
+		err = log.EWarning("Unable to save upload : Missing upload")
+		return
+	}
+
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
@@ -100,6 +105,11 @@ func (mmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (
 // Get implementation from MongoDB Metadata Backend
 func (mmb *MetadataBackend) Get(ctx *juliet.Context, id string) (u *common.Upload, err error) {
 	log := common.GetLogger(ctx)
+
+	if id == "" {
+		err = log.EWarning("Unable to get upload : Missing upload id")
+		return
+	}
 
 	session := mmb.session.Copy()
 	defer session.Close()
@@ -116,6 +126,16 @@ func (mmb *MetadataBackend) Get(ctx *juliet.Context, id string) (u *common.Uploa
 func (mmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
 	log := common.GetLogger(ctx)
 
+	if upload == nil {
+		err = log.EWarning("Unable to add file : Missing upload")
+		return
+	}
+
+	if file == nil {
+		err = log.EWarning("Unable to add file : Missing file")
+		return
+	}
+
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
@@ -129,6 +149,16 @@ func (mmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.
 // RemoveFile implementation from MongoDB Metadata Backend
 func (mmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
 	log := common.GetLogger(ctx)
+
+	if upload == nil {
+		err = log.EWarning("Unable to remove file : Missing upload")
+		return
+	}
+
+	if file == nil {
+		err = log.EWarning("Unable to remove file : Missing file")
+		return
+	}
 
 	session := mmb.session.Copy()
 	defer session.Close()
@@ -144,6 +174,11 @@ func (mmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Uploa
 func (mmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (err error) {
 	log := common.GetLogger(ctx)
 
+	if upload == nil {
+		err = log.EWarning("Unable to remove upload : Missing upload")
+		return
+	}
+
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
@@ -157,6 +192,11 @@ func (mmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (
 // SaveUser implementation from MongoDB Metadata Backend
 func (mmb *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (err error) {
 	log := common.GetLogger(ctx)
+
+	if user == nil {
+		err = log.EWarning("Unable to save user : Missing user")
+		return
+	}
 
 	session := mmb.session.Copy()
 	defer session.Close()
@@ -172,6 +212,11 @@ func (mmb *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (er
 // GetUser implementation from MongoDB Metadata Backend
 func (mmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error) {
 	log := common.GetLogger(ctx)
+
+	if id == "" && token == "" {
+		err = log.EWarning("Unable to get user : Missing user id or token")
+		return
+	}
 
 	session := mmb.session.Copy()
 	defer session.Close()
@@ -203,6 +248,11 @@ func (mmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string
 func (mmb *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (err error) {
 	log := common.GetLogger(ctx)
 
+	if user == nil {
+		err = log.EWarning("Unable to remove user : Missing user")
+		return
+	}
+
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.UserCollection)
@@ -219,17 +269,18 @@ func (mmb *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (
 func (mmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error) {
 	log := common.GetLogger(ctx)
 
+	if user == nil {
+		err = log.EWarning("Unable to get user uploads : Missing user")
+		return
+	}
+
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 
-	var b bson.M
-	if user != nil {
-		b = bson.M{"user": user.ID}
-	} else if token != nil {
-		b = bson.M{"tokens.token": token.Token}
-	} else {
-		err = log.EWarning("Unable to get user uploads : Missing user id or token")
+	b := bson.M{"user": user.ID}
+	if token != nil {
+		b["token"] = token.Token
 	}
 
 	var uploads []*common.Upload

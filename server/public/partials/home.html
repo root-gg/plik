@@ -127,21 +127,21 @@ THE SOFTWARE.
                         <div class="col-sm-4">
                             {{token.token}}
                         </div>
-                        <div class="col-sm-3">
+                        <div class="col-sm-2 hidden-md hidden-sm hidden-xs">
                             {{token.creationDate *1000 | date:'medium'}}
                         </div>
                         <div class="col-sm-3 file-name">
                             {{token.comment}}
                         </div>
-                        <div class="col-sm-2">
-                             <!-- REMOVE UPLOADS BUTTON -->
-                            <!--<button class="btn btn-danger btn-sm " ng-click="removeUploads(token)">-->
-                                <!--<span class="glyphicon glyphicon-remove"></span><span class="hidden-xs hidden-sm hidden-md"> Remove uploads</span>-->
-                            <!--</button>-->
-                            <!--<p></p>-->
+                        <div class="col-sm-3">
+                            <!-- REMOVE UPLOADS BUTTON -->
+                            <button class="btn btn-danger btn-sm" ng-click="deleteUploads(token)">
+                                <span class="glyphicon glyphicon-remove"></span><span> Remove uploads</span>
+                            </button>
+                            <p></p>
                              <!-- REVOKE TOKEN BUTTON -->
-                            <button class="btn btn-danger btn-sm button-padding" ng-click="revokeToken(token)">
-                                <span class="glyphicon glyphicon-remove"></span><span class="hidden-xs hidden-sm hidden-md"> Revoke</span>
+                            <button class="btn btn-danger btn-sm" ng-click="revokeToken(token)">
+                                <span class="glyphicon glyphicon-remove"></span><span> Revoke</span>
                             </button>
                         </div>
                     </div>

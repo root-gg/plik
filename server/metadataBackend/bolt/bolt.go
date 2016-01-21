@@ -89,6 +89,11 @@ func NewBoltMetadataBackend(config map[string]interface{}) (bmb *MetadataBackend
 func (bmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (err error) {
 	log := common.GetLogger(ctx)
 
+	if upload == nil {
+		err = log.EWarning("Unable to save upload : Missing upload")
+		return
+	}
+
 	// Serialize metadata to json
 	j, err := json.Marshal(upload)
 	if err != nil {
@@ -165,6 +170,11 @@ func (bmb *MetadataBackend) Get(ctx *juliet.Context, id string) (upload *common.
 	log := common.GetLogger(ctx)
 	var b []byte
 
+	if id == "" {
+		err = log.EWarning("Unable to get upload : Missing upload id")
+		return
+	}
+
 	// Get json metadata from Bolt database
 	err = bmb.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
@@ -196,6 +206,16 @@ func (bmb *MetadataBackend) Get(ctx *juliet.Context, id string) (upload *common.
 // AddOrUpdateFile implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
 	log := common.GetLogger(ctx)
+
+	if upload == nil {
+		err = log.EWarning("Unable to add file : Missing upload")
+		return
+	}
+
+	if file == nil {
+		err = log.EWarning("Unable to add file : Missing file")
+		return
+	}
 
 	// Update json metadata to Bolt database
 	err = bmb.db.Update(func(tx *bolt.Tx) error {
@@ -239,6 +259,16 @@ func (bmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.
 // RemoveFile implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
 	log := common.GetLogger(ctx)
+
+	if upload == nil {
+		err = log.EWarning("Unable to remove file : Missing upload")
+		return
+	}
+
+	if file == nil {
+		err = log.EWarning("Unable to remove file : Missing file")
+		return
+	}
 
 	// Update json metadata to Bolt database
 	err = bmb.db.Update(func(tx *bolt.Tx) error {
@@ -288,6 +318,11 @@ func (bmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Uploa
 // Remove implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (err error) {
 	log := common.GetLogger(ctx)
+
+	if upload == nil {
+		err = log.EWarning("Unable to remove upload : Missing upload")
+		return
+	}
 
 	// Remove upload from bolt database
 	err = bmb.db.Update(func(tx *bolt.Tx) error {
@@ -351,6 +386,11 @@ func (bmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (
 // SaveUser implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (err error) {
 	log := common.GetLogger(ctx)
+
+	if user == nil {
+		err = log.EWarning("Unable to save user : Missing user")
+		return
+	}
 
 	// Serialize user to json
 	j, err := json.Marshal(user)
@@ -420,6 +460,11 @@ func (bmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string
 	log := common.GetLogger(ctx)
 	var b []byte
 
+	if id == "" && token == "" {
+		err = log.EWarning("Unable to get user : Missing user id or token")
+		return
+	}
+
 	// Get json user from Bolt database
 	err = bmb.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
@@ -460,6 +505,13 @@ func (bmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string
 
 // RemoveUser implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (err error) {
+	log := common.GetLogger(ctx)
+
+	if user == nil {
+		err = log.EWarning("Unable to remove user : Missing user")
+		return
+	}
+
 	// Remove user from bolt database
 	err = bmb.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("users"))
@@ -487,6 +539,13 @@ func (bmb *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (
 
 // GetUserUploads implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error) {
+	log := common.GetLogger(ctx)
+
+	if user == nil {
+		err = log.EWarning("Unable to get user uploads : Missing user")
+		return
+	}
+
 	err = bmb.db.View(func(tx *bolt.Tx) error {
 		c := tx.Bucket([]byte("uploads")).Cursor()
 
@@ -503,12 +562,10 @@ func (bmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.Use
 		for k != nil && bytes.HasPrefix(k, startKey) {
 
 			// byToken filter
-			if token != nil && string(t) != token.Token {
-				continue
+			if token == nil || string(t) == token.Token {
+				// Extract upload id from key ( 16 last bytes )
+				ids = append(ids, string(k[len(k)-16:]))
 			}
-
-			// Extract upload id from key ( 16 last bytes )
-			ids = append(ids, string(k[len(k)-16:]))
 
 			// Scan the bucket forward
 			k, t = c.Next()
@@ -561,110 +618,3 @@ func (bmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []strin
 
 	return
 }
-
-// SaveToken implementation for Bolt Metadata Backend
-//func (bmb *MetadataBackend) SaveToken(ctx *juliet.Context, token *common.Token) (err error) {
-//	log := common.GetLogger(ctx)
-//
-//	// Serialize token to json
-//	j, err := json.Marshal(token)
-//	if err != nil {
-//		err = log.EWarningf("Unable to serialize token to json : %s", err)
-//		return
-//	}
-//
-//	// Save json metadata to Bolt database
-//	err = bmb.db.Update(func(tx *bolt.Tx) error {
-//		bucketMetadata := tx.Bucket([]byte("tokens"))
-//		if bucketMetadata == nil {
-//			return fmt.Errorf("Unable to get tokens Bolt bucket")
-//		}
-//
-//		err := bucketMetadata.Put([]byte(token.Token), j)
-//		if err != nil {
-//			return fmt.Errorf("Unable save token : %s", err)
-//		}
-//
-//		return nil
-//	})
-//	if err != nil {
-//		return
-//	}
-//	return
-//}
-//
-//// GetToken implementation for Bolt Metadata Backend
-//func (bmb *MetadataBackend) GetToken(ctx *juliet.Context, token string) (t *common.Token, err error) {
-//	log := common.GetLogger(ctx)
-//	var b []byte
-//
-//	// Get json token from Bolt database
-//	err = bmb.db.View(func(tx *bolt.Tx) error {
-//		bucketMetadata := tx.Bucket([]byte("tokens"))
-//		if bucketMetadata == nil {
-//			return fmt.Errorf("Unable to get tokens Bolt bucket")
-//		}
-//
-//		b = bucketMetadata.Get([]byte(token))
-//		if b == nil || len(b) == 0 {
-//			return fmt.Errorf("Unable to get token from Bolt bucket")
-//		}
-//
-//		return nil
-//	})
-//	if err != nil {
-//		err = log.EWarningf("Unable to save token : %s", err)
-//		return
-//	}
-//
-//	// Unserialize token from json
-//	t = common.NewToken()
-//	if err = json.Unmarshal(b, t); err != nil {
-//		return
-//	}
-//
-//	return
-//}
-//
-//// ValidateToken implementation for Bolt Metadata Backend
-//func (bmb *MetadataBackend) ValidateToken(ctx *juliet.Context, token string) (ok bool, err error) {
-//	// Get json token from Bolt database
-//	err = bmb.db.View(func(tx *bolt.Tx) error {
-//		bucketMetadata := tx.Bucket([]byte("tokens"))
-//		if bucketMetadata == nil {
-//			return fmt.Errorf("Unable to get tokens Bolt bucket")
-//		}
-//
-//		b := bucketMetadata.Get([]byte(token))
-//		if b == nil || len(b) == 0 {
-//			return nil
-//		}
-//
-//		ok = true
-//		return nil
-//	})
-//	if err != nil {
-//		return
-//	}
-//
-//	return
-//}
-//
-//// RevokeToken implementation for Bolt Metadata Backend
-//func (bmb *MetadataBackend) RevokeToken(ctx *juliet.Context, token string) (err error) {
-//	// Remove upload from bolt database
-//	err = bmb.db.Update(func(tx *bolt.Tx) error {
-//		bucketMetadata := tx.Bucket([]byte("tokens"))
-//		err := bucketMetadata.Delete([]byte(token))
-//		if err != nil {
-//			return err
-//		}
-//
-//		return nil
-//	})
-//	if err != nil {
-//		return
-//	}
-//
-//	return
-//}
