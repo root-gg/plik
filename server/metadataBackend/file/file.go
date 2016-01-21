@@ -63,6 +63,11 @@ func NewFileMetadataBackend(config map[string]interface{}) (fmb *MetadataBackend
 func (fmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (err error) {
 	log := common.GetLogger(ctx)
 
+	if upload == nil {
+		err = log.EWarning("Unable to save upload : Missing upload")
+		return
+	}
+
 	// Get upload directory
 	directory, err := fmb.getDirectoryFromUploadID(upload.ID)
 	if err != nil {
@@ -119,6 +124,11 @@ func (fmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (
 func (fmb *MetadataBackend) Get(ctx *juliet.Context, id string) (upload *common.Upload, err error) {
 	log := common.GetLogger(ctx)
 
+	if id == "" {
+		err = log.EWarning("Unable to get upload : Missing upload id")
+		return
+	}
+
 	// Get upload directory
 	directory, err := fmb.getDirectoryFromUploadID(id)
 	if err != nil {
@@ -150,6 +160,16 @@ func (fmb *MetadataBackend) Get(ctx *juliet.Context, id string) (upload *common.
 // AddOrUpdateFile implementation for File Metadata Backend
 func (fmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
 	log := common.GetLogger(ctx)
+
+	if upload == nil {
+		err = log.EWarning("Unable to add file : Missing upload")
+		return
+	}
+
+	if file == nil {
+		err = log.EWarning("Unable to add file : Missing file")
+		return
+	}
 
 	// avoid race condition
 	lock(upload.ID)
@@ -216,6 +236,16 @@ func (fmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.
 func (fmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
 	log := common.GetLogger(ctx)
 
+	if upload == nil {
+		err = log.EWarning("Unable to remove file : Missing upload")
+		return
+	}
+
+	if file == nil {
+		err = log.EWarning("Unable to remove file : Missing file")
+		return
+	}
+
 	// avoid race condition
 	lock(upload.ID)
 	defer unlock(upload.ID)
@@ -271,6 +301,11 @@ func (fmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Uploa
 // Remove implementation for File Metadata Backend
 func (fmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (err error) {
 	log := common.GetLogger(ctx)
+
+	if upload == nil {
+		err = log.EWarning("Unable to remove upload : Missing upload")
+		return
+	}
 
 	// Get upload directory
 	directory, err := fmb.getDirectoryFromUploadID(upload.ID)

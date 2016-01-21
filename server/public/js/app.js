@@ -963,9 +963,10 @@ function HomeCtrl($scope, $api, $dialog, $location) {
     $scope.deleteUploads = function(token){
         if (token) token = token.token;
         $api.deleteUploads(token)
-            .then(function () {
+            .then(function (result) {
                 $scope.uploads = [];
                 $scope.getUploads();
+                $dialog.alert(result);
             })
             .then(null, function (error) {
                 $dialog.alert(error);
