@@ -5,6 +5,7 @@ import "net/http"
 // User is a plik user
 type User struct {
 	ID     string   `json:"id,omitempty" bson:"id"`
+	Login  string   `json:"login,omitempty" bson:"login"`
 	Name   string   `json:"name,omitempty" bson:"name"`
 	Email  string   `json:"email,omitempty" bson:"email"`
 	Tokens []*Token `json:"tokens,omitempty" bson:"tokens"`

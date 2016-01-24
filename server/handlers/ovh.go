@@ -286,6 +286,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 			// Create new user
 			user = common.NewUser()
 			user.ID = userID
+			user.Login = userInfo.Nichandle
 			user.Name = userInfo.FirstName + " " + userInfo.LastName
 			user.Email = userInfo.Email
 
