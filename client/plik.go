@@ -590,7 +590,7 @@ func updateClient(updateFlag bool) (err error) {
 	if err != nil {
 		return
 	}
-	defer func(){
+	defer func() {
 		tmpFile.Close()
 		os.Remove(tmpPath)
 	}()
