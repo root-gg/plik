@@ -199,6 +199,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			// Create new user
 			user = common.NewUser()
 			user.ID = userID
+			user.Login = userInfo.Email
 			user.Name = userInfo.Name
 			user.Email = userInfo.Email
 
