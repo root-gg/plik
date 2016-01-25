@@ -270,8 +270,43 @@ angular.module('api', ['ngFileUpload']).
         return api;
     });
 
+// Config Service
+angular.module('config', ['api']).
+    factory('$config', function ($rootScope, $api) {
+        var module = {
+            config : $api.getConfig(),
+            user : $api.getUser()
+        };
+
+        // Return config promise
+        module.getConfig = function(){
+            return module.config;
+        };
+
+        // Refresh config promise and notify listeners (top menu)
+        module.refreshConfig = function(){
+            module.config = $api.getConfig();
+            $rootScope.$broadcast('config_refreshed', module.config);
+            return module.config;
+        };
+
+        // Return user promise
+        module.getUser = function(){
+            return module.user;
+        };
+
+        // Refresh user promise and notify listeners (top menu)
+        module.refreshUser = function(){
+            module.user = $api.getUser();
+            $rootScope.$broadcast('user_refreshed', module.user);
+            return module.user;
+        };
+
+        return module;
+    });
+
 // Plik app bootstrap and global configuration
-angular.module('plik', ['ngRoute', 'api', 'dialog', 'contentEditable', 'btford.markdown'])
+angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'contentEditable', 'btford.markdown'])
     .config(function ($routeProvider) {
         $routeProvider
             .when('/', {controller: MainCtrl, templateUrl: 'partials/main.html', reloadOnSearch: false})
@@ -292,8 +327,44 @@ angular.module('plik', ['ngRoute', 'api', 'dialog', 'contentEditable', 'btford.m
         }
     });
 
+function MenuCtrl($rootScope, $scope, $config){
+    // Get server config
+    $config.getConfig()
+        .then(function (config) {
+            $scope.config = config;
+        });
+
+    // Refresh config
+    $rootScope.$on("config_refreshed", function(event, config){
+        config
+            .then(function (c) {
+                $scope.config = c;
+            })
+            .then(null, function () {
+                $scope.config = null;
+            });
+    });
+
+    // Get user from session
+    $config.getUser()
+        .then(function (user) {
+            $scope.user = user;
+        });
+
+    // Refresh user
+    $rootScope.$on("user_refreshed", function(event, user){
+        user
+            .then(function (u) {
+                $scope.user = u;
+            })
+            .then(null, function () {
+                $scope.user = null;
+            });
+    });
+}
+
 // Main controller
-function MainCtrl($scope, $dialog, $route, $location, $api) {
+function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
     $scope.sortField = 'metadata.fileName';
     $scope.sortOrder = false;
 
@@ -303,7 +374,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     $scope.password = false;
 
     // Get server config
-    $api.getConfig()
+    $config.getConfig()
         .then(function (config) {
             $scope.config = config;
             $scope.setDefaultTTL();
@@ -840,9 +911,9 @@ function ClientListCtrl($scope, $api, $dialog) {
 }
 
 // Login controller
-function LoginCtrl($scope, $api, $dialog, $location){
+function LoginCtrl($scope, $api, $config, $location, $dialog){
     // Get server config
-    $api.getConfig()
+    $config.getConfig()
         .then(function (config) {
             $scope.config = config;
             // Check if token authentication is enabled server side
@@ -851,16 +922,18 @@ function LoginCtrl($scope, $api, $dialog, $location){
             }
         })
         .then(null, function (error) {
-            $dialog.alert(error);
+            if (error.status != 401 && error.status != 403) {
+                $dialog.alert(error);
+            }
         });
 
     // Get user from session
-    $api.getUser()
+    $config.getUser()
         .then(function () {
             $location.path('/home');
         })
         .then(null, function (error) {
-            if (error.status != 401) {
+            if (error.status != 401 && error.status != 403) {
                 $dialog.alert(error);
             }
         });
@@ -891,22 +964,22 @@ function LoginCtrl($scope, $api, $dialog, $location){
 }
 
 // Token controller
-function HomeCtrl($scope, $api, $dialog, $location) {
+function HomeCtrl($scope, $api, $config, $dialog, $location) {
 
     $scope.display = 'uploads';
     $scope.displayUploads = function(){
         $scope.uploads = [];
         $scope.display = 'uploads';
-        $scope.getUploads();
+        $scope.refreshUser();
     };
 
     $scope.displayTokens = function(){
         $scope.display = 'tokens';
-        $scope.getUser();
+        $scope.refreshUser();
     };
 
     // Get server config
-    $api.getConfig()
+    $config.config
         .then(function (config) {
             // Check if token authentication is enabled server side
             if ( ! config.authentication ) {
@@ -917,20 +990,24 @@ function HomeCtrl($scope, $api, $dialog, $location) {
             $dialog.alert(error);
         });
 
-    // Get user from session
-    $scope.getUser = function(){
-        $api.getUser()
-            .then(function (user) {
-                $scope.user = user;
-                $scope.getUploads();
-            })
-            .then(null, function (error) {
-                if (error.status == 401) {
-                    $location.path('/login');
-                } else {
-                    $dialog.alert(error);
-                }
-            });
+    // Handle user promise
+    var loadUser = function(promise) {
+        promise.then(function (user) {
+            $scope.user = user;
+            $scope.getUploads();
+        })
+        .then(null, function (error) {
+            if (error.status == 401 || error.status == 403) {
+                $location.path('/login');
+            } else {
+                $dialog.alert(error);
+            }
+        });
+    };
+
+    // Refresh user
+    $scope.refreshUser = function(){
+        loadUser($config.refreshUser());
     };
 
     // Get user upload list
@@ -977,7 +1054,7 @@ function HomeCtrl($scope, $api, $dialog, $location) {
     $scope.createToken = function(comment){
         $api.createToken(comment)
             .then(function () {
-                $scope.getUser();
+                $scope.refreshUser();
             })
             .then(null, function (error) {
                 $dialog.alert(error);
@@ -989,7 +1066,7 @@ function HomeCtrl($scope, $api, $dialog, $location) {
         if ($scope.token == "") return;
         $api.revokeToken(token.token)
             .then(function () {
-                $scope.getUser();
+                $scope.refreshUser();
             })
             .then(null, function (error) {
                 $dialog.alert(error);
@@ -1000,6 +1077,7 @@ function HomeCtrl($scope, $api, $dialog, $location) {
     $scope.logout = function(){
         $api.logout()
             .then(function () {
+                $config.refreshUser();
                 $location.path('/');
             })
             .then(null, function (error) {
@@ -1018,6 +1096,7 @@ function HomeCtrl($scope, $api, $dialog, $location) {
                 if (result) {
                     $api.deleteAccount()
                         .then(function () {
+                            $config.refreshUser();
                             $location.path('/');
                         })
                         .then(null, function (error) {
@@ -1044,7 +1123,7 @@ function HomeCtrl($scope, $api, $dialog, $location) {
         return filesize(size, {base: 2});
     };
 
-    $scope.getUser();
+    loadUser($config.getUser());
 }
 
 // Alert modal dialog controller
