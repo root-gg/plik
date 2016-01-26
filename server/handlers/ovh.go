@@ -49,7 +49,6 @@ type ovhError struct {
 type ovhUserConsentResponse struct {
 	ValidationURL string `json:"validationUrl"`
 	ConsumerKey   string `json:"consumerKey"`
-	State         string `json:"state"`
 }
 
 type ovhUserResponse struct {
