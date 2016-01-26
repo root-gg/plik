@@ -54,8 +54,8 @@ THE SOFTWARE.
                     </div>
                     <!-- HEADER RIGHT -->
                     <div class="col-sm-9 text-right hidden-xs hidden-sm">
-                        <a href="#/login" ng-if="!user"><i class="fa fa-lock"></i> Authentication</a>
-                        <a href="#/login" ng-if="user">{{user.login}}</a>
+                        <a href="#/login" ng-if="config.authentication && !user"><i class="fa fa-lock"></i> Authentication</a>
+                        <a href="#/login" ng-if="config.authentication && user">{{user.login}}</a>
                         &nbsp;
                         <a href="#/clients"><i class="fa fa-keyboard-o"></i> Command line client</a>
                         &nbsp;

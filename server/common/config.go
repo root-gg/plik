@@ -115,7 +115,6 @@ func LoadConfiguration(file string) {
 		Logger().Fatalf("Unable to load config file %s : %s", file, err)
 	}
 	Logger().SetMinLevelFromString(Config.LogLevel)
-	Logger().Dump(logger.DEBUG, Config)
 
 	if Config.LogLevel == "DEBUG" {
 		Logger().SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel | logger.FshortFile | logger.FshortFunction)
@@ -149,10 +148,21 @@ func LoadConfiguration(file string) {
 		}
 	}
 
-	if Config.Authentication && Config.GoogleAPIClientID != "" && Config.GoogleAPISecret != "" {
+	if Config.GoogleAPIClientID != "" && Config.GoogleAPISecret != "" {
 		Config.GoogleAuthentication = true
+	} else {
+		Config.GoogleAuthentication = false
 	}
-	if Config.Authentication && Config.OvhAPIKey != "" && Config.OvhAPISecret != "" {
+
+	if Config.OvhAPIKey != "" && Config.OvhAPISecret != "" {
 		Config.OvhAuthentication = true
+	} else {
+		Config.OvhAuthentication = false
 	}
+
+	if !Config.GoogleAuthentication && !Config.OvhAuthentication {
+		Config.Authentication = false
+	}
+
+	Logger().Dump(logger.DEBUG, Config)
 }
