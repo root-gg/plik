@@ -632,7 +632,7 @@ function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
     };
 
     // Remove a file from the servers
-    $scope.removeFile = function (file) {
+    $scope.deleteFile = function (file) {
         if (!$scope.upload.removable && !$scope.upload.admin) return;
         $api.removeFile($scope.upload, file)
             .then(function () {
