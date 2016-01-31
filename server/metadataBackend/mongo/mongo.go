@@ -284,7 +284,7 @@ func (mmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.Use
 	}
 
 	var uploads []*common.Upload
-	err = collection.Find(b).Select(bson.M{"id": 1}).All(&uploads)
+	err = collection.Find(b).Select(bson.M{"id": 1}).Sort("-uploadDate").All(&uploads)
 	if err != nil {
 		err = log.EWarningf("Unable to get user uploads : %s", err)
 		return

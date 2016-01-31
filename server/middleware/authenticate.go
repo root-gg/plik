@@ -51,6 +51,7 @@ func Authenticate(ctx *juliet.Context, next http.Handler) http.Handler {
 				ctx.Set("token", token)
 			}
 
+			// Get user from session cookie
 			sessionCookie, err := req.Cookie("plik-session")
 			if err == nil && sessionCookie != nil {
 
