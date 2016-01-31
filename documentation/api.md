@@ -127,9 +127,15 @@ User authentication :
 
    - **GET** /me/uploads
      - Return all uploads linked to a user account.
+     - Params :
+        - token : filter by token
+        - size : maximum uploads to return ( max : 100 )
+        - offset : number of uploads to skip
 
    - **DELETE** /me/uploads
      - Remove all uploads linked to a user account.
+     - Params :
+        - token : filter by token
 
 QRCode :
 
