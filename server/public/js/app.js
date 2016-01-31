@@ -1071,14 +1071,22 @@ function HomeCtrl($scope, $api, $config, $dialog, $location) {
 
     // Revoke a token
     $scope.revokeToken = function(token){
-        if ($scope.token == "") return;
-        $api.revokeToken(token.token)
-            .then(function () {
-                $scope.refreshUser();
-            })
-            .then(null, function (error) {
-                $dialog.alert(error);
-            });
+        $dialog.alert({
+            title : "Really ?",
+            message : "Revoking a token will not delete associated uploads.",
+            confirm : true,
+            callback : function(result){
+                if (result) {
+                    $api.revokeToken(token.token)
+                        .then(function () {
+                            $scope.refreshUser();
+                        })
+                        .then(null, function (error) {
+                            $dialog.alert(error);
+                        });
+                }
+            }
+        });
     };
 
     // Log out
