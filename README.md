@@ -93,6 +93,7 @@ Options:
   -t, --ttl TTL             Time before expiration (Upload will be removed in m|h|d)
   -n, --name NAME           Set file name when piping from STDIN
   --server SERVER           Overrides plik url
+  --token TOKEN             Specify an upload token
   --comments COMMENT        Set comments of the upload ( MarkDown compatible )
   -p                        Protect the upload with login and password
   --password PASSWD         Protect the upload with login:password ( if omitted default login is "plik" )
@@ -125,6 +126,28 @@ curl -s 'https://127.0.0.1:8080/file/0KfNj6eMb93ilCrl/q73tEBEqM04b22GP/mydirecto
 ```
 
 Client configuration and preferences are stored at ~/.plikrc ( overridable with PLIKRC environement variable )
+
+### Authentication
+
+Plik can authenticate users using Google and/or OVH API. 
+Once authenticated the only call Plik will ever make to those API is get the user ID, name and email. 
+Plik will never forward any upload data or metadata to any third party.   
+
+   - **Google** :
+      - You'll need to create a new application in the [Google Developper Console](https://console.developers.google.com)
+      - You'll be handed a Google API ClientID and a Google API ClientSecret that you'll need to put in the plikd.cfg file.
+      - Do not forget to whitelist valid origin and redirect url ( https://yourdomain/auth/google/callback ) for your domain.
+   
+   - **OVH** :
+      - You'll need to create a new application in the OVH API : https://eu.api.ovh.com/createApp/
+      - You'll be handed an OVH application key and an OVH application secret key that you'll need to put in the plikd.cfg file.
+
+Once authenticated a user can generate upload tokens that can be specified in the ~/.plikrc file to authenticate
+the command line client.
+
+```
+Token = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+```
 
 ### Available data backends
 
@@ -248,6 +271,10 @@ Detailed documentation : http://nginx.org/en/docs/http/ngx_http_proxy_module.htm
    proxy_buffers 8 1M;
    client_body_buffer_size 1M;
 ```
+
+##### Why authentication don't work with HTTP connections ?
+
+Plik session cookies have the "secure" flag set, so they can only be transmitted over secure HTTPS connections.
 
 ##### How to take and upload screenshots like a boss ?
 
