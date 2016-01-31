@@ -81,10 +81,10 @@ type Configuration struct {
 	ShortenBackendConfig map[string]interface{} `json:"-"`
 }
 
-// Global var to store conf
+// Config static variable
 var Config *Configuration
 
-// Parse upload whitelist only once at startup time
+// UploadWhitelist is only parsed once at startup time
 var UploadWhitelist []*net.IPNet
 
 // NewConfiguration creates a new configuration
