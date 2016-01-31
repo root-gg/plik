@@ -226,9 +226,9 @@ angular.module('api', ['ngFileUpload']).
         };
 
         // Get upload metadata
-        api.getUploads = function(token) {
+        api.getUploads = function(token, size, offset) {
             var url = api.base + '/me/uploads';
-            return api.call(url, 'GET', { token : token });
+            return api.call(url, 'GET', { token : token, size : size, offset : offset });
         };
 
         // Remove uploads
@@ -967,8 +967,9 @@ function LoginCtrl($scope, $api, $config, $location, $dialog){
 function HomeCtrl($scope, $api, $config, $dialog, $location) {
 
     $scope.display = 'uploads';
-    $scope.displayUploads = function(){
+    $scope.displayUploads = function(token){
         $scope.uploads = [];
+        $scope.token = token;
         $scope.display = 'uploads';
         $scope.refreshUser();
     };
@@ -1011,12 +1012,20 @@ function HomeCtrl($scope, $api, $config, $dialog, $location) {
     };
 
     // Get user upload list
-    $scope.getUploads = function(){
-        $scope.uploads = [];
+    $scope.getUploads = function(more){
+        if (!more) {
+            $scope.uploads = [];
+        }
+
+        $scope.size = 50;
+        $scope.offset = $scope.uploads.length;
+        $scope.more = false;
+
         // Get user uploads
-        $api.getUploads()
+        $api.getUploads($scope.token, $scope.size, $scope.offset)
             .then(function (uploads) {
-                $scope.uploads = uploads;
+                $scope.uploads = $scope.uploads.concat(uploads);
+                $scope.more = uploads.length == $scope.size;
             })
             .then(null, function (error) {
                 $dialog.alert(error);
@@ -1037,9 +1046,8 @@ function HomeCtrl($scope, $api, $config, $dialog, $location) {
     };
 
     // Delete all user uploads
-    $scope.deleteUploads = function(token){
-        if (token) token = token.token;
-        $api.deleteUploads(token)
+    $scope.deleteUploads = function(){
+        $api.deleteUploads($scope.token)
             .then(function (result) {
                 $scope.uploads = [];
                 $scope.getUploads();
@@ -1092,7 +1100,6 @@ function HomeCtrl($scope, $api, $config, $dialog, $location) {
             message : "Deleting your account will not delete your uploads.",
             confirm : true,
             callback : function(result){
-                console.log("callback" + result);
                 if (result) {
                     $api.deleteAccount()
                         .then(function () {

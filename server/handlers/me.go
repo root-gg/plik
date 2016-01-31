@@ -7,6 +7,7 @@ import (
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadataBackend"
 	"net/http"
+	"strconv"
 )
 
 // UserInfo return user information ( name / email / tokens / ... )
@@ -75,7 +76,7 @@ func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		}
 		if token == nil {
 			log.Warningf("Unable to get uploads for token %s : Invalid token", tokenStr)
-			common.Fail(ctx, req, resp, "Unable to get uploads for token : Invalid token", 400)
+			common.Fail(ctx, req, resp, "Unable to get uploads : Invalid token", 400)
 			return
 		}
 	}
@@ -88,8 +89,42 @@ func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		return
 	}
 
+	// Get size from URL query parameter
+	size := 100
+	sizeStr := req.URL.Query().Get("size")
+	if sizeStr != "" {
+		size, err = strconv.Atoi(sizeStr)
+		if err != nil || size <= 0 || size > 100 {
+			log.Warningf("Invalid size parameter : %s", sizeStr)
+			common.Fail(ctx, req, resp, "Invalid size parameter", 400)
+			return
+		}
+	}
+
+	// Get offset from URL query parameter
+	offset := 0
+	offsetStr := req.URL.Query().Get("offset")
+	if offsetStr != "" {
+		offset, err = strconv.Atoi(offsetStr)
+		if err != nil || offset < 0 {
+			log.Warningf("Invalid offset parameter : %s", offsetStr)
+			common.Fail(ctx, req, resp, "Invalid offset parameter", 400)
+			return
+		}
+	}
+
+	// Adjust offset
+	if offset > len(ids) {
+		offset = len(ids)
+	}
+
+	// Adjust size
+	if offset+size > len(ids) {
+		size = len(ids) - offset
+	}
+
 	uploads := []*common.Upload{}
-	for _, id := range ids {
+	for _, id := range ids[offset : offset+size] {
 		upload, err := metadataBackend.GetMetaDataBackend().Get(ctx, id)
 		if err != nil {
 			log.Warningf("Unable to get upload %s : %s", id, err)
