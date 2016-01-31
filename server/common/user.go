@@ -31,7 +31,7 @@ func Logout(resp http.ResponseWriter) {
 	// Delete session cookie
 	sessionCookie := &http.Cookie{}
 	sessionCookie.HttpOnly = true
-	//	secureCookie.Secure = true
+	sessionCookie.Secure = true
 	sessionCookie.Name = "plik-session"
 	sessionCookie.Value = ""
 	sessionCookie.MaxAge = -1
@@ -40,8 +40,8 @@ func Logout(resp http.ResponseWriter) {
 
 	// Store xsrf token cookie
 	xsrfCookie := &http.Cookie{}
-	sessionCookie.HttpOnly = false
-	//	secureCookie.Secure = true
+	xsrfCookie.HttpOnly = false
+	xsrfCookie.Secure = true
 	xsrfCookie.Name = "plik-xsrf"
 	xsrfCookie.Value = ""
 	xsrfCookie.MaxAge = -1
