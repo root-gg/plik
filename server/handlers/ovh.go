@@ -155,7 +155,7 @@ func OvhLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 	// Store session jwt in secure cookie
 	sessionCookie := &http.Cookie{}
 	sessionCookie.HttpOnly = true
-	//	secureCookie.Secure = true
+	sessionCookie.Secure = true
 	sessionCookie.Name = "plik-ovh-session"
 	sessionCookie.Value = sessionString
 	sessionCookie.MaxAge = int(time.Now().Add(5 * time.Minute).Unix())
@@ -327,7 +327,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	// Store session jwt in secure cookie
 	sessionCookie := &http.Cookie{}
 	sessionCookie.HttpOnly = true
-	//	secureCookie.Secure = true
+	sessionCookie.Secure = true
 	sessionCookie.Name = "plik-session"
 	sessionCookie.Value = sessionString
 	sessionCookie.MaxAge = int(time.Now().Add(10 * 365 * 24 * time.Hour).Unix())
@@ -336,8 +336,8 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 
 	// Store xsrf token cookie
 	xsrfCookie := &http.Cookie{}
-	sessionCookie.HttpOnly = false
-	//	secureCookie.Secure = true
+	xsrfCookie.HttpOnly = false
+	xsrfCookie.Secure = true
 	xsrfCookie.Name = "plik-xsrf"
 	xsrfCookie.Value = xsrfToken.String()
 	xsrfCookie.MaxAge = int(time.Now().Add(10 * 365 * 24 * time.Hour).Unix())
