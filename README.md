@@ -132,6 +132,8 @@ Client configuration and preferences are stored at ~/.plikrc ( overridable with 
 Plik can authenticate users using Google and/or OVH API. 
 Once authenticated the only call Plik will ever make to those API is get the user ID, name and email. 
 Plik will never forward any upload data or metadata to any third party.   
+If source IP address restriction is enabled, user accounts can only be created from trusted IPs. But then 
+authenticated users can upload files without source IP restriction.   
 
    - **Google** :
       - You'll need to create a new application in the [Google Developper Console](https://console.developers.google.com)
