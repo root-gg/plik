@@ -156,7 +156,6 @@ function uploadOpts {
     fi
     CURL_CMD="$CURL_CMD $URL/upload/$UPLOAD_ID"
     UPLOAD_OPTS=$( eval "$CURL_CMD" 2>/dev/null | python -m json.tool )
-
 }
 
 # Download files by running the output cmds
@@ -270,6 +269,22 @@ before
 cp $SPECIMEN $TMPDIR/upload/FILE1
 upload --oneshot && uploadOpts
 echo "$UPLOAD_OPTS" | grep '"oneShot": true' >/dev/null 2>/dev/null
+
+echo "OK"
+
+#---------------------------------------------
+
+echo -n " - removable : "
+
+before
+cp $SPECIMEN $TMPDIR/upload/FILE1
+upload -r && uploadOpts
+echo "$UPLOAD_OPTS" | grep '"removable": true' >/dev/null 2>/dev/null
+
+before
+cp $SPECIMEN $TMPDIR/upload/FILE1
+upload --removable && uploadOpts
+echo "$UPLOAD_OPTS" | grep '"removable": true' >/dev/null 2>/dev/null
 
 echo "OK"
 
