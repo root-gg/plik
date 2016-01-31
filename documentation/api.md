@@ -74,11 +74,10 @@ Show server details :
 User authentication :
 
    - 
-   Plik can authenticate users using Google and/or OVH third-party API. Once authenticated 
-   the only call Plik will ever make to those API is get the user ID, name and email. It will never forward any
-   upload data or metadata.   
-   The /auth API is designed for the Plik web application nevertheless if you want to automatize it just provide a valid
+   Plik can authenticate users using Google and/or OVH third-party API.   
+   The /auth API is designed for the Plik web application nevertheless if you want to automatize it be sure to provide a valid
    Referrer HTTP header and forward all session cookies.   
+   Plik session cookies have the "secure" flag set, so they can only be transmitted over secure HTTPS connections.   
    To avoid CSRF attacks the value of the plik-xsrf cookie MUST be copied in the X-XRSFToken HTTP header of each
    authenticated request.   
    Once authenticated a user can generate upload tokens. Those tokens can be used in the X-PlikToken HTTP header used to link
