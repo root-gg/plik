@@ -35,8 +35,7 @@ import (
 
 // MetadataBackendConfig object
 type MetadataBackendConfig struct {
-	Directory      string
-	TokenDirectory string
+	Directory string
 }
 
 // NewFileMetadataBackendConfig configures the backend
@@ -48,7 +47,6 @@ func NewFileMetadataBackendConfig(config map[string]interface{}) (mbc *MetadataB
 	// data backend so by default files and
 	// metadata are colocated
 	mbc.Directory = "files"
-	mbc.TokenDirectory = "tokens"
 	utils.Assign(mbc, config)
 	return
 }

@@ -164,5 +164,9 @@ func LoadConfiguration(file string) {
 		Config.Authentication = false
 	}
 
+	if Config.MetadataBackend == "file" {
+		Config.Authentication = false
+	}
+
 	Logger().Dump(logger.DEBUG, Config)
 }
