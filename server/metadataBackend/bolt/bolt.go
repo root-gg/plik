@@ -69,11 +69,9 @@ func NewBoltMetadataBackend(config map[string]interface{}) (bmb *MetadataBackend
 			return fmt.Errorf("Unable to create metadata bucket : %s", err)
 		}
 
-		if common.Config.Authentication {
-			_, err := tx.CreateBucketIfNotExists([]byte("users"))
-			if err != nil {
-				return fmt.Errorf("Unable to create user bucket : %s", err)
-			}
+		_, err = tx.CreateBucketIfNotExists([]byte("users"))
+		if err != nil {
+			return fmt.Errorf("Unable to create user bucket : %s", err)
 		}
 
 		return nil
@@ -161,7 +159,7 @@ func (bmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (
 		return
 	}
 
-	log.Infof("Metadata file successfully saved")
+	log.Infof("Upload metadata successfully saved")
 	return
 }
 
@@ -252,7 +250,7 @@ func (bmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.
 		return
 	}
 
-	log.Infof("Metadata file successfully updated")
+	log.Infof("Upload metadata successfully updated")
 	return
 }
 
@@ -311,7 +309,7 @@ func (bmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Uploa
 		return
 	}
 
-	log.Infof("Metadata successfully updated")
+	log.Infof("Upload metadata successfully updated")
 	return nil
 }
 
@@ -379,7 +377,7 @@ func (bmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (
 		return
 	}
 
-	log.Infof("Metadata successfully removed")
+	log.Infof("Upload metadata successfully removed")
 	return
 }
 
@@ -452,6 +450,9 @@ func (bmb *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (er
 	if err != nil {
 		return
 	}
+
+	log.Infof("User successfully saved")
+
 	return
 }
 
@@ -533,6 +534,8 @@ func (bmb *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (
 	if err != nil {
 		return
 	}
+
+	log.Infof("User successfully removed")
 
 	return
 }

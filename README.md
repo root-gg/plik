@@ -175,7 +175,9 @@ This backend has been deprecated in Plik 1.2 in favor of BoltDB backend.
 The authentication mechanisms ( User / Tokens ) are NOT implemented in this backend.
 Migration from file backend to BoltDB backend can be done using the migrate_from_file_to_bolt script.
 
-go build server/migrate_from_file_to_bolt.go
+```
+server/utils/file2bolt --directory server/files --db server/plik.db
+```
 
 This backend save upload metadata as JSON in a .config file in the upload directory.
 This is only suitable for a single instance deployment as locking append at the process level. 
