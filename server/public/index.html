@@ -45,20 +45,26 @@ THE SOFTWARE.
 <body>
     <div id="view">
         <!-- HEADER -->
-        <header>
+        <header ng-controller="MenuCtrl">
             <div class="container-fluid">
                 <div class="row">
-                    <!-- HEADER LEFT -->
+                    <!-- PLIK LOGO -->
                     <div class="col-sm-3 text-center">
                         <h1><a href="#/_">Plik</a></h1>
                     </div>
-                    <!-- HEADER RIGHT -->
-                    <div class="col-sm-9 text-right hidden-xs hidden-sm">
-                        <a href="#/token"><i class="fa fa-lock"></i> Authentication</a>
+                    <!-- TOP MENU -->
+                    <div class="col-sm-9 text-right hidden-xs">
+                        <a href="#/login" ng-if="config.authentication && !user"><i class="fa fa-lock"></i> Authentication</a>
+                        <a href="#/login" ng-if="config.authentication && user">{{user.login}}</a>
                         &nbsp;
                         <a href="#/clients"><i class="fa fa-keyboard-o"></i> Command line client</a>
                         &nbsp;
                         <a href="https://github.com/root-gg/plik/tree/master"><i class="fa fa-github"></i> Source code</a>
+                    </div>
+                    <!-- TOP MENU ( mobile ) -->
+                    <div class="col-sm-9 text-center hidden-sm hidden-md hidden-lg">
+                        <a href="#/login" ng-if="config.authentication && !user"><i class="fa fa-lock"></i> Authentication</a>
+                        <a href="#/login" ng-if="config.authentication && user">{{user.login}}</a>
                     </div>
                 </div>
             </div>

@@ -42,6 +42,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -89,6 +90,7 @@ Options:
   -t, --ttl TTL             Time before expiration (Upload will be removed in m|h|d)
   -n, --name NAME           Set file name when piping from STDIN
   --server SERVER           Overrides plik url
+  --token TOKEN             Specify an upload token
   --comments COMMENT        Set comments of the upload ( MarkDown compatible )
   -p                        Protect the upload with login and password
   --password PASSWD         Protect the upload with login:password ( if omitted default login is "plik" )
@@ -582,17 +584,17 @@ func updateClient(updateFlag bool) (err error) {
 		return
 	}
 
-	// Create tmp file
-	tmpFile, err := ioutil.TempFile("", ".plik_update_")
+	// Download new client
+	tmpPath := filepath.Dir(path) + "/" + "." + filepath.Base(path) + ".tmp"
+	tmpFile, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
 	if err != nil {
 		return
 	}
 	defer func() {
 		tmpFile.Close()
-		os.Remove(tmpFile.Name())
+		os.Remove(tmpPath)
 	}()
 
-	// Download new client
 	URL, err = url.Parse(downloadURL)
 	if err != nil {
 		err = fmt.Errorf("Unable to download client : %s", err)
@@ -625,7 +627,7 @@ func updateClient(updateFlag bool) (err error) {
 	}
 
 	// Check download integrity
-	downloadMD5, err := utils.FileMd5sum(tmpFile.Name())
+	downloadMD5, err := utils.FileMd5sum(tmpPath)
 	if err != nil {
 		err = fmt.Errorf("Unable to download client : %s", err)
 		return
@@ -636,7 +638,7 @@ func updateClient(updateFlag bool) (err error) {
 	}
 
 	// Replace old client
-	err = os.Rename(tmpFile.Name(), path)
+	err = os.Rename(tmpPath, path)
 	if err != nil {
 		err = fmt.Errorf("Unable to replace client : %s", err)
 		return
@@ -663,7 +665,7 @@ func makeRequest(req *http.Request) (resp *http.Response, err error) {
 
 	// Set authentication header
 	if config.Config.Token != "" {
-		req.Header.Set("X-AuthToken", config.Config.Token)
+		req.Header.Set("X-PlikToken", config.Config.Token)
 	}
 
 	// Log request

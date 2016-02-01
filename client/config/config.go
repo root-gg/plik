@@ -50,13 +50,13 @@ import (
 	"github.com/root-gg/plik/server/common"
 )
 
-// Static config var
+// Config static variable
 var Config *UploadConfig
 
-// Static Upload var
+// Upload static variable
 var Upload *common.Upload
 
-// Static files array
+// Files static array
 var Files []*FileToUpload
 
 // Private backends
@@ -445,6 +445,11 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		if err != nil {
 			return fmt.Errorf("Unable to get yubikey token : %s", err)
 		}
+	}
+
+	// Override upload token ?
+	if arguments["--token"] != nil && arguments["--token"].(string) != "" {
+		Config.Token = arguments["--token"].(string)
 	}
 
 	return

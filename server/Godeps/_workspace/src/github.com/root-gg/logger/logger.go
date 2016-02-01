@@ -184,9 +184,7 @@ func (logger *Logger) Errorf(level Level, format string, values ...interface{}) 
 }
 
 func (logger *Logger) Dump(level Level, data interface{}) {
-	if logger.LogIf(level) {
-		logger.Log(level, utils.Sdump(data))
-	}
+	logger.Log(level, utils.Sdump(data))
 }
 
 func (logger *Logger) Log(level Level, message string) {

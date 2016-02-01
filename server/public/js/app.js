@@ -1,4 +1,5 @@
-/* The MIT License (MIT)
+/*
+ The MIT License (MIT)
 
  Copyright (c) <2015>
  - Mathieu Bodjikian <mathieu@bodjikian.fr>
@@ -20,7 +21,8 @@
  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- THE SOFTWARE. */
+ THE SOFTWARE.
+ */
 
 // Editable file name directive
 angular.module('contentEditable', []).
@@ -127,18 +129,15 @@ angular.module('api', ['ngFileUpload']).
         var api = {base: ''};
 
         // Make the actual HTTP call and return a promise
-        api.call = function (url, method, params, uploadToken) {
+        api.call = function (url, method, params, data, uploadToken) {
             var promise = $q.defer();
             var headers = {};
-            var authToken = localStorage.getItem('AuthToken');
-            if (authToken){
-                headers['X-AuthToken'] = authToken;
-            }
             if (uploadToken) headers['X-UploadToken'] = uploadToken;
             $http({
                 url: url,
                 method: method,
-                data: params,
+                params: params,
+                data: data,
                 headers: headers
             })
                 .success(function (data) {
@@ -155,10 +154,6 @@ angular.module('api', ['ngFileUpload']).
         api.upload = function (url, file, params, progress_cb, basicAuth, uploadToken) {
             var promise = $q.defer();
             var headers = {};
-            var authToken = localStorage.getItem('AuthToken');
-            if (authToken){
-                headers['X-AuthToken'] = authToken;
-            }
             if (uploadToken) headers['X-UploadToken'] = uploadToken;
             if (basicAuth) headers['Authorization'] = "Basic " + basicAuth;
             Upload
@@ -183,15 +178,21 @@ angular.module('api', ['ngFileUpload']).
         };
 
         // Get upload metadata
-        api.getUpload = function(uploadId) {
+        api.getUpload = function(uploadId, uploadToken) {
             var url = api.base + '/upload/' + uploadId;
-            return api.call(url, 'GET', {});
+            return api.call(url, 'GET', {}, {}, uploadToken);
         };
 
         // Create an upload with current settings
         api.createUpload = function(upload) {
             var url = api.base + '/upload';
-            return api.call(url, 'POST', upload);
+            return api.call(url, 'POST', {}, upload);
+        };
+
+        // Remove an upload
+        api.removeUpload = function(upload) {
+            var url = api.base + '/upload/' + upload.id;
+            return api.call(url, 'DELETE', {}, {}, upload.uploadToken);
         };
 
         // Upload a file
@@ -205,47 +206,121 @@ angular.module('api', ['ngFileUpload']).
         api.removeFile = function(upload, file) {
             var mode = upload.stream ? "stream" : "file";
             var url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
-            return api.call(url, 'DELETE', {}, upload.uploadToken);
+            return api.call(url, 'DELETE', {}, {}, upload.uploadToken);
         };
 
-        // Generate a token
-        api.generateToken = function() {
-            var url = api.base + '/token';
-            return api.call(url, 'POST', {});
+        // Log in
+        api.login = function(provider) {
+            var url = api.base + '/auth/'+ provider + '/login' ;
+            return api.call(url, 'GET');
         };
 
-        // Rovoke a token
+        // Log out
+        api.logout = function() {
+            var url = api.base + '/auth/logout' ;
+            return api.call(url, 'GET');
+        };
+
+        // Get user info
+        api.getUser = function() {
+            var url = api.base + '/me';
+            return api.call(url, 'GET');
+        };
+
+        // Get upload metadata
+        api.getUploads = function(token, size, offset) {
+            var url = api.base + '/me/uploads';
+            return api.call(url, 'GET', { token : token, size : size, offset : offset });
+        };
+
+        // Remove uploads
+        api.deleteUploads = function(token) {
+            var url = api.base + '/me/uploads';
+            return api.call(url, 'DELETE', { token : token });
+        };
+
+        // Delete account
+        api.deleteAccount = function() {
+            var url = api.base + '/me';
+            return api.call(url, 'DELETE');
+        };
+
+        // Create a new upload token
+        api.createToken = function(comment) {
+            var url = api.base + '/me/token';
+            return api.call(url, 'POST', {}, { comment : comment });
+        };
+
+        // Revoke an upload token
         api.revokeToken = function(token) {
-            var url = api.base + '/token/' + token;
-            return api.call(url, 'DELETE', {});
+            var url = api.base + '/me/token/' + token;
+            return api.call(url, 'DELETE');
         };
 
         // Get server version
         api.getVersion = function() {
             var url = api.base + '/version';
-            return api.call(url, 'GET', {});
+            return api.call(url, 'GET');
         };
 
         // Get server config
         api.getConfig = function() {
             var url = api.base + '/config';
-            return api.call(url, 'GET', {});
+            return api.call(url, 'GET');
         };
 
         return api;
     });
 
+// Config Service
+angular.module('config', ['api']).
+    factory('$config', function ($rootScope, $api) {
+        var module = {
+            config : $api.getConfig(),
+            user : $api.getUser()
+        };
+
+        // Return config promise
+        module.getConfig = function(){
+            return module.config;
+        };
+
+        // Refresh config promise and notify listeners (top menu)
+        module.refreshConfig = function(){
+            module.config = $api.getConfig();
+            $rootScope.$broadcast('config_refreshed', module.config);
+            return module.config;
+        };
+
+        // Return user promise
+        module.getUser = function(){
+            return module.user;
+        };
+
+        // Refresh user promise and notify listeners (top menu)
+        module.refreshUser = function(){
+            module.user = $api.getUser();
+            $rootScope.$broadcast('user_refreshed', module.user);
+            return module.user;
+        };
+
+        return module;
+    });
+
 // Plik app bootstrap and global configuration
-angular.module('plik', ['ngRoute', 'api', 'dialog', 'contentEditable', 'btford.markdown'])
+angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'contentEditable', 'btford.markdown'])
     .config(function ($routeProvider) {
         $routeProvider
             .when('/', {controller: MainCtrl, templateUrl: 'partials/main.html', reloadOnSearch: false})
             .when('/clients', {controller: ClientListCtrl, templateUrl: 'partials/clients.html'})
-            .when('/token', {controller: TokenCtrl, templateUrl: 'partials/token.html'})
+            .when('/login', {controller: LoginCtrl, templateUrl: 'partials/login.html'})
+            .when('/home', {controller: HomeCtrl, templateUrl: 'partials/home.html'})
             .otherwise({redirectTo: '/'});
     })
     .config(['$httpProvider', function ($httpProvider) {
         $httpProvider.defaults.headers.common['X-ClientApp'] = 'web_client';
+        $httpProvider.defaults.xsrfCookieName = 'plik-xsrf';
+        $httpProvider.defaults.xsrfHeaderName = 'X-XRSFToken';
     }])
     .filter('collapseClass', function () {
         return function (opened) {
@@ -254,8 +329,44 @@ angular.module('plik', ['ngRoute', 'api', 'dialog', 'contentEditable', 'btford.m
         }
     });
 
+function MenuCtrl($rootScope, $scope, $config){
+    // Get server config
+    $config.getConfig()
+        .then(function (config) {
+            $scope.config = config;
+        });
+
+    // Refresh config
+    $rootScope.$on("config_refreshed", function(event, config){
+        config
+            .then(function (c) {
+                $scope.config = c;
+            })
+            .then(null, function () {
+                $scope.config = null;
+            });
+    });
+
+    // Get user from session
+    $config.getUser()
+        .then(function (user) {
+            $scope.user = user;
+        });
+
+    // Refresh user
+    $rootScope.$on("user_refreshed", function(event, user){
+        user
+            .then(function (u) {
+                $scope.user = u;
+            })
+            .then(null, function () {
+                $scope.user = null;
+            });
+    });
+}
+
 // Main controller
-function MainCtrl($scope, $dialog, $route, $location, $api) {
+function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
     $scope.sortField = 'metadata.fileName';
     $scope.sortOrder = false;
 
@@ -265,7 +376,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     $scope.password = false;
 
     // Get server config
-    $api.getConfig()
+    $config.getConfig()
         .then(function (config) {
             $scope.config = config;
             $scope.setDefaultTTL();
@@ -301,7 +412,6 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         } else {
             // Load current upload id
             $scope.load($location.search().id);
-            $scope.upload.uploadToken = $location.search().uploadToken;
         }
     };
 
@@ -309,7 +419,7 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
     $scope.load = function (id) {
         if (!id) return;
         $scope.upload.id = id;
-        $api.getUpload($scope.upload.id)
+        $api.getUpload($scope.upload.id, $location.search().uploadToken)
             .then(function (upload) {
                 _.extend($scope.upload, upload);
                 $scope.files = _.map($scope.upload.files, function (file) {
@@ -508,9 +618,24 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
         });
     };
 
+    // Remove the whole upload
     // Remove a file from the servers
-    $scope.delete = function (file) {
-        if (!$scope.upload.uploadToken) return;
+    $scope.removeUpload = function () {
+        if (!$scope.upload.removable && !$scope.upload.admin) return;
+        $api.removeUpload($scope.upload)
+            .then(function () {
+                // Redirect to main page
+                $location.search('id', null);
+                $route.reload();
+            })
+            .then(null, function (error) {
+                $dialog.alert(error);
+            });
+    };
+
+    // Remove a file from the servers
+    $scope.deleteFile = function (file) {
+        if (!$scope.upload.removable && !$scope.upload.admin) return;
         $api.removeFile($scope.upload, file)
             .then(function () {
                 $scope.files = _.reject($scope.files, function (f) {
@@ -759,7 +884,6 @@ function MainCtrl($scope, $dialog, $route, $location, $api) {
             var d = new Date(($scope.upload.ttl + $scope.upload.uploadDate) * 1000);
             return "expire the " + d.toLocaleDateString() + " at " + d.toLocaleTimeString();
         }
-
     };
 
     // Add upload token in url so one can add/remove files later
@@ -788,62 +912,52 @@ function ClientListCtrl($scope, $api, $dialog) {
         });
 }
 
-// Token controller
-function TokenCtrl($scope, $api, $dialog, $location) {
-
+// Login controller
+function LoginCtrl($scope, $api, $config, $location, $dialog){
     // Get server config
-    $api.getConfig()
+    $config.getConfig()
         .then(function (config) {
+            $scope.config = config;
             // Check if token authentication is enabled server side
-            if ( ! config.tokenAuthentication ) {
+            if ( ! config.authentication ) {
                 $location.path('/');
             }
         })
         .then(null, function (error) {
-            $dialog.alert(error);
+            if (error.status != 401 && error.status != 403) {
+                $dialog.alert(error);
+            }
         });
 
-    // Load current token from local storage
-    $scope.token = localStorage.getItem("AuthToken");
+    // Get user from session
+    $config.getUser()
+        .then(function () {
+            $location.path('/home');
+        })
+        .then(null, function (error) {
+            if (error.status != 401 && error.status != 403) {
+                $dialog.alert(error);
+            }
+        });
 
-    // Generate a new token
-    $scope.generate = function(){
-        console.log("generate");
-        $api.generateToken()
-            .then(function (token) {
-                $scope.token = token;
+    // Google authentication
+    $scope.google = function(){
+        $api.login("google")
+            .then(function (url) {
+                // Redirect to Google user consent dialog
+                window.location.replace(url);
             })
             .then(null, function (error) {
                 $dialog.alert(error);
             });
     };
 
-    // Save token in local storage
-    $scope.save = function(){
-        if ($scope.token == "") return;
-        localStorage.setItem("AuthToken",$scope.token);
-        $dialog.alert({
-            status : 100,
-            message : "Token " + $scope.token + " has been saved in local storage"
-        });
-    };
-
-    // Revoke a token
-    $scope.revoke = function(){
-        if ($scope.token == "") return;
-        console.log("revoke");
-        $api.revokeToken($scope.token)
-            .then(function () {
-                // Remove token from localStorage if needed
-                var localToken = localStorage.getItem("AuthToken");
-                if ( localToken == $scope.token ) {
-                    localStorage.removeItem("AuthToken");
-                }
-                $dialog.alert({
-                    status : 100,
-                    message : "Token " + $scope.token + " has been revoked"
-                });
-                $scope.token = "";
+    // OVH authentication
+    $scope.ovh = function(){
+        $api.login("ovh")
+            .then(function (url) {
+                // Redirect to OVH user consent dialog
+                window.location.replace(url);
             })
             .then(null, function (error) {
                 $dialog.alert(error);
@@ -851,20 +965,205 @@ function TokenCtrl($scope, $api, $dialog, $location) {
     };
 }
 
+// Token controller
+function HomeCtrl($scope, $api, $config, $dialog, $location) {
+
+    $scope.display = 'uploads';
+    $scope.displayUploads = function(token){
+        $scope.uploads = [];
+        $scope.token = token;
+        $scope.display = 'uploads';
+        $scope.refreshUser();
+    };
+
+    $scope.displayTokens = function(){
+        $scope.display = 'tokens';
+        $scope.refreshUser();
+    };
+
+    // Get server config
+    $config.config
+        .then(function (config) {
+            // Check if token authentication is enabled server side
+            if ( ! config.authentication ) {
+                $location.path('/');
+            }
+        })
+        .then(null, function (error) {
+            $dialog.alert(error);
+        });
+
+    // Handle user promise
+    var loadUser = function(promise) {
+        promise.then(function (user) {
+            $scope.user = user;
+            $scope.getUploads();
+        })
+        .then(null, function (error) {
+            if (error.status == 401 || error.status == 403) {
+                $location.path('/login');
+            } else {
+                $dialog.alert(error);
+            }
+        });
+    };
+
+    // Refresh user
+    $scope.refreshUser = function(){
+        loadUser($config.refreshUser());
+    };
+
+    // Get user upload list
+    $scope.getUploads = function(more){
+        if (!more) {
+            $scope.uploads = [];
+        }
+
+        $scope.size = 50;
+        $scope.offset = $scope.uploads.length;
+        $scope.more = false;
+
+        // Get user uploads
+        $api.getUploads($scope.token, $scope.size, $scope.offset)
+            .then(function (uploads) {
+                $scope.uploads = $scope.uploads.concat(uploads);
+                $scope.more = uploads.length == $scope.size;
+            })
+            .then(null, function (error) {
+                $dialog.alert(error);
+            });
+    };
+
+    // Remove an upload
+    $scope.deleteUpload = function(upload){
+        $api.removeUpload(upload)
+            .then(function(){
+                $scope.uploads = _.reject($scope.uploads,function(u){
+                    return u.id == upload.id;
+                });
+            })
+            .then(null, function(error) {
+                $dialog.alert(error);
+            });
+    };
+
+    // Delete all user uploads
+    $scope.deleteUploads = function(){
+        $api.deleteUploads($scope.token)
+            .then(function (result) {
+                $scope.uploads = [];
+                $scope.getUploads();
+                $dialog.alert(result);
+            })
+            .then(null, function (error) {
+                $dialog.alert(error);
+            });
+    };
+
+    // Generate a new token
+    $scope.createToken = function(comment){
+        $api.createToken(comment)
+            .then(function () {
+                $scope.refreshUser();
+            })
+            .then(null, function (error) {
+                $dialog.alert(error);
+            });
+    };
+
+    // Revoke a token
+    $scope.revokeToken = function(token){
+        $dialog.alert({
+            title : "Really ?",
+            message : "Revoking a token will not delete associated uploads.",
+            confirm : true,
+            callback : function(result){
+                if (result) {
+                    $api.revokeToken(token.token)
+                        .then(function () {
+                            $scope.refreshUser();
+                        })
+                        .then(null, function (error) {
+                            $dialog.alert(error);
+                        });
+                }
+            }
+        });
+    };
+
+    // Log out
+    $scope.logout = function(){
+        $api.logout()
+            .then(function () {
+                $config.refreshUser();
+                $location.path('/');
+            })
+            .then(null, function (error) {
+                $dialog.alert(error);
+            });
+    };
+
+    // Sign out
+    $scope.deleteAccount = function(){
+        $dialog.alert({
+            title : "Really ?",
+            message : "Deleting your account will not delete your uploads.",
+            confirm : true,
+            callback : function(result){
+                if (result) {
+                    $api.deleteAccount()
+                        .then(function () {
+                            $config.refreshUser();
+                            $location.path('/');
+                        })
+                        .then(null, function (error) {
+                            $dialog.alert(error);
+                        });
+                }
+            }
+        });
+    };
+
+    // Get upload url
+    $scope.getUploadUrl = function(upload){
+        return location.origin + '/#/?id=' + upload.id;
+    };
+
+    // Get file url
+    $scope.getFileUrl = function(upload,file){
+        return location.origin + '/file/' + upload.id + '/' + file.id + '/' + file.fileName;
+    };
+
+    // Compute human readable size
+    $scope.humanReadableSize = function (size) {
+        if (_.isUndefined(size)) return;
+        return filesize(size, {base: 2});
+    };
+
+    loadUser($config.getUser());
+}
+
 // Alert modal dialog controller
 function AlertDialogController($rootScope, $scope, $modalInstance, args) {
     $rootScope.registerDialog($scope);
 
-    $scope.title = 'Success !';
-    if (args.data.status != 100) $scope.title = 'Oops !';
+    _.extend($scope,args.data);
 
-    $scope.data = args.data;
+    if (!$scope.title) {
+        if ($scope.status) {
+            if ($scope.status == 100) {
+                $scope.title = 'Success !';
+            } else {
+                $scope.title = 'Oops ! (' + $scope.status + ')';
+            }
+        }
+    }
 
     $scope.close = function (result) {
         $rootScope.dismissDialog($scope);
         $modalInstance.close(result);
-        if (args.callback) {
-            args.callback(result);
+        if ($scope.callback) {
+            $scope.callback(result);
         }
     };
 }

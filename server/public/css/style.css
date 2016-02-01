@@ -71,9 +71,14 @@ body {
     background-size: cover;
 }
 
-.col-centered{
+.col-centered {
     float: none;
     margin: 0 auto;
+}
+
+.auth-btn  {
+    display:inline-block;
+    padding:5px;
 }
 
 /* Background */

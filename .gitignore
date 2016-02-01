@@ -12,11 +12,12 @@ server/common/version.go
 release
 releases
 debs
-plik_*.cfg
+plikd_*.cfg
 *bower_components
 *node_modules
 *.log
-
+*.key
+*.crt
 # IntelliJ IDEA
 .idea
 plik.iml

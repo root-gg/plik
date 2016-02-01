@@ -24,14 +24,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -->
 <div class="modal-header">
-    <h1>{{title}} ({{data.status}})</h1>
+    <h1>{{title}}</h1>
 </div>
 <div class="modal-body">
-    <p>{{data.message}}</p>
+    <p>{{message}}</p>
     <p ng-show="data.value">
-        {{data.value}}
+        {{value}}
     </p>
 </div>
-<div class="modal-footer">
-    <button ng-click="close(result)" class="btn btn-primary">Close</button>
+<div class="modal-footer" ng-if="confirm">
+    <button ng-click="close(false)" class="btn btn-danger">Cancel</button>
+    <button ng-click="close(true)" class="btn btn-success">OK</button>
+</div>
+<div class="modal-footer" ng-if="!confirm">
+    <button ng-click="close(true)" class="btn btn-primary">Close</button>
 </div>

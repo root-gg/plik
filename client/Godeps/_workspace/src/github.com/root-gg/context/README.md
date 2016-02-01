@@ -1,2 +1,0 @@
-ROOT-GG Application context
-===========================

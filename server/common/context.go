@@ -4,7 +4,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) <2015> Copyright holders list can be found in AUTHORS file
+Copyright (c) <2015>
 	- Mathieu Bodjikian <mathieu@bodjikian.fr>
 	- Charles-Antoine Mathieu <skatkatt@root.gg>
 
@@ -31,110 +31,124 @@ package common
 
 import (
 	"fmt"
+	"net"
 	"net/http"
-	"net/http/httputil"
 	"strings"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/context"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
 )
 
 var rootLogger = logger.NewLogger()
-var rootContext = newRootContext()
 
-// RootContext is a shortcut to get rootContext
-func RootContext() *PlikContext {
-	return rootContext
-}
-
-// Log is a shortcut to get rootLogger
-func Log() *logger.Logger {
+// Logger return the root logger.
+func Logger() *logger.Logger {
 	return rootLogger
 }
 
-// PlikContext is a root-gg logger && logger object
-type PlikContext struct {
-	*context.Context
-	*logger.Logger
+// GetLogger from the request context ( defaults to rootLogger ).
+func GetLogger(ctx *juliet.Context) *logger.Logger {
+	if log, ok := ctx.Get("logger"); ok {
+		return log.(*logger.Logger)
+	}
+	return rootLogger
 }
 
-func newRootContext() (ctx *PlikContext) {
-	ctx = new(PlikContext)
-	ctx.Context = context.NewContext("ROOT")
-	ctx.Logger = rootLogger
-	return
+// GetSourceIP from the request context.
+func GetSourceIP(ctx *juliet.Context) net.IP {
+	if sourceIP, ok := ctx.Get("ip"); ok {
+		return sourceIP.(net.IP)
+	}
+	return nil
 }
 
-// NewPlikContext creates a new plik context forked from root logger/context
-func NewPlikContext(name string, req *http.Request) (ctx *PlikContext) {
-	ctx = new(PlikContext)
-	ctx.Context = rootContext.Context.Fork(name).AutoDetach()
-	ctx.Logger = rootContext.Logger.Copy()
+// IsWhitelisted return true if the IP address in the request context is whitelisted.
+func IsWhitelisted(ctx *juliet.Context) bool {
+	if whitelisted, ok := ctx.Get("IsWhitelisted"); ok {
+		return whitelisted.(bool)
+	}
 
-	// Log request
-	if ctx.LogIf(logger.DEBUG) {
-		dump, err := httputil.DumpRequest(req, true)
-		if err == nil {
-			ctx.Debug(string(dump))
-		} else {
-			ctx.Warningf("Unable to dump HTTP request : %s", err)
+	// Check if the source IP address is in whitelist
+	whitelisted := false
+	if len(UploadWhitelist) > 0 {
+		sourceIP := GetSourceIP(ctx)
+		if sourceIP != nil {
+			for _, net := range UploadWhitelist {
+				if net.Contains(sourceIP) {
+					whitelisted = true
+					break
+				}
+			}
 		}
 	} else {
-		ctx.Infof("%v %v", req.Method, req.RequestURI)
+		whitelisted = true
 	}
+	ctx.Set("IsWhitelisted", whitelisted)
+	return whitelisted
+}
 
-	var sourceIP string
-	if Config.SourceIPHeader != "" {
-		// Get source ip from header if behind reverse proxy.
-		sourceIP = req.Header.Get(Config.SourceIPHeader)
-		if sourceIP != "" {
-			ctx.Set("RemoteIP", sourceIP)
+// GetUser from the request context.
+func GetUser(ctx *juliet.Context) *User {
+	if user, ok := ctx.Get("user"); ok {
+		return user.(*User)
+	}
+	return nil
+}
+
+// GetToken from the request context.
+func GetToken(ctx *juliet.Context) *Token {
+	if token, ok := ctx.Get("token"); ok {
+		return token.(*Token)
+	}
+	return nil
+}
+
+// GetFile from the request context.
+func GetFile(ctx *juliet.Context) *File {
+	if file, ok := ctx.Get("file"); ok {
+		return file.(*File)
+	}
+	return nil
+}
+
+// GetUpload from the request context.
+func GetUpload(ctx *juliet.Context) *Upload {
+	if upload, ok := ctx.Get("upload"); ok {
+		return upload.(*Upload)
+	}
+	return nil
+}
+
+// IsRedirectOnFailure return true if the http responde should return
+// a http redirect instead of an error string.
+func IsRedirectOnFailure(ctx *juliet.Context) bool {
+	if redirect, ok := ctx.Get("redirect"); ok {
+		return redirect.(bool)
+	}
+	return false
+}
+
+var userAgents = []string{"wget", "curl", "python-urllib", "libwwww-perl", "php", "pycurl"}
+
+// Fail return write an error to the http response body.
+// If IsRedirectOnFailure is true it write a http redirect that can be handled by the web client instead.
+func Fail(ctx *juliet.Context, req *http.Request, resp http.ResponseWriter, message string, status int) {
+	if IsRedirectOnFailure(ctx) {
+		// The web client uses http redirect to get errors
+		// from http redirect and display a nice HTML error message
+		// But cli clients needs a clean string response
+		userAgent := strings.ToLower(req.UserAgent())
+		redirect := true
+		for _, ua := range userAgents {
+			if strings.HasPrefix(userAgent, ua) {
+				redirect = false
+			}
 		}
-	} else {
-		remoteAddr := strings.Split(req.RemoteAddr, ":")
-		if len(remoteAddr) > 0 {
-			sourceIP = remoteAddr[0]
+		if redirect {
+			http.Redirect(resp, req, fmt.Sprintf("/#/?err=%s&errcode=%d&uri=%s", message, status, req.RequestURI), 301)
+			return
 		}
 	}
-	ctx.Set("RemoteIP", sourceIP)
 
-	ctx.UpdateLoggerPrefix("")
-	return
-}
-
-// Fork context and copy logger
-func (ctx *PlikContext) Fork(name string) (fork *PlikContext) {
-	fork = new(PlikContext)
-	fork.Context = ctx.Context.Fork(name)
-	fork.Logger = ctx.Logger.Copy()
-	return fork
-}
-
-// SetUpload is used to display upload id in logger prefix and set it in context
-func (ctx *PlikContext) SetUpload(uploadID string) *PlikContext {
-	ctx.Set("UploadId", uploadID)
-	ctx.UpdateLoggerPrefix("")
-	return ctx
-}
-
-// SetFile is used to display file id in logger prefix and set it in context
-func (ctx *PlikContext) SetFile(fileName string) *PlikContext {
-	ctx.Set("FileName", fileName)
-	ctx.UpdateLoggerPrefix("")
-	return ctx
-}
-
-// UpdateLoggerPrefix sets a new prefix for the context logger
-func (ctx *PlikContext) UpdateLoggerPrefix(prefix string) {
-	str := ""
-	if ip, ok := ctx.Get("RemoteIP"); ok {
-		str += fmt.Sprintf("[%s]", ip)
-	}
-	if uploadID, ok := ctx.Get("UploadId"); ok {
-		str += fmt.Sprintf("[%s]", uploadID)
-	}
-	if fileName, ok := ctx.Get("FileName"); ok {
-		str += fmt.Sprintf("[%s]", fileName)
-	}
-	ctx.SetPrefix(str + prefix)
+	http.Error(resp, NewResult(message, nil).ToJSONString(), status)
 }

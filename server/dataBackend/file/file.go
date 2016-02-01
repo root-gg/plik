@@ -30,10 +30,11 @@ THE SOFTWARE.
 package file
 
 import (
+	"fmt"
 	"io"
 	"os"
 
-	"fmt"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -52,13 +53,13 @@ func NewFileBackend(config map[string]interface{}) (fb *Backend) {
 
 // GetFile implementation for file data backend will search
 // on filesystem the asked file and return its reading filehandle
-func (fb *Backend) GetFile(ctx *common.PlikContext, upload *common.Upload, id string) (file io.ReadCloser, err error) {
-	defer ctx.Finalize(err)
+func (fb *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id string) (file io.ReadCloser, err error) {
+	log := common.GetLogger(ctx)
 
 	// Get upload directory
 	directory, err := fb.getDirectoryFromUploadID(upload.ID)
 	if err != nil {
-		ctx.Warningf("Unable to get upload directory : %s", err)
+		log.Warningf("Unable to get upload directory : %s", err)
 		return
 	}
 
@@ -69,7 +70,7 @@ func (fb *Backend) GetFile(ctx *common.PlikContext, upload *common.Upload, id st
 	// to the client response body
 	file, err = os.Open(fullPath)
 	if err != nil {
-		err = ctx.EWarningf("Unable to open file %s : %s", fullPath, err)
+		err = log.EWarningf("Unable to open file %s : %s", fullPath, err)
 		return
 	}
 
@@ -78,13 +79,13 @@ func (fb *Backend) GetFile(ctx *common.PlikContext, upload *common.Upload, id st
 
 // AddFile implementation for file data backend will creates a new file for the given upload
 // and save it on filesystem with the given file reader
-func (fb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
-	defer ctx.Finalize(err)
+func (fb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
+	log := common.GetLogger(ctx)
 
 	// Get upload directory
 	directory, err := fb.getDirectoryFromUploadID(upload.ID)
 	if err != nil {
-		ctx.Warningf("Unable to get upload directory : %s", err)
+		log.Warningf("Unable to get upload directory : %s", err)
 		return
 	}
 
@@ -96,16 +97,16 @@ func (fb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file 
 	if err != nil {
 		err = os.MkdirAll(directory, 0777)
 		if err != nil {
-			err = ctx.EWarningf("Unable to create upload directory %s : %s", directory, err)
+			err = log.EWarningf("Unable to create upload directory %s : %s", directory, err)
 			return
 		}
-		ctx.Infof("Folder %s successfully created", directory)
+		log.Infof("Folder %s successfully created", directory)
 	}
 
 	// Create file
 	out, err := os.Create(fullPath)
 	if err != nil {
-		err = ctx.EWarningf("Unable to create file %s : %s", fullPath, err)
+		err = log.EWarningf("Unable to create file %s : %s", fullPath, err)
 		return
 	}
 
@@ -113,23 +114,23 @@ func (fb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file 
 	// to the file system
 	_, err = io.Copy(out, fileReader)
 	if err != nil {
-		err = ctx.EWarningf("Unable to save file %s : %s", fullPath, err)
+		err = log.EWarningf("Unable to save file %s : %s", fullPath, err)
 		return
 	}
-	ctx.Infof("File %s successfully saved", fullPath)
+	log.Infof("File %s successfully saved", fullPath)
 
 	return
 }
 
 // RemoveFile implementation for file data backend will delete the given
 // file from filesystem
-func (fb *Backend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, id string) (err error) {
-	defer ctx.Finalize(err)
+func (fb *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, id string) (err error) {
+	log := common.GetLogger(ctx)
 
 	// Get upload directory
 	directory, err := fb.getDirectoryFromUploadID(upload.ID)
 	if err != nil {
-		ctx.Warningf("Unable to get upload directory : %s", err)
+		log.Warningf("Unable to get upload directory : %s", err)
 		return
 	}
 
@@ -139,10 +140,11 @@ func (fb *Backend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, id
 	// Remove file
 	err = os.Remove(fullPath)
 	if err != nil {
-		err = ctx.EWarningf("Unable to remove %s : %s", fullPath, err)
+		err = log.EWarningf("Unable to remove %s : %s", fullPath, err)
 		return
 	}
-	ctx.Infof("File %s successfully removed", fullPath)
+
+	log.Infof("File %s successfully removed", fullPath)
 
 	return
 }
@@ -150,22 +152,24 @@ func (fb *Backend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, id
 // RemoveUpload implementation for file data backend will
 // delete the whole upload. Given that an upload is a directory,
 // we remove the whole directory at once.
-func (fb *Backend) RemoveUpload(ctx *common.PlikContext, upload *common.Upload) (err error) {
-	defer ctx.Finalize(err)
+func (fb *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
+	log := common.GetLogger(ctx)
 
 	// Get upload directory
 	fullPath, err := fb.getDirectoryFromUploadID(upload.ID)
 	if err != nil {
-		ctx.Warningf("Unable to get upload directory : %s", err)
+		log.Warningf("Unable to get upload directory : %s", err)
 		return
 	}
 
 	// Remove everything at once
 	err = os.RemoveAll(fullPath)
 	if err != nil {
-		err = ctx.EWarningf("Unable to remove %s : %s", fullPath, err)
+		err = log.EWarningf("Unable to remove %s : %s", fullPath, err)
 		return
 	}
+
+	log.Infof("Upload %s successfully removed", fullPath)
 
 	return
 }

@@ -58,7 +58,7 @@ THE SOFTWARE.
                 <label class="switch-input">
                     <input name="checkbox-password" type="checkbox" ng-model="$parent.password" ng-change="upload.password = ''">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i> Password
-                    <a tooltip-placement="right" tooltip="Protect you upload with credentials. You will be prompted for them before the upload and before the download.">?</a>
+                    <a tooltip-placement="right" tooltip="Protect your upload with credentials. You will be prompted for them before the upload and before the download.">?</a>
                 </label>
             </div>
             <!-- YUBIKEY -->
@@ -104,7 +104,7 @@ THE SOFTWARE.
         <div class="tile menu" ng-if="!upload.id && files.length">
             <div class="menu-item">
                 <button type="button" class="btn btn-lg btn-success btn-block" ng-click="newUpload()">
-                    <i class="fa fa-cloud-upload"></i> Upload
+                    <i class="glyphicon glyphicon-cloud-upload"></i> Upload
                 </button>
             </div>
         </div>
@@ -122,13 +122,13 @@ THE SOFTWARE.
             <div class="menu-item" ng-show="upload.ttl != 0">
                 <p class="text-center">This upload will {{ getExpirationDate() }}</p>
             </div>
-            <!-- ADMIN URL -->
-            <div class="menu-item text-center" ng-show="upload.removable">
-                <a href="" ng-click="setAdminUrl()"
-                   tooltip-placement="bottom"
-                   tooltip="Use this url to remove files later">
-                    Admin url
-                </a>
+        </div>
+        <!-- REMOVE BUTTON -->
+        <div class="tile menu" ng-if="upload.id && (upload.removable || upload.admin)">
+            <div class="menu-item">
+                <button type="button" class="btn btn-lg btn-danger btn-block" ng-click="removeUpload()">
+                    <i class="glyphicon glyphicon-remove"></i> Delete
+                </button>
             </div>
         </div>
     </div>
@@ -169,7 +169,7 @@ THE SOFTWARE.
         <div class="row row-padding" ng-repeat="file in files | orderBy:sortField:sortOrder">
             <div class="col-sm-12">
                 <!-- TO UPLOAD -->
-                <div class="row tile file" ng-show="!file.metadata">
+                <div class="row row-padding tile file" ng-show="!file.metadata">
                     <!-- FILENAME COLUMN -->
                     <div class="col-xs-7">
                         <div class="file-flex">
@@ -230,7 +230,7 @@ THE SOFTWARE.
                                 <span class="glyphicon glyphicon-qrcode"></span> <!--<span class="hidden-xs hidden-sm hidden-md">QR Code</span>-->
                             </button>
                             <!-- REMOVE FILE -->
-                            <button title="Delete File" type="button" class="btn btn-danger btn-sm" ng-click="delete(file)" ng-show="upload.removable == '1' && upload.uploadToken">
+                            <button title="Delete File" type="button" class="btn btn-danger btn-sm" ng-click="deleteFile(file)" ng-show="upload.removable || upload.admin">
                                 <span class="glyphicon glyphicon-remove"></span> <!--<span class="hidden-xs hidden-sm hidden-md">Remove</span>-->
                             </button>
                         </div>

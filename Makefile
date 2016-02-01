@@ -24,7 +24,7 @@
 # THE SOFTWARE.
 ###
 
-RELEASE_VERSION="1.1"
+RELEASE_VERSION="1.2-RC1"
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 RELEASE_TARGETS=darwin-386 darwin-amd64 freebsd-386 \
 freebsd-amd64 linux-386 linux-amd64 linux-arm openbsd-386 \
@@ -36,7 +36,7 @@ GOHOSTARCH=`go env GOHOSTARCH`
 DEBROOT_SERVER=debs/server
 DEBROOT_CLIENT=debs/client
 
-all: clean frontend clients server
+all: clean clean-frontend frontend clients server
 
 ###
 # Build frontend ressources
@@ -44,7 +44,7 @@ all: clean frontend clients server
 frontend:
 	@if [ ! -d server/public/node_modules ]; then cd server/public && npm install ; fi
 	@if [ ! -d server/public/bower_components ]; then cd server/public && node_modules/bower/bin/bower install --allow-root ; fi
-	@if [ ! -d server/public/public ]; then cd server/public && node_modules/grunt-cli/bin/grunt ; fi ;
+	@if [ ! -d server/public/public ]; then cd server/public && node_modules/grunt-cli/bin/grunt ; fi
 
 
 ###
@@ -102,7 +102,7 @@ clients:
 ##
 docker: release
 	@cp Dockerfile $(RELEASE_DIR)
-	@cd $(RELEASE_DIR) && docker build -t plik .
+	@cd $(RELEASE_DIR) && docker build -t rootgg/plik .
 
 ###
 # Make server and clients Debian packages
@@ -239,12 +239,17 @@ test:
 	@echo "cli client integration tests :\n" && cd client && ./test.sh
 
 ###
+# Remove frontend build files
+###
+clean-frontend:
+	@rm -rf server/public/bower_components
+	@rm -rf server/public/public
+
+###
 # Remove all build files
 ###
 clean:
 	@rm -rf server/common/version.go
-	@rm -rf server/public/bower_components
-	@rm -rf server/public/public
 	@rm -rf server/plikd
 	@rm -rf client/plik
 	@rm -rf clients
@@ -253,6 +258,11 @@ clean:
 	@rm -rf release
 	@rm -rf releases
 
+###
+# Remove all build files and node modules
+###
+clean-all: clean
+	@rm -rf server/public/node_modules
 
 ###
 # Since the client/server directories are not generated

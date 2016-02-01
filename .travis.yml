@@ -1,12 +1,13 @@
 language: go
 
 go:
-  - 1.5.1
+  - 1.5.2
 
 before_install:
   - npm install -g bower
 
-before_script: 
-  - make client
-  - make server
-  - cd server
+before_script:
+  - go get -u github.com/golang/lint/golint
+
+script:
+  - make test && make
