@@ -34,6 +34,7 @@ user=$(whoami)
 host=$(hostname)
 repo=$(pwd)
 date=$(date "+%s")
+goVersion=$(go version)
 isRelease=false
 isMint=false
 
@@ -121,6 +122,8 @@ type BuildInfo struct {
 	IsRelease bool \`json:"isRelease"\`
 	IsMint    bool \`json:"isMint"\`
 
+	GoVersion string \`json:"goVersion"\`
+
 	Clients []*Client \`json:"clients"\`
 }
 
@@ -144,6 +147,7 @@ func GetBuildInfo() *BuildInfo {
 
 		buildInfo.User = "$user"
 		buildInfo.Host = "$host"
+		buildInfo.GoVersion = "$goVersion"
 
 		buildInfo.GitShortRevision = "$short_rev"
 		buildInfo.GitFullRevision = "$full_rev"
