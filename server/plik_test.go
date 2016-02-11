@@ -135,20 +135,27 @@ func TestOneShot(t *testing.T) {
 	test("getFile", upload, file, 404, t)
 }
 
-func TestRemovable(t *testing.T) {
+func TestRemoveUpload(t *testing.T) {
 	upload := createUpload(&common.Upload{}, t)
-	uploadRemovable := createUpload(&common.Upload{Removable: true}, t)
 
-	file := uploadFile(upload, "test", "", readerForUpload, t)
+	// Remove upload
+	test("removeUpload", upload, nil, 200, t)
+
+	// Get removed upload
+	test("getUpload", upload, nil, 404, t)
+}
+
+func TestRemoveFile(t *testing.T) {
+	upload := createUpload(&common.Upload{}, t)
+	uploadRemovable := createUpload(&common.Upload{}, t)
+
+	uploadFile(upload, "test", "", readerForUpload, t)
 	fileRemovable := uploadFile(uploadRemovable, "test", "", readerForUpload, t)
 
-	// Should fail on classic upload
-	test("removeFile", upload, file, 401, t)
-
-	// Should work on removable upload
+	// Remove file
 	test("removeFile", uploadRemovable, fileRemovable, 200, t)
 
-	// Test if it worked on removable
+	// Test if file has been removed
 	test("getFile", uploadRemovable, fileRemovable, 404, t)
 }
 
@@ -378,6 +385,31 @@ func getUpload(uploadID string) (httpCode int, upload *common.Upload, err error)
 	return
 }
 
+func removeUpload(upload *common.Upload) (httpCode int, err error) {
+	var URL *url.URL
+	URL, err = url.Parse(plikURL + "/upload/" + upload.ID)
+	if err != nil {
+		return
+	}
+
+	var req *http.Request
+	req, err = http.NewRequest("DELETE", URL.String(), nil)
+	if err != nil {
+		return
+	}
+
+	req.Header.Set("X-UploadToken", upload.UploadToken)
+	req.Header.Set("User-Agent", "curl")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+	httpCode = resp.StatusCode
+
+	return
+}
+
 func getFile(upload *common.Upload, file *common.File) (httpCode int, content string, err error) {
 
 	var URL *url.URL
@@ -451,6 +483,22 @@ func test(action string, upload *common.Upload, file *common.File, expectedHTTPC
 		code, upload, err := getUpload(upload.ID)
 		if err != nil {
 			t.Fatalf("Failed to get upload : %s", err)
+		}
+
+		// Test code
+		if code != expectedHTTPCode {
+			t.Fatalf("We got http code %d on action %s on upload %s. We expected %d", code, action, upload.ID, expectedHTTPCode)
+		} else {
+			t.Logf(" -> Got a %d. Good", code)
+		}
+
+	case "removeUpload":
+
+		t.Logf("Try to %s on upload %s. We should get a %d : ", action, upload.ID, expectedHTTPCode)
+
+		code, err := removeUpload(upload)
+		if err != nil {
+			t.Fatalf("Failed to remove upload : %s", err)
 		}
 
 		// Test code

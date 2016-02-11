@@ -71,9 +71,14 @@ body {
     background-size: cover;
 }
 
-.col-centered{
+.col-centered {
     float: none;
     margin: 0 auto;
+}
+
+.auth-btn  {
+    display:inline-block;
+    padding:5px;
 }
 
 /* Background */
@@ -267,4 +272,10 @@ header a:hover, header a:visited, header a:link, header a:active{
 
 .client-max-width {
     max-width:550px;
+}
+
+/* Tokens */
+.token-speach {
+    //font-size: 12px;
+    font-family: sans-serif;
 }

@@ -7,7 +7,7 @@
 # Let's start with a fresh debian jessie
 FROM debian:jessie
 
-# Some generic informations
+# Some generic information
 MAINTAINER Charles-Antoine Mathieu
 MAINTAINER Mathieu Bodjikian
 
@@ -17,7 +17,7 @@ RUN useradd -U -d /home/plik -m -s /bin/false plik
 # Expose the plik port
 EXPOSE 8080
 
-# Copy plik 
+# Copy plik
 ADD server /home/plik/server/
 ADD clients /home/plik/clients/
 RUN chown -R plik:plik /home/plik

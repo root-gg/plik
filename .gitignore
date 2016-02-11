@@ -1,6 +1,7 @@
 plik
 plikd
 clients
+server/plik.db
 server/files
 server/public/public
 clients
@@ -11,13 +12,12 @@ server/common/version.go
 release
 releases
 debs
-plik_*.cfg
+plikd_*.cfg
 *bower_components
 *node_modules
 *.log
-
-plik_refactor
-
+*.key
+*.crt
 # IntelliJ IDEA
 .idea
 plik.iml

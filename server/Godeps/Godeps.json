@@ -1,15 +1,32 @@
 {
 	"ImportPath": "github.com/root-gg/plik/server",
 	"GoVersion": "go1.5.1",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/BurntSushi/toml",
-			"Comment": "v0.1.0",
-			"Rev": "2ceedfee35ad3848e49308ab0c9a4f640cfb5fb2"
+			"Comment": "v0.1.0-18-g443a628",
+			"Rev": "443a628bc233f634a75bcbdd71fe5350789f1afa"
 		},
 		{
 			"ImportPath": "github.com/GeertJohan/yubigo",
 			"Rev": "b1764f04aa9ba3c98a15084e7e13c1a69753e1da"
+		},
+		{
+			"ImportPath": "github.com/boltdb/bolt",
+			"Comment": "v1.1.0-12-g47d80ed",
+			"Rev": "47d80ed8a451fe9c07069e845e93b79291bb0532"
+		},
+		{
+			"ImportPath": "github.com/boombuler/barcode",
+			"Rev": "63f4aa2c46ebfac93952223a52df876f30b064c0"
+		},
+		{
+			"ImportPath": "github.com/dgrijalva/jwt-go",
+			"Comment": "v2.4.0-4-gafef698",
+			"Rev": "afef698c326bfd906b11659432544e5aae441d44"
 		},
 		{
 			"ImportPath": "github.com/facebookgo/clock",
@@ -24,28 +41,25 @@
 			"Rev": "31fb71caf5a4f04c9f8bb3fa8e7c2597ba6eb50a"
 		},
 		{
-			"ImportPath": "github.com/boombuler/barcode",
-			"Rev": "63f4aa2c46ebfac93952223a52df876f30b064c0"
-		},
-		{
-			"ImportPath": "github.com/boombuler/barcode",
-			"Rev": "63f4aa2c46ebfac93952223a52df876f30b064c0"
-		},
-		{
 			"ImportPath": "github.com/gorilla/context",
-			"Rev": "50c25fb3b2b3b3cc724e9b6ac75fb44b3bccd0da"
+			"Rev": "215affda49addc4c8ef7e2534915df2c8c35c6cd"
 		},
 		{
 			"ImportPath": "github.com/gorilla/mux",
-			"Rev": "e444e69cbd2e2e3e0749a2f3c717cec491552bbf"
+			"Rev": "8096f47503459bcc74d1f4c487b7e6e42e5746b5"
 		},
 		{
 			"ImportPath": "github.com/ncw/swift",
 			"Rev": "da9274954a59d67d130af988ebf73bb15bc15e1b"
 		},
 		{
-			"ImportPath": "github.com/root-gg/context",
-			"Rev": "eb01ea15154712b6b44ee3bbf07863af6525afc6"
+			"ImportPath": "github.com/nu7hatch/gouuid",
+			"Rev": "179d4d0c4d8d407a32af483c2354df1d2c91e6c3"
+		},
+		{
+			"ImportPath": "github.com/root-gg/juliet",
+			"Comment": "v1.0",
+			"Rev": "f7abeae007897a156a3a5af8fe8e5e653cb15f13"
 		},
 		{
 			"ImportPath": "github.com/root-gg/logger",
@@ -53,12 +67,40 @@
 		},
 		{
 			"ImportPath": "github.com/root-gg/utils",
-			"Rev": "075b52a8bb434c1e2f156f004a994976bf6a8173"
+			"Rev": "38f45ede2ce220d9c08734edd8a13107022cc20d"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "f1d3149ecb40ffadf4a28d39a30f9a125fe57bdf"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2",
+			"Rev": "2baa8a1b9338cf13d9eeb27696d761155fa480be"
+		},
+		{
+			"ImportPath": "google.golang.org/api/gensupport",
+			"Rev": "77e7d383beb96054547729f49c372b3d01e196ff"
+		},
+		{
+			"ImportPath": "google.golang.org/api/googleapi",
+			"Rev": "77e7d383beb96054547729f49c372b3d01e196ff"
+		},
+		{
+			"ImportPath": "google.golang.org/api/oauth2/v2",
+			"Rev": "77e7d383beb96054547729f49c372b3d01e196ff"
+		},
+		{
+			"ImportPath": "google.golang.org/cloud/compute/metadata",
+			"Rev": "1bff51b8fae8d33cb3dab8f7858c266ce001ee3e"
+		},
+		{
+			"ImportPath": "google.golang.org/cloud/internal",
+			"Rev": "1bff51b8fae8d33cb3dab8f7858c266ce001ee3e"
 		},
 		{
 			"ImportPath": "gopkg.in/mgo.v2",
-			"Comment": "r2015.01.24",
-			"Rev": "c6a7dce14133ccac2dcac3793f1d6e2ef048503a"
+			"Comment": "r2015.12.06",
+			"Rev": "e30de8ac9ae3b30df7065f766c71f88bba7d4e49"
 		}
 	]
 }

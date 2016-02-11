@@ -41,8 +41,7 @@ type Result struct {
 	Value   interface{} `json:"value"`
 }
 
-// NewResult takes a message and a interface and
-// creates a new result object with them
+// NewResult create a new Result instance
 func NewResult(message string, value interface{}) (r *Result) {
 	r = new(Result)
 	r.Message = message
@@ -55,7 +54,7 @@ func (result *Result) ToJSON() []byte {
 	j, err := utils.ToJson(result)
 	if err != nil {
 		msg := fmt.Sprintf("Unable to serialize result %s to json : %s", result.Message, err)
-		Log().Warning(msg)
+		Logger().Warning(msg)
 		return []byte("{message:\"" + msg + "\"}")
 	}
 

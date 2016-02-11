@@ -156,7 +156,6 @@ function uploadOpts {
     fi
     CURL_CMD="$CURL_CMD $URL/upload/$UPLOAD_ID"
     UPLOAD_OPTS=$( eval "$CURL_CMD" 2>/dev/null | python -m json.tool )
-
 }
 
 # Download files by running the output cmds
@@ -661,9 +660,9 @@ rm $SERVER_LOG
 rm $CLIENT_LOG
 cd $ORIGIN
 
-echo " - upgrade :"
-./test_upgrade.sh 2>/dev/null | grep "Update from"
-echo " - downgrade :"
-./test_downgrade.sh 2>/dev/null | grep "Update to"
+#echo " - upgrade : ( this might take a long time ... )"
+#./test_upgrade.sh
+#echo " - downgrade : ( this might take a long time ... )"
+#./test_downgrade.sh
 
 exit 0

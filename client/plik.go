@@ -33,15 +33,16 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math/rand"
 	"mime/multipart"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -89,6 +90,7 @@ Options:
   -t, --ttl TTL             Time before expiration (Upload will be removed in m|h|d)
   -n, --name NAME           Set file name when piping from STDIN
   --server SERVER           Overrides plik url
+  --token TOKEN             Specify an upload token
   --comments COMMENT        Set comments of the upload ( MarkDown compatible )
   -p                        Protect the upload with login and password
   --password PASSWD         Protect the upload with login:password ( if omitted default login is "plik" )
@@ -124,7 +126,8 @@ Options:
 			os.Exit(0)
 		}
 	} else {
-		printf("Unable to update Plik client : %s\n", err)
+		printf("Unable to update Plik client : \n")
+		printf("%s\n", err)
 		if updateFlag {
 			os.Exit(1)
 		}
@@ -135,16 +138,24 @@ Options:
 	// --> If not from pipe, and no files in arguments : printing help
 	fi, _ := os.Stdin.Stat()
 
-	if (fi.Mode()&os.ModeCharDevice) != 0 && len(arguments["FILE"].([]string)) == 0 {
-		fmt.Println(usage)
-		os.Exit(0)
+	if runtime.GOOS != "windows" {
+		if (fi.Mode()&os.ModeCharDevice) != 0 && len(arguments["FILE"].([]string)) == 0 {
+			fmt.Println(usage)
+			os.Exit(0)
+		}
+	} else {
+		if len(arguments["FILE"].([]string)) == 0 {
+			fmt.Println(usage)
+			os.Exit(0)
+		}
 	}
 
 	// Create upload
 	config.Debug("Sending upload params : " + config.Sdump(config.Upload))
 	uploadInfo, err := createUpload(config.Upload)
 	if err != nil {
-		printf("Unable to create upload : %s\n", err)
+		printf("Unable to create upload\n")
+		printf("%s\n", err)
 		os.Exit(1)
 	}
 	config.Debug("Got upload info : " + config.Sdump(uploadInfo))
@@ -201,7 +212,8 @@ Options:
 
 					file, err := upload(uploadInfo, fileToUpload, fileToUpload.FileHandle)
 					if err != nil {
-						printf("Unable to upload file : %s\n", err)
+						printf("Unable to upload file : \n")
+						printf("%s\n", err)
 						return
 					}
 
@@ -221,7 +233,7 @@ Options:
 			// Increment size
 			totalSize += file.CurrentSize
 
-			// Print file informations (only url if quiet mode enabled)
+			// Print file information (only url if quiet mode is enabled)
 			if config.Config.Quiet {
 				fmt.Println(getFileURL(uploadInfo, file))
 			} else {
@@ -251,11 +263,11 @@ func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-ClientApp", "cli_client")
+
+	// Referer is used to generate shorlinks
 	req.Header.Set("Referer", config.Config.URL)
 
-	var resp *http.Response
-	resp, err = client.Do(req)
+	resp, err := makeRequest(req)
 	if err != nil {
 		return
 	}
@@ -263,18 +275,6 @@ func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return
-	}
-
-	// Parse Json error
-	if resp.StatusCode != 200 {
-		result := new(common.Result)
-		err = json.Unmarshal(body, result)
-		if err == nil && result.Message != "" {
-			err = errors.New(result.Message)
-		} else {
-			err = fmt.Errorf("HTTP error %d %s", resp.StatusCode, resp.Status)
-		}
 		return
 	}
 
@@ -359,15 +359,13 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 	}
 
 	req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
-	req.Header.Set("X-ClientApp", "cli_client")
 	req.Header.Set("X-UploadToken", uploadInfo.UploadToken)
 
 	if uploadInfo.ProtectedByPassword {
 		req.Header.Set("Authorization", basicAuth)
 	}
 
-	var resp *http.Response
-	resp, err = client.Do(req)
+	resp, err := makeRequest(req)
 	if err != nil {
 		return
 	}
@@ -375,18 +373,6 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return
-	}
-
-	// Parse Json error
-	if resp.StatusCode != 200 {
-		result := new(common.Result)
-		err = json.Unmarshal(body, result)
-		if err == nil && result.Message != "" {
-			err = errors.New(result.Message)
-		} else {
-			err = fmt.Errorf("HTTP error %d %s", resp.StatusCode, resp.Status)
-		}
 		return
 	}
 
@@ -489,62 +475,12 @@ func updateClient(updateFlag bool) (err error) {
 		err = fmt.Errorf("Unable to get server version : %s", err)
 		return
 	}
-	var resp *http.Response
-	resp, err = client.Do(req)
-	if err != nil {
-		err = fmt.Errorf("Unable to get server version : %s", err)
-		return
-	}
+
+	resp, err := makeRequest(req)
 	defer resp.Body.Close()
 
-	if resp.StatusCode == 404 {
-		// <1.1 fallback on MD5SUM file
-
-		baseURL := config.Config.URL + "/clients/" + runtime.GOOS + "-" + runtime.GOARCH
-		var URL *url.URL
-		URL, err = url.Parse(baseURL + "/MD5SUM")
-		if err != nil {
-			return
-		}
-		var req *http.Request
-		req, err = http.NewRequest("GET", URL.String(), nil)
-		if err != nil {
-			err = fmt.Errorf("Unable to get server version : %s", err)
-			return
-		}
-		var resp *http.Response
-		resp, err = client.Do(req)
-		if err != nil {
-			err = fmt.Errorf("Unable to get server version : %s", err)
-			return
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != 200 {
-			err = fmt.Errorf("Unable to get server version : %s", resp.Status)
-			return
-		}
-
-		var body []byte
-		body, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			err = fmt.Errorf("Unable to get server version : %s", err)
-			return
-		}
-		newMD5 = utils.Chomp(string(body))
-
-		binary := "plik"
-		if runtime.GOOS == "windows" {
-			binary += ".exe"
-		}
-		downloadURL = baseURL + "/" + binary
-	} else {
+	if resp.StatusCode == 200 {
 		// >=1.1 use BuildInfo from /version
-
-		if resp.StatusCode != 200 {
-			err = fmt.Errorf("Unable to get server version : %s", resp.Status)
-			return
-		}
 
 		var body []byte
 		body, err = ioutil.ReadAll(resp.Body)
@@ -574,6 +510,50 @@ func updateClient(updateFlag bool) (err error) {
 			err = fmt.Errorf("Server does not offer a %s-%s client", runtime.GOOS, runtime.GOARCH)
 			return
 		}
+	} else if resp.StatusCode == 404 {
+		// <1.1 fallback on MD5SUM file
+
+		baseURL := config.Config.URL + "/clients/" + runtime.GOOS + "-" + runtime.GOARCH
+		var URL *url.URL
+		URL, err = url.Parse(baseURL + "/MD5SUM")
+		if err != nil {
+			return
+		}
+		var req *http.Request
+		req, err = http.NewRequest("GET", URL.String(), nil)
+		if err != nil {
+			err = fmt.Errorf("Unable to get server version : %s", err)
+			return
+		}
+
+		resp, err = makeRequest(req)
+		if err != nil {
+			err = fmt.Errorf("Unable to get server version : %s", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != 200 {
+			err = fmt.Errorf("Unable to get server version : %s", resp.Status)
+			return
+		}
+
+		var body []byte
+		body, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			err = fmt.Errorf("Unable to get server version : %s", err)
+			return
+		}
+		newMD5 = utils.Chomp(string(body))
+
+		binary := "plik"
+		if runtime.GOOS == "windows" {
+			binary += ".exe"
+		}
+		downloadURL = baseURL + "/" + binary
+	} else {
+		err = fmt.Errorf("Unable to get server version : %s", err)
+		return
 	}
 
 	// Check if the client is up to date
@@ -604,17 +584,17 @@ func updateClient(updateFlag bool) (err error) {
 		return
 	}
 
-	// Create tmp file
-	tmpFile, err := ioutil.TempFile("", ".plik_update_")
+	// Download new client
+	tmpPath := filepath.Dir(path) + "/" + "." + filepath.Base(path) + ".tmp"
+	tmpFile, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
 	if err != nil {
 		return
 	}
 	defer func() {
 		tmpFile.Close()
-		os.Remove(tmpFile.Name())
+		os.Remove(tmpPath)
 	}()
 
-	// Download new client
 	URL, err = url.Parse(downloadURL)
 	if err != nil {
 		err = fmt.Errorf("Unable to download client : %s", err)
@@ -625,7 +605,7 @@ func updateClient(updateFlag bool) (err error) {
 		err = fmt.Errorf("Unable to download client : %s", err)
 		return
 	}
-	resp, err = client.Do(req)
+	resp, err = makeRequest(req)
 	if err != nil {
 		err = fmt.Errorf("Unable to download client : %s", err)
 		return
@@ -647,7 +627,7 @@ func updateClient(updateFlag bool) (err error) {
 	}
 
 	// Check download integrity
-	downloadMD5, err := utils.FileMd5sum(tmpFile.Name())
+	downloadMD5, err := utils.FileMd5sum(tmpPath)
 	if err != nil {
 		err = fmt.Errorf("Unable to download client : %s", err)
 		return
@@ -658,7 +638,7 @@ func updateClient(updateFlag bool) (err error) {
 	}
 
 	// Replace old client
-	err = os.Rename(tmpFile.Name(), path)
+	err = os.Rename(tmpPath, path)
 	if err != nil {
 		err = fmt.Errorf("Unable to replace client : %s", err)
 		return
@@ -668,6 +648,71 @@ func updateClient(updateFlag bool) (err error) {
 		printf("Plik client sucessfully updated to %s\n", version)
 	} else {
 		printf("Plik client sucessfully updated\n")
+	}
+
+	return
+}
+
+func makeRequest(req *http.Request) (resp *http.Response, err error) {
+
+	// Set client version headers
+	req.Header.Set("X-ClientApp", "cli_client")
+	bi := common.GetBuildInfo()
+	if bi != nil {
+		version := runtime.GOOS + "-" + runtime.GOARCH + "-" + bi.Version
+		req.Header.Set("X-ClientVersion", version)
+	}
+
+	// Set authentication header
+	if config.Config.Token != "" {
+		req.Header.Set("X-PlikToken", config.Config.Token)
+	}
+
+	// Log request
+	if config.Config.Debug {
+		dump, err := httputil.DumpRequest(req, true)
+		if err == nil {
+			config.Debug(string(dump))
+		} else {
+			printf("Unable to dump HTTP request : %s", err)
+		}
+	}
+
+	// Make request
+	resp, err = client.Do(req)
+	if err != nil {
+		return
+	}
+
+	// Log response
+	if config.Config.Debug {
+		dump, err := httputil.DumpResponse(resp, true)
+		if err == nil {
+			config.Debug(string(dump))
+		} else {
+			printf("Unable to dump HTTP response : %s", err)
+		}
+	}
+
+	// Parse Json error
+	if resp.StatusCode != 200 {
+		defer resp.Body.Close()
+		var body []byte
+		body, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return
+		}
+
+		result := new(common.Result)
+		err = json.Unmarshal(body, result)
+		if err == nil && result.Message != "" {
+			err = fmt.Errorf("%s : %s", resp.Status, result.Message)
+		} else if len(body) > 0 {
+			err = fmt.Errorf("%s : %s", resp.Status, string(body))
+		} else {
+			err = fmt.Errorf("%s", resp.Status)
+		}
+		return
 	}
 
 	return

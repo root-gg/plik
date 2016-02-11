@@ -13,6 +13,7 @@ var Uninitalized = errors.New("uninitalized")
 type SplitTime struct {
 	name  string
 	start *time.Time
+	split *time.Time
 	stop  *time.Time
 }
 
@@ -35,6 +36,22 @@ func (split *SplitTime) Start() {
 
 func (split *SplitTime) StartDate() *time.Time {
 	return split.start
+}
+
+func (split *SplitTime) Split() (elapsed time.Duration) {
+	if split.start != nil {
+		if split.stop == nil {
+			now := time.Now()
+			if split.split == nil {
+				elapsed = now.Sub(*split.start)
+			} else {
+				elapsed = now.Sub(*split.split)
+			}
+			split.split = &now
+			return
+		}
+	}
+	return
 }
 
 func (split *SplitTime) Stop() {

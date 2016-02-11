@@ -40,6 +40,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -63,13 +64,13 @@ func NewIsGdShortenBackend(_ map[string]interface{}) *ShortenBackendIsGd {
 }
 
 // Shorten implementation for is.gd shorten backend
-func (sb *ShortenBackendIsGd) Shorten(ctx *common.PlikContext, longURL string) (shortURL string, err error) {
-	defer ctx.Finalize(err)
+func (sb *ShortenBackendIsGd) Shorten(ctx *juliet.Context, longURL string) (shortURL string, err error) {
+	log := common.GetLogger(ctx)
 
 	// Request short url
 	resp, err := client.Get(sb.URL + "&url=" + url.QueryEscape(longURL))
 	if err != nil {
-		err = ctx.EWarningf("Unable to request short url from is.gd : %s", err)
+		err = log.EWarningf("Unable to request short url from is.gd : %s", err)
 		return
 	}
 	defer resp.Body.Close()
@@ -77,16 +78,16 @@ func (sb *ShortenBackendIsGd) Shorten(ctx *common.PlikContext, longURL string) (
 	// Read response body
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		err = ctx.EWarningf("Unable to read response from is.gd : %s", err)
+		err = log.EWarningf("Unable to read response from is.gd : %s", err)
 		return
 	}
 
 	// Got url ? :)
 	if !strings.HasPrefix(string(respBody), "http") {
-		err = ctx.EWarningf("Invalid response from is.gd")
+		err = log.EWarningf("Invalid response from is.gd")
 		return
 	}
 
-	ctx.Infof("Shortlink successfully created : %s", string(respBody))
+	log.Infof("Shortlink successfully created : %s", string(respBody))
 	return string(respBody), nil
 }

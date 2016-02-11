@@ -33,6 +33,7 @@ import (
 	"io"
 
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/ncw/swift"
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
 	"github.com/root-gg/plik/server/common"
 )
@@ -43,7 +44,7 @@ type Backend struct {
 	connection swift.Connection
 }
 
-// NewSwiftBackend instantiate a new Openstack Swift Data Backend
+// NewSwiftBackend instantiate a new Openjuliet Swift Data Backend
 // from configuration passed as argument
 func NewSwiftBackend(config map[string]interface{}) (sb *Backend) {
 	sb = new(Backend)
@@ -54,12 +55,8 @@ func NewSwiftBackend(config map[string]interface{}) (sb *Backend) {
 }
 
 // GetFile implementation for Swift Data Backend
-func (sb *Backend) GetFile(ctx *common.PlikContext, upload *common.Upload, fileID string) (reader io.ReadCloser, err error) {
-	defer func() {
-		if err != nil {
-			ctx.Finalize(err)
-		}
-	}() // Finalize the context only if error, else let it be finalized by the download goroutine
+func (sb *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, fileID string) (reader io.ReadCloser, err error) {
+	log := common.GetLogger(ctx)
 
 	err = sb.auth(ctx)
 	if err != nil {
@@ -69,11 +66,10 @@ func (sb *Backend) GetFile(ctx *common.PlikContext, upload *common.Upload, fileI
 	reader, pipeWriter := io.Pipe()
 	uuid := sb.getFileID(upload, fileID)
 	go func() {
-		defer ctx.Finalize(err)
 		_, err = sb.connection.ObjectGet(sb.config.Container, uuid, pipeWriter, true, nil)
 		defer pipeWriter.Close()
 		if err != nil {
-			err = ctx.EWarningf("Unable to get object %s : %s", uuid, err)
+			err = log.EWarningf("Unable to get object %s : %s", uuid, err)
 			return
 		}
 	}()
@@ -82,8 +78,8 @@ func (sb *Backend) GetFile(ctx *common.PlikContext, upload *common.Upload, fileI
 }
 
 // AddFile implementation for Swift Data Backend
-func (sb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
-	defer ctx.Finalize(err)
+func (sb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
+	log := common.GetLogger(ctx)
 
 	err = sb.auth(ctx)
 	if err != nil {
@@ -95,18 +91,18 @@ func (sb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file 
 
 	_, err = io.Copy(object, fileReader)
 	if err != nil {
-		err = ctx.EWarningf("Unable to save object %s : %s", uuid, err)
+		err = log.EWarningf("Unable to save object %s : %s", uuid, err)
 		return
 	}
 	object.Close()
-	ctx.Infof("Object %s successfully saved", uuid)
+	log.Infof("Object %s successfully saved", uuid)
 
 	return
 }
 
 // RemoveFile implementation for Swift Data Backend
-func (sb *Backend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, fileID string) (err error) {
-	defer ctx.Finalize(err)
+func (sb *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, fileID string) (err error) {
+	log := common.GetLogger(ctx)
 
 	err = sb.auth(ctx)
 	if err != nil {
@@ -116,7 +112,7 @@ func (sb *Backend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, fi
 	uuid := sb.getFileID(upload, fileID)
 	err = sb.connection.ObjectDelete(sb.config.Container, uuid)
 	if err != nil {
-		err = ctx.EWarningf("Unable to remove object %s : %s", uuid, err)
+		err = log.EWarningf("Unable to remove object %s : %s", uuid, err)
 		return
 	}
 
@@ -125,8 +121,8 @@ func (sb *Backend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, fi
 
 // RemoveUpload implementation for Swift Data Backend
 // Iterates on each upload file and call RemoveFile
-func (sb *Backend) RemoveUpload(ctx *common.PlikContext, upload *common.Upload) (err error) {
-	defer ctx.Finalize(err)
+func (sb *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
+	log := common.GetLogger(ctx)
 
 	err = sb.auth(ctx)
 	if err != nil {
@@ -137,7 +133,7 @@ func (sb *Backend) RemoveUpload(ctx *common.PlikContext, upload *common.Upload) 
 		uuid := sb.getFileID(upload, fileID)
 		err = sb.connection.ObjectDelete(sb.config.Container, uuid)
 		if err != nil {
-			err = ctx.EWarningf("Unable to remove object %s : %s", uuid, err)
+			err = log.EWarningf("Unable to remove object %s : %s", uuid, err)
 		}
 	}
 
@@ -148,9 +144,8 @@ func (sb *Backend) getFileID(upload *common.Upload, fileID string) string {
 	return upload.ID + "." + fileID
 }
 
-func (sb *Backend) auth(ctx *common.PlikContext) (err error) {
-	timer := ctx.Time("auth")
-	defer timer.Stop()
+func (sb *Backend) auth(ctx *juliet.Context) (err error) {
+	log := common.GetLogger(ctx)
 
 	if sb.connection.Authenticated() {
 		return
@@ -166,7 +161,7 @@ func (sb *Backend) auth(ctx *common.PlikContext) (err error) {
 	// Authenticate
 	err = connection.Authenticate()
 	if err != nil {
-		err = ctx.EWarningf("Unable to autenticate : %s", err)
+		err = log.EWarningf("Unable to autenticate : %s", err)
 		return err
 	}
 	sb.connection = connection

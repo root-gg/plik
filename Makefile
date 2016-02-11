@@ -24,11 +24,11 @@
 # THE SOFTWARE.
 ###
 
-RELEASE_VERSION="1.1.1"
+RELEASE_VERSION="1.2-RC1"
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 RELEASE_TARGETS=darwin-386 darwin-amd64 freebsd-386 \
 freebsd-amd64 linux-386 linux-amd64 linux-arm openbsd-386 \
-openbsd-amd64
+openbsd-amd64 windows-amd64 windows-386
 
 GOHOSTOS=`go env GOHOSTOS`
 GOHOSTARCH=`go env GOHOSTARCH`
@@ -36,7 +36,7 @@ GOHOSTARCH=`go env GOHOSTARCH`
 DEBROOT_SERVER=debs/server
 DEBROOT_CLIENT=debs/client
 
-all: clean frontend clients server
+all: clean clean-frontend frontend clients server
 
 ###
 # Build frontend ressources
@@ -44,7 +44,7 @@ all: clean frontend clients server
 frontend:
 	@if [ ! -d server/public/node_modules ]; then cd server/public && npm install ; fi
 	@if [ ! -d server/public/bower_components ]; then cd server/public && node_modules/bower/bin/bower install --allow-root ; fi
-	@if [ ! -d server/public/public ]; then cd server/public && node_modules/grunt-cli/bin/grunt ; fi ;
+	@if [ ! -d server/public/public ]; then cd server/public && node_modules/grunt-cli/bin/grunt ; fi
 
 
 ###
@@ -66,10 +66,31 @@ servers: frontend
 		export GOARCH=`echo $$target | cut -d "-" -f 2`; \
 		mkdir -p ../servers/$$target; \
 		if [ $$GOOS = "windows" ] ; then SERVER_PATH=$$SERVER_DIR/plikd.exe ; fi ; \
+		if [ -e $$SERVER_PATH ] ; then continue ; fi ; \
 		echo "Compiling plik server for $$target to $$SERVER_PATH"; \
 		go build -o $$SERVER_PATH ;	\
 	done
 	@sed -i -e "s/$(RELEASE_VERSION)/##VERSION##/g" server/common/config.go
+
+
+###
+# Build plik utils for all architectures
+###
+utils: servers
+	@cd utils && for util in `ls *.go` ; do \
+        for target in $(RELEASE_TARGETS) ; do \
+            UTIL_DIR=../servers/$$target/utils; \
+            UTIL_BASE=`basename $$util .go`; \
+            UTIL_PATH=$$UTIL_DIR/$$UTIL_BASE;  \
+            mkdir -p $$UTIL_DIR;  \
+            export GOOS=`echo $$target | cut -d "-" -f 1`; 	\
+            if [ $$GOOS = "windows" ] ; then UTIL_PATH=$$UTIL_DIR/$$UTIL_BASE.exe ; fi ; \
+            if [ -e $$UTIL_PATH ] ; then continue ; fi ; \
+            echo "Compiling plik util file2bolt for $$target to $$UTIL_PATH"; \
+            go build -o $$UTIL_PATH $$util ; \
+        done ; \
+	done
+
 
 ###
 # Build plik client for the current architecture
@@ -91,6 +112,7 @@ clients:
 		export GOARCH=`echo $$target | cut -d "-" -f 2`; \
 		mkdir -p $$CLIENT_DIR; \
 		if [ $$GOOS = "windows" ] ; then CLIENT_PATH=$$CLIENT_DIR/plik.exe ; fi ; \
+		if [ -e $$CLIENT_PATH ] ; then continue ; fi ; \
 		echo "Compiling plik client for $$target to $$CLIENT_PATH"; \
 		go build -o $$CLIENT_PATH ; \
 		md5sum $$CLIENT_PATH | awk '{print $$1}' > $$CLIENT_MD5; \
@@ -102,7 +124,7 @@ clients:
 ##
 docker: release
 	@cp Dockerfile $(RELEASE_DIR)
-	@cd $(RELEASE_DIR) && docker build -t plik .
+	@cd $(RELEASE_DIR) && docker build -t rootgg/plik .
 
 ###
 # Make server and clients Debian packages
@@ -160,6 +182,7 @@ debs-client: clients
 ###
 release-template: clean frontend clients
 	@mkdir -p $(RELEASE_DIR)/server/public
+	@mkdir -p $(RELEASE_DIR)/server/utils
 
 	@cp -R clients $(RELEASE_DIR)
 	@cp -R server/plikd.cfg $(RELEASE_DIR)/server
@@ -170,6 +193,7 @@ release-template: clean frontend clients
 	@cp -R server/public/partials $(RELEASE_DIR)/server/public
 	@cp -R server/public/public $(RELEASE_DIR)/server/public
 	@cp -R server/public/index.html $(RELEASE_DIR)/server/public
+	@cp -R server/public/favicon.ico $(RELEASE_DIR)/server/public
 
 
 ###
@@ -183,22 +207,30 @@ release: release-template server
 ###
 # Build release archives for all architectures
 ###
-releases: release-template servers
+releases: release-template servers utils
 
 	@mkdir -p releases
 
 	@cd release && for target in $(RELEASE_TARGETS) ; do \
 		SERVER_PATH=../servers/$$target/plikd;  \
+		UTIL_DIR=../servers/$$target/utils;  \
 		OS=`echo $$target | cut -d "-" -f 1`; \
 		ARCH=`echo $$target | cut -d "-" -f 2`; \
 		if [ $$OS = "darwin" ] ; then OS="macos" ; fi ; \
 		if [ $$OS = "windows" ] ; then SERVER_PATH=../servers/$$target/plikd.exe ; fi ; \
 		if [ $$ARCH = "386" ] ; then ARCH="32bits" ; fi ; \
 		if [ $$ARCH = "amd64" ] ; then ARCH="64bits" ; fi ; \
-		TARBALL_NAME=plik-$(RELEASE_VERSION)-$$OS-$$ARCH.tar.gz; \
-		echo "Packaging plik release for $$target to $$TARBALL_NAME"; \
 		cp -R $$SERVER_PATH plik-$(RELEASE_VERSION)/server; \
-		tar czvf ../releases/$$TARBALL_NAME plik-$(RELEASE_VERSION); \
+		cp -R $$UTIL_DIR plik-$(RELEASE_VERSION)/server; \
+		if [ $$OS = "windows" ] ; then \
+			TARBALL_NAME=plik-$(RELEASE_VERSION)-$$OS-$$ARCH.zip; \
+			echo "Packaging plik release for $$target to $$TARBALL_NAME"; \
+			zip -r ../releases/$$TARBALL_NAME plik-$(RELEASE_VERSION); \
+		else \
+			TARBALL_NAME=plik-$(RELEASE_VERSION)-$$OS-$$ARCH.tar.gz; \
+			echo "Packaging plik release for $$target to $$TARBALL_NAME"; \
+			tar czvf ../releases/$$TARBALL_NAME plik-$(RELEASE_VERSION); \
+		fi \
 	done
 
 	@md5sum releases/* > releases/md5sum.txt
@@ -223,21 +255,26 @@ test:
 		done; \
 		echo -n "go vet $$directory : "; \
 		VET=`go vet ./... 2>&1`; \
-		if [ $$? = 0 ] ; then echo "OK" ; else echo "FAIL" && echo $$VET && ERR="1" ; fi ; \
+		if [ $$? = 0 ] ; then echo "OK" ; else echo "FAIL" && echo "$$VET" && ERR="1" ; fi ; \
 		echo -n "go lint $$directory : "; \
 		LINT=`golint ./...`; \
-		if [ "$$LINT" = "" ] ; then echo "OK" ; else echo "FAIL" && echo $$LINT && ERR="1" ; fi ; \
+		if [ "$$LINT" = "" ] ; then echo "OK" ; else echo "FAIL" && echo "$$LINT" && ERR="1" ; fi ; \
 		cd - 2>&1 > /dev/null; \
 	done ; if [ "$$ERR" = "1" ] ; then exit 1 ; fi
 	@echo "cli client integration tests :\n" && cd client && ./test.sh
+
+###
+# Remove frontend build files
+###
+clean-frontend:
+	@rm -rf server/public/bower_components
+	@rm -rf server/public/public
 
 ###
 # Remove all build files
 ###
 clean:
 	@rm -rf server/common/version.go
-	@rm -rf server/public/bower_components
-	@rm -rf server/public/public
 	@rm -rf server/plikd
 	@rm -rf client/plik
 	@rm -rf clients
@@ -246,6 +283,11 @@ clean:
 	@rm -rf release
 	@rm -rf releases
 
+###
+# Remove all build files and node modules
+###
+clean-all: clean
+	@rm -rf server/public/node_modules
 
 ###
 # Since the client/server directories are not generated

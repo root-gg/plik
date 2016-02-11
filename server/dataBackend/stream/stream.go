@@ -32,6 +32,7 @@ package stream
 import (
 	"io"
 
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -52,12 +53,12 @@ func NewStreamBackend(config map[string]interface{}) (sb *Backend) {
 
 // GetFile implementation for steam data backend will search
 // on filesystem the requested steam and return its reading filehandle
-func (sb *Backend) GetFile(ctx *common.PlikContext, upload *common.Upload, id string) (stream io.ReadCloser, err error) {
-	defer ctx.Finalize(err)
+func (sb *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id string) (stream io.ReadCloser, err error) {
+	log := common.GetLogger(ctx)
 	storeID := upload.ID + "/" + id
 	stream, ok := sb.Store[storeID]
 	if !ok {
-		err = ctx.EWarningf("Missing reader")
+		err = log.EWarningf("Missing reader")
 	}
 	delete(sb.Store, id)
 	return
@@ -65,30 +66,26 @@ func (sb *Backend) GetFile(ctx *common.PlikContext, upload *common.Upload, id st
 
 // AddFile implementation for steam data backend will creates a new steam for the given upload
 // and save it on filesystem with the given steam reader
-func (sb *Backend) AddFile(ctx *common.PlikContext, upload *common.Upload, file *common.File, stream io.Reader) (backendDetails map[string]interface{}, err error) {
-	defer ctx.Finalize(err)
+func (sb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, stream io.Reader) (backendDetails map[string]interface{}, err error) {
+	log := common.GetLogger(ctx)
 	backendDetails = make(map[string]interface{})
 	id := upload.ID + "/" + file.ID
 	pipeReader, pipeWriter := io.Pipe()
 	sb.Store[id] = pipeReader
 	defer delete(sb.Store, id)
+	log.Info("Stream data backend waiting for download")
 	// This will block until download begins
 	_, err = io.Copy(pipeWriter, stream)
 	pipeWriter.Close()
 	return
 }
 
-// RemoveFile implementation for steam data backend will delete the given
-// steam from filesystem
-func (sb *Backend) RemoveFile(ctx *common.PlikContext, upload *common.Upload, id string) (err error) {
-	defer ctx.Finalize(err)
+// RemoveFile is not implemented
+func (sb *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, id string) (err error) {
 	return
 }
 
-// RemoveUpload implementation for steam data backend will
-// delete the whole upload. Given that an upload is a directory,
-// we remove the whole directory at once.
-func (sb *Backend) RemoveUpload(ctx *common.PlikContext, upload *common.Upload) (err error) {
-	defer ctx.Finalize(err)
+// RemoveUpload is not implemented
+func (sb *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
 	return
 }
