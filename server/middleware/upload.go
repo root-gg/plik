@@ -81,6 +81,10 @@ func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 
 		forbidden := func() {
 			resp.Header().Set("WWW-Authenticate", "Basic realm=\"plik\"")
+
+			// Shouldn't redirect here to let the browser ask for credentials and retry
+			ctx.Set("redirect", false)
+
 			common.Fail(ctx, req, resp, "Please provide valid credentials to access this upload", 401)
 		}
 
