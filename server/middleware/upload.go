@@ -88,8 +88,22 @@ func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 			common.Fail(ctx, req, resp, "Please provide valid credentials to access this upload", 401)
 		}
 
+		// Check upload token
+		uploadToken := req.Header.Get("X-UploadToken")
+		if uploadToken != "" && uploadToken == upload.UploadToken {
+			upload.IsAdmin = true
+		} else {
+			// Check if upload belongs to user
+			if common.Config.Authentication && upload.User != "" {
+				user := common.GetUser(ctx)
+				if user != nil && user.ID == upload.User {
+					upload.IsAdmin = true
+				}
+			}
+		}
+
 		// Handle basic auth if upload is password protected
-		if upload.ProtectedByPassword {
+		if upload.ProtectedByPassword && !upload.IsAdmin {
 			if req.Header.Get("Authorization") == "" {
 				log.Warning("Missing Authorization header")
 				forbidden()
@@ -121,20 +135,6 @@ func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 				log.Warning("Invalid credentials")
 				forbidden()
 				return
-			}
-		}
-
-		// Check upload token
-		uploadToken := req.Header.Get("X-UploadToken")
-		if uploadToken != "" && uploadToken == upload.UploadToken {
-			upload.IsAdmin = true
-		} else {
-			// Check if upload belongs to user
-			if common.Config.Authentication && upload.User != "" {
-				user := common.GetUser(ctx)
-				if user != nil && user.ID == upload.User {
-					upload.IsAdmin = true
-				}
 			}
 		}
 
