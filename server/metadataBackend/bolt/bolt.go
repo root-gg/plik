@@ -610,7 +610,7 @@ func (bmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []strin
 			}
 
 			// Extract upload id from key ( 16 last bytes )
-			ids = append(ids, string(k[8:]))
+			ids = append(ids, string(k[10:]))
 		}
 
 		return nil
