@@ -114,7 +114,7 @@ Options:
 	// Unmarshal arguments in configuration
 	err = config.UnmarshalArgs(arguments)
 	if err != nil {
-		fmt.Printf("%s", err)
+		fmt.Printf("%s\n", err)
 		os.Exit(1)
 	}
 
