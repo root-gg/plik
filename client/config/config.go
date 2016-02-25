@@ -315,11 +315,11 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 			// Configure the archive backend
 			archiveBackend, err = archive.NewArchiveBackend(Config.ArchiveMethod, Config.ArchiveOptions)
 			if err != nil {
-				return fmt.Errorf("Invalid archive params : %s\n", err)
+				return fmt.Errorf("Invalid archive params : %s", err)
 			}
 			err = archiveBackend.Configure(arguments)
 			if err != nil {
-				return fmt.Errorf("Invalid archive params : %s\n", err)
+				return fmt.Errorf("Invalid archive params : %s", err)
 			}
 			Debug("Archive backend configuration : " + utils.Sdump(archiveBackend.GetConfiguration()))
 
@@ -380,7 +380,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		}
 		ttl, err := strconv.Atoi(ttlStr)
 		if err != nil {
-			return fmt.Errorf("Invalid TTL %s", arguments["--ttl"].(string))
+			return fmt.Errorf("Invalid TTL %s\n", arguments["--ttl"].(string))
 		}
 		Upload.TTL = ttl * mul
 	}
@@ -397,11 +397,11 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		// Configure crypto backend
 		cryptoBackend, err = crypto.NewCryptoBackend(secureMethod, Config.SecureOptions)
 		if err != nil {
-			return fmt.Errorf("Invalid secure params : %s\n", err)
+			return fmt.Errorf("Invalid secure params : %s", err)
 		}
 		err = cryptoBackend.Configure(arguments)
 		if err != nil {
-			return fmt.Errorf("Invalid secure params : %s\n", err)
+			return fmt.Errorf("Invalid secure params : %s", err)
 		}
 
 		Debug("Crypto backend configuration : " + utils.Sdump(cryptoBackend.GetConfiguration()))
