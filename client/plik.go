@@ -477,6 +477,11 @@ func updateClient(updateFlag bool) (err error) {
 	}
 
 	resp, err := makeRequest(req)
+	if err != nil {
+		err = fmt.Errorf("Unable to get server version : %s", err)
+		return
+	}
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 200 {
