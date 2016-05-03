@@ -159,7 +159,16 @@ func Load() (err error) {
 	// Stat file
 	_, err = os.Stat(configFile)
 	if err != nil {
-		// File not present. Ask for domain
+		// File not found.
+
+		// Check if quiet mode ( you'll have to pass --server flag )
+		for _, arg := range os.Args[1:] {
+			if arg == "-q" || arg == "--quiet" {
+				return
+			}
+		}
+
+		// Ask for domain
 		var domain string
 		fmt.Printf("Please enter your plik domain [default:http://127.0.0.1:8080] : ")
 		_, err := fmt.Scanf("%s", &domain)
