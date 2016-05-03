@@ -4,7 +4,7 @@
 
 # Plik
 
-Plik is an simple and powerful file uploading system written in golang.
+Plik is a scalable & friendly temporary file upload system ( wetransfer like ) in golang.
 
 ### Main features
    - Multiple data backends : File, OpenStack Swift, WeedFS
@@ -295,4 +295,5 @@ The screenshot is then removed of your home directory to avoid garbage.
 
 Contributions are welcome, feel free to open issues and/or submit pull requests.  
 Please make your pull requests against the current development (RC) branch, not against master.  
-Please run/update the test suite using the makefile test target.  
+Please run/update the test suite using the makefile test target.
+
