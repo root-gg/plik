@@ -157,17 +157,29 @@ func OvhLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	// Store session jwt in secure cookie
-	sessionCookie := &http.Cookie{}
-	sessionCookie.HttpOnly = true
-	sessionCookie.Secure = true
-	sessionCookie.Name = "plik-ovh-session"
-	sessionCookie.Value = sessionString
-	sessionCookie.MaxAge = int(time.Now().Add(5 * time.Minute).Unix())
-	sessionCookie.Path = "/"
-	http.SetCookie(resp, sessionCookie)
+	// Store temporary session jwt in secure cookie
+	ovhAuthCookie := &http.Cookie{}
+	ovhAuthCookie.HttpOnly = true
+	ovhAuthCookie.Secure = true
+	ovhAuthCookie.Name = "plik-ovh-session"
+	ovhAuthCookie.Value = sessionString
+	ovhAuthCookie.MaxAge = int(time.Now().Add(5 * time.Minute).Unix())
+	ovhAuthCookie.Path = "/"
+	http.SetCookie(resp, ovhAuthCookie)
 
 	resp.Write([]byte(userConsentResponse.ValidationURL))
+}
+
+// Remove temporary session cookie
+func cleanOvhAuthSessionCookie(resp http.ResponseWriter) {
+	ovhAuthCookie := &http.Cookie{}
+	ovhAuthCookie.HttpOnly = true
+	ovhAuthCookie.Secure = true
+	ovhAuthCookie.Name = "plik-ovh-session"
+	ovhAuthCookie.Value = ""
+	ovhAuthCookie.MaxAge = -1
+	ovhAuthCookie.Path = "/"
+	http.SetCookie(resp, ovhAuthCookie)
 }
 
 // OvhCallback authenticate ovh user.
@@ -195,7 +207,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	}
 
 	// Parse session cookie
-	ovhSession, err := jwt.Parse(ovhSessionCookie.Value, func(t *jwt.Token) (interface{}, error) {
+	ovhAuthCookie, err := jwt.Parse(ovhSessionCookie.Value, func(t *jwt.Token) (interface{}, error) {
 		// Verify signing algorithm
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected siging method : %v", t.Header["alg"])
@@ -205,22 +217,25 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	})
 	if err != nil {
 		log.Warningf("Invalid OVH session cookie : %s", err)
+		cleanOvhAuthSessionCookie(resp)
 		common.Fail(ctx, req, resp, "Invalid OVH session cookie", 400)
 		return
 	}
 
 	// Get OVH consumer key from session
-	ovhConsumerKey, ok := ovhSession.Claims["ovh-consumer-key"]
+	ovhConsumerKey, ok := ovhAuthCookie.Claims["ovh-consumer-key"]
 	if !ok {
 		log.Warning("Invalid OVH session cookie : missing ovh-consumer-key")
+		cleanOvhAuthSessionCookie(resp)
 		common.Fail(ctx, req, resp, "Invalid OVH session cookie : missing ovh-consumer-key", 500)
 		return
 	}
 
 	// Get OVH API endpoint
-	endpoint, ok := ovhSession.Claims["ovh-api-endpoint"]
+	endpoint, ok := ovhAuthCookie.Claims["ovh-api-endpoint"]
 	if !ok {
 		log.Warning("Invalid OVH session cookie : missing ovh-api-endpoint")
+		cleanOvhAuthSessionCookie(resp)
 		common.Fail(ctx, req, resp, "Invalid OVH session cookie : missing ovh-api-endpoint", 400)
 		return
 	}
@@ -230,6 +245,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	ovhReq, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Warningf("Unable to create new http GET request to %s : %s", url, err)
+		cleanOvhAuthSessionCookie(resp)
 		common.Fail(ctx, req, resp, "Unable to create new http GET request to OVH API", 500)
 		return
 	}
@@ -256,6 +272,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	ovhResp, err := client.Do(ovhReq)
 	if err != nil {
 		log.Warningf("Error with ovh API %s : %s", url, err)
+		cleanOvhAuthSessionCookie(resp)
 		common.Fail(ctx, req, resp, "Error with ovh API", 500)
 		return
 	}
@@ -263,6 +280,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	ovhRespBody, err := decodeOVHResponse(ovhResp)
 	if err != nil {
 		log.Warningf("Error with ovh API %s : %s", url, err)
+		cleanOvhAuthSessionCookie(resp)
 		common.Fail(ctx, req, resp, fmt.Sprintf("Error with ovh API : %s", err), 500)
 		return
 	}
@@ -272,6 +290,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	err = json.Unmarshal(ovhRespBody, &userInfo)
 	if err != nil {
 		log.Warningf("Unable to unserialize OVH API response : %s", err)
+		cleanOvhAuthSessionCookie(resp)
 		common.Fail(ctx, req, resp, "Unable to unserialize OVH API response", 500)
 		return
 	}
@@ -281,7 +300,9 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	// Get user from metadata backend
 	user, err := metadataBackend.GetMetaDataBackend().GetUser(ctx, userID, "")
 	if err != nil {
-		err = fmt.Errorf("Unable to get user from metadata backend : %s", err)
+		log.Warningf("Unable to get user from metadata backend : %s", err)
+		cleanOvhAuthSessionCookie(resp)
+		common.Fail(ctx, req, resp, "Unable to get user from metadata backend", 500)
 		return
 	}
 
@@ -298,11 +319,13 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 			err = metadataBackend.GetMetaDataBackend().SaveUser(ctx, user)
 			if err != nil {
 				log.Warningf("Unable to save user to metadata backend : %s", err)
+				cleanOvhAuthSessionCookie(resp)
 				common.Fail(ctx, req, resp, "Authentification error", 403)
 				return
 			}
 		} else {
 			log.Warning("Unable to create user from untrusted source IP address")
+			cleanOvhAuthSessionCookie(resp)
 			common.Fail(ctx, req, resp, "Unable to create user from untrusted source IP address", 403)
 			return
 		}
@@ -317,6 +340,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	xsrfToken, err := uuid.NewV4()
 	if err != nil {
 		log.Warning("Unable to generate xsrf token")
+		cleanOvhAuthSessionCookie(resp)
 		common.Fail(ctx, req, resp, "Unable to generate xsrf token", 500)
 		return
 	}
@@ -325,9 +349,13 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	sessionString, err := session.SignedString([]byte(common.Config.OvhAPISecret))
 	if err != nil {
 		log.Warningf("Unable to sign session cookie : %s", err)
+		cleanOvhAuthSessionCookie(resp)
 		common.Fail(ctx, req, resp, "Authentification error", 403)
 		return
 	}
+
+	// Remove temporary ovh auth session cookie
+	cleanOvhAuthSessionCookie(resp)
 
 	// Store session jwt in secure cookie
 	sessionCookie := &http.Cookie{}
