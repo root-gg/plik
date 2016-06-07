@@ -133,10 +133,12 @@ func main() {
 	// Start HTTP server
 	var err error
 	var server *http.Server
+	var proto string
 
 	address := common.Config.ListenAddress + ":" + strconv.Itoa(common.Config.ListenPort)
 
 	if common.Config.SslEnabled {
+		proto = "https"
 
 		// Load cert
 		cert, err := tls.LoadX509KeyPair(common.Config.SslCert, common.Config.SslKey)
@@ -147,8 +149,11 @@ func main() {
 		tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10, Certificates: []tls.Certificate{cert}}
 		server = &http.Server{Addr: address, Handler: r, TLSConfig: tlsConfig}
 	} else {
+		proto = "http"
 		server = &http.Server{Addr: address, Handler: r}
 	}
+
+	log.Infof("Starting http server at %s://%s", proto, address)
 
 	err = httpdown.ListenAndServe(server, hd)
 	if err != nil {
