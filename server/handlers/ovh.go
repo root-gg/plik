@@ -188,7 +188,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 
 	// Get state from secure cookie
 	ovhSessionCookie, err := req.Cookie("plik-ovh-session")
-	if err != nil && ovhSessionCookie != nil {
+	if err != nil || ovhSessionCookie == nil {
 		log.Warning("Missing OVH session cookie")
 		common.Fail(ctx, req, resp, "Missing OVH session cookie", 400)
 		return
