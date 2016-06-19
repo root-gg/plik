@@ -21,7 +21,7 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
    - Upload restriction : Source IP / Token
 
 ### Version
-1.2-RC1
+1.2-RC2
 
 ### Installation
 
