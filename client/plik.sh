@@ -38,28 +38,47 @@ function setTtl() {
 ## Vars
 #
 PLIK_URL=${PLIK_URL-"http://127.0.0.1:8080"}
-PASSPHRASE=""
+PLIK_TOKEN=${PLIK_TOKEN-""}
 QUIET=false
 SECURE=false
+PASSPHRASE=""
 ARCHIVE=false
 ONESHOT=false
 REMOVABLE=false
 TTL=0
 
 #
+## Read ~/.plikrc file
+#
+
+PLIKRC=${PLIKRC-"$HOME/.plikrc"}
+if [ -e "$PLIKRC" ]; then
+    URL=$(grep URL $PLIKRC | grep -Po '(http[^\"]*)')
+    if [ "$URL" != "" ]; then
+        PLIK_URL=$URL
+    fi
+    TOKEN=$(grep Token $PLIKRC | sed -n 's/^.*"\(.*\)".*$/\1/p' )
+    if [ "$TOKEN" != "" ]; then
+        PLIK_TOKEN=$TOKEN
+    fi
+fi
+
+#
 ## Parse arguments
 #
-declare -a files
 
+declare -a files
 while [ $# -gt 0 ] ; do
     case "$1" in
-        -q) QUIET=true      ; shift ;;
-        -s) SECURE=true     ; shift ;;
-        -a) ARCHIVE=true    ; shift ;;
+        -u)                   shift ; PLIK_URL="$1"   ; shift ;;
+        -T)                   shift ; PLIK_TOKEN="$1" ; shift ;;
         -o) ONESHOT=true    ; shift ;;
         -r) REMOVABLE=true  ; shift ;;
         -t)                   shift ; setTtl $1       ; shift ;;
+        -a) ARCHIVE=true    ; shift ;;
+        -s) SECURE=true     ; shift ;;
         -p) SECURE=true     ; shift ; PASSPHRASE="$1" ; shift ;;
+        -q) QUIET=true      ; shift ;;
         --) shift ;;
         -*) qecho "bad option '$1'" ; exit 1 ;;
         *) files=("${files[@]}" "$1") ; shift ;;
@@ -70,26 +89,37 @@ if [ "${#files[@]}" == 0 ]; then
     qecho "No files specified !"
     exit 1
 fi
-if [ -e "$HOME/.plikrc" ]; then
-    URL=$(grep URL ~/.plikrc | grep -Po '(http[^\"]*)')
-
-    if [ "$URL" != "" ]; then
-        PLIK_URL=$URL
-    fi
-fi
-
 
 #
 ## Create new upload
 #
 
-qecho -e "Creating upload on $PLIK_URL...\n"
-OPTIONS="{ \"OneShot\" : $ONESHOT, \"Removable\" : $REMOVABLE, \"Ttl\" : $TTL }"
-NEW_UPLOAD_RESP=$(curl -s -X POST -d "$OPTIONS" ${PLIK_URL}/upload)
-UPLOAD_ID=$(echo $NEW_UPLOAD_RESP | jsonValue id)
-UPLOAD_TOKEN=$(echo $NEW_UPLOAD_RESP | jsonValue uploadToken)
-qecho -e " --> ${green}$PLIK_URL/#/?id=$UPLOAD_ID${endColor}\n"
+if [ "$PLIK_TOKEN" != "" ]; then
+    AUTH_TOKEN_HEADER="-H \"X-PlikToken: $PLIK_TOKEN\""
+fi
 
+OPTIONS="{ \"OneShot\" : $ONESHOT, \"Removable\" : $REMOVABLE, \"Ttl\" : $TTL }"
+qecho -e "Create new upload on $PLIK_URL...\n"
+
+CREATE_UPLOAD_CMD="curl -s -X POST $AUTH_TOKEN_HEADER -d '$OPTIONS' ${PLIK_URL}/upload"
+NEW_UPLOAD_RESP=$(eval $CREATE_UPLOAD_CMD)
+UPLOAD_ID=$(echo $NEW_UPLOAD_RESP | jsonValue id)
+
+# Handle error
+if [ "$UPLOAD_ID" == "" ]; then
+    ERROR_MSG=$(echo $NEW_UPLOAD_RESP | jsonValue message)
+    if [ "$ERROR_MSG" != "" ]; then
+        echo $ERROR_MSG
+    elif [ "$NEW_UPLOAD_RESP" != "" ]; then
+        echo $NEW_UPLOAD_RESP
+    fi
+    exit 1
+fi
+
+UPLOAD_TOKEN=$(echo $NEW_UPLOAD_RESP | jsonValue uploadToken)
+UPLOAD_TOKEN_HEADER="-H \"X-UploadToken: $UPLOAD_TOKEN\""
+
+qecho -e " --> ${green}$PLIK_URL/#/?id=$UPLOAD_ID${endColor}\n"
 
 #
 ## Test if we have to archive
@@ -154,13 +184,25 @@ do
     fi
 
     if [ "$STDIN" == true ]; then
-        UPLOAD_COMMAND+="curl -s -X POST --header \"X-UploadToken: $UPLOAD_TOKEN\" -F \"file=@-;filename=$FILENAME\" $PLIK_URL/file/$UPLOAD_ID"
+        UPLOAD_COMMAND+="curl -s -X POST $AUTH_TOKEN_HEADER $UPLOAD_TOKEN_HEADER -F \"file=@-;filename=$FILENAME\" $PLIK_URL/file/$UPLOAD_ID"
     else
-        UPLOAD_COMMAND+="curl -s -X POST --header \"X-UploadToken: $UPLOAD_TOKEN\" -F \"file=@$FILE;filename=$FILENAME\" $PLIK_URL/file/$UPLOAD_ID"
+        UPLOAD_COMMAND+="curl -s -X POST $AUTH_TOKEN_HEADER $UPLOAD_TOKEN_HEADER -F \"file=@$FILE;filename=$FILENAME\" $PLIK_URL/file/$UPLOAD_ID"
     fi
 
     FILE_RESP=$(eval $UPLOAD_COMMAND)
     FILE_ID=$(echo $FILE_RESP | jsonValue id)
+
+    # Handle error
+    if [ "$FILE_ID" == "" ]; then
+        ERROR_MSG=$(echo $FILE_RESP | jsonValue message)
+        if [ "$ERROR_MSG" != "" ]; then
+            echo $ERROR_MSG
+        elif [ "$FILE_RESP" != "" ]; then
+            echo $FILE_RESP
+        fi
+        exit 1
+    fi
+
     FILE_MD5=$(echo $FILE_RESP | jsonValue fileMd5)
     FILE_NAME=$(echo $FILE_RESP | jsonValue fileName)
     FILE_STATUS=$(echo $FILE_RESP | jsonValue status)

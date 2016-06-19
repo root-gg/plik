@@ -67,7 +67,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	// If upload has OneShot option, test if file has not been already downloaded once
 	if upload.OneShot && file.Status == "downloaded" {
 		log.Warningf("File %s has already been downloaded", file.Name)
-		common.Fail(ctx, req, resp, "File %s has already been downloaded", 404)
+		common.Fail(ctx, req, resp, fmt.Sprintf("File %s has already been downloaded", file.Name), 404)
 		return
 	}
 
