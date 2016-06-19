@@ -107,11 +107,11 @@ func main() {
 	r.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
 	r.Handle("/file/{uploadID}/{fileID}/{filename}", authChain.Append(middleware.Upload, middleware.File).Then(handlers.RemoveFile)).Methods("DELETE")
 	r.Handle("/file/{uploadID}/{fileID}/{filename}", authChainWithRedirect.Append(middleware.Upload, middleware.File).Then(handlers.GetFile)).Methods("HEAD", "GET")
-	r.Handle("/file/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.Then(handlers.GetFile)).Methods("GET")
+	r.Handle("/file/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.Append(middleware.Upload, middleware.File).Then(handlers.GetFile)).Methods("HEAD", "GET")
 	r.Handle("/stream/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
 	r.Handle("/stream/{uploadID}/{fileID}/{filename}", authChain.Append(middleware.Upload, middleware.File).Then(handlers.RemoveFile)).Methods("DELETE")
 	r.Handle("/stream/{uploadID}/{fileID}/{filename}", authChainWithRedirect.Append(middleware.Upload, middleware.File).Then(handlers.GetFile)).Methods("HEAD", "GET")
-	r.Handle("/stream/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.Then(handlers.GetFile)).Methods("GET")
+	r.Handle("/stream/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.Append(middleware.Upload, middleware.File).Then(handlers.GetFile)).Methods("HEAD", "GET")
 	r.Handle("/auth/google/login", authChain.Then(handlers.GoogleLogin)).Methods("GET")
 	r.Handle("/auth/google/callback", stdChainWithRedirect.Then(handlers.GoogleCallback)).Methods("GET")
 	r.Handle("/auth/ovh/login", authChain.Then(handlers.OvhLogin)).Methods("GET")
@@ -133,10 +133,12 @@ func main() {
 	// Start HTTP server
 	var err error
 	var server *http.Server
+	var proto string
 
 	address := common.Config.ListenAddress + ":" + strconv.Itoa(common.Config.ListenPort)
 
 	if common.Config.SslEnabled {
+		proto = "https"
 
 		// Load cert
 		cert, err := tls.LoadX509KeyPair(common.Config.SslCert, common.Config.SslKey)
@@ -147,8 +149,11 @@ func main() {
 		tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10, Certificates: []tls.Certificate{cert}}
 		server = &http.Server{Addr: address, Handler: r, TLSConfig: tlsConfig}
 	} else {
+		proto = "http"
 		server = &http.Server{Addr: address, Handler: r}
 	}
+
+	log.Infof("Starting http server at %s://%s", proto, address)
 
 	err = httpdown.ListenAndServe(server, hd)
 	if err != nil {
