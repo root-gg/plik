@@ -34,6 +34,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/gorilla/mux"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
@@ -119,8 +120,24 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// Avoid rendering HTML in browser
+	if strings.Contains(file.Type, "html") {
+		file.Type = "text/plain"
+	}
+
+	if file.Type == "" || strings.Contains(file.Type, "flash") {
+		file.Type = "application/octet-stream"
+	}
+
 	// Set content type and print file
 	resp.Header().Set("Content-Type", file.Type)
+
+	/* Additional security headers for possibly unsafe content */
+	resp.Header().Set("X-Content-Type-Options", "nosniff")
+	resp.Header().Set("X-XSS-Protection", "1; mode=block")
+	resp.Header().Set("X-Frame-Options", "DENY")
+	resp.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'none'; style-src 'none'; img-src 'none'; connect-src 'none'; font-src 'none'; object-src 'none'; media-src 'none'; child-src 'none'; form-action 'none'; frame-ancestors 'none'; plugin-types ''; sandbox ''")
+
 	if file.CurrentSize > 0 {
 		resp.Header().Set("Content-Length", strconv.Itoa(int(file.CurrentSize)))
 	}
