@@ -47,6 +47,18 @@ import (
 func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 
+	// If a download domain is specified verify that the request comes from this specific domain
+	if common.Config.DownloadDomainURL != nil {
+		if req.Host != common.Config.DownloadDomainURL.Host {
+			downloadURL := fmt.Sprintf("%s://%s/%s",
+				common.Config.DownloadDomainURL.Scheme,
+				common.Config.DownloadDomainURL.Host,
+				req.RequestURI)
+			http.Redirect(resp, req, downloadURL, 301)
+			return
+		}
+	}
+
 	// Get upload from context
 	upload := common.GetUpload(ctx)
 	if upload == nil {

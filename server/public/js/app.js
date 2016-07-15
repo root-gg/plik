@@ -662,7 +662,8 @@ function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
     $scope.getFileUrl = function (file, dl) {
         if (!file || !file.metadata) return;
         var mode = $scope.upload.stream ? "stream" : "file";
-        var url = location.origin + '/' + mode + '/' + $scope.upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
+        var domain = $scope.config.downloadDomain ? $scope.config.downloadDomain : location.origin;
+        var url = domain + '/' + mode + '/' + $scope.upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
         if (dl) {
             // Force file download
             url += "?dl=1";

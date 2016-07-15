@@ -31,6 +31,7 @@ package common
 
 import (
 	"net"
+	"net/url"
 	"strings"
 
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/BurntSushi/toml"
@@ -51,6 +52,9 @@ type Configuration struct {
 	SslEnabled bool   `json:"-"`
 	SslCert    string `json:"-"`
 	SslKey     string `json:"-"`
+
+	DownloadDomain    string   `json:"downloadDomain"`
+	DownloadDomainURL *url.URL `json:"-"`
 
 	YubikeyEnabled   bool             `json:"yubikeyEnabled"`
 	YubikeyAPIKey    string           `json:"-"`
@@ -166,6 +170,14 @@ func LoadConfiguration(file string) {
 
 	if Config.MetadataBackend == "file" {
 		Config.Authentication = false
+	}
+
+	if Config.DownloadDomain != "" {
+		strings.Trim(Config.DownloadDomain, "/ ")
+		var err error
+		if Config.DownloadDomainURL, err = url.Parse(Config.DownloadDomain); err != nil {
+			Logger().Fatalf("Invalid download domain URL %s : %s", Config.DownloadDomain, err)
+		}
 	}
 
 	Logger().Dump(logger.DEBUG, Config)

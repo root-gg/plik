@@ -426,7 +426,14 @@ func getFileURL(upload *common.Upload, file *common.File) (fileURL string) {
 		mode = "stream"
 	}
 
-	fileURL += fmt.Sprintf("%s/%s/%s/%s/%s", config.Config.URL, mode, upload.ID, file.ID, file.Name)
+	var domain string
+	if upload.DownloadDomain != "" {
+		domain = upload.DownloadDomain
+	} else {
+		domain = config.Config.URL
+	}
+
+	fileURL += fmt.Sprintf("%s/%s/%s/%s/%s", domain, mode, upload.ID, file.ID, file.Name)
 
 	// Parse to get a nice escaped url
 	u, err := url.Parse(fileURL)
