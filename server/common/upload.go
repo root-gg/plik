@@ -41,12 +41,13 @@ var (
 
 // Upload object
 type Upload struct {
-	ID       string `json:"id" bson:"id"`
-	Creation int64  `json:"uploadDate" bson:"uploadDate"`
-	TTL      int    `json:"ttl" bson:"ttl"`
-	ShortURL string `json:"shortUrl" bson:"shortUrl"`
-	RemoteIP string `json:"uploadIp,omitempty" bson:"uploadIp"`
-	Comments string `json:"comments" bson:"comments"`
+	ID             string `json:"id" bson:"id"`
+	Creation       int64  `json:"uploadDate" bson:"uploadDate"`
+	TTL            int    `json:"ttl" bson:"ttl"`
+	ShortURL       string `json:"shortUrl" bson:"shortUrl"`
+	DownloadDomain string `json:"downloadDomain" bson:"-"`
+	RemoteIP       string `json:"uploadIp,omitempty" bson:"uploadIp"`
+	Comments       string `json:"comments" bson:"comments"`
 
 	Files map[string]*File `json:"files" bson:"files"`
 
@@ -98,6 +99,7 @@ func (upload *Upload) Sanitize() {
 	for _, file := range upload.Files {
 		file.Sanitize()
 	}
+	upload.DownloadDomain = Config.DownloadDomain
 }
 
 // GenerateRandomID generates a random string with specified length.
