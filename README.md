@@ -21,16 +21,16 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
    - Upload restriction : Source IP / Token
 
 ### Version
-1.2-RC2
+1.2-RC3
 
 ### Installation
 
 ##### From release
 To run plik, it's very simple :
 ```sh
-$ wget https://github.com/root-gg/plik/releases/download/1.1.1/plik-1.1.1.tar.gz
-$ tar xvf plik-1.1.1.tar.gz
-$ cd plik-1.1.1/server
+$ wget https://github.com/root-gg/plik/releases/download/1.2-RC3/plik-1.2-RC3-linux-64bits.tar.gz
+$ tar xzvf plik-1.2-RC3-linux-64bits.tar.gz
+$ cd plik-1.2-RC3/server
 $ ./plikd
 ```
 Et voilà ! You now have a fully functional instance of plik running on http://127.0.0.1:8080.  
@@ -127,30 +127,6 @@ curl -s 'https://127.0.0.1:8080/file/0KfNj6eMb93ilCrl/q73tEBEqM04b22GP/mydirecto
 
 Client configuration and preferences are stored at ~/.plikrc ( overridable with PLIKRC environement variable )
 
-### Authentication
-
-Plik can authenticate users using Google and/or OVH API. 
-Once authenticated the only call Plik will ever make to those API is get the user ID, name and email. 
-Plik will never forward any upload data or metadata to any third party.   
-If source IP address restriction is enabled, user accounts can only be created from trusted IPs. But then 
-authenticated users can upload files without source IP restriction.   
-
-   - **Google** :
-      - You'll need to create a new application in the [Google Developper Console](https://console.developers.google.com)
-      - You'll be handed a Google API ClientID and a Google API ClientSecret that you'll need to put in the plikd.cfg file.
-      - Do not forget to whitelist valid origin and redirect url ( https://yourdomain/auth/google/callback ) for your domain.
-   
-   - **OVH** :
-      - You'll need to create a new application in the OVH API : https://eu.api.ovh.com/createApp/
-      - You'll be handed an OVH application key and an OVH application secret key that you'll need to put in the plikd.cfg file.
-
-Once authenticated a user can generate upload tokens that can be specified in the ~/.plikrc file to authenticate
-the command line client.
-
-```
-Token = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-```
-
 ### Available data backends
 
 Plik is shipped with multiple data backend for uploaded files and metadata backend for the upload metadata.
@@ -194,6 +170,36 @@ Only suitable for a single instance deployment as the Bolt database can only be 
  - Mongodb metadata backend : https://www.mongodb.org
 
 Suitable for distributed / High Availability deployment. 
+
+### Authentication
+
+Plik can authenticate users using Google and/or OVH API. 
+Once authenticated the only call Plik will ever make to those API is get the user ID, name and email. 
+Plik will never forward any upload data or metadata to any third party.   
+If source IP address restriction is enabled, user accounts can only be created from trusted IPs. But then 
+authenticated users can upload files without source IP restriction.   
+
+   - **Google** :
+      - You'll need to create a new application in the [Google Developper Console](https://console.developers.google.com)
+      - You'll be handed a Google API ClientID and a Google API ClientSecret that you'll need to put in the plikd.cfg file.
+      - Do not forget to whitelist valid origin and redirect url ( https://yourdomain/auth/google/callback ) for your domain.
+   
+   - **OVH** :
+      - You'll need to create a new application in the OVH API : https://eu.api.ovh.com/createApp/
+      - You'll be handed an OVH application key and an OVH application secret key that you'll need to put in the plikd.cfg file.
+
+Once authenticated a user can generate upload tokens that can be specified in the ~/.plikrc file to authenticate
+the command line client.
+
+```
+Token = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+```
+
+### Security
+Plik allow users to upload and serve any content as-is, but hosting untrusted HTML raises some well known security concerns.
+Plik will try to avoid HTML rendering by overriding Content-Type to "text-plain" instead of "text/html".
+Also the [Content-Security-Policy](https://content-security-policy.com/) HTTP header should disable sensible features of most recent browsers like resource loading, xhr requests, iframes,...
+Along with that it is still strongly advised to serve uploaded files on a separate (sub-)domain to fight against phishing links and to protect Plik's session cookie with the DownloadDomain configuration parameter.
 
 ### API
 Plik server expose a HTTP API to manage uploads and get files :

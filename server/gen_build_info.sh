@@ -34,7 +34,7 @@ user=$(whoami)
 host=$(hostname)
 repo=$(pwd)
 date=$(date "+%s")
-goVersion=$(go version)
+goVersion=$(go version | sed -e "s/go version //")
 isRelease=false
 isMint=false
 
@@ -177,7 +177,7 @@ func (bi *BuildInfo) String() string {
 		v += fmt.Sprintf(" [%s]", strings.Join(flags, ","))
 	}
 
-	v += fmt.Sprintf(" at %s)", time.Unix(bi.Date, 0))
+	v += fmt.Sprintf(" at %s with %s)", time.Unix(bi.Date, 0), bi.GoVersion)
 
 	return v
 }
