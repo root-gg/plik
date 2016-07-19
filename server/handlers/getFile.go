@@ -50,10 +50,11 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	// If a download domain is specified verify that the request comes from this specific domain
 	if common.Config.DownloadDomainURL != nil {
 		if req.Host != common.Config.DownloadDomainURL.Host {
-			downloadURL := fmt.Sprintf("%s://%s/%s",
+			downloadURL := fmt.Sprintf("%s://%s%s",
 				common.Config.DownloadDomainURL.Scheme,
 				common.Config.DownloadDomainURL.Host,
 				req.RequestURI)
+			log.Warningf("Invalid download domain %s, expected %s", req.Host, common.Config.DownloadDomainURL.Host)
 			http.Redirect(resp, req, downloadURL, 301)
 			return
 		}
