@@ -213,7 +213,7 @@ See the [Plik Docker reference](documentation/docker.md)
 
 ### FAQ
 
-##### Why is stream mode broken in multiple instance deployement ?
+* Why is stream mode broken in multiple instance deployement ?
 
 Beacause stream mode isn't stateless. As the uploader request will block on one plik instance the downloader request **MUST** go to the same instance to succeed.
 The load balancing strategy **MUST** be aware of this and route stream requests to the same instance by hashing the file id.
@@ -253,7 +253,21 @@ server {
 }
 ```
 
-##### I have an error when uploading from client : "Unable to upload file : HTTP error 411 Length Required"
+* Redirection loops with DownloadDomain enforcement and reverse proxy
+
+```
+Invalid download domain 127.0.0.1:8080, expected plik.root.gg
+```
+
+DownloadDomain check the Host header of the incoming HTTP request, by default reverse proxies like
+Nginx or Apache mod_proxy does not forward this Header. Check the following configuration directive :
+
+```
+Apache mod_proxy : ProxyPreserveHost On
+Nginx : proxy_set_header Host $host;
+```
+
+* I have an error when uploading from client : "Unable to upload file : HTTP error 411 Length Required"
 
 Under nginx < 1.3.9, you must enable HttpChunkin module to allow transfer-encoding "chunked".  
 You might want to install the "nginx-extras" Debian package with built-in HttpChunkin module.
@@ -268,7 +282,7 @@ And add in your server configuration :
         }
 ```
 
-##### How to disable nginx buffering ?
+* How to disable nginx buffering ?
 
 By default nginx buffers large HTTP requests and reponses to a temporary file. This behaviour leads to unnecessary disk load and slower transfers. This should be turned off (>1.7.12) for /file and /stream paths. You might also want to increase buffers size.
 
@@ -282,11 +296,11 @@ Detailed documentation : http://nginx.org/en/docs/http/ngx_http_proxy_module.htm
    client_body_buffer_size 1M;
 ```
 
-##### Why authentication don't work with HTTP connections ?
+* Why authentication don't work with HTTP connections ?
 
 Plik session cookies have the "secure" flag set, so they can only be transmitted over secure HTTPS connections.
 
-##### How to take and upload screenshots like a boss ?
+*  How to take and upload screenshots like a boss ?
 
 ```
 alias pshot="scrot -s -e 'plik -q \$f | xclip ; xclip -o ; rm \$f'"
@@ -297,7 +311,7 @@ scroot -s allow you to "Interactively select a window or rectangle with the mous
 Plik will upload the screenshot and the url will be directly copied to your clipboard and displayed by xclip.
 The screenshot is then removed of your home directory to avoid garbage.
 
-##### How to contribute to the project ?
+* How to contribute to the project ?
 
 Contributions are welcome, feel free to open issues and/or submit pull requests.  
 Please make your pull requests against the current development (RC) branch, not against master.  
