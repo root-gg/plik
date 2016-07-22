@@ -293,7 +293,7 @@ alias pshot="scrot -s -e 'plik -q \$f | xclip ; xclip -o ; rm \$f'"
 ```
 
 Requires you to have plik, scrot and xclip installed in your $PATH.  
-scroot -s allow you to "Interactively select a window or rectangle with the mouse" then
+scrot -s allow you to "Interactively select a window or rectangle with the mouse" then
 Plik will upload the screenshot and the url will be directly copied to your clipboard and displayed by xclip.
 The screenshot is then removed of your home directory to avoid garbage.
 
