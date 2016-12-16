@@ -45,7 +45,7 @@ func SourceIP(ctx *juliet.Context, next http.Handler) http.Handler {
 		log.Debug("SourceIP handler")
 
 		var sourceIPstr string
-		if common.Config.SourceIPHeader != "" {
+		if common.Config.SourceIPHeader != "" && req.Header.Get(common.Config.SourceIPHeader) != "" {
 			// Get source ip from header if behind reverse proxy.
 			sourceIPstr = req.Header.Get(common.Config.SourceIPHeader)
 		} else {
