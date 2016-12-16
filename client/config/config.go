@@ -389,7 +389,7 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 		}
 		ttl, err := strconv.Atoi(ttlStr)
 		if err != nil {
-			return fmt.Errorf("Invalid TTL %s\n", arguments["--ttl"].(string))
+			return fmt.Errorf("Invalid TTL %s", arguments["--ttl"].(string))
 		}
 		Upload.TTL = ttl * mul
 	}
