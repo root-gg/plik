@@ -96,7 +96,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		file.Type = "text/plain"
 	}
 
-	if file.Type == "" || strings.Contains(file.Type, "flash") {
+	if file.Type == "" || strings.Contains(file.Type, "flash") || strings.Contains(file.Type, "pdf") {
 		file.Type = "application/octet-stream"
 	}
 
