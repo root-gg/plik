@@ -36,7 +36,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/gorilla/mux"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/dataBackend"
@@ -92,53 +91,12 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// If upload is yubikey protected, user must send an OTP when he wants to get a file.
-	if upload.Yubikey != "" {
-
-		// Error if yubikey is disabled on server, and enabled on upload
-		if !common.Config.YubikeyEnabled {
-			log.Warningf("Got a Yubikey upload but Yubikey backend is disabled")
-			common.Fail(ctx, req, resp, "Yubikey are disabled on this server", 403)
-			return
-		}
-
-		vars := mux.Vars(req)
-		token := vars["yubikey"]
-		if token == "" {
-			log.Warningf("Missing yubikey token")
-			common.Fail(ctx, req, resp, "Invalid yubikey token", 401)
-			return
-		}
-		if len(token) != 44 {
-			log.Warningf("Invalid yubikey token : %s", token)
-			common.Fail(ctx, req, resp, "Invalid yubikey token", 401)
-			return
-		}
-		if token[:12] != upload.Yubikey {
-			log.Warningf("Invalid yubikey device : %s", token)
-			common.Fail(ctx, req, resp, "Invalid yubikey token", 401)
-			return
-		}
-
-		_, isValid, err := common.Config.YubiAuth.Verify(token)
-		if err != nil {
-			log.Warningf("Failed to validate yubikey token : %s", err)
-			common.Fail(ctx, req, resp, "Invalid yubikey token", 500)
-			return
-		}
-		if !isValid {
-			log.Warningf("Invalid yubikey token : %s", token)
-			common.Fail(ctx, req, resp, "Invalid yubikey token", 401)
-			return
-		}
-	}
-
 	// Avoid rendering HTML in browser
 	if strings.Contains(file.Type, "html") {
 		file.Type = "text/plain"
 	}
 
-	if file.Type == "" || strings.Contains(file.Type, "flash") {
+	if file.Type == "" || strings.Contains(file.Type, "flash") || strings.Contains(file.Type, "pdf") {
 		file.Type = "application/octet-stream"
 	}
 
@@ -175,6 +133,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		} else {
 			backend = dataBackend.GetDataBackend()
 		}
+
 		fileReader, err := backend.GetFile(ctx, upload, file.ID)
 		if err != nil {
 			log.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.ID, err)

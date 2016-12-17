@@ -224,15 +224,10 @@ Options:
 		}
 	}
 
-	// Comments
+	// Display commands
 	if !uploadInfo.Stream {
-		var totalSize int64
 		printf("\nCommands : \n")
 		for _, file := range uploadInfo.Files {
-
-			// Increment size
-			totalSize += file.CurrentSize
-
 			// Print file information (only url if quiet mode is enabled)
 			if config.Config.Quiet {
 				fmt.Println(getFileURL(uploadInfo, file))
@@ -657,9 +652,9 @@ func updateClient(updateFlag bool) (err error) {
 	}
 
 	if version != "" {
-		printf("Plik client sucessfully updated to %s\n", version)
+		printf("Plik client successfully updated to %s\n", version)
 	} else {
-		printf("Plik client sucessfully updated\n")
+		printf("Plik client successfully updated\n")
 	}
 
 	return

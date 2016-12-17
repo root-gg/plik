@@ -96,6 +96,8 @@ func main() {
 	stdChainWithRedirect := juliet.NewChain(middleware.RedirectOnFailure).AppendChain(stdChain)
 	authChainWithRedirect := juliet.NewChain(middleware.RedirectOnFailure).AppendChain(authChain)
 
+	getFileChain := juliet.NewChain(middleware.Upload, middleware.Yubikey, middleware.File)
+
 	// HTTP Api routes configuration
 	r := mux.NewRouter()
 	r.Handle("/config", stdChain.Then(handlers.GetConfiguration)).Methods("GET")
@@ -106,12 +108,14 @@ func main() {
 	r.Handle("/file/{uploadID}", tokenChain.Append(middleware.Upload).Then(handlers.AddFile)).Methods("POST")
 	r.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
 	r.Handle("/file/{uploadID}/{fileID}/{filename}", authChain.Append(middleware.Upload, middleware.File).Then(handlers.RemoveFile)).Methods("DELETE")
-	r.Handle("/file/{uploadID}/{fileID}/{filename}", authChainWithRedirect.Append(middleware.Upload, middleware.File).Then(handlers.GetFile)).Methods("HEAD", "GET")
-	r.Handle("/file/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.Append(middleware.Upload, middleware.File).Then(handlers.GetFile)).Methods("HEAD", "GET")
+	r.Handle("/file/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
+	r.Handle("/file/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
 	r.Handle("/stream/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
 	r.Handle("/stream/{uploadID}/{fileID}/{filename}", authChain.Append(middleware.Upload, middleware.File).Then(handlers.RemoveFile)).Methods("DELETE")
-	r.Handle("/stream/{uploadID}/{fileID}/{filename}", authChainWithRedirect.Append(middleware.Upload, middleware.File).Then(handlers.GetFile)).Methods("HEAD", "GET")
-	r.Handle("/stream/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.Append(middleware.Upload, middleware.File).Then(handlers.GetFile)).Methods("HEAD", "GET")
+	r.Handle("/stream/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
+	r.Handle("/stream/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
+	r.Handle("/archive/{uploadID}/{filename}", authChainWithRedirect.Append(middleware.Upload, middleware.Yubikey).Then(handlers.GetArchive)).Methods("HEAD", "GET")
+	r.Handle("/archive/{uploadID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.Append(middleware.Upload, middleware.Yubikey).Then(handlers.GetArchive)).Methods("HEAD", "GET")
 	r.Handle("/auth/google/login", authChain.Then(handlers.GoogleLogin)).Methods("GET")
 	r.Handle("/auth/google/callback", stdChainWithRedirect.Then(handlers.GoogleCallback)).Methods("GET")
 	r.Handle("/auth/ovh/login", authChain.Then(handlers.OvhLogin)).Methods("GET")
