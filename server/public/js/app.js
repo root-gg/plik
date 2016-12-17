@@ -672,6 +672,18 @@ function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
         return encodeURI(url);
     };
 
+    // Return zip archive download URL
+    $scope.getZipArchiveUrl = function (dl) {
+        if (!$scope.upload.id) return;
+        var domain = $scope.config.downloadDomain ? $scope.config.downloadDomain : location.origin;
+        var url = domain + '/archive/' + $scope.upload.id + '/archive.zip';
+        if (dl) {
+            // Force file download
+            url += "?dl=1";
+        }
+        return encodeURI(url);
+    };
+
     // Return QR Code image url
     $scope.getQrCodeUrl = function (url, size) {
         if (!url) return;

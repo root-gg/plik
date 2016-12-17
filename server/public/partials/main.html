@@ -123,6 +123,22 @@ THE SOFTWARE.
                 <p class="text-center">This upload will {{ getExpirationDate() }}</p>
             </div>
         </div>
+        <!-- DOWNLOAD AS ZIP BUTTON -->
+        <div class="tile menu" ng-if="upload.id">
+            <div class="menu-item">
+                <!-- WITHOUT YUBIKEY -->
+                <a href="{{getZipArchiveUrl()}}" ng-show="!upload.protectedByYubikey">
+                    <button type="button" class="btn btn-lg btn-primary btn-block">
+                        <i class="glyphicon glyphicon-cloud-download"></i> Zip archive
+                    </button>
+                </a>
+                <!-- WITH YUBIKEY -->
+                <button type="button" class="btn btn-lg btn-primary btn-block"
+                        ng-show="upload.protectedByYubikey" ng-click="downloadWithYubikey(getZipArchiveUrl())">
+                    <i class="glyphicon glyphicon-cloud-download"></i> Zip archive
+                </button>
+            </div>
+        </div>
         <!-- REMOVE BUTTON -->
         <div class="tile menu" ng-if="upload.id && (upload.removable || upload.admin)">
             <div class="menu-item">
