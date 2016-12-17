@@ -120,7 +120,7 @@ func GetQrCode(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request)
 }
 
 // RemoveUploadIfNoFileAvailable iterates on upload files and remove upload files
-// and metadata if all the files have been downloaded (usefull for OneShot uploads)
+// and metadata if all the files have been downloaded (useful for OneShot uploads)
 func RemoveUploadIfNoFileAvailable(ctx *juliet.Context, upload *common.Upload) {
 	log := common.GetLogger(ctx)
 
