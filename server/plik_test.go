@@ -30,8 +30,10 @@ THE SOFTWARE.
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -102,6 +104,24 @@ func TestMultipleFilesUploadAndGet(t *testing.T) {
 	test("getFile", upload, file2, 200, t)
 	test("getFile", upload, file3, 200, t)
 	test("getFile", upload, file4, 200, t)
+}
+
+func TestMultipleFilesUploadAndGetArchive(t *testing.T) {
+	upload := createUpload(&common.Upload{}, t)
+
+	file1 := uploadFile(upload, "test1", "", readerForUpload, t)
+	file2 := uploadFile(upload, "test2", "", readerForUpload, t)
+	file3 := uploadFile(upload, "test3", "", readerForUpload, t)
+	file4 := uploadFile(upload, "test4", "", readerForUpload, t)
+
+	upload.Files[file1.ID] = file1
+	upload.Files[file2.ID] = file2
+	upload.Files[file3.ID] = file3
+	upload.Files[file4.ID] = file4
+
+	// We have upload && files ?
+	test("getUpload", upload, nil, 200, t)
+	test("getArchive", upload, nil, 200, t)
 }
 
 func TestNonExistingUpload(t *testing.T) {
@@ -446,6 +466,50 @@ func getFile(upload *common.Upload, file *common.File) (httpCode int, content st
 	return
 }
 
+func getArchive(upload *common.Upload) (httpCode int, archive *zip.Reader, err error) {
+
+	var URL *url.URL
+	URL, err = url.Parse(plikURL + "/archive/" + upload.ID + "/archive.zip")
+	if err != nil {
+		return
+	}
+
+	var req *http.Request
+	req, err = http.NewRequest("GET", URL.String(), nil)
+	if err != nil {
+		return
+	}
+
+	req.Header.Set("User-Agent", "curl")
+
+	if upload.ProtectedByPassword {
+		req.Header.Set("Authorization", basicAuth)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+
+	httpCode = resp.StatusCode
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+
+	archive, err = zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		return
+	}
+
+	if len(upload.Files) != len(archive.File) {
+		err = fmt.Errorf("Expected %d files in archive but got %d", len(upload.Files), len(archive.File))
+		return
+	}
+
+	return
+}
+
 func removeFile(upload *common.Upload, file *common.File) (httpCode int, err error) {
 
 	var URL *url.URL
@@ -537,6 +601,21 @@ func test(action string, upload *common.Upload, file *common.File, expectedHTTPC
 			if strings.Contains(content, contentToUpload) {
 				t.Fatalf("Warning. Got file content on a 404 upload : %s", content)
 			}
+		}
+
+	case "getArchive":
+
+		t.Logf("Try to %s on upload %s. We should get a %d : ", action, upload.ID, expectedHTTPCode)
+
+		code, _, err := getArchive(upload)
+		if err != nil {
+			t.Fatalf("Failed to execute action %s on upload %s : %s", action, upload.ID, err)
+		}
+
+		if code != expectedHTTPCode {
+			t.Fatalf("We got http code %d on action %s on upload %s. We expected %d", code, action, upload.ID, expectedHTTPCode)
+		} else {
+			t.Logf(" -> Got a %d. Good", code)
 		}
 
 	case "removeFile":
