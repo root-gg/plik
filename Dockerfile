@@ -11,6 +11,8 @@ FROM debian:jessie
 MAINTAINER Charles-Antoine Mathieu
 MAINTAINER Mathieu Bodjikian
 
+RUN apt-get update && apt-get install -y ca-certificates
+
 # Create user
 RUN useradd -U -d /home/plik -m -s /bin/false plik 
 
