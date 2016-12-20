@@ -109,6 +109,13 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	resp.Header().Set("X-Frame-Options", "DENY")
 	resp.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'none'; style-src 'none'; img-src 'none'; connect-src 'none'; font-src 'none'; object-src 'none'; media-src 'none'; child-src 'none'; form-action 'none'; frame-ancestors 'none'; plugin-types ''; sandbox ''")
 
+	/* Additional header for disabling cache if the upload is OneShot */
+	if upload.OneShot {
+		resp.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate") // HTTP 1.1
+		resp.Header().Set("Pragma", "no-cache")                                   // HTTP 1.0
+		resp.Header().Set("Expires", "0")                                         // Proxies
+	}
+
 	if file.CurrentSize > 0 {
 		resp.Header().Set("Content-Length", strconv.Itoa(int(file.CurrentSize)))
 	}
