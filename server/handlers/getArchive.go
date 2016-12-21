@@ -72,18 +72,22 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 	// Get files to archive
 	var files []*common.File
 	for _, file := range upload.Files {
-		// If upload has OneShot option, test if one of the files has not been already downloaded once
-		if upload.OneShot && file.Status == "downloaded" {
-			log.Warningf("File %s has already been downloaded", file.Name)
-			common.Fail(ctx, req, resp, fmt.Sprintf("File %s has already been downloaded", file.Name), 404)
-			return
+		// Ignore uploading, missing, removed, one shot already downloaded,...
+		if file.Status != "uploaded" {
+			continue
 		}
 
-		// If the file is marked as deleted by a previous call, we abort request
-		if file.Status == "removed" {
-			log.Warningf("File %s has been removed", file.Name)
-			common.Fail(ctx, req, resp, "File %s has been removed", 404)
-			return
+		// Update metadata if oneShot option is set.
+		// Doing this later would increase the window to race the condition.
+		// To avoid the race completely AddOrUpdateFile should return the previous version of the metadata
+		// and ensure proper locking ( which is the case of bolt and looks doable with mongodb but would break the interface ).
+		if upload.OneShot {
+			file.Status = "downloaded"
+			err := metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file)
+			if err != nil {
+				log.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.ID, err)
+				continue
+			}
 		}
 
 		files = append(files, file)
@@ -163,15 +167,6 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 				log.Warningf("Failed to add file %s to the archive : %s", file.Name, err)
 				common.Fail(ctx, req, resp, fmt.Sprintf("Failed to add file %s to the archive", file.Name), 500)
 				return
-			}
-
-			// Update metadata if oneShot option is set
-			if upload.OneShot {
-				file.Status = "downloaded"
-				err = metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file)
-				if err != nil {
-					log.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.ID, err)
-				}
 			}
 
 			// File is piped directly to zip archive thus to the http response body without buffering

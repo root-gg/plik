@@ -150,6 +150,9 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		defer fileReader.Close()
 
 		// Update metadata if oneShot option is set
+		// There is a small possible race from upload.OneShot && file.Status == "downloaded" to here.
+		// To avoid the race completely AddOrUpdateFile should return the previous version of the metadata
+		// and ensure proper locking ( which is the case of bolt and looks doable with mongodb but would break the interface ).
 		if upload.OneShot {
 			file.Status = "downloaded"
 			err = metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file)
