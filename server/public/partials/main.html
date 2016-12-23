@@ -27,7 +27,7 @@ THE SOFTWARE.
 <div class="row">
     <div class="col-sm-3 center-block">
         <!-- UPLOAD MENU -->
-        <div class="tile menu" ng-if="!upload.id">
+        <div class="tile menu" ng-if="mode == 'upload'">
             <!-- ONE SHOT -->
             <div class="menu-item">
                 <label class="switch-input">
@@ -99,17 +99,19 @@ THE SOFTWARE.
                     </form>
                 </div>
             </div>
-        </div>
-        <!-- UPLOAD BUTTON -->
-        <div class="tile menu" ng-if="!upload.id && files.length">
+            <!-- CREATE EMPTY UPLOAD -->
             <div class="menu-item">
-                <button type="button" class="btn btn-lg btn-success btn-block" ng-click="newUpload()">
-                    <i class="glyphicon glyphicon-cloud-upload"></i> Upload
-                </button>
+                <p></p>
+                <div class="" style="text-align:center;">
+                    <a href="" class="small" ng-click="newUpload(true);"
+                        tooltip-placement="bottom" tooltip="Allow to add files to an upload afterward it's creation.">
+                        Create empty upload
+                    </a>
+                </div>
             </div>
         </div>
         <!-- DOWNLOAD MENU -->
-        <div class="tile menu" ng-if="upload.id">
+        <div class="tile menu" ng-if="mode == 'download'">
             <!-- SHORT UPLOAD LINK -->
             <div class="menu-item text-center" ng-show="upload.shortUrl">
                 <p><a href="{{upload.shortUrl}}">{{upload.shortUrl}}</a></p>
@@ -122,9 +124,55 @@ THE SOFTWARE.
             <div class="menu-item" ng-show="upload.ttl != 0">
                 <p class="text-center">This upload will {{ getExpirationDate() }}</p>
             </div>
+            <div class="menu-item text-center" ng-if="upload.uploadToken">
+                <a href="" class="small" ng-click="setAdminUrl()"
+                   tooltip-placement="bottom" tooltip="Allow to add/remove files to an upload afterward it's creation.">
+                    Admin url
+                </a>
+            </div>
+        </div>
+        <!-- DOWNLOAD AS ZIP BUTTON -->
+        <div class="tile menu" ng-if="mode == 'download' && somethingToDownload() && !upload.stream">
+            <div class="menu-item">
+                <!-- WITHOUT YUBIKEY -->
+                <a href="{{getZipArchiveUrl()}}" ng-show="!upload.protectedByYubikey">
+                    <button type="button" class="btn btn-lg btn-primary btn-block">
+                        <i class="glyphicon glyphicon-cloud-download"></i> Zip archive
+                    </button>
+                </a>
+                <!-- WITH YUBIKEY -->
+                <button type="button" class="btn btn-lg btn-primary btn-block"
+                        ng-show="upload.protectedByYubikey" ng-click="downloadWithYubikey(getZipArchiveUrl())">
+                    <i class="glyphicon glyphicon-cloud-download"></i> Zip archive
+                </button>
+            </div>
+        </div>
+        <!-- ADD FILES BUTTON -->
+        <div class="tile menu" ng-if="mode == 'download' && upload.admin && !upload.stream">
+            <div class="menu-item">
+                <div id="drop-zone-download"
+                     ngf-select="onFileSelect($files)"
+                     ngf-drop="onFileDrop($files,$event)"
+                     ngf-multiple="true"
+                     ngf-capture="'camera'"
+                     ngf-drag-over-class="drag-over">
+                    <!-- ADD FILE BUTTON -->
+                    <button type="button" class="btn btn-lg btn-primary btn-block">
+                        <i class="fa fa-file"></i> Add files
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- UPLOAD BUTTON -->
+        <div class="tile menu" ng-if="somethingToUpload()">
+            <div class="menu-item">
+                <button type="button" class="btn btn-lg btn-success btn-block" ng-click="newUpload()">
+                    <i class="glyphicon glyphicon-cloud-upload"></i> Upload
+                </button>
+            </div>
         </div>
         <!-- REMOVE BUTTON -->
-        <div class="tile menu" ng-if="upload.id && (upload.removable || upload.admin)">
+        <div class="tile menu" ng-if="mode == 'download' && (upload.removable || upload.admin)">
             <div class="menu-item">
                 <button type="button" class="btn btn-lg btn-danger btn-block" ng-click="removeUpload()">
                     <i class="glyphicon glyphicon-remove"></i> Delete
@@ -145,7 +193,7 @@ THE SOFTWARE.
             </div>
         </div>
         <!-- ADD FILE DROP ZONE -->
-        <div class="row" ng-show="!upload.id">
+        <div class="row" ng-show="mode == 'upload'">
             <div class="col-sm-12">
                 <div class="tile">
                     <div id="drop-zone"
@@ -167,14 +215,14 @@ THE SOFTWARE.
         </div>
         <!-- FILE LIST -->
         <div class="row row-padding" ng-repeat="file in files | orderBy:sortField:sortOrder">
-            <div class="col-sm-12">
+            <div class="col-sm-12" ng-if="isOk(file)">
                 <!-- TO UPLOAD -->
-                <div class="row row-padding tile file" ng-show="!file.metadata">
+                <div class="row row-padding tile file" ng-if="file.metadata.status == 'toUpload'">
                     <!-- FILENAME COLUMN -->
                     <div class="col-xs-7">
                         <div class="file-flex">
                             <div class="fa fa-pencil file-pencil-padding" ng-click="focus('EditableFileName-' + file.reference)"></div>
-                            <div contenteditable ng-model="file.fileName"
+                            <div contenteditable ng-model="$parent.$parent.file.fileName"
                                  class="file-name" validator="fileNameValidator" invalid-class="file-name-invalid"
                                  ng-attr-id="{{ 'EditableFileName-' + file.reference }}"></div>
                         </div>
@@ -191,7 +239,7 @@ THE SOFTWARE.
                     </div>
                 </div>
                 <!-- UPLOADING / UPLOADED -->
-                <div class="row tile file" ng-show="file.metadata">
+                <div class="row tile file" ng-if="file.metadata.status != 'toUpload'">
                     <!-- FILENAME COLUMN -->
                     <div class="col-xs-7">
                         <div class="file-name" ng-click="file.showdetails = !file.showdetails">
@@ -218,7 +266,7 @@ THE SOFTWARE.
                             </div>
                         </div>
                         <!-- DOWNLOAD BUTTONS -->
-                        <div ng-show="(upload.stream && file.metadata.status == 'missing') || (!upload.stream && file.metadata.status == 'uploaded')">
+                        <div ng-show="isDownloadable(file)">
                             <!-- DOWNLOAD WITHOUT YUBIKEY -->
                             <a href="{{getFileUrl(file,1)}}" ng-show="!upload.protectedByYubikey">
                                 <button data-action="share" title="Download" type="button" class="btn btn-success btn-sm"><span class="glyphicon glyphicon-cloud-download"></span><span class="hidden-xs hidden-sm"> Download</span></button>
@@ -226,7 +274,7 @@ THE SOFTWARE.
                             <!-- DOWNLOAD WITH YUBIKEY -->
                             <button title="Download" type="button" class="btn btn-success" ng-show="upload.protectedByYubikey" ng-click="downloadWithYubikey(getFileUrl(file))"><span class="glyphicon glyphicon-cloud-download"></span><span class="hidden-xs hidden-sm hidden-md"> Download</span></button>
                             <!-- QR CODE -->
-                            <button title="Copy to clipboard" type="button" class="btn btn-success btn-sm hidden-xs" ng-click="displayQRCodeFile(file)">
+                            <button title="Display QRCode" type="button" class="btn btn-success btn-sm hidden-xs" ng-click="displayQRCodeFile(file)">
                                 <span class="glyphicon glyphicon-qrcode"></span> <!--<span class="hidden-xs hidden-sm hidden-md">QR Code</span>-->
                             </button>
                             <!-- REMOVE FILE -->
@@ -234,19 +282,15 @@ THE SOFTWARE.
                                 <span class="glyphicon glyphicon-remove"></span> <!--<span class="hidden-xs hidden-sm hidden-md">Remove</span>-->
                             </button>
                         </div>
-                        <!-- STATUS -->
-                        <div ng-show="file.metadata.status != 'uploading' && file.metadata.status != 'uploaded' && !(upload.stream && file.metadata.status == 'missing')">
-                            <span class="file-status">{{file.metadata.status.toUpperCase()}}</span>
-                        </div>
                     </div>
                 </div>
             </div>
         </div>
         <!-- LINK LIST -->
-        <div class="row" ng-show="upload.id && files.length">
+        <div class="row" ng-show="mode == 'download' && files.length">
             <div class="col-sm-12">
                 <div class="tile link-summary"  style="text-align:center">
-                    <div ng-repeat="file in files" ng-show="(upload.stream && (file.metadata.status == 'uploading' || file.metadata.status == 'missing')) || (!upload.stream && file.metadata.status == 'uploaded')">
+                    <div ng-repeat="file in files" ng-show="isDownloadable(file) || (upload.stream && file.metadata.status == 'uploading')">
                         <a href="{{getFileUrl(file)}}"> {{getFileUrl(file)}}</a>
                     </div>
                 </div>

@@ -105,7 +105,7 @@ func (pb *Backend) Configure(arguments map[string]interface{}) (err error) {
 
 	// How many entities we have found ?
 	if countEntitiesFound == 0 {
-		return fmt.Errorf("No key found for input '%s' in your keyring !", pb.Config.Recipient)
+		return fmt.Errorf("No key found for input '%s' in your keyring", pb.Config.Recipient)
 	} else if countEntitiesFound == 1 {
 		pb.Config.Entity = entitiesFound[intToEntity[0]]
 		pb.Config.Email = emailsFound[0]

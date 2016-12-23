@@ -13,9 +13,9 @@ green='\e[0;32m'
 endColor='\e[0m'
 function jsonValue() {
     KEY=$1
-    num=$2
-    awk -F"[,:}]" '{for(i=1;i<=NF;i++){if($i~/\042'$KEY'\042/){print $(i+1)}}}' | tr -d '"' | sed -n ${num}p
+    sed -e "s/,/\n/g" | sed -e "s/[\"{}]//g" | grep $KEY | cut -d ":" -f2-
 }
+
 function qecho(){ 
     if [ "$QUIET" == false ]; then echo $@; fi
 }
@@ -104,6 +104,7 @@ qecho -e "Create new upload on $PLIK_URL...\n"
 CREATE_UPLOAD_CMD="curl -s -X POST $AUTH_TOKEN_HEADER -d '$OPTIONS' ${PLIK_URL}/upload"
 NEW_UPLOAD_RESP=$(eval $CREATE_UPLOAD_CMD)
 UPLOAD_ID=$(echo $NEW_UPLOAD_RESP | jsonValue id)
+DOWNLOAD_DOMAIN=$(echo $NEW_UPLOAD_RESP | jsonValue downloadDomain)
 
 # Handle error
 if [ "$UPLOAD_ID" == "" ]; then
@@ -206,7 +207,7 @@ do
     FILE_MD5=$(echo $FILE_RESP | jsonValue fileMd5)
     FILE_NAME=$(echo $FILE_RESP | jsonValue fileName)
     FILE_STATUS=$(echo $FILE_RESP | jsonValue status)
-    FILE_URL="$PLIK_URL/file/$UPLOAD_ID/$FILE_ID/$FILE_NAME"
+    FILE_URL="$DOWNLOAD_DOMAIN/file/$UPLOAD_ID/$FILE_ID/$FILE_NAME"
 
     # Compute get command
     COMMAND="curl -s $FILE_URL"

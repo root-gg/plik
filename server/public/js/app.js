@@ -198,7 +198,13 @@ angular.module('api', ['ngFileUpload']).
         // Upload a file
         api.uploadFile = function(upload, file, progres_cb, basicAuth) {
             var mode = upload.stream ? "stream" : "file";
-            var url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
+            var url;
+            if (file.metadata.id) {
+                url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
+            } else {
+                // When adding file to an existing upload
+                  url = api.base + '/' + mode + '/' + upload.id;
+            }
             return api.upload(url, file, null, progres_cb, basicAuth, upload.uploadToken);
         };
 
@@ -398,6 +404,7 @@ function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
 
     // Initialize main controller
     $scope.init = function () {
+        $scope.mode = 'upload';
         // Display error from redirect if any
         var err = $location.search().err;
         if (!_.isUndefined(err)) {
@@ -408,6 +415,7 @@ function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
             } else {
                 var code = $location.search().errcode;
                 $dialog.alert({status: code, message: err});
+                $location.search({});
             }
         } else {
             // Load current upload id
@@ -418,8 +426,10 @@ function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
     // Load upload from id
     $scope.load = function (id) {
         if (!id) return;
+        $scope.mode = 'download';
         $scope.upload.id = id;
-        $api.getUpload($scope.upload.id, $location.search().uploadToken)
+        $scope.upload.uploadToken = $location.search().uploadToken;
+        $api.getUpload($scope.upload.id, $scope.upload.uploadToken)
             .then(function (upload) {
                 _.extend($scope.upload, upload);
                 $scope.files = _.map($scope.upload.files, function (file) {
@@ -492,7 +502,21 @@ function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
             file.fileSize = file.size;
             file.fileType = file.type;
 
+            file.metadata = { status : "toUpload" };
+
             $scope.files.push(file);
+        });
+    };
+
+    $scope.somethingToUpload = function() {
+        return _.find($scope.files, function(file){
+            if (file.metadata.status == "toUpload") return true;
+        });
+    };
+
+    $scope.somethingToDownload = function() {
+        return _.find($scope.files, function(file){
+            if (file.metadata.status == "uploaded") return true;
         });
     };
 
@@ -533,76 +557,84 @@ function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
     };
 
     // Create a new upload
-    $scope.newUpload = function () {
-        if (!$scope.files.length) return;
-        // Get TTL value
-        if(!$scope.checkTTL()) return;
-        $scope.upload.ttl = $scope.getTTL();
-        // HTTP basic auth prompt dialog
-        if ($scope.password && !($scope.upload.login && $scope.upload.password)) {
-            $scope.getPassword();
-            return;
-        }
-        // Yubikey prompt dialog
-        if ($scope.config.yubikeyEnabled && $scope.yubikey && !$scope.upload.yubikey) {
-            $scope.getYubikey();
-            return;
-        }
-        // Create file to upload list
-        $scope.upload.files = {};
-        var ko = _.find($scope.files, function (file) {
-            // Check file name length
-            if(file.fileName.length > fileNameMaxLength) {
-                $dialog.alert({
-                    status: 0,
-                    message: "File name max length is " + fileNameMaxLength + " characters"
-                });
-                return true; // break find loop
+    $scope.newUpload = function (empty) {
+        if (!empty && !$scope.files.length) return;
+        if ($scope.upload.id) {
+            // When adding file to an existing upload
+            $scope.uploadFiles();
+        } else {
+            // Get TTL value
+            if (!$scope.checkTTL()) return;
+            $scope.upload.ttl = $scope.getTTL();
+            // HTTP basic auth prompt dialog
+            if ($scope.password && !($scope.upload.login && $scope.upload.password)) {
+                $scope.getPassword();
+                return;
             }
-            // Check invalid characters
-            if (!$scope.fileNameValidator(file.fileName)) {
-                $dialog.alert({
-                    status: 0,
-                    message: "Invalid file name " + file.fileName + "\n",
-                    value: "Forbidden characters are : " + invalidCharList.join(' ')
-                });
-                return true; // break find loop
+            // Yubikey prompt dialog
+            if ($scope.config.yubikeyEnabled && $scope.yubikey && !$scope.upload.yubikey) {
+                $scope.getYubikey();
+                return;
             }
-            // Sanitize file object
-            $scope.upload.files[file.reference] = {
-                fileName : file.fileName,
-                fileType : file.fileType,
-                fileSize : file.fileSize,
-                reference : file.reference
-            };
-        });
-        if(ko) return;
-        $api.createUpload($scope.upload)
-            .then(function (upload) {
-                $scope.upload = upload;
-                // Match file metadata using the reference
-                _.each($scope.upload.files, function (file) {
-                    _.every($scope.files, function (f) {
-                        if (f.reference == file.reference) {
-                            f.metadata = file;
-                            return false;
-                        }
-                        return true;
+            // Create file to upload list
+            $scope.upload.files = {};
+            var ko = _.find($scope.files, function (file) {
+                // Check file name length
+                if (file.fileName.length > fileNameMaxLength) {
+                    $dialog.alert({
+                        status: 0,
+                        message: "File name max length is " + fileNameMaxLength + " characters"
                     });
-                });
-                $location.search('id', $scope.upload.id);
-                $scope.uploadFiles();
-            })
-            .then(null, function (error) {
-                $dialog.alert(error);
+                    return true; // break find loop
+                }
+                // Check invalid characters
+                if (!$scope.fileNameValidator(file.fileName)) {
+                    $dialog.alert({
+                        status: 0,
+                        message: "Invalid file name " + file.fileName + "\n",
+                        value: "Forbidden characters are : " + invalidCharList.join(' ')
+                    });
+                    return true; // break find loop
+                }
+                // Sanitize file object
+                $scope.upload.files[file.reference] = {
+                    fileName: file.fileName,
+                    fileType: file.fileType,
+                    fileSize: file.fileSize,
+                    reference: file.reference
+                };
             });
+            if (ko) return;
+            $api.createUpload($scope.upload)
+                .then(function (upload) {
+                    $scope.upload = upload;
+                    // Match file metadata using the reference
+                    _.each($scope.upload.files, function (file) {
+                        _.every($scope.files, function (f) {
+                            if (f.reference == file.reference) {
+                                f.metadata = file;
+                                f.metadata.status = "toUpload";
+                                return false;
+                            }
+                            return true;
+                        });
+                    });
+                    $location.search('id', $scope.upload.id);
+                    if (empty) $scope.setAdminUrl();
+                    $scope.uploadFiles();
+                })
+                .then(null, function (error) {
+                    $dialog.alert(error);
+                });
+        }
     };
 
     // Upload every files
     $scope.uploadFiles = function () {
         if (!$scope.upload.id) return;
+        $scope.mode = 'download';
         _.each($scope.files, function (file) {
-            if (!file.metadata.id) return;
+            if (!(file.metadata && file.metadata.status == "toUpload")) return;
             var progress = function (event) {
                 // Update progress bar callback
                 file.progress = parseInt(100.0 * event.loaded / event.total);
@@ -639,7 +671,7 @@ function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
         $api.removeFile($scope.upload, file)
             .then(function () {
                 $scope.files = _.reject($scope.files, function (f) {
-                    return f.metadata.reference == file.metadata.reference;
+                    return f.metadata.id == file.metadata.id;
                 });
                 // Redirect to main page if no more files
                 if (!$scope.files.length) {
@@ -650,6 +682,25 @@ function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
             .then(null, function (error) {
                 $dialog.alert(error);
             });
+    };
+
+    // Check if file is downloadable
+    $scope.isDownloadable = function(file) {
+        if ($scope.upload.stream) {
+            if (file.metadata.status == 'missing') return true;
+        } else {
+            if (file.metadata.status == 'uploaded') return true;
+        }
+        return false;
+    };
+
+    // Check if file is in a error status
+    $scope.isOk = function(file) {
+        if (file.metadata.status == 'toUpload') return true;
+        else if (file.metadata.status == 'uploading') return true;
+        else if (file.metadata.status == 'uploaded') return true;
+        else if ($scope.upload.stream && file.metadata.status == 'missing') return true;
+        return false;
     };
 
     // Compute human readable size
@@ -669,6 +720,18 @@ function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
             url += "?dl=1";
         }
 
+        return encodeURI(url);
+    };
+
+    // Return zip archive download URL
+    $scope.getZipArchiveUrl = function (dl) {
+        if (!$scope.upload.id) return;
+        var domain = $scope.config.downloadDomain ? $scope.config.downloadDomain : location.origin;
+        var url = domain + '/archive/' + $scope.upload.id + '/archive.zip';
+        if (dl) {
+            // Force file download
+            url += "?dl=1";
+        }
         return encodeURI(url);
     };
 

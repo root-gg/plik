@@ -58,6 +58,9 @@ Get file :
   - **GET**  /$mode/:uploadid:/:fileid:/:filename:/yubikey/:yubikeyOtp:
     - Same as previous call, except that you can specify a Yubikey OTP in the URL if the upload is Yubikey restricted.
 
+  - **GET**  /archive/:uploadid:/:filename:
+    - Download uploaded files in a zip archive. :filename: must end with .zip
+
 Remove file :
 
    - **DELETE** /$mode/:uploadid:/:fileid:/:filename:

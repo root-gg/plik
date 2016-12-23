@@ -49,7 +49,7 @@ type Backend struct {
 func NewZipBackend(config map[string]interface{}) (zb *Backend, err error) {
 	zb = new(Backend)
 	zb.Config = NewZipBackendConfig(config)
-	if _, err := os.Stat(zb.Config.Zip); os.IsNotExist(err) || os.IsPermission(err) {
+	if _, err = os.Stat(zb.Config.Zip); os.IsNotExist(err) || os.IsPermission(err) {
 		if zb.Config.Zip, err = exec.LookPath("zip"); err != nil {
 			err = errors.New("zip binary not found in $PATH, please install or edit ~/.plickrc")
 		}

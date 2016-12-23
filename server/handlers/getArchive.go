@@ -30,20 +30,21 @@ THE SOFTWARE.
 package handlers
 
 import (
+	"archive/zip"
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 
+	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/gorilla/mux"
 	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/dataBackend"
 	"github.com/root-gg/plik/server/metadataBackend"
 )
 
-// GetFile download a file
-func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+// GetArchive download all file of the upload in a zip archive
+func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 
 	// If a download domain is specified verify that the request comes from this specific domain
@@ -68,40 +69,37 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Get file from context
-	file := common.GetFile(ctx)
-	if file == nil {
-		// This should never append
-		log.Critical("Missing file in getFileHandler")
-		common.Fail(ctx, req, resp, "Internal error", 500)
+	// Get files to archive
+	var files []*common.File
+	for _, file := range upload.Files {
+		// Ignore uploading, missing, removed, one shot already downloaded,...
+		if file.Status != "uploaded" {
+			continue
+		}
+
+		// Update metadata if oneShot option is set.
+		// Doing this later would increase the window to race the condition.
+		// To avoid the race completely AddOrUpdateFile should return the previous version of the metadata
+		// and ensure proper locking ( which is the case of bolt and looks doable with mongodb but would break the interface ).
+		if upload.OneShot {
+			file.Status = "downloaded"
+			err := metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file)
+			if err != nil {
+				log.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.ID, err)
+				continue
+			}
+		}
+
+		files = append(files, file)
+	}
+
+	if len(files) == 0 {
+		common.Fail(ctx, req, resp, "Nothing to archive", 404)
 		return
 	}
 
-	// If upload has OneShot option, test if file has not been already downloaded once
-	if upload.OneShot && file.Status == "downloaded" {
-		log.Warningf("File %s has already been downloaded", file.Name)
-		common.Fail(ctx, req, resp, fmt.Sprintf("File %s has already been downloaded", file.Name), 404)
-		return
-	}
-
-	// If the file is marked as deleted by a previous call, we abort request
-	if file.Status == "removed" {
-		log.Warningf("File %s has been removed", file.Name)
-		common.Fail(ctx, req, resp, "File %s has been removed", 404)
-		return
-	}
-
-	// Avoid rendering HTML in browser
-	if strings.Contains(file.Type, "html") {
-		file.Type = "text/plain"
-	}
-
-	if file.Type == "" || strings.Contains(file.Type, "flash") || strings.Contains(file.Type, "pdf") {
-		file.Type = "application/octet-stream"
-	}
-
-	// Set content type and print file
-	resp.Header().Set("Content-Type", file.Type)
+	// Set content type
+	resp.Header().Set("Content-Type", "application/zip")
 
 	/* Additional security headers for possibly unsafe content */
 	resp.Header().Set("X-Content-Type-Options", "nosniff")
@@ -116,8 +114,19 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		resp.Header().Set("Expires", "0")                                         // Proxies
 	}
 
-	if file.CurrentSize > 0 {
-		resp.Header().Set("Content-Length", strconv.Itoa(int(file.CurrentSize)))
+	// Get the file name from the url params
+	vars := mux.Vars(req)
+	fileName := vars["filename"]
+	if fileName == "" {
+		log.Warning("Missing file name")
+		common.Fail(ctx, req, resp, "Missing file name", 400)
+		return
+	}
+
+	if strings.HasSuffix(".zip", fileName) {
+		log.Warningf("Invalid file name %s. Missing .zip extention", fileName)
+		common.Fail(ctx, req, resp, fmt.Sprintf("Invalid file name %s. Missing .zip extention", fileName), 400)
+		return
 	}
 
 	// If "dl" GET params is set
@@ -125,55 +134,66 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	// -> The client should download file instead of displaying it
 	dl := req.URL.Query().Get("dl")
 	if dl != "" {
-		resp.Header().Set("Content-Disposition", fmt.Sprintf(`attachement; filename="%s"`, file.Name))
+		resp.Header().Set("Content-Disposition", fmt.Sprintf(`attachement; filename="%s"`, fileName))
 	} else {
-		resp.Header().Set("Content-Disposition", fmt.Sprintf(`filename="%s"`, file.Name))
+		resp.Header().Set("Content-Disposition", fmt.Sprintf(`filename="%s"`, fileName))
 	}
 
 	// HEAD Request => Do not print file, user just wants http headers
 	// GET  Request => Print file content
 	if req.Method == "GET" {
 		// Get file in data backend
-		var backend dataBackend.DataBackend
-		if upload.Stream {
-			backend = dataBackend.GetStreamBackend()
-		} else {
-			backend = dataBackend.GetDataBackend()
-		}
 
-		fileReader, err := backend.GetFile(ctx, upload, file.ID)
-		if err != nil {
-			log.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.ID, err)
-			common.Fail(ctx, req, resp, fmt.Sprintf("Failed to read file %s", file.Name), 404)
+		if upload.Stream {
+			common.Fail(ctx, req, resp, "Archive feature is not available in stream mode", 404)
 			return
 		}
-		defer fileReader.Close()
 
-		// Update metadata if oneShot option is set
-		// There is a small possible race from upload.OneShot && file.Status == "downloaded" to here.
-		// To avoid the race completely AddOrUpdateFile should return the previous version of the metadata
-		// and ensure proper locking ( which is the case of bolt and looks doable with mongodb but would break the interface ).
-		if upload.OneShot {
-			file.Status = "downloaded"
-			err = metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file)
+		backend := dataBackend.GetDataBackend()
+
+		// The zip archive is piped directly to http response body without buffering
+		archive := zip.NewWriter(resp)
+
+		for _, file := range files {
+			fileReader, err := backend.GetFile(ctx, upload, file.ID)
 			if err != nil {
-				log.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.ID, err)
-			}
-		}
-
-		// File is piped directly to http response body without buffering
-		_, err = io.Copy(resp, fileReader)
-		if err != nil {
-			log.Warningf("Error while copying file to response : %s", err)
-		}
-
-		// Remove file from data backend if oneShot option is set
-		if upload.OneShot {
-			err = backend.RemoveFile(ctx, upload, file.ID)
-			if err != nil {
-				log.Warningf("Error while deleting file %s from upload %s : %s", file.Name, upload.ID, err)
+				log.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.ID, err)
+				common.Fail(ctx, req, resp, fmt.Sprintf("Failed to read file %s", file.Name), 404)
 				return
 			}
+
+			fileWriter, err := archive.Create(file.Name)
+			if err != nil {
+				log.Warningf("Failed to add file %s to the archive : %s", file.Name, err)
+				common.Fail(ctx, req, resp, fmt.Sprintf("Failed to add file %s to the archive", file.Name), 500)
+				return
+			}
+
+			// File is piped directly to zip archive thus to the http response body without buffering
+			_, err = io.Copy(fileWriter, fileReader)
+			if err != nil {
+				log.Warningf("Error while copying file to response : %s", err)
+			}
+
+			err = fileReader.Close()
+			if err != nil {
+				log.Warningf("Error while closing file reader : %s", err)
+			}
+
+			// Remove file from data backend if oneShot option is set
+			if upload.OneShot {
+				err = backend.RemoveFile(ctx, upload, file.ID)
+				if err != nil {
+					log.Warningf("Error while deleting file %s from upload %s : %s", file.Name, upload.ID, err)
+					return
+				}
+			}
+		}
+
+		err := archive.Close()
+		if err != nil {
+			log.Warningf("Failed to close zip archive : %s", err)
+			return
 		}
 
 		// Remove upload if no files anymore
