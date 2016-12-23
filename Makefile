@@ -70,7 +70,6 @@ servers: frontend
 		echo "Compiling plik server for $$target to $$SERVER_PATH"; \
 		go build -o $$SERVER_PATH ;	\
 	done
-	@sed -i -e "s/$(RELEASE_VERSION)/##VERSION##/g" server/common/config.go
 
 
 ###
