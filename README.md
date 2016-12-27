@@ -296,11 +296,20 @@ Detailed documentation : http://nginx.org/en/docs/http/ngx_http_proxy_module.htm
    client_body_buffer_size 1M;
 ```
 
-* Why authentication don't work with HTTP connections ?
+* Why authentication does not work with HTTP connections ?
 
 Plik session cookies have the "secure" flag set, so they can only be transmitted over secure HTTPS connections.
 
-*  How to take and upload screenshots like a boss ?
+* Build failure "/usr/bin/env: ‘node’: No such file or directory"
+
+Debian users might need to install the nodejs-legacy package.
+
+```
+This package contains a symlink for legacy Node.js code requiring
+binary to be /usr/bin/node (not /usr/bin/nodejs as provided in Debian).
+```
+
+* How to take and upload screenshots like a boss ?
 
 ```
 alias pshot="scrot -s -e 'plik -q \$f | xclip ; xclip -o ; rm \$f'"
@@ -313,7 +322,6 @@ The screenshot is then removed of your home directory to avoid garbage.
 
 * How to contribute to the project ?
 
-Contributions are welcome, feel free to open issues and/or submit pull requests.  
-Please make your pull requests against the current development (RC) branch, not against master.  
+Contributions are welcome, feel free to open issues and/or submit pull requests.
 Please run/update the test suite using the makefile test target.
 
