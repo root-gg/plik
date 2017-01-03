@@ -79,6 +79,13 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 		}
 	}
 
+	// Limit number of files per upload
+	if len(upload.Files) > common.Config.MaxFilePerUpload {
+		err := log.EWarningf("Unable to create upload : Maximum number file per upload reached (%d)", common.Config.MaxFilePerUpload)
+		common.Fail(ctx, req, resp, err.Error(), 403)
+		return
+	}
+
 	// Set upload id, creation date, upload token, ...
 	upload.Create()
 

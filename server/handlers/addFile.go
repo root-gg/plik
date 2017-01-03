@@ -75,12 +75,20 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	fileID := vars["fileID"]
 
-	// Create a new file object
 	var newFile *common.File
 	if fileID == "" {
+		// Limit number of files per upload
+		if len(upload.Files) >= common.Config.MaxFilePerUpload {
+			err := log.EWarningf("Unable to add file : Maximum number file per upload reached (%d)", common.Config.MaxFilePerUpload)
+			common.Fail(ctx, req, resp, err.Error(), 403)
+			return
+		}
+
+		// Create a new file object
 		newFile = common.NewFile()
 		newFile.Type = "application/octet-stream"
 	} else {
+		// Get file object from upload
 		if _, ok := upload.Files[fileID]; ok {
 			newFile = upload.Files[fileID]
 		} else {

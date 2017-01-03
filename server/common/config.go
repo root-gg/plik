@@ -41,10 +41,11 @@ import (
 
 // Configuration object
 type Configuration struct {
-	LogLevel      string `json:"-"`
-	ListenAddress string `json:"-"`
-	ListenPort    int    `json:"-"`
-	MaxFileSize   int64  `json:"maxFileSize"`
+	LogLevel         string `json:"-"`
+	ListenAddress    string `json:"-"`
+	ListenPort       int    `json:"-"`
+	MaxFileSize      int64  `json:"maxFileSize"`
+	MaxFilePerUpload int    `json:"maxFilePerUpload"`
 
 	DefaultTTL int `json:"defaultTTL"`
 	MaxTTL     int `json:"maxTTL"`
@@ -93,20 +94,21 @@ var UploadWhitelist []*net.IPNet
 
 // NewConfiguration creates a new configuration
 // object with default values
-func NewConfiguration() (this *Configuration) {
-	this = new(Configuration)
-	this.LogLevel = "INFO"
-	this.ListenAddress = "0.0.0.0"
-	this.ListenPort = 8080
-	this.DataBackend = "file"
-	this.MetadataBackend = "file"
-	this.MaxFileSize = 10737418240 // 10GB
-	this.DefaultTTL = 2592000      // 30 days
-	this.MaxTTL = 0
-	this.SslEnabled = false
-	this.SslCert = ""
-	this.SslKey = ""
-	this.StreamMode = true
+func NewConfiguration() (config *Configuration) {
+	config = new(Configuration)
+	config.LogLevel = "INFO"
+	config.ListenAddress = "0.0.0.0"
+	config.ListenPort = 8080
+	config.DataBackend = "file"
+	config.MetadataBackend = "file"
+	config.MaxFileSize = 10737418240 // 10GB
+	config.MaxFilePerUpload = 1000
+	config.DefaultTTL = 2592000 // 30 days
+	config.MaxTTL = 0
+	config.SslEnabled = false
+	config.SslCert = ""
+	config.SslKey = ""
+	config.StreamMode = true
 	return
 }
 
