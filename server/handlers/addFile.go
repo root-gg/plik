@@ -71,6 +71,13 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Limit number of files per upload
+	if len(upload.Files) >= 1000 {
+		log.Warningf("Unable to add file : Maximum number file per upload reached (1000)")
+		common.Fail(ctx, req, resp, "Unable to add file : Maximum number file per upload reached (1000)", 403)
+		return
+	}
+
 	// Get the file id from the url params
 	vars := mux.Vars(req)
 	fileID := vars["fileID"]
