@@ -41,10 +41,10 @@ import (
 // Backend object
 type Backend struct {
 	config     *configInfo
-	connection swift.Connection
+	connection *swift.Connection
 }
 
-// NewSwiftBackend instantiate a new Openjuliet Swift Data Backend
+// NewSwiftBackend instantiate a new OpenSwift Data Backend
 // from configuration passed as argument
 func NewSwiftBackend(config map[string]interface{}) (sb *Backend) {
 	sb = new(Backend)
@@ -151,7 +151,7 @@ func (sb *Backend) auth(ctx *juliet.Context) (err error) {
 		return
 	}
 
-	connection := swift.Connection{
+	connection := &swift.Connection{
 		UserName: sb.config.Username,
 		ApiKey:   sb.config.Password,
 		AuthUrl:  sb.config.Host,
