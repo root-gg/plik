@@ -654,6 +654,8 @@ Wslu8jCqJpbcKUL7k2mfTKwJ97h1Go5LMurSR9W2psZrmyHXbCccu0CghK/Y7g==
 =/xyA
 -----END PGP PRIVATE KEY BLOCK-----
 EOF
+
+touch "$TMPDIR/pubring.gpg"
 gpg --import $TMPDIR/pgp.key >/dev/null 2>/dev/null
 
 # Use temporary keyring
