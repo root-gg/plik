@@ -32,7 +32,7 @@ THE SOFTWARE.
             <form class="form-horizontal">
                 <div class="form-group">
                     <div class="col-sm-8">
-                        <input id="yubikey" type="text" ng-model="token" ng-change="check(token)" class="form-control" placeholder="Yubikey OTP"></input>
+                        <input id="yubikey" type="text" ng-model="token" ng-change="check(token)" class="form-control" placeholder="Yubikey OTP"/>
                     </div>
                 </div>
             </form>
@@ -40,6 +40,6 @@ THE SOFTWARE.
     </div>
 </div>
 <div class="modal-footer">
-    <button ng-click="dismiss()" class="btn btn-danger">Cancel</button>
-    <button ng-click="check(token)" class="btn btn-primary">Close</button>
+    <button ng-click="$dismiss('cancel')" class="btn btn-danger">Cancel</button>
+    <button ng-click="$close(token)" class="btn btn-primary">Close</button>
 </div>

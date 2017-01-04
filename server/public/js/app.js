@@ -73,29 +73,35 @@ angular.module('contentEditable', []).
 
 // Modal dialog service
 angular.module('dialog', ['ui.bootstrap']).
-    factory('$dialog', function ($rootScope, $modal) {
-
-        $rootScope.dialogs = [];
-
-        // Register dialog
-        $rootScope.registerDialog = function($dialog){
-            $rootScope.dialogs.push($dialog);
-        };
-
-        // Dismiss dialog
-        $rootScope.dismissDialog = function($dialog) {
-            $rootScope.dialogs = _.without($rootScope.dialogs, $dialog);
-        };
+    factory('$dialog', function ($uibModal) {
 
         var module = {};
 
+        // Define error partial here so we can display a connection error
+        // without having to load the template from the server
+        var alertTemplate  = '<div class="modal-header">' + "\n";
+            alertTemplate +=    '<h1>{{title}}</h1>' + "\n";
+            alertTemplate += '</div>' + "\n";
+            alertTemplate += '<div class="modal-body">' + "\n";
+            alertTemplate +=    '<p>{{message}}</p>' + "\n";
+            alertTemplate +=    '<p ng-show="data.value">' + "\n";
+            alertTemplate +=        '{{value}}' + "\n";
+            alertTemplate +=    '</p>' + "\n";
+            alertTemplate += '</div>' + "\n";
+            alertTemplate += '<div class="modal-footer" ng-if="confirm">' + "\n";
+            alertTemplate +=    '<button ng-click="$dismiss()" class="btn btn-danger">Cancel</button>' + "\n";
+            alertTemplate +=    '<button ng-click="$close()" class="btn btn-success">OK</button>' + "\n";
+            alertTemplate += '</div>' + "\n";
+            alertTemplate += '<div class="modal-footer" ng-if="!confirm">' + "\n";
+            alertTemplate +=    '<button ng-click="$close()" class="btn btn-primary">Close</button>' + "\n";
+            alertTemplate += '</div>' + "\n";
+
         // alert dialog
         module.alert = function (data) {
-            if (!data) return false;
             var options = {
                 backdrop: true,
                 backdropClick: true,
-                templateUrl: 'partials/alert.html',
+                template: alertTemplate,
                 controller: 'AlertDialogController',
                 resolve: {
                     args: function () {
@@ -105,19 +111,13 @@ angular.module('dialog', ['ui.bootstrap']).
                     }
                 }
             };
-            module.openDialog(options);
+
+            return module.openDialog(options);
         };
 
         // generic dialog
         module.openDialog = function (options) {
-            if (!options) return false;
-
-            $.each($rootScope.dialogs, function (i, dialog) {
-                dialog.close();
-            });
-            $rootScope.dialogs = [];
-
-            $modal.open(options);
+            return $uibModal.open(options);
         };
 
         return module;
@@ -140,39 +140,39 @@ angular.module('api', ['ngFileUpload']).
                 data: data,
                 headers: headers
             })
-                .success(function (data) {
-                    promise.resolve(data);
-                })
-                .error(function (data, code) {
-                    // Format HTTP error return for the dialog service
-                    promise.reject({status: code, message: data.message});
-                });
+            .then(function success(resp) {
+                console.log("api ok",resp);
+                promise.resolve(resp.data);
+            }, function error(resp) {
+                console.log("api fail",resp);
+                // Format HTTP error return for the dialog service
+                var message = (resp.data && resp.data.message) ? resp.data.message : "Unknown error";
+                promise.reject({status: resp.status, message: message});
+            });
             return promise.promise;
         };
 
         // Make the actual HTTP call to upload a file and return a promise
-        api.upload = function (url, file, params, progress_cb, basicAuth, uploadToken) {
+        api.upload = function (url, file, progress_cb, basicAuth, uploadToken) {
             var promise = $q.defer();
             var headers = {};
             if (uploadToken) headers['X-UploadToken'] = uploadToken;
             if (basicAuth) headers['Authorization'] = "Basic " + basicAuth;
+
             Upload
                 .upload({
                     url: url,
                     method: 'POST',
-                    data: params,
-                    fileName: file.metadata.fileName,
-                    file: file,
+                    file: Upload.rename(file, file.fileName),
                     headers: headers
                 })
-                .progress(progress_cb)
-                .success(function (data) {
-                    promise.resolve(data);
-                })
-                .error(function (data, code) {
+                .then(function success(resp) {
+                    promise.resolve(resp.data);
+                }, function error(resp) {
                     // Format HTTP error return for the dialog service
-                    promise.reject({status: code, message: data.message});
-                });
+                    var message = (resp.data && resp.data.message) ? resp.data.message : "Unknown error";
+                    promise.reject({status: resp.status, message: message});
+                }, progress_cb);
 
             return promise.promise;
         };
@@ -205,7 +205,7 @@ angular.module('api', ['ngFileUpload']).
                 // When adding file to an existing upload
                   url = api.base + '/' + mode + '/' + upload.id;
             }
-            return api.upload(url, file, null, progres_cb, basicAuth, upload.uploadToken);
+            return api.upload(url, file, progres_cb, basicAuth, upload.uploadToken);
         };
 
         // Remove a file
@@ -314,19 +314,33 @@ angular.module('config', ['api']).
     });
 
 // Plik app bootstrap and global configuration
-angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'contentEditable', 'btford.markdown'])
+var plik = angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'contentEditable', 'btford.markdown'])
     .config(function ($routeProvider) {
         $routeProvider
-            .when('/', {controller: MainCtrl, templateUrl: 'partials/main.html', reloadOnSearch: false})
-            .when('/clients', {controller: ClientListCtrl, templateUrl: 'partials/clients.html'})
-            .when('/login', {controller: LoginCtrl, templateUrl: 'partials/login.html'})
-            .when('/home', {controller: HomeCtrl, templateUrl: 'partials/home.html'})
+            .when('/', {controller: 'MainCtrl', templateUrl: 'partials/main.html', reloadOnSearch: false})
+            .when('/clients', {controller: 'ClientListCtrl', templateUrl: 'partials/clients.html'})
+            .when('/login', {controller: 'LoginCtrl', templateUrl: 'partials/login.html'})
+            .when('/home', {controller: 'HomeCtrl', templateUrl: 'partials/home.html'})
             .otherwise({redirectTo: '/'});
     })
     .config(['$httpProvider', function ($httpProvider) {
         $httpProvider.defaults.headers.common['X-ClientApp'] = 'web_client';
         $httpProvider.defaults.xsrfCookieName = 'plik-xsrf';
         $httpProvider.defaults.xsrfHeaderName = 'X-XRSFToken';
+
+        // When connection refused happens we are not sure
+        // to be able to load the alert dialog template
+        $httpProvider.interceptors.push(function($q) {
+            return {
+                responseError: function(resp) {
+                    if(resp.status <= 0) {
+                        resp.data = { status : resp.status, message : "Connection failed"};
+                    }
+                    console.log("interceptor", resp);
+                    return $q.reject(resp);
+                }
+            };
+        });
     }])
     .filter('collapseClass', function () {
         return function (opened) {
@@ -335,11 +349,15 @@ angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'contentEditable',
         }
     });
 
-function MenuCtrl($rootScope, $scope, $config){
+plik.controller('MenuCtrl', ['$rootScope', '$scope', '$config',
+    function ($rootScope, $scope, $config){
+
     // Get server config
     $config.getConfig()
         .then(function (config) {
             $scope.config = config;
+        }, function(){
+            // Avoid "Possibly unhandled rejection"
         });
 
     // Refresh config
@@ -357,6 +375,8 @@ function MenuCtrl($rootScope, $scope, $config){
     $config.getUser()
         .then(function (user) {
             $scope.user = user;
+        }, function() {
+            // Avoid "Possibly unhandled rejection"
         });
 
     // Refresh user
@@ -369,10 +389,12 @@ function MenuCtrl($rootScope, $scope, $config){
                 $scope.user = null;
             });
     });
-}
+}]);
 
 // Main controller
-function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
+plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location', '$dialog',
+    function ($scope, $api, $config, $route, $location, $dialog) {
+
     $scope.sortField = 'metadata.fileName';
     $scope.sortOrder = false;
 
@@ -605,6 +627,7 @@ function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
                 };
             });
             if (ko) return;
+
             $api.createUpload($scope.upload)
                 .then(function (upload) {
                     $scope.upload = upload;
@@ -767,7 +790,7 @@ function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
 
     // Display QRCode dialog
     $scope.displayQRCode = function(title, url, qrcode) {
-        var opts = {
+        $dialog.openDialog({
             backdrop: true,
             backdropClick: true,
             templateUrl: 'partials/qrcode.html',
@@ -781,73 +804,57 @@ function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
                     };
                 }
             }
-        };
-        $dialog.openDialog(opts);
+        });
     };
 
     // Basic auth credentials dialog
     $scope.getPassword = function () {
-        var opts = {
+        $dialog.openDialog({
             backdrop: true,
             backdropClick: true,
             templateUrl: 'partials/password.html',
-            controller: 'PasswordController',
-            resolve: {
-                args: function () {
-                    return {
-                        callback: function (login, password) {
-                            $scope.upload.login = login;
-                            $scope.upload.password = password;
-                            $scope.basicAuth = btoa(login + ":" + password);
-                            $scope.newUpload();
-                        }
-                    }
-                }
-            }
-        };
-        $dialog.openDialog(opts);
+            controller: 'PasswordController'
+        }).result.then(
+            function (result) {
+                $scope.upload.login = result.login;
+                $scope.upload.password = result.password;
+                $scope.basicAuth = btoa(result.login + ":" + result.password);
+                $scope.newUpload();
+            }, function() {
+                // Avoid "Possibly unhandled rejection"
+            });
     };
 
     // Yubikey OTP upload dialog
     $scope.getYubikey = function () {
-        var opts = {
+        $dialog.openDialog({
             backdrop: true,
             backdropClick: true,
             templateUrl: 'partials/yubikey.html',
-            controller: 'YubikeyController',
-            resolve: {
-                args: function () {
-                    return {
-                        callback: function (otp) {
-                            $scope.upload.yubikey = otp;
-                            $scope.newUpload();
-                        }
-                    }
-                }
-            }
-        };
-        $dialog.openDialog(opts);
+            controller: 'YubikeyController'
+        }).result.then(
+            function (token) {
+                $scope.upload.yubikey = token;
+                $scope.newUpload();
+            }, function(){
+
+            });
     };
 
     // Yubikey OTP download dialog
     $scope.downloadWithYubikey = function (url) {
-        var opts = {
+        $dialog.openDialog({
             backdrop: true,
             backdropClick: true,
             templateUrl: 'partials/yubikey.html',
-            controller: 'YubikeyController',
-            resolve: {
-                args: function () {
-                    return {
-                        callback: function (token) {
-                            // Redirect to file download URL with yubikey token
-                            window.location.replace(url + '/yubikey/' + token);
-                        }
-                    }
-                }
-            }
-        };
-        $dialog.openDialog(opts);
+            controller: 'YubikeyController'
+        }).result.then(
+            function (token) {
+                // Redirect to file download URL with yubikey token
+                window.location.replace(url + '/yubikey/' + token);
+            }, function(){
+                // Avoid "Possibly unhandled rejection"
+            });
     };
 
     $scope.ttlUnits = ["days", "hours", "minutes"];
@@ -961,10 +968,12 @@ function MainCtrl($scope, $api, $config, $route, $location, $dialog) {
     };
 
     $scope.init();
-}
+}]);
 
 // Client download controller
-function ClientListCtrl($scope, $api, $dialog) {
+plik.controller('ClientListCtrl', ['$scope', '$api', '$dialog',
+    function ($scope, $api, $dialog) {
+
     $scope.clients = [];
 
     $api.getVersion()
@@ -974,10 +983,12 @@ function ClientListCtrl($scope, $api, $dialog) {
         .then(null, function (error) {
             $dialog.alert(error);
         });
-}
+}]);
 
 // Login controller
-function LoginCtrl($scope, $api, $config, $location, $dialog){
+plik.controller('LoginCtrl', ['$scope', '$api', '$config', '$location', '$dialog',
+    function ($scope, $api, $config, $location, $dialog){
+
     // Get server config
     $config.getConfig()
         .then(function (config) {
@@ -1027,10 +1038,11 @@ function LoginCtrl($scope, $api, $config, $location, $dialog){
                 $dialog.alert(error);
             });
     };
-}
+}]);
 
 // Token controller
-function HomeCtrl($scope, $api, $config, $dialog, $location) {
+plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location',
+    function ($scope, $api, $config, $dialog, $location) {
 
     $scope.display = 'uploads';
     $scope.displayUploads = function(token){
@@ -1141,18 +1153,18 @@ function HomeCtrl($scope, $api, $config, $dialog, $location) {
             title : "Really ?",
             message : "Revoking a token will not delete associated uploads.",
             confirm : true,
-            callback : function(result){
-                if (result) {
-                    $api.revokeToken(token.token)
-                        .then(function () {
-                            $scope.refreshUser();
-                        })
-                        .then(null, function (error) {
-                            $dialog.alert(error);
-                        });
-                }
-            }
-        });
+        }).result.then(
+            function() {
+                $api.revokeToken(token.token)
+                    .then(function () {
+                        $scope.refreshUser();
+                    })
+                    .then(null, function (error) {
+                        $dialog.alert(error);
+                    });
+            }, function(){
+                // Avoid "Possibly unhandled rejection"
+            });
     };
 
     // Log out
@@ -1173,19 +1185,20 @@ function HomeCtrl($scope, $api, $config, $dialog, $location) {
             title : "Really ?",
             message : "Deleting your account will not delete your uploads.",
             confirm : true,
-            callback : function(result){
-                if (result) {
-                    $api.deleteAccount()
-                        .then(function () {
-                            $config.refreshUser();
-                            $location.path('/');
-                        })
-                        .then(null, function (error) {
-                            $dialog.alert(error);
-                        });
-                }
+        }).result.then(
+            function(){
+                $api.deleteAccount()
+                    .then(function () {
+                        $config.refreshUser();
+                        $location.path('/');
+                    })
+                    .then(null, function (error) {
+                        $dialog.alert(error);
+                    });
+            }, function() {
+                // Avoid "Possibly unhandled rejection"
             }
-        });
+        );
     };
 
     // Get upload url
@@ -1205,13 +1218,13 @@ function HomeCtrl($scope, $api, $config, $dialog, $location) {
     };
 
     loadUser($config.getUser());
-}
+}]);
 
 // Alert modal dialog controller
-function AlertDialogController($rootScope, $scope, $modalInstance, args) {
-    $rootScope.registerDialog($scope);
+plik.controller('AlertDialogController', ['$scope', 'args',
+    function ($scope, args) {
 
-    _.extend($scope,args.data);
+    _.extend($scope, args.data);
 
     if (!$scope.title) {
         if ($scope.status) {
@@ -1222,19 +1235,11 @@ function AlertDialogController($rootScope, $scope, $modalInstance, args) {
             }
         }
     }
-
-    $scope.close = function (result) {
-        $rootScope.dismissDialog($scope);
-        $modalInstance.close(result);
-        if ($scope.callback) {
-            $scope.callback(result);
-        }
-    };
-}
+}]);
 
 // HTTP basic auth credentials dialog controller
-function PasswordController($rootScope, $scope, $modalInstance, args) {
-    $rootScope.registerDialog($scope);
+plik.controller('PasswordController', ['$scope',
+    function ($scope) {
 
     // Ugly but it works
     setTimeout(function () {
@@ -1246,24 +1251,15 @@ function PasswordController($rootScope, $scope, $modalInstance, args) {
     $scope.password = '';
 
     $scope.close = function (login, password) {
-        if (!(login.length > 0 && password.length > 0)) {
-            return;
-        }
-        $scope.dismiss();
-        if (args.callback) {
-            args.callback(login, password);
+        if (login.length > 0 && password.length > 0) {
+            $scope.$close({ login : login, password : password });
         }
     };
-
-    $scope.dismiss = function () {
-        $rootScope.dismissDialog($scope);
-        $modalInstance.close();
-    }
-}
+}]);
 
 // Yubikey dialog controller
-function YubikeyController($rootScope, $scope, $modalInstance, args) {
-    $rootScope.registerDialog($scope);
+plik.controller('YubikeyController', ['$scope',
+    function ($scope) {
 
     // Ugly but it works
     setTimeout(function () {
@@ -1275,31 +1271,17 @@ function YubikeyController($rootScope, $scope, $modalInstance, args) {
 
     $scope.check = function (token) {
         if (token.length == 44) {
-            $scope.close(token);
+            // Ugly but it works
+            setTimeout(function () {
+                $scope.$close(token);
+            }, 100);
         }
     };
-
-    $scope.close = function (result) {
-        $scope.dismiss();
-        if (args.callback) {
-            args.callback(result);
-        }
-    };
-
-    $scope.dismiss = function () {
-        $rootScope.dismissDialog($scope);
-        $modalInstance.close();
-    }
-}
+}]);
 
 // QRCode dialog controller
-function QRCodeController($rootScope, $scope, $modalInstance, args) {
-    $rootScope.registerDialog($scope);
+plik.controller('QRCodeController', ['$scope', 'args',
+    function ($scope, args) {
 
     $scope.args = args;
-
-    $scope.close = function () {
-        $rootScope.dismissDialog($scope);
-        $modalInstance.close();
-    };
-}
+}]);
