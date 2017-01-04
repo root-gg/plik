@@ -668,6 +668,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                         file.metadata = metadata;
                     })
                     .then(null, function (error) {
+                        file.metadata.status = "toUpload";
                         $dialog.alert(error);
                     });
             });
