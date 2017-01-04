@@ -1,9 +1,13 @@
 language: go
 
+sudo: required
+
 go:
-  - 1.6.2
+  - 1.7.4
 
 before_install:
+  # Update node_js version : https://github.com/travis-ci/travis-ci/issues/7108
+  - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install stable
   - npm install -g bower
 
 before_script:
