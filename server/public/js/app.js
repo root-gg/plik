@@ -141,10 +141,8 @@ angular.module('api', ['ngFileUpload']).
                 headers: headers
             })
                 .then(function success(resp) {
-                    console.log("api ok", resp);
                     promise.resolve(resp.data);
                 }, function error(resp) {
-                    console.log("api fail", resp);
                     // Format HTTP error return for the dialog service
                     var message = (resp.data && resp.data.message) ? resp.data.message : "Unknown error";
                     promise.reject({status: resp.status, message: message});
@@ -328,15 +326,13 @@ var plik = angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'conten
         $httpProvider.defaults.xsrfCookieName = 'plik-xsrf';
         $httpProvider.defaults.xsrfHeaderName = 'X-XRSFToken';
 
-        // When connection refused happens we are not sure
-        // to be able to load the alert dialog template
+        // Mangle "Connection failed" result for alert modal
         $httpProvider.interceptors.push(function ($q) {
             return {
                 responseError: function (resp) {
                     if (resp.status <= 0) {
                         resp.data = {status: resp.status, message: "Connection failed"};
                     }
-                    console.log("interceptor", resp);
                     return $q.reject(resp);
                 }
             };
@@ -668,6 +664,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                         file.metadata = metadata;
                     })
                     .then(null, function (error) {
+                        file.metadata.status = "toUpload";
                         $dialog.alert(error);
                     });
             });
