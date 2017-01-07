@@ -125,7 +125,7 @@ Commands :
 curl -s 'https://127.0.0.1:8080/file/0KfNj6eMb93ilCrl/q73tEBEqM04b22GP/mydirectory.tar.gz' | openssl aes-256-cbc -d -pass pass:30ICoKdFeoKaKNdnFf36n0kMH | tar xvf - --gzip
 ```
 
-Client configuration and preferences are stored at ~/.plikrc ( overridable with PLIKRC environement variable )
+Client configuration and preferences are stored at ~/.plikrc or /etc/plik/plikrc ( overridable with PLIKRC environement variable )
 
 ### Available data backends
 

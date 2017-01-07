@@ -72,7 +72,11 @@ func main() {
 	ts.GetSize()
 
 	// Load config
-	config.Load()
+	err = config.Load()
+	if err != nil {
+		fmt.Printf("Unable to load configuration : %s\n", err)
+		os.Exit(1)
+	}
 
 	// Usage /!\ INDENT THIS WITH SPACES NOT TABS /!\
 	usage := `plik

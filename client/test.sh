@@ -393,26 +393,6 @@ grep "$URL/file/.*/.*/FILE1" $CLIENT_LOG >/dev/null 2>/dev/null
 
 echo "OK"
 
-#---------------------------------------------
-
-echo -n " - quiet and no .plikrc : "
-
-before
-rm $PLIKRC
-cp $SPECIMEN $TMPDIR/upload/FILE1
-upload -q
-test $(cat $CLIENT_LOG | wc -l) -eq 1
-grep "$URL/file/.*/.*/FILE1" $CLIENT_LOG >/dev/null 2>/dev/null
-
-before
-rm $PLIKRC
-cp $SPECIMEN $TMPDIR/upload/FILE1
-upload --quiet
-test $(cat $CLIENT_LOG | wc -l) -eq 1
-grep "$URL/file/.*/.*/FILE1" $CLIENT_LOG >/dev/null 2>/dev/null
-
-echo "OK"
-
 ###
 # Tar archive
 ###
