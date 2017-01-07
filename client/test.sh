@@ -398,7 +398,14 @@ echo "OK"
 echo -n " - quiet and no .plikrc : "
 
 before
+
+if [ -f "/etc/plik/plikrc" ]; then
+    echo "/etc/plik/plikrc detected, please remove it."
+    exit 1
+fi
+
 rm $PLIKRC
+unset PLIKRC
 cp $SPECIMEN $TMPDIR/upload/FILE1
 upload -q
 test $(cat $CLIENT_LOG | wc -l) -eq 1
@@ -406,6 +413,7 @@ grep "$URL/file/.*/.*/FILE1" $CLIENT_LOG >/dev/null 2>/dev/null
 
 before
 rm $PLIKRC
+unset PLIKRC
 cp $SPECIMEN $TMPDIR/upload/FILE1
 upload --quiet
 test $(cat $CLIENT_LOG | wc -l) -eq 1
