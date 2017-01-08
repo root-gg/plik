@@ -48,13 +48,6 @@ import (
 func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 
-	user := common.GetUser(ctx)
-	if user == nil && !common.IsWhitelisted(ctx) {
-		log.Warning("Unable to add file from untrusted source IP address")
-		common.Fail(ctx, req, resp, "Unable to add file from untrusted source IP address. Please login or use a cli token.", 403)
-		return
-	}
-
 	// Get upload from context
 	upload := common.GetUpload(ctx)
 	if upload == nil {
@@ -68,6 +61,13 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	if !upload.IsAdmin {
 		log.Warningf("Unable to add file : unauthorized")
 		common.Fail(ctx, req, resp, "You are not allowed to add file to this upload", 403)
+		return
+	}
+
+	// Limit number of files per upload
+	if len(upload.Files) >= 1000 {
+		log.Warningf("Unable to add file : Maximum number file per upload reached (1000)")
+		common.Fail(ctx, req, resp, "Unable to add file : Maximum number file per upload reached (1000)", 403)
 		return
 	}
 

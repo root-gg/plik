@@ -22,7 +22,7 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE. */
 
-module.exports = function(grunt) {
+module.exports = function (grunt) {
     require('load-grunt-tasks')(grunt);
 
     grunt.initConfig({
@@ -99,7 +99,7 @@ module.exports = function(grunt) {
         },
         cssmin: {
             options: {
-                keepSpecialComments : 0
+                keepSpecialComments: 0
             },
             combine: {
                 files: {
@@ -109,5 +109,5 @@ module.exports = function(grunt) {
         }
     });
 
-    grunt.registerTask('default', ['clean', 'concat','copy', 'ngAnnotate', 'uglify', 'cssmin']);
+    grunt.registerTask('default', ['clean', 'concat', 'copy', 'ngAnnotate', 'uglify', 'cssmin']);
 };

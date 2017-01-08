@@ -72,7 +72,11 @@ func main() {
 	ts.GetSize()
 
 	// Load config
-	config.Load()
+	err = config.Load()
+	if err != nil {
+		fmt.Printf("Unable to load configuration : %s\n", err)
+		os.Exit(1)
+	}
 
 	// Usage /!\ INDENT THIS WITH SPACES NOT TABS /!\
 	usage := `plik
@@ -479,7 +483,7 @@ func updateClient(updateFlag bool) (err error) {
 	}
 
 	resp, err := makeRequest(req)
-	if err != nil {
+	if resp == nil {
 		err = fmt.Errorf("Unable to get server version : %s", err)
 		return
 	}

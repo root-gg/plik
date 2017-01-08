@@ -35,7 +35,7 @@ THE SOFTWARE.
     <title>Plik</title>
 
     <!-- CSS -->
-    <link href='public/css/vendor.css'  rel='stylesheet' type='text/css'>
+    <link href='public/css/vendor.css' rel='stylesheet' type='text/css'>
     <link href='css/style.css' rel='stylesheet' type='text/css'>
 
     <!-- FAVICON -->
@@ -43,36 +43,36 @@ THE SOFTWARE.
 </head>
 
 <body>
-    <div id="view">
-        <!-- HEADER -->
-        <header ng-controller="MenuCtrl">
-            <div class="container-fluid">
-                <div class="row">
-                    <!-- PLIK LOGO -->
-                    <div class="col-sm-3 text-center">
-                        <h1><a href="#/_">Plik</a></h1>
-                    </div>
-                    <!-- TOP MENU -->
-                    <div class="col-sm-9 text-right hidden-xs">
-                        <a href="#/login" ng-if="config.authentication && !user"><i class="fa fa-lock"></i> Authentication</a>
-                        <a href="#/login" ng-if="config.authentication && user">{{user.login}}</a>
-                        &nbsp;
-                        <a href="#/clients"><i class="fa fa-keyboard-o"></i> Command line client</a>
-                        &nbsp;
-                        <a href="https://github.com/root-gg/plik/tree/master"><i class="fa fa-github"></i> Source code</a>
-                    </div>
-                    <!-- TOP MENU ( mobile ) -->
-                    <div class="col-sm-9 text-center hidden-sm hidden-md hidden-lg">
-                        <a href="#/login" ng-if="config.authentication && !user"><i class="fa fa-lock"></i> Authentication</a>
-                        <a href="#/login" ng-if="config.authentication && user">{{user.login}}</a>
-                    </div>
+<div id="view">
+    <!-- HEADER -->
+    <header ng-controller="MenuCtrl">
+        <div class="container-fluid">
+            <div class="row">
+                <!-- PLIK LOGO -->
+                <div class="col-sm-3 text-center">
+                    <h1><a href="#!/_">Plik</a></h1>
+                </div>
+                <!-- TOP MENU -->
+                <div class="col-sm-9 text-right hidden-xs">
+                    <a href="#!/login" ng-if="config.authentication && !user"><i class="fa fa-lock"></i> Authentication</a>
+                    <a href="#!/login" ng-if="config.authentication && user">{{user.login}}</a>
+                    &nbsp;
+                    <a href="#!/clients"><i class="fa fa-keyboard-o"></i> Command line client</a>
+                    &nbsp;
+                    <a href="https://github.com/root-gg/plik/tree/master"><i class="fa fa-github"></i> Source code</a>
+                </div>
+                <!-- TOP MENU ( mobile ) -->
+                <div class="col-sm-9 text-center hidden-sm hidden-md hidden-lg">
+                    <a href="#!/login" ng-if="config.authentication && !user"><i class="fa fa-lock"></i> Authentication</a>
+                    <a href="#!/login" ng-if="config.authentication && user">{{user.login}}</a>
                 </div>
             </div>
-        </header>
+        </div>
+    </header>
 
-        <!-- ANGULARJS VIEW -->
-        <div ng-view class="container-fluid"></div>
-    </div>
+    <!-- ANGULARJS VIEW -->
+    <div ng-view class="container-fluid"></div>
+</div>
 </div>
 
 <!-- framework, modules and libraries -->

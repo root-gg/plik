@@ -52,7 +52,11 @@ TTL=0
 #
 
 PLIKRC=${PLIKRC-"$HOME/.plikrc"}
-if [ -e "$PLIKRC" ]; then
+if [ ! -f "$PLIKRC" ]; then
+    PLIKRC="/etc/plik/plikrc"
+fi
+
+if [ -f "$PLIKRC" ]; then
     URL=$(grep URL $PLIKRC | grep -Po '(http[^\"]*)')
     if [ "$URL" != "" ]; then
         PLIK_URL=$URL
