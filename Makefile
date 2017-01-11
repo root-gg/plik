@@ -239,7 +239,7 @@ releases: release-template servers utils
 # Run tests and sanity checks
 ###
 test:
-
+	@if curl -s 127.0.0.1:8080 > /dev/null ; then echo "Plik server probably already running" && exit 1 ; fi
 	@server/gen_build_info.sh $(RELEASE_VERSION)
 	@ERR="" ; for directory in server client ; do \
 		cd $$directory; \
