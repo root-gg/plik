@@ -124,8 +124,8 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 	}
 
 	if strings.HasSuffix(".zip", fileName) {
-		log.Warningf("Invalid file name %s. Missing .zip extention", fileName)
-		common.Fail(ctx, req, resp, fmt.Sprintf("Invalid file name %s. Missing .zip extention", fileName), 400)
+		log.Warningf("Invalid file name %s. Missing .zip extension", fileName)
+		common.Fail(ctx, req, resp, fmt.Sprintf("Invalid file name %s. Missing .zip extension", fileName), 400)
 		return
 	}
 
