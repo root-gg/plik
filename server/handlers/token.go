@@ -131,7 +131,7 @@ func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	// TODO RACE CONDITION if simulatneous delete occur
+	// TODO RACE CONDITION if simultaneous delete occur
 
 	// Delete token
 	user.Tokens = append(user.Tokens[:index], user.Tokens[index+1:]...)
