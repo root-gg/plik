@@ -377,5 +377,5 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	xsrfCookie.Path = "/"
 	http.SetCookie(resp, xsrfCookie)
 
-	http.Redirect(resp, req, "/#/login", 301)
+	http.Redirect(resp, req, "/#!/login", 301)
 }

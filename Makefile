@@ -239,7 +239,7 @@ releases: release-template servers utils
 # Run tests and sanity checks
 ###
 test:
-
+	@if curl -s 127.0.0.1:8080 > /dev/null ; then echo "Plik server probably already running" && exit 1 ; fi
 	@server/gen_build_info.sh $(RELEASE_VERSION)
 	@ERR="" ; for directory in server client ; do \
 		cd $$directory; \
@@ -263,14 +263,7 @@ test:
 	@echo "cli client integration tests :\n" && cd client && ./test.sh
 
 ###
-# Remove frontend build files
-###
-clean-frontend:
-	@rm -rf server/public/bower_components
-	@rm -rf server/public/public
-
-###
-# Remove all build files
+# Remove server build files
 ###
 clean:
 	@rm -rf server/common/version.go
@@ -283,9 +276,16 @@ clean:
 	@rm -rf releases
 
 ###
+# Remove frontend build files
+###
+clean-frontend:
+	@rm -rf server/public/bower_components
+	@rm -rf server/public/public
+
+###
 # Remove all build files and node modules
 ###
-clean-all: clean
+clean-all: clean clean-frontend
 	@rm -rf server/public/node_modules
 
 ###

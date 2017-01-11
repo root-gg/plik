@@ -71,11 +71,16 @@ func NewMongoMetadataBackend(config map[string]interface{}) (mmb *MetadataBacken
 			return tls.Dial("tcp", addr.String(), &tls.Config{InsecureSkipVerify: true})
 		}
 	}
+
+	common.Logger().Infof("Connecting to mongodb @ %s/%s", mmb.config.URL, mmb.config.Database)
+
 	var err error
 	mmb.session, err = mgo.DialWithInfo(dialInfo)
 	if err != nil {
 		common.Logger().Fatalf("Unable to contact mongodb at %s : %s", mmb.config.URL, err.Error())
 	}
+
+	common.Logger().Infof("Connected to mongodb @ %s/%s", mmb.config.URL, mmb.config.Database)
 
 	// Ensure everything is persisted and replicated
 	mmb.session.SetMode(mgo.Strong, false)

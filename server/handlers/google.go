@@ -263,5 +263,5 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 	xsrfCookie.Path = "/"
 	http.SetCookie(resp, xsrfCookie)
 
-	http.Redirect(resp, req, "/#/login", 301)
+	http.Redirect(resp, req, "/#!/login", 301)
 }

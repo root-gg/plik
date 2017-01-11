@@ -48,13 +48,6 @@ import (
 func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 
-	user := common.GetUser(ctx)
-	if user == nil && !common.IsWhitelisted(ctx) {
-		log.Warning("Unable to add file from untrusted source IP address")
-		common.Fail(ctx, req, resp, "Unable to add file from untrusted source IP address. Please login or use a cli token.", 403)
-		return
-	}
-
 	// Get upload from context
 	upload := common.GetUpload(ctx)
 	if upload == nil {
@@ -75,12 +68,20 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	fileID := vars["fileID"]
 
-	// Create a new file object
 	var newFile *common.File
 	if fileID == "" {
+		// Limit number of files per upload
+		if len(upload.Files) >= common.Config.MaxFilePerUpload {
+			err := log.EWarningf("Unable to add file : Maximum number file per upload reached (%d)", common.Config.MaxFilePerUpload)
+			common.Fail(ctx, req, resp, err.Error(), 403)
+			return
+		}
+
+		// Create a new file object
 		newFile = common.NewFile()
 		newFile.Type = "application/octet-stream"
 	} else {
+		// Get file object from upload
 		if _, ok := upload.Files[fileID]; ok {
 			newFile = upload.Files[fileID]
 		} else {
