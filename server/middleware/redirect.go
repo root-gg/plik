@@ -33,15 +33,11 @@ import (
 	"net/http"
 
 	"github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/common"
 )
 
 // RedirectOnFailure enable webapp http redirection instead of string error
 func RedirectOnFailure(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		log := common.GetLogger(ctx)
-		log.Debug("Redirect handler")
-
 		ctx.Set("redirect", true)
 
 		next.ServeHTTP(resp, req)

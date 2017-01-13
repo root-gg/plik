@@ -42,7 +42,6 @@ import (
 func SourceIP(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		log := common.GetLogger(ctx)
-		log.Debug("SourceIP handler")
 
 		var sourceIPstr string
 		if common.Config.SourceIPHeader != "" && req.Header.Get(common.Config.SourceIPHeader) != "" {

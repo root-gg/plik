@@ -43,7 +43,6 @@ import (
 func Log(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		log := common.GetLogger(ctx)
-		log.Debug("Log handler")
 
 		if log.LogIf(logger.DEBUG) {
 
