@@ -45,7 +45,6 @@ import (
 	"github.com/root-gg/plik/server/handlers"
 	"github.com/root-gg/plik/server/metadataBackend"
 	"github.com/root-gg/plik/server/middleware"
-	"github.com/root-gg/plik/server/shortenBackend"
 )
 
 var log *logger.Logger
@@ -75,7 +74,6 @@ func main() {
 	// Initialize all backends
 	metadataBackend.Initialize()
 	dataBackend.Initialize()
-	shortenBackend.Initialize()
 
 	// Initialize the httpdown wrapper
 	hd := &httpdown.HTTP{

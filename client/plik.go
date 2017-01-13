@@ -263,9 +263,6 @@ func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error
 
 	req.Header.Set("Content-Type", "application/json")
 
-	// Referer is used to generate shorlinks
-	req.Header.Set("Referer", config.Config.URL)
-
 	resp, err := makeRequest(req)
 	if err != nil {
 		return

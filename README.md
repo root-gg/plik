@@ -9,7 +9,6 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
 ### Main features
    - Multiple data backends : File, OpenStack Swift, WeedFS
    - Multiple metadata backends : File, MongoDB, Bolt
-   - Shorten backends : Shorten upload urls (is.gd && w000t.me available)
    - OneShot : Files are destructed after the first download
    - Stream : Files are streamed from the uploader to the downloader (nothing stored server side)  
    - Removable : Give the ability to the uploader to remove files at any time

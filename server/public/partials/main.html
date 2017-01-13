@@ -127,10 +127,6 @@ THE SOFTWARE.
         </div>
         <!-- DOWNLOAD MENU -->
         <div class="tile menu" ng-if="mode == 'download'">
-            <!-- SHORT UPLOAD LINK -->
-            <div class="menu-item text-center" ng-show="upload.shortUrl">
-                <p><a href="{{upload.shortUrl}}">{{upload.shortUrl}}</a></p>
-            </div>
             <!-- QR CODE -->
             <div class="text-center hidden-xs hidden-sm" ng-click="displayQRCodeUpload()">
                 <p><img ng-src="{{getQrCodeUploadUrl(200)}}" alt="QR Code"/></p>
