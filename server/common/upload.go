@@ -36,7 +36,7 @@ import (
 )
 
 var (
-	randRunes = []rune("abcdefghijklmnopqrstABCDEFGHIJKLMNOP0123456789")
+	randRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 )
 
 // Upload object
