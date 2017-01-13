@@ -49,7 +49,9 @@ func Log(ctx *juliet.Context, next http.Handler) http.Handler {
 
 			// Don't dump request body for file upload
 			dumpBody := true
-			if strings.HasPrefix(req.URL.Path, "/file") && req.Method == "POST" {
+			if (strings.HasPrefix(req.URL.Path, "/file") ||
+				strings.HasPrefix(req.URL.Path, "/stream")) &&
+				req.Method == "POST" {
 				dumpBody = false
 			}
 
