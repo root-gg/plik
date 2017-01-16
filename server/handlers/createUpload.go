@@ -37,11 +37,11 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadataBackend"
 	"github.com/root-gg/plik/server/shortenBackend"
+	"github.com/root-gg/utils"
 )
 
 // CreateUpload create a new upload

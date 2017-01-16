@@ -37,8 +37,8 @@ import (
 	"time"
 
 	"bytes"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/boltdb/bolt"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
+	"github.com/boltdb/bolt"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 )
 

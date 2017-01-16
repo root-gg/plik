@@ -34,14 +34,14 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/dgrijalva/jwt-go"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/nu7hatch/gouuid"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/golang.org/x/oauth2"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/golang.org/x/oauth2/google"
-	api_oauth2 "github.com/root-gg/plik/server/Godeps/_workspace/src/google.golang.org/api/oauth2/v2"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/nu7hatch/gouuid"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadataBackend"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	api_oauth2 "google.golang.org/api/oauth2/v2"
 )
 
 // GoogleLogin return google api user consent URL.

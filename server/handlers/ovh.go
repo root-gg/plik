@@ -38,9 +38,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/dgrijalva/jwt-go"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/nu7hatch/gouuid"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/nu7hatch/gouuid"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadataBackend"
 )

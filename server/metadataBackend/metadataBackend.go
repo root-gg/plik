@@ -30,7 +30,7 @@ THE SOFTWARE.
 package metadataBackend
 
 import (
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadataBackend/bolt"
 	"github.com/root-gg/plik/server/metadataBackend/file"

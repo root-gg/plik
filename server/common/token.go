@@ -32,7 +32,7 @@ package common
 import (
 	"time"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/nu7hatch/gouuid"
+	"github.com/nu7hatch/gouuid"
 )
 
 // Token provide a very basic authentication mechanism
