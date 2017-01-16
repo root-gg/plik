@@ -35,12 +35,11 @@ import (
 	"github.com/ncw/swift"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 )
 
 // Backend object
 type Backend struct {
-	config     *configInfo
+	config     *BackendConfig
 	connection *swift.Connection
 }
 
@@ -48,9 +47,7 @@ type Backend struct {
 // from configuration passed as argument
 func NewSwiftBackend(config map[string]interface{}) (sb *Backend) {
 	sb = new(Backend)
-	sb.config = new(configInfo)
-	sb.config.Container = "PlickData"
-	utils.Assign(sb.config, config)
+	sb.config = NewSwitftBackendConfig(config)
 	return sb
 }
 
