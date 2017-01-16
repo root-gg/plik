@@ -34,9 +34,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/BurntSushi/toml"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/GeertJohan/yubigo"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
+	"github.com/BurntSushi/toml"
+	"github.com/GeertJohan/yubigo"
+	"github.com/root-gg/logger"
 )
 
 // Configuration object

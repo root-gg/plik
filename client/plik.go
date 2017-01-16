@@ -49,13 +49,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/cheggaaa/pb"
-	docopt "github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/docopt/docopt-go"
-	"github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/kardianos/osext"
-	"github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/olekukonko/ts"
-	"github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/root-gg/utils"
+	"github.com/cheggaaa/pb"
+	docopt "github.com/docopt/docopt-go"
+	"github.com/kardianos/osext"
+	"github.com/olekukonko/ts"
 	"github.com/root-gg/plik/client/config"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 )
 
 // Vars

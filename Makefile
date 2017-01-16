@@ -247,17 +247,23 @@ test:
 		TEST=`go test ./... 2>&1`; \
 		if [ $$? = 0 ] ; then echo "OK" ; else echo "$$TEST" | grep -v "no test files" | grep -v "^\[" && ERR="1"; fi ; \
 		echo "go fmt $$directory : "; \
-		for file in $$(find -name "*.go" | grep -v Godeps ); do \
+		for file in $$(find -name "*.go" | grep -v vendor ); do \
 			echo -n " - file $$file : " ; \
 			FMT=`gofmt -l $$file` ; \
 			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
 		done; \
 		echo -n "go vet $$directory : "; \
-		VET=`go vet ./... 2>&1`; \
-		if [ $$? = 0 ] ; then echo "OK" ; else echo "FAIL" && echo "$$VET" && ERR="1" ; fi ; \
-		echo -n "go lint $$directory : "; \
-		LINT=`golint ./...`; \
-		if [ "$$LINT" = "" ] ; then echo "OK" ; else echo "FAIL" && echo "$$LINT" && ERR="1" ; fi ; \
+		for file in $$(find -name "*.go" | grep -v vendor ); do \
+			echo -n " - file $$file : " ; \
+			FMT=`go vet $$file` ; \
+			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
+		done; \
+		echo -n "golint $$directory : "; \
+		for file in $$(find -name "*.go" | grep -v vendor ); do \
+			echo -n " - file $$file : " ; \
+			FMT=`golint $$file` ; \
+			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
+		done; \
 		cd - 2>&1 > /dev/null; \
 	done ; if [ "$$ERR" = "1" ] ; then exit 1 ; fi
 	@echo "cli client integration tests :\n" && cd client && ./test.sh

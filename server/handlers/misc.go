@@ -34,13 +34,13 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/boombuler/barcode"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/boombuler/barcode/qr"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
+	"github.com/boombuler/barcode"
+	"github.com/boombuler/barcode/qr"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/dataBackend"
 	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/utils"
 )
 
 // GetVersion return the build information.

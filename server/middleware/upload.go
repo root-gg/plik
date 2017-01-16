@@ -35,11 +35,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/gorilla/mux"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
+	"github.com/gorilla/mux"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/utils"
 )
 
 // Upload retrieve the requested upload metadata from the metadataBackend and save it to the request context.

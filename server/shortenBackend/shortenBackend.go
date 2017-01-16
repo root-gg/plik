@@ -30,7 +30,7 @@ THE SOFTWARE.
 package shortenBackend
 
 import (
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/shortenBackend/isgd"
 	"github.com/root-gg/plik/server/shortenBackend/w000t"

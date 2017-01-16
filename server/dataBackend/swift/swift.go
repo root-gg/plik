@@ -32,10 +32,10 @@ package swift
 import (
 	"io"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/ncw/swift"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
+	"github.com/ncw/swift"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 )
 
 // Backend object

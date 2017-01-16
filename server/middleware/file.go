@@ -33,8 +33,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/gorilla/mux"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
+	"github.com/gorilla/mux"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 )
 
