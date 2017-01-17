@@ -210,6 +210,10 @@ Plik comes with a simple Dockerfile that allows you to run it in a container :
 
 See the [Plik Docker reference](documentation/docker.md)
 
+Plik also comes with some useful scripts to test backends in standalone docker instances :
+
+See the [Plik Docker backend testing](testing)
+
 ### FAQ
 
 * Why is stream mode broken in multiple instance deployement ?
