@@ -144,7 +144,7 @@ func (sb *Backend) getFileID(upload *common.Upload, fileID string) string {
 func (sb *Backend) auth(ctx *juliet.Context) (err error) {
 	log := common.GetLogger(ctx)
 
-	if sb.connection.Authenticated() {
+	if sb.connection != nil && sb.connection.Authenticated() {
 		return
 	}
 
