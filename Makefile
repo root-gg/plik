@@ -36,6 +36,14 @@ GOHOSTARCH=`go env GOHOSTARCH`
 DEBROOT_SERVER=debs/server
 DEBROOT_CLIENT=debs/client
 
+race_detector = GORACE="halt_on_error=1" go build -race
+ifdef ENABLE_RACE_DETECTOR
+	build = $(race_detector)
+else
+	build = go build
+endif
+test: build = $(race_detector)
+
 all: clean clean-frontend frontend clients server
 
 ###
@@ -52,7 +60,7 @@ frontend:
 ###
 server:
 	@server/gen_build_info.sh $(RELEASE_VERSION)
-	@cd server && go build -o plikd ./
+	@cd server && $(build) -o plikd ./
 
 ###
 # Build plik server for all architectures
@@ -68,7 +76,7 @@ servers: frontend
 		if [ $$GOOS = "windows" ] ; then SERVER_PATH=$$SERVER_DIR/plikd.exe ; fi ; \
 		if [ -e $$SERVER_PATH ] ; then continue ; fi ; \
 		echo "Compiling plik server for $$target to $$SERVER_PATH"; \
-		go build -o $$SERVER_PATH ;	\
+		$(build) -o $$SERVER_PATH ;	\
 	done
 
 
@@ -86,7 +94,7 @@ utils: servers
             if [ $$GOOS = "windows" ] ; then UTIL_PATH=$$UTIL_DIR/$$UTIL_BASE.exe ; fi ; \
             if [ -e $$UTIL_PATH ] ; then continue ; fi ; \
             echo "Compiling plik util file2bolt for $$target to $$UTIL_PATH"; \
-            go build -o $$UTIL_PATH $$util ; \
+            $(build) -o $$UTIL_PATH $$util ; \
         done ; \
 	done
 
@@ -96,7 +104,7 @@ utils: servers
 ###
 client:
 	@server/gen_build_info.sh $(RELEASE_VERSION)
-	@cd client && go build -o plik ./
+	@cd client && $(build) -o plik ./
 
 ###
 # Build plik client for all architectures
@@ -113,7 +121,7 @@ clients:
 		if [ $$GOOS = "windows" ] ; then CLIENT_PATH=$$CLIENT_DIR/plik.exe ; fi ; \
 		if [ -e $$CLIENT_PATH ] ; then continue ; fi ; \
 		echo "Compiling plik client for $$target to $$CLIENT_PATH"; \
-		go build -o $$CLIENT_PATH ; \
+		$(build) -o $$CLIENT_PATH ; \
 		md5sum $$CLIENT_PATH | awk '{print $$1}' > $$CLIENT_MD5; \
 	done
 	@mkdir -p clients/bash && cp client/plik.sh clients/bash
@@ -245,7 +253,7 @@ test:
 	@ERR="" ; for directory in server client ; do \
 		cd $$directory; \
 		echo -n "go test $$directory : "; \
-		TEST=`go test ./... 2>&1`; \
+		TEST=`go test -race ./... 2>&1`; \
 		if [ $$? = 0 ] ; then echo "OK" ; else echo "$$TEST" | grep -v "no test files" | grep -v "^\[" && ERR="1"; fi ; \
 		echo "go fmt $$directory : "; \
 		for file in $$(find -name "*.go" | grep -v vendor ); do \
