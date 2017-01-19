@@ -1,0 +1,25 @@
+Hi,
+
+Tonight, we're releasing Plik 1.0 RC3 !
+
+New : 
+    - New bash uploading client
+    - Show md5 and content type on frontend
+    - Add some examples in config file
+    - Functionnal tests for server
+    - Better progress bars and display in cli client
+    - Improved CSS responsiveness 
+    - Free wallpaper
+    - Better yubikey handling on backend (yubigo)
+
+Bug fixes : 
+    - Remove uploads when no files available
+    - File size display on frontend (was using wrong base)
+    - Do not show Upload token except in create handler
+    - Fix some wrong http return codes in API
+
+Security : 
+    - Limit body size to 1M on POST /upload
+
+Code refactor : 
+    - Move client args parsing from main to config 

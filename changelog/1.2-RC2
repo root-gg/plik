@@ -1,0 +1,27 @@
+Hi, today we're releasing the second release candidate for Plik 1.2 :)
+
+Here is the changelog : 
+
+Fixes : 
+- Fix missing middlewares for yubikey get file api paths
+- Fix 500 in ovh auth callback when plik-ovh-session cookie is missing
+- Fix server started at http(s)://address:port log message
+- Fix error message format
+- Fix cli client arguments unmarshal error line break
+- Fix BoltDB GetUploadsToRemove
+- Fix bad redirect on upload password credential check
+- Fix default log level to INFO and update backend config examples
+
+Misc : 
+- Update github.com/facebookgo/httpdown
+- Clean ovh auth session cookie after callback
+- Update plik.sh. Add token, better errors, server url argument
+- Do not create .plikrc in quiet mode
+- Check return of makeRequest on client version check
+- Update README.md
+- Remove basic auth check on upload if owner is authenticated
+
+
+Stay tuned for the final version 1.2  :)
+The plik team
+

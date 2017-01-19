@@ -184,6 +184,7 @@ release-template: clean frontend clients
 	@mkdir -p $(RELEASE_DIR)/server/utils
 
 	@cp -R clients $(RELEASE_DIR)
+	@cp -R changelog $(RELEASE_DIR)
 	@cp -R server/plikd.cfg $(RELEASE_DIR)/server
 	@cp -R server/public/css $(RELEASE_DIR)/server/public
 	@cp -R server/public/fonts $(RELEASE_DIR)/server/public

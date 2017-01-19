@@ -92,6 +92,18 @@ for client in $clientList ; do
 	clients+=$'\t\t'"buildInfo.Clients = append(buildInfo.Clients, $clientCode)"$'\n'
 done
 
+# get releases
+releases=""
+git config versionsort.prereleaseSuffix -RC
+for gitTag in $(git tag --sort version:refname)
+do
+	if [ -f "changelog/$gitTag" ]; then
+		# '%at': author date, UNIX timestamp
+		releaseDate=$(git show -s --pretty="format:%at" "refs/tags/$gitTag")
+		releaseCode="&Release{Name: \"$gitTag\", Date: $releaseDate}"
+		releases+=$'\t\t'"buildInfo.Releases = append(buildInfo.Releases, $releaseCode)"$'\n'
+	fi
+done
 
 cat > "server/common/version.go" <<EOF 
 package common
@@ -124,7 +136,8 @@ type BuildInfo struct {
 
 	GoVersion string \`json:"goVersion"\`
 
-	Clients []*Client \`json:"clients"\`
+	Clients  []*Client  \`json:"clients"\`
+	Releases []*Release \`json:"releases"\`
 }
 
 // Client export client build related variables
@@ -134,6 +147,12 @@ type Client struct {
 	Path string \`json:"path"\`
 	OS   string \`json:"os"\`
 	ARCH string \`json:"arch"\`
+}
+
+// Release export releases related variables
+type Release struct {
+	Name string \`json:"name"\`
+	Date int64  \`json:"date"\`
 }
 
 // GetBuildInfo get or instanciate BuildInfo structure
@@ -154,7 +173,11 @@ func GetBuildInfo() *BuildInfo {
 
 		buildInfo.IsRelease = $isRelease
 		buildInfo.IsMint = $isMint
+
+		// Clients
 $clients
+		// Releases
+$releases
 	}
 
 	return buildInfo

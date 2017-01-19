@@ -127,6 +127,7 @@ func main() {
 	r.Handle("/me/uploads", authChain.Then(handlers.RemoveUserUploads)).Methods("DELETE")
 	r.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
 	r.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
+	r.PathPrefix("/changelog/").Handler(http.StripPrefix("/changelog/", http.FileServer(http.Dir("../changelog"))))
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
 	http.Handle("/", r)
 

@@ -1,0 +1,46 @@
+
+Plik 1.2-RC1
+
+    Hi, today we're releasing the first release candidate of the next plik major version 1.2 !
+
+    Note :
+        We are deprecating file metadata backend as it wasn't thought
+        to handle new features correctly, since there was a metadata file per upload,
+        we wouldn't be able to scan and filter uploads efficiently.
+
+        We made a script so you can migrate to the new bolt metadata backend.
+
+        To create bolt database, it's simple :
+            ~$ server/utils/file2bolt --directory server/files --db server/plik.db
+
+
+    Here is the changelog :
+
+     New
+        - New metadata backend : Bolt (see : https://github.com/boltdb/bolt)
+        - New authentication mechanisms (currently support Google and OVH auth backends)
+        - New token system : generate tokens to upload from untrusted ip's, and manage uploads easily
+        - New page for managing tokens and uploads
+
+     Fix
+        - Makefile : Include favicon.ico in release directory
+        - Plik logo reload issue on webapp
+        - Client : Fix update file in tmp directory
+        - Client : Fix url encoding in list display
+        - File Metadata Backend : Fix a bug in GetUploadsToRemove when .config file was missing
+        - API : Fix http return code when upload was already removed.
+
+
+     Misc
+        - Add cli client version in http headers
+        - Add CONTRIBUTE part in README
+        - Add a migration script 'file2bolt' to migrate from file metadatas to bolt
+        - Add make test to travis
+        - Push docker image to Docker Hub (https://hub.docker.com/r/rootgg/plik/)
+        - Huge http handlers refactoring (see : https://github.com/root-gg/juliet)
+        - Split documentation in multiple parts (README, api doc, ...)
+
+
+Faithfully,
+The plik team
+
