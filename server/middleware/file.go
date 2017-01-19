@@ -42,7 +42,6 @@ import (
 func File(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		log := common.GetLogger(ctx)
-		log.Debug("File handler")
 
 		// Get upload from context
 		upload := common.GetUpload(ctx)

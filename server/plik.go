@@ -45,7 +45,6 @@ import (
 	"github.com/root-gg/plik/server/handlers"
 	"github.com/root-gg/plik/server/metadataBackend"
 	"github.com/root-gg/plik/server/middleware"
-	"github.com/root-gg/plik/server/shortenBackend"
 )
 
 var log *logger.Logger
@@ -75,7 +74,6 @@ func main() {
 	// Initialize all backends
 	metadataBackend.Initialize()
 	dataBackend.Initialize()
-	shortenBackend.Initialize()
 
 	// Initialize the httpdown wrapper
 	hd := &httpdown.HTTP{
@@ -129,6 +127,7 @@ func main() {
 	r.Handle("/me/uploads", authChain.Then(handlers.RemoveUserUploads)).Methods("DELETE")
 	r.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
 	r.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
+	r.PathPrefix("/changelog/").Handler(http.StripPrefix("/changelog/", http.FileServer(http.Dir("../changelog"))))
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
 	http.Handle("/", r)
 

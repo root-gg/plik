@@ -81,9 +81,6 @@ type Configuration struct {
 
 	StreamMode          bool                   `json:"streamMode"`
 	StreamBackendConfig map[string]interface{} `json:"-"`
-
-	ShortenBackend       string                 `json:"shortenBackend"`
-	ShortenBackendConfig map[string]interface{} `json:"-"`
 }
 
 // Config static variable

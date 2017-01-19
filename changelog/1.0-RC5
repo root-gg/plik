@@ -1,0 +1,20 @@
+Hi,
+
+We're pleased to release Plik 1.0 RC-5.
+
+New features :
+ - Streaming mode : files are piped from the uploader to the downloader without being stored server side
+ - Upload source ip whitelist
+ - CLI Client self update
+ - Set plikrc path from environement variable PLIKRC
+ - Graceful shutdown
+
+Bugfixs :
+ - Protect file remove with upload token.
+ - Fix release creation. Archive was changing owner of the current folder.
+
+Misc :
+ - Webapp coding style and code comments
+ - Favicon
+
+The Root.GG team

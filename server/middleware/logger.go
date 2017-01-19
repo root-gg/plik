@@ -40,7 +40,6 @@ import (
 func Logger(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		log := common.Logger().Copy()
-		log.Debug("Logger handler")
 		ctx.Set("logger", log)
 		next.ServeHTTP(resp, req)
 	})

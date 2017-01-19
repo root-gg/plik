@@ -1,0 +1,17 @@
+Hi,
+
+Plik 1.2 RC-3 is targeted at security. 
+
+Plik allow users to upload and serve any content as-is, but hosting untrusted HTML raises some well known security concern like phishing, xss, xsrf,... Rendering HTML and executing javascript in the context of Plik is not something we consider a feature. We try to avoid it by overriding Content-Type "text/html" to "text-plain", also the [Content-Security-Policy](https://content-security-policy.com/) HTTP header should disable sensible features of most recent browsers like resource loading, xhr requests, iframes,... 
+
+We also strongly advise you to use the new DownloadDomain option with a separate (sub-) domain to enforce that download links do not share the same origin than the Plik web client.
+
+Changelist :
+ - Add security headers to getFileHandler to avoid HTML rendring in web browser
+ - 	Enforce download domain option			
+ - Add README security section
+ - 	Display Golang version on build info		
+ - 	Update go version in travis build			
+
+Cheers,
+The Plik team.

@@ -1,0 +1,22 @@
+Hi !
+
+We're very happy to release Plik 1.0 today !
+Here is the changelog since the last RC version : 
+
+    - Webapp : Fix streaming checkbox label
+
+    - Client : Cleaner output
+    - Client : Compare pgp recipients in lowercase
+    - Client : Fix file name when archive mode enabled
+    - Client : Fix updateing choice case (Y/y)
+    - Client : Add quotes in commands (avoid issues on filenames with spaces)
+
+    - Server : Listen port override with --port param (usefull for multi-instance with same config file)
+    - Server : Using crypto/rand instead of math/rand (thanks to @jedisct1)
+    - Server : Clean API paths
+
+
+We are already working on exciting new features for our next major release !
+
+Stay tuned !
+The plik development team.

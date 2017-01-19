@@ -1,0 +1,31 @@
+We are happy to release Plik 1.1-RC2.
+
+Here is the changelog, mostly small fixes and unit tests.
+
+Build :
+  Makefile test target
+
+Webapp :
+  Homemade html content editable Angularjs directive
+  Detect invalid chars in file names : / # ? % "
+  Bind /config params ( default/max TTL, max file size )
+  Add never expire option if allowed
+  Vendorize fonts
+  Resize background image
+  Center comments
+  Smaller md5/details font size
+  Fix some TTL issues
+  Fix admin url link for removable uploads
+
+Cli client :
+  Integration tests
+  Upgrade/Downgrade integration tests
+  Use /version to update client
+  Fix openssl custom options
+
+Plikd server :
+  Fix "Failed to get expired uploads" log message
+  Fix TTL issues ( never expire value is now -1 everywhere )
+
+Cheers,
+The root.gg team.

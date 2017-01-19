@@ -263,9 +263,6 @@ func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error
 
 	req.Header.Set("Content-Type", "application/json")
 
-	// Referer is used to generate shorlinks
-	req.Header.Set("Referer", config.Config.URL)
-
 	resp, err := makeRequest(req)
 	if err != nil {
 		return
@@ -465,9 +462,12 @@ func updateClient(updateFlag bool) (err error) {
 	}
 
 	// Check server version
-	var version string
+	currentVersion := common.GetBuildInfo().Version
+
+	var newVersion string
 	var downloadURL string
 	var newMD5 string
+	var buildInfo *common.BuildInfo
 
 	var URL *url.URL
 	URL, err = url.Parse(config.Config.URL + "/version")
@@ -501,14 +501,14 @@ func updateClient(updateFlag bool) (err error) {
 		}
 
 		// Parse json BuildInfo object
-		buildInfo := new(common.BuildInfo)
+		buildInfo = new(common.BuildInfo)
 		err = json.Unmarshal(body, buildInfo)
 		if err != nil {
 			err = fmt.Errorf("Unable to get server version : %s", err)
 			return
 		}
 
-		version = buildInfo.Version
+		newVersion = buildInfo.Version
 		for _, client := range buildInfo.Clients {
 			if client.OS == runtime.GOOS && client.ARCH == runtime.GOARCH {
 				newMD5 = client.Md5
@@ -570,8 +570,8 @@ func updateClient(updateFlag bool) (err error) {
 	// Check if the client is up to date
 	if currentMD5 == newMD5 {
 		if updateFlag {
-			if version != "" {
-				printf("Plik client %s is up to date\n", version)
+			if newVersion != "" {
+				printf("Plik client %s is up to date\n", newVersion)
 			} else {
 				printf("Plik client is up to date\n")
 			}
@@ -581,8 +581,8 @@ func updateClient(updateFlag bool) (err error) {
 	}
 
 	// Ask for permission
-	if version != "" {
-		fmt.Printf("Update Plik client from %s to %s ? [Y/n] ", common.GetBuildInfo().Version, version)
+	if newVersion != "" {
+		fmt.Printf("Update Plik client from %s to %s ? [Y/n] ", currentVersion, newVersion)
 	} else {
 		fmt.Printf("Update Plik client to match server version ? [Y/n] ")
 	}
@@ -593,6 +593,93 @@ func updateClient(updateFlag bool) (err error) {
 			os.Exit(0)
 		}
 		return
+	}
+
+	// Display release notes
+	if buildInfo != nil && buildInfo.Releases != nil {
+
+		// Find current release
+		currentReleaseIndex := -1
+		for i, release := range buildInfo.Releases {
+			if release.Name == currentVersion {
+				currentReleaseIndex = i
+			}
+		}
+
+		// Find new release
+		newReleaseIndex := -1
+		for i, release := range buildInfo.Releases {
+			if release.Name == newVersion {
+				newReleaseIndex = i
+			}
+		}
+
+		// Find releases between current and new version
+		var releases []*common.Release
+		if currentReleaseIndex > 0 && newReleaseIndex > 0 && currentReleaseIndex < newReleaseIndex {
+			releases = buildInfo.Releases[currentReleaseIndex+1 : newReleaseIndex+1]
+		}
+
+		for _, release := range releases {
+			// Get release notes from server
+			var URL *url.URL
+			URL, err = url.Parse(config.Config.URL + "/changelog/" + release.Name)
+			if err != nil {
+				continue
+			}
+			var req *http.Request
+			req, err = http.NewRequest("GET", URL.String(), nil)
+			if err != nil {
+				err = fmt.Errorf("Unable to get release notes for version %s : %s", release.Name, err)
+				continue
+			}
+
+			resp, err = makeRequest(req)
+			if err != nil {
+				err = fmt.Errorf("Unable to get release notes for version %s : %s", release.Name, err)
+				continue
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != 200 {
+				err = fmt.Errorf("Unable to get release notes for version %s : %s", release.Name, err)
+				continue
+			}
+
+			var body []byte
+			body, err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				err = fmt.Errorf("Unable to get release notes for version %s : %s", release.Name, err)
+				continue
+			}
+
+			// Ask to display the release notes
+			fmt.Printf("Do you want to browse the release notes of version %s ? [Y/n] ", release.Name)
+			input := "y"
+			fmt.Scanln(&input)
+			if !strings.HasPrefix(strings.ToLower(input), "y") {
+				continue
+			}
+
+			// Display the release notes
+			releaseDate := time.Unix(release.Date, 0).Format("Mon Jan 2 2006 15:04")
+			fmt.Printf("Plik %s has been released %s\n\n", release.Name, releaseDate)
+			fmt.Println(string(body))
+
+			// Let user review the last release notes and ask to confirm update
+			if release.Name == newVersion {
+				fmt.Printf("\nUpdate Plik client from %s to %s ? [Y/n] ", currentVersion, newVersion)
+				input = "y"
+				fmt.Scanln(&input)
+				if !strings.HasPrefix(strings.ToLower(input), "y") {
+					if updateFlag {
+						os.Exit(0)
+					}
+					return
+				}
+				break
+			}
+		}
 	}
 
 	// Download new client
@@ -655,8 +742,8 @@ func updateClient(updateFlag bool) (err error) {
 		return
 	}
 
-	if version != "" {
-		printf("Plik client successfully updated to %s\n", version)
+	if newVersion != "" {
+		printf("Plik client successfully updated to %s\n", newVersion)
 	} else {
 		printf("Plik client successfully updated\n")
 	}

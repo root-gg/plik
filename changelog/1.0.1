@@ -1,0 +1,19 @@
+Hi, we're releasing plik 1.0.1 to fix some bugs found in the previous release.
+Here is the full changelog : 
+
+New: Add a Dockerfile for project
+New: Separate frontend of server in Makefile, and remove public folder on clean
+New: Add creation date in cli client summary
+New: Built with Golang 1.5.1
+
+Fix: Only include release folder in releases target in Makefile
+Fix: int overflow on Mac OS 32bits
+Fix: Makefile did not gzip releases
+Fix: Chocapic character in Makefile 'all' target
+Fix: Remove useless go get, since whole project is vendorized
+Fix: Escape file url in client
+Fix: Check errors on openpgp package
+Fix: Crash if config file is not valid
+
+Cheers,
+The plik team

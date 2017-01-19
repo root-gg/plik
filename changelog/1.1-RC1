@@ -1,0 +1,34 @@
+Hi,
+
+We're proud to release tonight Plik 1.1 RC-1.
+
+Build :
+  Makefile inprovements.
+  Include bower and grunt-cli in local node_modules ( avoid make deps ).
+  New version management system.
+  Clone Make and Run.
+  Remove broken Windows build target.
+
+Webapp :
+  New flat design.
+  Enhanced responsiveness.
+  Drag & Drop.
+  Display upload and file QRCode.
+  Upload picture right from mobile camera.
+  Fix iPhone/iPad/iPod bug.
+  Remove buggy copy to clipboard tool.
+
+Server :
+  Limit filename to 1024 chars.
+  New api paths :
+  - /version
+  - /config
+  - /qrcode
+
+Client :
+  Add --version flag.
+  Detect http redirections to compute right url in client.
+  Fix Removable option switch.
+
+More to come in a few days.
+The root.gg team.

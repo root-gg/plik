@@ -35,12 +35,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadataBackend"
-	"github.com/root-gg/plik/server/shortenBackend"
 	"github.com/root-gg/utils"
 )
 
@@ -188,25 +186,6 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 		}
 
 		upload.Yubikey = upload.Yubikey[:12]
-	}
-
-	// A short url is created for each upload if a shorten backend is specified in the configuration.
-	// Referer header is used to get the url of incoming request, clients have to set it in order
-	// to get this feature working
-	if shortenBackend.GetShortenBackend() != nil {
-		if req.Header.Get("Referer") != "" {
-			u, err := url.Parse(req.Header.Get("Referer"))
-			if err != nil {
-				log.Warningf("Unable to parse referer url : %s", err)
-			}
-			longURL := u.Scheme + "://" + u.Host + "#/?id=" + upload.ID
-			shortURL, err := shortenBackend.GetShortenBackend().Shorten(ctx, longURL)
-			if err == nil {
-				upload.ShortURL = shortURL
-			} else {
-				log.Warningf("Unable to shorten url %s : %s", longURL, err)
-			}
-		}
 	}
 
 	// Create files

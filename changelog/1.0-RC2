@@ -1,0 +1,8 @@
+New Features : 
+  - is.gd shorten backend
+  - cli client pgp secure method
+  - cli client quiet mode
+  - cli client download command
+
+Server logs refactor, code clean, comments
+Various bugfixs ( see commit logs )

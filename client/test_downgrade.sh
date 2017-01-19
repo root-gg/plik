@@ -138,7 +138,7 @@ do
 
     # Try to downgrade client
     cp $CLIENT ./plik
-    echo "y" | ./plik --update
+    for i in $(seq 0 100) ; do echo "y" ; done | ./plik --update
 
     # Verify updated client
     SERVER_MD5=$(md5sum "clients/$(go env GOOS)-$(go env GOARCH)/plik" | awk '{print $1}')
