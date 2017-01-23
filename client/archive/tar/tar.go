@@ -88,7 +88,7 @@ func (tb *Backend) Archive(files []string, writer io.WriteCloser) (err error) {
 	cmd.Stdout = writer
 	cmd.Stderr = os.Stderr
 	go func() {
-		err = cmd.Start()
+		err := cmd.Start()
 		if err != nil {
 			fmt.Printf("Unable to run tar cmd : %s\n", err)
 			os.Exit(1)

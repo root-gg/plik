@@ -28,6 +28,7 @@
 
 set -e
 export SHELLOPTS
+export ENABLE_RACE_DETECTOR=1
 
 ORIGIN=$(dirname $(readlink -f $0))
 cd "$ORIGIN/.."
@@ -100,9 +101,9 @@ function shutdown {
             echo -e "\n"
         fi
     fi
-    echo "Shutting down plik server"
     PID=$(ps a | grep plikd | grep -v grep | awk '{print $1}')
     if [ "x$PID" != "x" ];then
+        echo "Shutting down plik server"
         kill $PID
         sleep 1
         PID=$(ps a | grep plikd | grep -v grep | awk '{print $1}')
