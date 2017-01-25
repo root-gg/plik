@@ -73,14 +73,19 @@ EOF
 ###
 
 echo -n "Start Plik server : "
-(cd server && ./plikd > $SERVER_LOG 2>&1) >/dev/null 2>&1 &
+
+PLIKD_CONFIG=${PLIKD_CONFIG-../server/plikd.cfg}
+echo "PLIKD_CONFIG = $PLIKD_CONFIG"
+
+(cd server && ./plikd -config $PLIKD_CONFIG > $SERVER_LOG 2>&1) >/dev/null 2>&1 &
 
 # Verify that server is running
 sleep 1
 if curl $URL 2>/dev/null | grep plik >/dev/null 2>&1 ; then
     echo "OK"
 else
-    echo "FAIL"
+    echo "UNABLE TO START PLIK SERVER"
+    cat $SERVER_LOG
     exit 1
 fi
 
