@@ -5,7 +5,7 @@ services:
     image: chrislusf/seaweedfs
     container_name: plik.weedfs.master
     ports:
-      - 9333:9333
+      - 2605:9333
     command: "master"
     networks:
       default:
