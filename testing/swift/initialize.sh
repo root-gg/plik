@@ -3,7 +3,7 @@
 set -e
 cd "$(dirname "$0")"
 
-URL="http://127.0.0.1:2691"
+URL="http://127.0.0.1:2604"
 CNAME="plik"
 USER="test:tester"
 PASSWORD="testing"

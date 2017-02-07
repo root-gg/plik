@@ -29,49 +29,36 @@
 set -e
 cd "$(dirname "$0")"
 
-source ../utils.sh
+source ./utils.sh
 check_docker_connectivity
 
-DOCKER_COMPOSE_FILE="docker-compose.yml"
-DOCKER_NAMES=( "plik.weedfs.master" "plik.weedfs.volume" )
+BACKENDS=(
+    mongodb
+    swift
+    weedfs
+)
 
-function start {
-    docker-compose -f "$DOCKER_COMPOSE_FILE" up -d
-}
-
-function stop {
-    docker-compose -f "$DOCKER_COMPOSE_FILE" down
-}
-
-function status {
-    for name in "${DOCKER_NAMES[@]}"
+# Cleaning shutdown hook
+function shutdown {
+    echo "CLEANING UP !!!"
+    for BACKEND in ${BACKENDS[@]}
     do
-        if docker ps -f name="$name" | grep "$name" > /dev/null ; then
-            echo "$name is RUNNING"
-        else
-            echo "$name is NOT RUNNING"
-        fi
+        echo "CLEANING $BACKEND"
+        $BACKEND/run.sh stop
     done
 }
+trap shutdown EXIT
 
+for BACKEND in ${BACKENDS[@]}
+do
+    echo -e "\n - Tesing $BACKEND :\n"
 
-case "$1" in
-  start)
-    start
-    ;;
-  stop)
-    stop
-    ;;
-  restart)
-    stop
-    start
-    ;;
-  status)
-    status
-    ;;
-  *)
-	echo "Usage: $0 {start|stop|restart|status}"
-	exit 1
-esac
+    $BACKEND/run.sh stop
+    $BACKEND/run.sh start
 
-exit 0
+    export PLIKD_CONFIG=$(realpath $BACKEND/plikd.cfg)
+
+    ../client/test.sh
+
+    $BACKEND/run.sh stop
+done
