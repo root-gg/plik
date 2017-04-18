@@ -107,7 +107,7 @@ User authentication :
      - Get OVH user consent URL. User have to visit this URL to authenticate. 
      - The response will contain a temporary session cookie to forward the API endpoint and OVH consumer key to the callback.
 
-   - **GET** /auth/google/callback
+   - **GET** /auth/ovh/callback
      - Callback of the user consent dialog. 
      - The user will be redirected back to the web application with a Plik session cookie at the end of this call.
 
