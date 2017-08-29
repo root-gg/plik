@@ -35,19 +35,19 @@ $ ./plikd
 Et voilà ! You now have a fully functional instance of plik running on http://127.0.0.1:8080.  
 You can edit server/plikd.cfg to adapt the configuration to your needs (ports, ssl, ttl, backends params,...)
 
-##### From root.gg Debian repository
+##### From root.gg Debian repository
 
 Configure root.gg repository and install server and/or client
 ```
-    wget -O - http://mir.root.gg/gg.key | apt-key add -
-    echo "deb http://mir.root.gg/ $(lsb_release --codename --short) main" > /etc/apt/sources.list.d/root.gg.list
-    apt-get update
-    apt-get install plikd plik
+wget -O - http://mir.root.gg/gg.key | apt-key add -
+echo "deb http://mir.root.gg/ $(lsb_release --codename --short) main" > /etc/apt/sources.list.d/root.gg.list
+apt-get update
+apt-get install plikd plik
 ```
 
 Edit server configuration at /etc/plikd.cfg and start the server 
 ```
-    service plikd start
+service plikd start
 ```
 
 ##### From sources
@@ -113,7 +113,7 @@ Options:
 
 For example to create directory tar.gz archive and encrypt it with openssl :
 ```
-$plik -a -s mydirectory/
+$ plik -a -s mydirectory/
 Passphrase : 30ICoKdFeoKaKNdnFf36n0kMH
 Upload successfully created : 
     https://127.0.0.1:8080/#/?id=0KfNj6eMb93ilCrl
@@ -126,7 +126,7 @@ curl -s 'https://127.0.0.1:8080/file/0KfNj6eMb93ilCrl/q73tEBEqM04b22GP/mydirecto
 
 Client configuration and preferences are stored at ~/.plikrc or /etc/plik/plikrc ( overridable with PLIKRC environement variable )
 
-### Available data backends
+###  Available data backends
 
 Plik is shipped with multiple data backend for uploaded files and metadata backend for the upload metadata.
 
@@ -142,7 +142,7 @@ Openstack Swift is a highly available, distributed, eventually consistent object
 
 SeaweedFS is a simple and highly scalable distributed file system.
 
-### Available metadata backends
+### Available metadata backends
 
  - File metadata backend : (DEPRECATED)
 
@@ -278,11 +278,11 @@ You might want to install the "nginx-extras" Debian package with built-in HttpCh
 And add in your server configuration :
 
 ```sh
-        chunkin on;
-        error_page 411 = @my_411_error;
-        location @my_411_error {
-                chunkin_resume;
-        }
+chunkin on;
+error_page 411 = @my_411_error;
+location @my_411_error {
+        chunkin_resume;
+}
 ```
 
 * How to disable nginx buffering ?
@@ -291,12 +291,12 @@ By default nginx buffers large HTTP requests and reponses to a temporary file. T
 
 Detailed documentation : http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering
 ```
-   proxy_buffering off;
-   proxy_request_buffering off;
-   proxy_http_version 1.1;
-   proxy_buffer_size 1M;
-   proxy_buffers 8 1M;
-   client_body_buffer_size 1M;
+proxy_buffering off;
+proxy_request_buffering off;
+proxy_http_version 1.1;
+proxy_buffer_size 1M;
+proxy_buffers 8 1M;
+client_body_buffer_size 1M;
 ```
 
 * Why authentication does not work with HTTP connections ?
