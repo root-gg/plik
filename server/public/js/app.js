@@ -950,7 +950,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 return "never expire";
             } else {
                 var d = new Date(($scope.upload.ttl + $scope.upload.uploadDate) * 1000);
-                return "expire the " + d.toLocaleDateString() + " at " + d.toLocaleTimeString();
+                return "expire on " + d.toLocaleDateString() + " at " + d.toLocaleTimeString();
             }
         };
 
