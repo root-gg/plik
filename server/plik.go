@@ -97,39 +97,42 @@ func main() {
 	getFileChain := juliet.NewChain(middleware.Upload, middleware.Yubikey, middleware.File)
 
 	// HTTP Api routes configuration
-	r := mux.NewRouter()
-	r.Handle("/config", stdChain.Then(handlers.GetConfiguration)).Methods("GET")
-	r.Handle("/version", stdChain.Then(handlers.GetVersion)).Methods("GET")
-	r.Handle("/upload", tokenChain.Then(handlers.CreateUpload)).Methods("POST")
-	r.Handle("/upload/{uploadID}", authChain.Append(middleware.Upload).Then(handlers.GetUpload)).Methods("GET")
-	r.Handle("/upload/{uploadID}", authChain.Append(middleware.Upload).Then(handlers.RemoveUpload)).Methods("DELETE")
-	r.Handle("/file/{uploadID}", tokenChain.Append(middleware.Upload).Then(handlers.AddFile)).Methods("POST")
-	r.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
-	r.Handle("/file/{uploadID}/{fileID}/{filename}", authChain.Append(middleware.Upload, middleware.File).Then(handlers.RemoveFile)).Methods("DELETE")
-	r.Handle("/file/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
-	r.Handle("/file/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
-	r.Handle("/stream/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
-	r.Handle("/stream/{uploadID}/{fileID}/{filename}", authChain.Append(middleware.Upload, middleware.File).Then(handlers.RemoveFile)).Methods("DELETE")
-	r.Handle("/stream/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
-	r.Handle("/stream/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
-	r.Handle("/archive/{uploadID}/{filename}", authChainWithRedirect.Append(middleware.Upload, middleware.Yubikey).Then(handlers.GetArchive)).Methods("HEAD", "GET")
-	r.Handle("/archive/{uploadID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.Append(middleware.Upload, middleware.Yubikey).Then(handlers.GetArchive)).Methods("HEAD", "GET")
-	r.Handle("/auth/google/login", authChain.Then(handlers.GoogleLogin)).Methods("GET")
-	r.Handle("/auth/google/callback", stdChainWithRedirect.Then(handlers.GoogleCallback)).Methods("GET")
-	r.Handle("/auth/ovh/login", authChain.Then(handlers.OvhLogin)).Methods("GET")
-	r.Handle("/auth/ovh/callback", stdChainWithRedirect.Then(handlers.OvhCallback)).Methods("GET")
-	r.Handle("/auth/logout", authChain.Then(handlers.Logout)).Methods("GET")
-	r.Handle("/me", authChain.Then(handlers.UserInfo)).Methods("GET")
-	r.Handle("/me", authChain.Then(handlers.DeleteAccount)).Methods("DELETE")
-	r.Handle("/me/token", authChain.Then(handlers.CreateToken)).Methods("POST")
-	r.Handle("/me/token/{token}", authChain.Then(handlers.RevokeToken)).Methods("DELETE")
-	r.Handle("/me/uploads", authChain.Then(handlers.GetUserUploads)).Methods("GET")
-	r.Handle("/me/uploads", authChain.Then(handlers.RemoveUserUploads)).Methods("DELETE")
-	r.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
-	r.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
-	r.PathPrefix("/changelog/").Handler(http.StripPrefix("/changelog/", http.FileServer(http.Dir("../changelog"))))
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
-	http.Handle("/", r)
+	router := mux.NewRouter()
+	router.Handle("/config", stdChain.Then(handlers.GetConfiguration)).Methods("GET")
+	router.Handle("/version", stdChain.Then(handlers.GetVersion)).Methods("GET")
+	router.Handle("/upload", tokenChain.Then(handlers.CreateUpload)).Methods("POST")
+	router.Handle("/upload/{uploadID}", authChain.Append(middleware.Upload).Then(handlers.GetUpload)).Methods("GET")
+	router.Handle("/upload/{uploadID}", authChain.Append(middleware.Upload).Then(handlers.RemoveUpload)).Methods("DELETE")
+	router.Handle("/file/{uploadID}", tokenChain.Append(middleware.Upload).Then(handlers.AddFile)).Methods("POST")
+	router.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
+	router.Handle("/file/{uploadID}/{fileID}/{filename}", authChain.Append(middleware.Upload, middleware.File).Then(handlers.RemoveFile)).Methods("DELETE")
+	router.Handle("/file/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
+	router.Handle("/file/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
+	router.Handle("/stream/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
+	router.Handle("/stream/{uploadID}/{fileID}/{filename}", authChain.Append(middleware.Upload, middleware.File).Then(handlers.RemoveFile)).Methods("DELETE")
+	router.Handle("/stream/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
+	router.Handle("/stream/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
+	router.Handle("/archive/{uploadID}/{filename}", authChainWithRedirect.Append(middleware.Upload, middleware.Yubikey).Then(handlers.GetArchive)).Methods("HEAD", "GET")
+	router.Handle("/archive/{uploadID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.Append(middleware.Upload, middleware.Yubikey).Then(handlers.GetArchive)).Methods("HEAD", "GET")
+	router.Handle("/auth/google/login", authChain.Then(handlers.GoogleLogin)).Methods("GET")
+	router.Handle("/auth/google/callback", stdChainWithRedirect.Then(handlers.GoogleCallback)).Methods("GET")
+	router.Handle("/auth/ovh/login", authChain.Then(handlers.OvhLogin)).Methods("GET")
+	router.Handle("/auth/ovh/callback", stdChainWithRedirect.Then(handlers.OvhCallback)).Methods("GET")
+	router.Handle("/auth/logout", authChain.Then(handlers.Logout)).Methods("GET")
+	router.Handle("/me", authChain.Then(handlers.UserInfo)).Methods("GET")
+	router.Handle("/me", authChain.Then(handlers.DeleteAccount)).Methods("DELETE")
+	router.Handle("/me/token", authChain.Then(handlers.CreateToken)).Methods("POST")
+	router.Handle("/me/token/{token}", authChain.Then(handlers.RevokeToken)).Methods("DELETE")
+	router.Handle("/me/uploads", authChain.Then(handlers.GetUserUploads)).Methods("GET")
+	router.Handle("/me/uploads", authChain.Then(handlers.RemoveUserUploads)).Methods("DELETE")
+	router.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
+	router.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
+	router.PathPrefix("/changelog/").Handler(http.StripPrefix("/changelog/", http.FileServer(http.Dir("../changelog"))))
+	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./public/")))
+
+	handler := common.StripPrefix(common.Config.Path, router)
+
+	http.Handle("/", handler)
 
 	go UploadsCleaningRoutine()
 
@@ -150,10 +153,10 @@ func main() {
 		}
 
 		tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10, Certificates: []tls.Certificate{cert}}
-		server = &http.Server{Addr: address, Handler: r, TLSConfig: tlsConfig}
+		server = &http.Server{Addr: address, Handler: handler, TLSConfig: tlsConfig}
 	} else {
 		proto = "http"
-		server = &http.Server{Addr: address, Handler: r}
+		server = &http.Server{Addr: address, Handler: handler}
 	}
 
 	log.Infof("Starting http server at %s://%s", proto, address)
