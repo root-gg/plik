@@ -41,11 +41,14 @@ import (
 
 // Configuration object
 type Configuration struct {
-	LogLevel         string `json:"-"`
-	ListenAddress    string `json:"-"`
-	ListenPort       int    `json:"-"`
-	MaxFileSize      int64  `json:"maxFileSize"`
-	MaxFilePerUpload int    `json:"maxFilePerUpload"`
+	LogLevel string `json:"-"`
+
+	ListenAddress string `json:"-"`
+	ListenPort    int    `json:"-"`
+	Path          string `json:"-"`
+
+	MaxFileSize      int64 `json:"maxFileSize"`
+	MaxFilePerUpload int   `json:"maxFilePerUpload"`
 
 	DefaultTTL int `json:"defaultTTL"`
 	MaxTTL     int `json:"maxTTL"`
@@ -103,8 +106,6 @@ func NewConfiguration() (config *Configuration) {
 	config.DefaultTTL = 2592000 // 30 days
 	config.MaxTTL = 0
 	config.SslEnabled = false
-	config.SslCert = ""
-	config.SslKey = ""
 	config.StreamMode = true
 	return
 }
@@ -114,6 +115,7 @@ func NewConfiguration() (config *Configuration) {
 // override default params
 func LoadConfiguration(file string) {
 	Config = NewConfiguration()
+
 	if _, err := toml.DecodeFile(file, Config); err != nil {
 		Logger().Fatalf("Unable to load config file %s : %s", file, err)
 	}
@@ -124,6 +126,8 @@ func LoadConfiguration(file string) {
 	} else {
 		Logger().SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel)
 	}
+
+	Config.Path = strings.TrimSuffix(Config.Path, "/")
 
 	// Do user specified a ApiKey and ApiSecret for Yubikey
 	if Config.YubikeyEnabled {
