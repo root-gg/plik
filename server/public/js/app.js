@@ -434,6 +434,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     var code = $location.search().errcode;
                     $dialog.alert({status: code, message: err});
                     $location.search({});
+                    $location.hash("");
                 }
             } else {
                 // Load current upload id
@@ -677,7 +678,8 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             $api.removeUpload($scope.upload)
                 .then(function () {
                     // Redirect to main page
-                    $location.search('id', null);
+                    $location.search({});
+                    $location.hash("");
                     $route.reload();
                 })
                 .then(null, function (error) {
@@ -695,7 +697,8 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     });
                     // Redirect to main page if no more files
                     if (!$scope.files.length) {
-                        $location.search('id', null);
+                        $location.search({});
+                        $location.hash("");
                         $route.reload();
                     }
                 })
