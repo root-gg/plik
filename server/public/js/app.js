@@ -672,18 +672,28 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         };
 
         // Remove the whole upload
-        // Remove a file from the servers
+        // Remove a file from the server
         $scope.removeUpload = function () {
             if (!$scope.upload.removable && !$scope.upload.admin) return;
-            $api.removeUpload($scope.upload)
-                .then(function () {
-                    // Redirect to main page
-                    $location.search({});
-                    $location.hash("");
-                    $route.reload();
-                })
-                .then(null, function (error) {
-                    $dialog.alert(error);
+
+            $dialog.alert({
+                title: "Really ?",
+                message: "This will remove " + $scope.files.length + " file(s) from the server",
+                confirm: true
+            }).result.then(
+                function () {
+                    $api.removeUpload($scope.upload)
+                        .then(function () {
+                            // Redirect to main page
+                            $location.search({});
+                            $location.hash("");
+                            $route.reload();
+                        })
+                        .then(null, function (error) {
+                            $dialog.alert(error);
+                        });
+                }, function () {
+                    // Avoid "Possibly unhandled rejection"
                 });
         };
 
