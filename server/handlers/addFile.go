@@ -49,9 +49,14 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 
 	user := common.GetUser(ctx)
-	if user == nil && !common.IsWhitelisted(ctx) {
-		log.Warning("Unable to add file from untrusted source IP address")
-		common.Fail(ctx, req, resp, "Unable to add file from untrusted source IP address. Please login or use a cli token.", 403)
+	if user == nil && ( !common.IsWhitelisted(ctx) || common.Config.NoAnonymousUploads ) {
+		if common.Config.NoAnonymousUploads {
+			log.Warning("Unable to add file from anonymous user")
+			common.Fail(ctx, req, resp, "Unable to add file from anonymous user. Please login or use a cli token.", 403)
+		} else {
+			log.Warning("Unable to add file from untrusted source IP address")
+			common.Fail(ctx, req, resp, "Unable to add file from untrusted source IP address. Please login or use a cli token.", 403)
+		}
 		return
 	}
 
