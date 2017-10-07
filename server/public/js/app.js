@@ -126,7 +126,7 @@ angular.module('dialog', ['ui.bootstrap']).
 // API Service
 angular.module('api', ['ngFileUpload']).
     factory('$api', function ($http, $q, Upload) {
-        var api = {base: ''};
+        var api = {base: window.location.origin + window.location.pathname.replace(/\/$/, '') };
 
         // Make the actual HTTP call and return a promise
         api.call = function (url, method, params, data, uploadToken) {
@@ -427,13 +427,47 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             var err = $location.search().err;
             if (!_.isUndefined(err)) {
                 if (err == "Invalid yubikey token" && $location.search().uri) {
-                    var uri = $location.search().uri.split("/");
-                    $scope.load(uri[2]);
-                    $scope.downloadWithYubikey(location.origin + "/file/" + uri[2] + "/" + uri[3] + "/" + uri[4]);
+                    var uri = $location.search().uri;
+                    if ( !uri ) {
+                        $dialog.alert({status: 0, message: "Unable to get uri from yubikey redirect"});
+                        $location.search({});
+                        $location.hash("");
+                        return;
+                    }
+
+                    // Parse URI
+                    var url = new URL(window.location.origin + uri);
+
+                    var regex = /^.*\/(file|stream|archive)\/(.*?)\/(.*?)\/(.*)$/;
+                    var match = regex.exec(url.pathname);
+                    if ( !match && match.length != 5 ) {
+                        $dialog.alert({status: 0, message: "Unable to get uploadId from yubikey redirect"});
+                        $location.search({});
+                        $location.hash("");
+                        return;
+                    }
+
+                    var mode = match[1];
+                    var uploadId = match[2];
+                    var fileId = match[3];
+                    var fileName = match[4];
+
+                    var download = false;
+                    if (url.searchParams.get("dl") == 1) {
+                        download = true;
+                    }
+
+                    // For now there is nothing preventing us to load the upload at this point.
+                    // But I think that upload metadata should be also be protected by the token.
+                    // And I don't want the user to be asked for two tokens.
+                    // https://github.com/root-gg/plik/issues/215.
+
+                    $scope.downloadWithYubikey(mode, uploadId, fileId, fileName, download);
                 } else {
                     var code = $location.search().errcode;
                     $dialog.alert({status: code, message: err});
                     $location.search({});
+                    $location.hash("");
                 }
             } else {
                 // Load current upload id
@@ -671,17 +705,28 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         };
 
         // Remove the whole upload
-        // Remove a file from the servers
+        // Remove a file from the server
         $scope.removeUpload = function () {
             if (!$scope.upload.removable && !$scope.upload.admin) return;
-            $api.removeUpload($scope.upload)
-                .then(function () {
-                    // Redirect to main page
-                    $location.search('id', null);
-                    $route.reload();
-                })
-                .then(null, function (error) {
-                    $dialog.alert(error);
+
+            $dialog.alert({
+                title: "Really ?",
+                message: "This will remove " + $scope.files.length + " file(s) from the server",
+                confirm: true
+            }).result.then(
+                function () {
+                    $api.removeUpload($scope.upload)
+                        .then(function () {
+                            // Redirect to main page
+                            $location.search({});
+                            $location.hash("");
+                            $route.reload();
+                        })
+                        .then(null, function (error) {
+                            $dialog.alert(error);
+                        });
+                }, function () {
+                    // Avoid "Possibly unhandled rejection"
                 });
         };
 
@@ -695,7 +740,8 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     });
                     // Redirect to main page if no more files
                     if (!$scope.files.length) {
-                        $location.search('id', null);
+                        $location.search({});
+                        $location.hash("");
                         $route.reload();
                     }
                 })
@@ -729,36 +775,38 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             return filesize(size, {base: 2});
         };
 
-        // Return file download URL
-        $scope.getFileUrl = function (file, dl) {
-            if (!file || !file.metadata) return;
-            var mode = $scope.upload.stream ? "stream" : "file";
-            var domain = $scope.config.downloadDomain ? $scope.config.downloadDomain : location.origin;
-            var url = domain + '/' + mode + '/' + $scope.upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
+        // Build file download URL
+        var getFileUrl = function(mode, uploadID, fileID, fileName, yubikeyToken, dl) {
+            var domain = $scope.config.downloadDomain ? $scope.config.downloadDomain : $api.base;
+            var url = domain + '/' + mode + '/' + uploadID + '/' + fileID + '/' + fileName;
+            if (yubikeyToken) {
+                url +=  "/yubikey/" + yubikeyToken
+            }
             if (dl) {
                 // Force file download
                 url += "?dl=1";
             }
 
             return encodeURI(url);
+        };
+
+        // Return file download URL
+        $scope.getFileUrl = function (file, dl) {
+            if (!file || !file.metadata) return;
+            var mode = $scope.upload.stream ? "stream" : "file";
+            return getFileUrl(mode, $scope.upload.id, file.metadata.id, file.metadata.fileName, null, dl);
         };
 
         // Return zip archive download URL
         $scope.getZipArchiveUrl = function (dl) {
             if (!$scope.upload.id) return;
-            var domain = $scope.config.downloadDomain ? $scope.config.downloadDomain : location.origin;
-            var url = domain + '/archive/' + $scope.upload.id + '/archive.zip';
-            if (dl) {
-                // Force file download
-                url += "?dl=1";
-            }
-            return encodeURI(url);
+            return getFileUrl("archive", $scope.upload.id, file.metadata.id, "archive.zip", null, dl);
         };
 
         // Return QR Code image url
         $scope.getQrCodeUrl = function (url, size) {
             if (!url) return;
-            return location.origin + "/qrcode?url=" + encodeURIComponent(url) + "&size=" + size;
+            return $api.base + "/qrcode?url=" + encodeURIComponent(url) + "&size=" + size;
         };
 
         // Return QR Code image url for current upload
@@ -839,7 +887,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         };
 
         // Yubikey OTP download dialog
-        $scope.downloadWithYubikey = function (url) {
+        $scope.downloadWithYubikey = function (mode, uploadID, fileId, fileName, dl) {
             $dialog.openDialog({
                 backdrop: true,
                 backdropClick: true,
@@ -848,7 +896,8 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             }).result.then(
                 function (token) {
                     // Redirect to file download URL with yubikey token
-                    window.location.replace(url + '/yubikey/' + token);
+                    var url = getFileUrl(mode, uploadID, fileId, fileName, token, dl);
+                    window.location.replace(url);
                 }, function () {
                     // Avoid "Possibly unhandled rejection"
                 });
@@ -950,7 +999,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 return "never expire";
             } else {
                 var d = new Date(($scope.upload.ttl + $scope.upload.uploadDate) * 1000);
-                return "expire the " + d.toLocaleDateString() + " at " + d.toLocaleTimeString();
+                return "expire on " + d.toLocaleDateString() + " at " + d.toLocaleTimeString();
             }
         };
 
@@ -980,6 +1029,10 @@ plik.controller('ClientListCtrl', ['$scope', '$api', '$dialog',
             .then(null, function (error) {
                 $dialog.alert(error);
             });
+
+        $scope.getClientPath = function(client) {
+            return $api.base + client.path;
+        }
     }]);
 
 // Login controller
@@ -1200,12 +1253,12 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
 
         // Get upload url
         $scope.getUploadUrl = function (upload) {
-            return location.origin + '/#/?id=' + upload.id;
+            return $api.base + '/#/?id=' + upload.id;
         };
 
         // Get file url
         $scope.getFileUrl = function (upload, file) {
-            return location.origin + '/file/' + upload.id + '/' + file.id + '/' + file.fileName;
+            return $api.base + '/file/' + upload.id + '/' + file.id + '/' + file.fileName;
         };
 
         // Compute human readable size

@@ -32,6 +32,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -63,7 +64,7 @@ func GoogleLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	origin := req.Header.Get("referer")
 	if origin == "" {
 		log.Warning("Missing referer header")
-		common.Fail(ctx, req, resp, "Missing referer herader", 400)
+		common.Fail(ctx, req, resp, "Missing referer header", 400)
 		return
 	}
 
@@ -207,6 +208,25 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			user.Login = userInfo.Email
 			user.Name = userInfo.Name
 			user.Email = userInfo.Email
+			components := strings.Split(user.Email, "@")
+
+			// Accepted user domain checking
+			goodDomain := false
+			if len(common.Config.GoogleValidDomains) > 0 {
+				for _, validDomain := range common.Config.GoogleValidDomains {
+					if strings.Compare(components[1], validDomain) == 0 {
+						goodDomain = true
+					}
+				}
+			} else {
+				goodDomain = true
+			}
+			if !goodDomain {
+				// User not from accepted google domains list
+				log.Warningf("Unacceptible user domain : %s", components[1])
+				common.Fail(ctx, req, resp, "Authentification error", 403)
+				return
+			}
 
 			// Save user to metadata backend
 			err = metadataBackend.GetMetaDataBackend().SaveUser(ctx, user)
@@ -263,5 +283,5 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 	xsrfCookie.Path = "/"
 	http.SetCookie(resp, xsrfCookie)
 
-	http.Redirect(resp, req, "/#!/login", 301)
+	http.Redirect(resp, req, common.Config.Path+"/#!/login", 301)
 }

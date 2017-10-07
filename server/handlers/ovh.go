@@ -107,7 +107,7 @@ func OvhLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 	origin := req.Header.Get("referer")
 	if origin == "" {
 		log.Warning("Missing referer header")
-		common.Fail(ctx, req, resp, "Missing referer herader", 400)
+		common.Fail(ctx, req, resp, "Missing referer header", 400)
 		return
 	}
 
@@ -377,5 +377,5 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	xsrfCookie.Path = "/"
 	http.SetCookie(resp, xsrfCookie)
 
-	http.Redirect(resp, req, "/#!/login", 301)
+	http.Redirect(resp, req, common.Config.Path+"/#!/login", 301)
 }
