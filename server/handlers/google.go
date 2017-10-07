@@ -31,8 +31,8 @@ package handlers
 
 import (
 	"fmt"
-	"strings"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -208,7 +208,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			user.Login = userInfo.Email
 			user.Name = userInfo.Name
 			user.Email = userInfo.Email
-			components := strings.Split(user.Email,"@")
+			components := strings.Split(user.Email, "@")
 
 			// Accepted user domain checking
 			goodDomain := false
