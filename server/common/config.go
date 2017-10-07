@@ -68,13 +68,15 @@ type Configuration struct {
 	SourceIPHeader  string   `json:"-"`
 	UploadWhitelist []string `json:"-"`
 
-	Authentication       bool   `json:"authentication"`
-	GoogleAuthentication bool   `json:"googleAuthentication"`
-	GoogleAPISecret      string `json:"-"`
-	GoogleAPIClientID    string `json:"-"`
-	OvhAuthentication    bool   `json:"ovhAuthentication"`
-	OvhAPIKey            string `json:"-"`
-	OvhAPISecret         string `json:"-"`
+	Authentication       bool     `json:"authentication"`
+	NoAnonymousUploads   bool     `json:"-"`
+	GoogleAuthentication bool     `json:"googleAuthentication"`
+	GoogleAPISecret      string   `json:"-"`
+	GoogleAPIClientID    string   `json:"-"`
+	GoogleValidDomains   []string `json:"-"`
+	OvhAuthentication    bool     `json:"ovhAuthentication"`
+	OvhAPIKey            string   `json:"-"`
+	OvhAPISecret         string   `json:"-"`
 
 	MetadataBackend       string                 `json:"-"`
 	MetadataBackendConfig map[string]interface{} `json:"-"`
@@ -169,10 +171,12 @@ func LoadConfiguration(file string) {
 
 	if !Config.GoogleAuthentication && !Config.OvhAuthentication {
 		Config.Authentication = false
+		Config.NoAnonymousUploads = false
 	}
 
 	if Config.MetadataBackend == "file" {
 		Config.Authentication = false
+		Config.NoAnonymousUploads = false
 	}
 
 	if Config.DownloadDomain != "" {

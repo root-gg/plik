@@ -47,10 +47,16 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	log := common.GetLogger(ctx)
 
 	user := common.GetUser(ctx)
-	if user == nil && !common.IsWhitelisted(ctx) {
-		log.Warning("Unable to create upload from untrusted source IP address")
-		common.Fail(ctx, req, resp, "Unable to create upload from untrusted source IP address. Please login or use a cli token.", 403)
-		return
+	if user == nil {
+		if common.Config.NoAnonymousUploads {
+			log.Warning("Unable to create upload from anonymous user")
+			common.Fail(ctx, req, resp, "Unable to create upload from anonymous user. Please login or use a cli token.", 403)
+			return
+		} else if !common.IsWhitelisted(ctx) {
+			log.Warning("Unable to create upload from untrusted source IP address")
+			common.Fail(ctx, req, resp, "Unable to create upload from untrusted source IP address. Please login or use a cli token.", 403)
+			return
+		}
 	}
 
 	upload := common.NewUpload()

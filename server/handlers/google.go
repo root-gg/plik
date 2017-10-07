@@ -32,6 +32,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -207,6 +208,26 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			user.Login = userInfo.Email
 			user.Name = userInfo.Name
 			user.Email = userInfo.Email
+			components := strings.Split(user.Email, "@")
+
+			// Accepted user domain checking
+			goodDomain := false
+			if len(common.Config.GoogleValidDomains) > 0 {
+				for _, validDomain := range common.Config.GoogleValidDomains {
+					if strings.Compare(components[1], validDomain) == 0 {
+						goodDomain = true
+					}
+				}
+			} else {
+				goodDomain = true
+			}
+
+			if !goodDomain {
+				// User not from accepted google domains list
+				log.Warningf("Unacceptable user domain : %s", components[1])
+				common.Fail(ctx, req, resp, fmt.Sprintf("Authentification error : Unauthorized dommain %s", components[1]), 403)
+				return
+			}
 
 			// Save user to metadata backend
 			err = metadataBackend.GetMetaDataBackend().SaveUser(ctx, user)
