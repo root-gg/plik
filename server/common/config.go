@@ -41,11 +41,14 @@ import (
 
 // Configuration object
 type Configuration struct {
-	LogLevel         string `json:"-"`
-	ListenAddress    string `json:"-"`
-	ListenPort       int    `json:"-"`
-	MaxFileSize      int64  `json:"maxFileSize"`
-	MaxFilePerUpload int    `json:"maxFilePerUpload"`
+	LogLevel string `json:"-"`
+
+	ListenAddress string `json:"-"`
+	ListenPort    int    `json:"-"`
+	Path          string `json:"-"`
+
+	MaxFileSize      int64 `json:"maxFileSize"`
+	MaxFilePerUpload int   `json:"maxFilePerUpload"`
 
 	DefaultTTL int `json:"defaultTTL"`
 	MaxTTL     int `json:"maxTTL"`
@@ -65,13 +68,15 @@ type Configuration struct {
 	SourceIPHeader  string   `json:"-"`
 	UploadWhitelist []string `json:"-"`
 
-	Authentication       bool   `json:"authentication"`
-	GoogleAuthentication bool   `json:"googleAuthentication"`
-	GoogleAPISecret      string `json:"-"`
-	GoogleAPIClientID    string `json:"-"`
-	OvhAuthentication    bool   `json:"ovhAuthentication"`
-	OvhAPIKey            string `json:"-"`
-	OvhAPISecret         string `json:"-"`
+	Authentication       bool     `json:"authentication"`
+	NoAnonymousUploads   bool     `json:"-"`
+	GoogleAuthentication bool     `json:"googleAuthentication"`
+	GoogleAPISecret      string   `json:"-"`
+	GoogleAPIClientID    string   `json:"-"`
+	GoogleValidDomains   []string `json:"-"`
+	OvhAuthentication    bool     `json:"ovhAuthentication"`
+	OvhAPIKey            string   `json:"-"`
+	OvhAPISecret         string   `json:"-"`
 
 	MetadataBackend       string                 `json:"-"`
 	MetadataBackendConfig map[string]interface{} `json:"-"`
@@ -103,8 +108,6 @@ func NewConfiguration() (config *Configuration) {
 	config.DefaultTTL = 2592000 // 30 days
 	config.MaxTTL = 0
 	config.SslEnabled = false
-	config.SslCert = ""
-	config.SslKey = ""
 	config.StreamMode = true
 	return
 }
@@ -114,6 +117,7 @@ func NewConfiguration() (config *Configuration) {
 // override default params
 func LoadConfiguration(file string) {
 	Config = NewConfiguration()
+
 	if _, err := toml.DecodeFile(file, Config); err != nil {
 		Logger().Fatalf("Unable to load config file %s : %s", file, err)
 	}
@@ -124,6 +128,8 @@ func LoadConfiguration(file string) {
 	} else {
 		Logger().SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel)
 	}
+
+	Config.Path = strings.TrimSuffix(Config.Path, "/")
 
 	// Do user specified a ApiKey and ApiSecret for Yubikey
 	if Config.YubikeyEnabled {
@@ -165,10 +171,12 @@ func LoadConfiguration(file string) {
 
 	if !Config.GoogleAuthentication && !Config.OvhAuthentication {
 		Config.Authentication = false
+		Config.NoAnonymousUploads = false
 	}
 
 	if Config.MetadataBackend == "file" {
 		Config.Authentication = false
+		Config.NoAnonymousUploads = false
 	}
 
 	if Config.DownloadDomain != "" {

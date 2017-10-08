@@ -57,6 +57,16 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Check anonymous user uploads
+	if common.Config.NoAnonymousUploads {
+		user := common.GetUser(ctx)
+		if user == nil {
+			log.Warning("Unable to add file from anonymous user")
+			common.Fail(ctx, req, resp, "Unable to add file from anonymous user. Please login or use a cli token.", 403)
+			return
+		}
+	}
+
 	// Check authorization
 	if !upload.IsAdmin {
 		log.Warningf("Unable to add file : unauthorized")

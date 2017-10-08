@@ -173,15 +173,17 @@ Suitable for distributed / High Availability deployment.
 ### Authentication
 
 Plik can authenticate users using Google and/or OVH API. 
-Once authenticated the only call Plik will ever make to those API is get the user ID, name and email. 
+Once authenticated the only call Plik will ever make to those API is to get the user ID, name and email. 
 Plik will never forward any upload data or metadata to any third party.   
 If source IP address restriction is enabled, user accounts can only be created from trusted IPs. But then 
-authenticated users can upload files without source IP restriction.   
+authenticated users can upload files without source IP restriction.
+It is also possible to deny unauthenticated uploads totally.
 
    - **Google** :
       - You'll need to create a new application in the [Google Developper Console](https://console.developers.google.com)
       - You'll be handed a Google API ClientID and a Google API ClientSecret that you'll need to put in the plikd.cfg file.
       - Do not forget to whitelist valid origin and redirect url ( https://yourdomain/auth/google/callback ) for your domain.
+      - It is possible to whitelist only one or more email domains.
    
    - **OVH** :
       - You'll need to create a new application in the OVH API : https://eu.api.ovh.com/createApp/
