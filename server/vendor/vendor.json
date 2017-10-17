@@ -183,10 +183,10 @@
 			"revisionTime": "2016-01-05T04:27:56Z"
 		},
 		{
-			"checksumSHA1": "IVV5EsW8txBzCLq9WIgiTD1Jg74=",
+			"checksumSHA1": "1D8GzeoFGUs5FZOoyC2DpQg8c5Y=",
 			"path": "gopkg.in/mgo.v2",
-			"revision": "e30de8ac9ae3b30df7065f766c71f88bba7d4e49",
-			"revisionTime": "2015-12-07T02:15:13Z"
+			"revision": "3f83fa5005286a7fe593b055f0d7771a7dce4655",
+			"revisionTime": "2016-08-18T02:01:20Z"
 		},
 		{
 			"checksumSHA1": "K/lQInTR+txzqW/I5/rDzEXDndw=",
