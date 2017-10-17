@@ -62,6 +62,7 @@ func NewMongoMetadataBackend(config map[string]interface{}) (mmb *MetadataBacken
 	dialInfo := &mgo.DialInfo{}
 	dialInfo.Addrs = []string{mmb.config.URL}
 	dialInfo.Database = mmb.config.Database
+	dialInfo.Timeout = 5 * time.Second
 	if mmb.config.Username != "" && mmb.config.Password != "" {
 		dialInfo.Username = mmb.config.Username
 		dialInfo.Password = mmb.config.Password
