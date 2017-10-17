@@ -294,13 +294,14 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 		fmt.Printf("%s\n", getFileCommand(uploadInfo, fileToUpload.File))
 	}
 
-	// TODO Handler error properly here
-	go func() error {
-
+	errCh := make(chan error)
+	go func(errCh chan error) {
 		part, err := multipartWriter.CreateFormFile("file", fileToUpload.Name)
 		if err != nil {
-			fmt.Println(err)
-			return pipeWriter.CloseWithError(err)
+			err = fmt.Errorf("Unable to create multipartWriter : %s", err)
+			pipeWriter.CloseWithError(err)
+			errCh <- err
+			return
 		}
 
 		var multiWriter io.Writer
@@ -322,20 +323,27 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 		if config.Config.Secure {
 			err = config.GetCryptoBackend().Encrypt(reader, multiWriter)
 			if err != nil {
-				fmt.Println(err)
-				return pipeWriter.CloseWithError(err)
+				pipeWriter.CloseWithError(err)
+				errCh <- err
+				return
 			}
 		} else {
 			_, err = io.Copy(multiWriter, reader)
 			if err != nil {
-				fmt.Println(err)
-				return pipeWriter.CloseWithError(err)
+				pipeWriter.CloseWithError(err)
+				errCh <- err
+				return
 			}
 		}
 
 		err = multipartWriter.Close()
-		return pipeWriter.CloseWithError(err)
-	}()
+		if err != nil {
+			err = fmt.Errorf("Unable to close multipartWriter : %s", err)
+		}
+
+		pipeWriter.CloseWithError(err)
+		errCh <- err
+	}(errCh)
 
 	mode := "file"
 	if uploadInfo.Stream {
@@ -345,13 +353,13 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 	var URL *url.URL
 	URL, err = url.Parse(config.Config.URL + "/" + mode + "/" + uploadInfo.ID + "/" + fileToUpload.ID + "/" + fileToUpload.Name)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	var req *http.Request
 	req, err = http.NewRequest("POST", URL.String(), pipeReader)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
@@ -363,24 +371,30 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 
 	resp, err := makeRequest(req)
 	if err != nil {
-		return
+		return nil, err
+	}
+
+	err = <-errCh
+	if err != nil {
+		return nil, err
 	}
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	// Parse Json response
 	file = new(common.File)
 	err = json.Unmarshal(body, file)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	config.Debug(fmt.Sprintf("Uploaded %s : %s", file.Name, config.Sdump(file)))
-	return
+
+	return file, nil
 }
 
 func getFileCommand(upload *common.Upload, file *common.File) (command string) {
