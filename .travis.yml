@@ -3,7 +3,7 @@ language: go
 sudo: required
 
 go:
-  - 1.7.4
+  - 1.9.1
 
 before_install:
   # Update node_js version : https://github.com/travis-ci/travis-ci/issues/7108

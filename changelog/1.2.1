@@ -1,0 +1,35 @@
+Hi,
+
+We're happy to release Plik 1.2.1
+
+Here is the changelog :
+
+New :
+    - Configuration option to prevent anonymous uploads.
+    - Configuration option to limit google email domains
+    - Serve HTTP on a different root path
+    - Display release notes on client update
+    - Backend testing script using Docker
+    - Load client config from /etc/plik/plikrc
+
+Misc :
+    - Add mongodb connect timeout
+    - Migrating from godeps to govendor
+    - Enable race detector when testing
+    - Add a confirm dialog to delete an Upload
+    - update golang and node_js version in Travis
+    - Update npm / bower dependencies ( bump Angularjs from 1.2 to 1.6 )
+
+Fix :
+    - Fix uploaded file size calculus
+    - Don't log file upload request body in debug mode
+    - Clean url properly when deleting upload
+    - Fix NPD in swift authentication
+    - Add missing letters to randRunes
+    - add clean-frontend to clean-all makefile directive
+    - Webapp : Fix progress bar when uploading file fails
+
+The binaires are compiled with go 1.9.1.
+
+Faithfully,
+The Plik Team.

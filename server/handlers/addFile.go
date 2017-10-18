@@ -44,6 +44,13 @@ import (
 	"github.com/root-gg/utils"
 )
 
+type preprocessOutputReturn struct {
+	size     int64
+	md5sum   string
+	mimeType string
+	err      error
+}
+
 // AddFile add a file to an existing upload.
 func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
@@ -105,6 +112,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	prefix := fmt.Sprintf("%s[%s]", log.Prefix, newFile.ID)
 	log.SetPrefix(prefix)
 
+	// Save file to the context
 	ctx.Set("file", newFile)
 
 	// Get file handle from multipart request
@@ -153,47 +161,11 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 
 	// Pipe file data from the request body to a preprocessing goroutine
 	//  - Guess content type
+	//  - Compute/Limit upload size
 	//  - Compute md5sum
-	//  - Limit upload size
 	preprocessReader, preprocessWriter := io.Pipe()
-	md5Hash := md5.New()
-	totalBytes := 0
-	go func() {
-		for {
-			buf := make([]byte, 1024)
-			bytesRead, err := file.Read(buf)
-			if err != nil {
-				if err != io.EOF {
-					log.Warningf("Unable to read data from request body : %s", err)
-				}
-
-				preprocessWriter.Close()
-				return
-			}
-
-			// Detect the content-type using the 512 first bytes
-			if totalBytes == 0 {
-				newFile.Type = http.DetectContentType(buf)
-			}
-
-			// Increment size
-			totalBytes += bytesRead
-
-			// Compute md5sum
-			md5Hash.Write(buf[:bytesRead])
-
-			// Check upload max size limit
-			if int64(totalBytes) > common.Config.MaxFileSize {
-				err = fmt.Errorf("File too big (limit is set to %d bytes)", common.Config.MaxFileSize)
-				log.Warning(err.Error())
-				preprocessWriter.CloseWithError(err)
-				return
-			}
-
-			// Pass file data to data backend
-			preprocessWriter.Write(buf[:bytesRead])
-		}
-	}()
+	preprocessOutputCh := make(chan preprocessOutputReturn)
+	go preprocessor(ctx, file, preprocessWriter, preprocessOutputCh)
 
 	// Save file in the data backend
 	var backend dataBackend.DataBackend
@@ -209,14 +181,24 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Get preprocessor goroutine output
+	preprocessOutput := <-preprocessOutputCh
+	if preprocessOutput.err != nil {
+		log.Warningf("Unable to execute preprocessor : %s", err)
+		common.Fail(ctx, req, resp, "Unable to save file", 500)
+		return
+	}
+
 	// Fill-in file information
-	newFile.CurrentSize = int64(totalBytes)
+	newFile.Type = preprocessOutput.mimeType
+	newFile.CurrentSize = preprocessOutput.size
+	newFile.Md5 = preprocessOutput.md5sum
+
 	if upload.Stream {
 		newFile.Status = "downloaded"
 	} else {
 		newFile.Status = "uploaded"
 	}
-	newFile.Md5 = fmt.Sprintf("%x", md5Hash.Sum(nil))
 	newFile.UploadDate = time.Now().Unix()
 	newFile.BackendDetails = backendDetails
 
@@ -242,4 +224,75 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
 		return
 	}
+}
+
+//  - Guess content type
+//  - Compute/Limit upload size
+//  - Compute md5sum
+func preprocessor(ctx *juliet.Context, file io.Reader, preprocessWriter io.WriteCloser, outputCh chan preprocessOutputReturn) {
+	log := common.GetLogger(ctx)
+
+	var err error
+	var totalBytes int64
+	var mimeType string
+	var md5sum string
+
+	md5Hash := md5.New()
+	buf := make([]byte, 1048)
+
+	eof := false
+	for !eof {
+		bytesRead, err := file.Read(buf)
+		if err == io.EOF {
+			eof = true
+			if bytesRead <= 0 {
+				break
+			}
+		} else if err != nil {
+			err = log.EWarningf("Unable to read data from request body : %s", err)
+			break
+		}
+
+		// Detect the content-type using the 512 first bytes
+		if totalBytes == 0 {
+			mimeType = http.DetectContentType(buf)
+		}
+
+		// Increment size
+		totalBytes += int64(bytesRead)
+
+		// Check upload max size limit
+		if int64(totalBytes) > common.Config.MaxFileSize {
+			err = log.EWarningf("File too big (limit is set to %d bytes)", common.Config.MaxFileSize)
+			break
+		}
+
+		// Compute md5sum
+		md5Hash.Write(buf[:bytesRead])
+
+		// Forward data to the data backend
+		bytesWritten, err := preprocessWriter.Write(buf[:bytesRead])
+		if err != nil {
+			log.Warning(err.Error())
+			break
+		}
+		if bytesWritten != bytesRead {
+			err = log.EWarningf("Invalid number of bytes written. Expected %d but got %d", bytesRead, bytesWritten)
+			break
+		}
+	}
+
+	err = preprocessWriter.Close()
+	if err != nil {
+		log.Warningf("Unable to close preprocessWriter : %s", err)
+	}
+
+	if err != nil {
+		outputCh <- preprocessOutputReturn{err: err}
+	} else {
+		md5sum = fmt.Sprintf("%x", md5Hash.Sum(nil))
+		outputCh <- preprocessOutputReturn{size: totalBytes, md5sum: md5sum, mimeType: mimeType}
+	}
+
+	close(outputCh)
 }
