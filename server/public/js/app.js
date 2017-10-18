@@ -778,7 +778,13 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Build file download URL
         var getFileUrl = function(mode, uploadID, fileID, fileName, yubikeyToken, dl) {
             var domain = $scope.config.downloadDomain ? $scope.config.downloadDomain : $api.base;
-            var url = domain + '/' + mode + '/' + uploadID + '/' + fileID + '/' + fileName;
+            var url = domain + '/' + mode + '/' + uploadID;
+            if (fileID) {
+                url += '/' + fileID
+            }
+            if (fileName) {
+                url+= '/' + fileName
+            }
             if (yubikeyToken) {
                 url +=  "/yubikey/" + yubikeyToken
             }
@@ -800,7 +806,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Return zip archive download URL
         $scope.getZipArchiveUrl = function (dl) {
             if (!$scope.upload.id) return;
-            return getFileUrl("archive", $scope.upload.id, file.metadata.id, "archive.zip", null, dl);
+            return getFileUrl("archive", $scope.upload.id, null, "archive.zip", null, dl);
         };
 
         // Return QR Code image url
