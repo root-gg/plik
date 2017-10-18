@@ -438,19 +438,40 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     // Parse URI
                     var url = new URL(window.location.origin + uri);
 
-                    var regex = /^.*\/(file|stream|archive)\/(.*?)\/(.*?)\/(.*)$/;
-                    var match = regex.exec(url.pathname);
-                    if ( !match && match.length != 5 ) {
-                        $dialog.alert({status: 0, message: "Unable to get uploadId from yubikey redirect"});
-                        $location.search({});
-                        $location.hash("");
-                        return;
+                    var mode;
+                    var uploadId;
+                    var fileId;
+                    var fileName;
+                    if(url.pathname.startsWith("/archive")) {
+                        var regex = /^.*\/(archive)\/(.*?)\/(.*)$/;
+                        var match = regex.exec(url.pathname);
+                        if (!match || match.length !== 4) {
+                            $dialog.alert({status: 0, message: "Unable to get upload from yubikey redirect"});
+                            $location.search({});
+                            $location.hash("");
+                            return;
+                        }
+
+                        mode = match[1];
+                        uploadId = match[2];
+                        fileName = match[3];
+                    } else {
+                        var regex = /^.*\/(file|stream)\/(.*?)\/(.*?)\/(.*)$/;
+                        var match = regex.exec(url.pathname);
+                        if (!match || match.length !== 5) {
+                            $dialog.alert({status: 0, message: "Unable to get upload from yubikey redirect"});
+                            $location.search({});
+                            $location.hash("");
+                            return;
+                        }
+
+                        mode = match[1];
+                        uploadId = match[2];
+                        fileId = match[3];
+                        fileName = match[4];
                     }
 
-                    var mode = match[1];
-                    var uploadId = match[2];
-                    var fileId = match[3];
-                    var fileName = match[4];
+                    fileName = decodeURIComponent(fileName);
 
                     var download = false;
                     if (url.searchParams.get("dl") == 1) {
@@ -462,7 +483,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     // And I don't want the user to be asked for two tokens.
                     // https://github.com/root-gg/plik/issues/215.
 
-                    $scope.downloadWithYubikey(mode, uploadId, fileId, fileName, download);
+                    downloadWithYubikey(mode, uploadId, fileId, fileName, download);
                 } else {
                     var code = $location.search().errcode;
                     $dialog.alert({status: code, message: err});
@@ -775,6 +796,10 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             return filesize(size, {base: 2});
         };
 
+        $scope.getMode = function() {
+            return $scope.upload.stream ? "stream" : "file";
+        }
+
         // Build file download URL
         var getFileUrl = function(mode, uploadID, fileID, fileName, yubikeyToken, dl) {
             var domain = $scope.config.downloadDomain ? $scope.config.downloadDomain : $api.base;
@@ -799,8 +824,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Return file download URL
         $scope.getFileUrl = function (file, dl) {
             if (!file || !file.metadata) return;
-            var mode = $scope.upload.stream ? "stream" : "file";
-            return getFileUrl(mode, $scope.upload.id, file.metadata.id, file.metadata.fileName, null, dl);
+            return getFileUrl($scope.getMode(), $scope.upload.id, file.metadata.id, file.metadata.fileName, null, dl);
         };
 
         // Return zip archive download URL
@@ -893,7 +917,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         };
 
         // Yubikey OTP download dialog
-        $scope.downloadWithYubikey = function (mode, uploadID, fileId, fileName, dl) {
+        downloadWithYubikey = function (mode, uploadID, fileID, fileName, dl) {
             $dialog.openDialog({
                 backdrop: true,
                 backdropClick: true,
@@ -901,12 +925,22 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 controller: 'YubikeyController'
             }).result.then(
                 function (token) {
-                    // Redirect to file download URL with yubikey token
-                    var url = getFileUrl(mode, uploadID, fileId, fileName, token, dl);
+                    var url = getFileUrl(mode, uploadID, fileID, fileName, token, dl);
                     window.location.replace(url);
                 }, function () {
                     // Avoid "Possibly unhandled rejection"
                 });
+        };
+
+        // Download file with Yubikey OTP dialog
+        $scope.downloadFileWithYubikey = function(file, dl) {
+            if (!file || !file.metadata) return;
+            downloadWithYubikey($scope.getMode(), $scope.upload.id, file.metadata.id, file.metadata.fileName, dl);
+        };
+
+        // Download archive with Yubikey OTP dialog
+        $scope.downloadArchiveWithYubikey = function(file, dl) {
+            downloadWithYubikey("archive", $scope.upload.id, null, "archive.zip", dl);
         };
 
         $scope.ttlUnits = ["days", "hours", "minutes"];
