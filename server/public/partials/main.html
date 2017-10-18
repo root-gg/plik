@@ -35,7 +35,7 @@ THE SOFTWARE.
                     <i data-swoff-text="OFF" data-swon-text="ON"></i>
                     Destruct after the first download
                     <a tooltip-placement="right"
-                       tooltip="The files will be removed from the server right after the first download.">?</a>
+                       uib-tooltip="The files will be removed from the server right after the first download.">?</a>
                 </label>
             </div>
             <!-- STREAMING -->
@@ -44,7 +44,7 @@ THE SOFTWARE.
                     <input name="checkbox-destruct" type="checkbox" ng-model="upload.stream">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i> Streaming
                     <a tooltip-placement="right"
-                       tooltip="The files will not be stored on the server. Upload will begin when the remote user starts downloading.">?</a>
+                       uib-tooltip="The files will not be stored on the server. Upload will begin when the remote user starts downloading.">?</a>
                 </label>
             </div>
             <!-- REMOVABLE -->
@@ -53,7 +53,7 @@ THE SOFTWARE.
                     <input name="checkbox-removable" type="checkbox" ng-model="upload.removable">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i> Removable
                     <a tooltip-placement="right"
-                       tooltip="Allow to manually remove the uploaded files from the server at any moment.">?</a>
+                       uib-tooltip="Allow to manually remove the uploaded files from the server at any moment.">?</a>
                 </label>
             </div>
             <!-- PASSWORD -->
@@ -63,7 +63,7 @@ THE SOFTWARE.
                            ng-change="upload.password = ''">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i> Password
                     <a tooltip-placement="right"
-                       tooltip="Protect your upload with credentials. You will be prompted for them before the upload and before the download.">?</a>
+                       uib-tooltip="Protect your upload with credentials. You will be prompted for them before the upload and before the download.">?</a>
                 </label>
             </div>
             <!-- YUBIKEY -->
@@ -73,7 +73,7 @@ THE SOFTWARE.
                            ng-change="upload.yubikey = ''">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i> Yubikey
                     <a tooltip-placement="right"
-                       tooltip="Protect you upload with a Yubikey. You will be prompted for OTP before the upload and before the download.">?</a>
+                       uib-tooltip="Protect you upload with a Yubikey. You will be prompted for OTP before the upload and before the download.">?</a>
                 </label>
             </div>
             <!-- COMMENTS -->
@@ -83,7 +83,7 @@ THE SOFTWARE.
                     <i data-swoff-text="OFF" data-swon-text="ON"></i> Comments (<a
                         href="http://daringfireball.net/projects/markdown/syntax" target="_blank">Markdown</a>)
                     <a tooltip-placement="right"
-                       tooltip="Add some comments to the upload. Markdown language supported and live preview.">?</a>
+                       uib-tooltip="Add some comments to the upload. Markdown language supported and live preview.">?</a>
                 </label>
             </div>
             <div class="menu-item">
@@ -119,7 +119,7 @@ THE SOFTWARE.
 
                 <div class="" style="text-align:center;">
                     <a href="" class="small" ng-click="newUpload(true);"
-                       tooltip-placement="bottom" tooltip="Allow to add files to an upload afterward it's creation.">
+                       tooltip-placement="bottom" uib-tooltip="Allow to add files to an upload afterward it's creation.">
                         Create empty upload
                     </a>
                 </div>
@@ -137,7 +137,7 @@ THE SOFTWARE.
             </div>
             <div class="menu-item text-center" ng-if="upload.uploadToken">
                 <a href="" class="small" ng-click="setAdminUrl()"
-                   tooltip-placement="bottom" tooltip="Allow to add/remove files to an upload afterward it's creation.">
+                   tooltip-placement="bottom" uib-tooltip="Allow to add/remove files to an upload afterward it's creation.">
                     Admin url
                 </a>
             </div>
