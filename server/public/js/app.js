@@ -414,9 +414,9 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         var invalidCharList = ['/', '#', '?', '%', '"'];
         $scope.fileNameValidator = function (fileName) {
             if (_.isUndefined(fileName)) return false;
-            if (fileName.length == 0 || fileName.length > fileNameMaxLength) return false;
+            if (fileName.length === 0 || fileName.length > fileNameMaxLength) return false;
             return _.every(invalidCharList, function (char) {
-                return fileName.indexOf(char) == -1;
+                return fileName.indexOf(char) === -1;
             });
         };
 
@@ -426,7 +426,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             // Display error from redirect if any
             var err = $location.search().err;
             if (!_.isUndefined(err)) {
-                if (err == "Invalid yubikey token" && $location.search().uri) {
+                if (err === "Invalid yubikey token" && $location.search().uri) {
                     var uri = $location.search().uri;
                     if ( !uri ) {
                         $dialog.alert({status: 0, message: "Unable to get uri from yubikey redirect"});
@@ -442,9 +442,11 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     var uploadId;
                     var fileId;
                     var fileName;
+                    var regex;
+                    var match;
                     if(url.pathname.startsWith("/archive")) {
-                        var regex = /^.*\/(archive)\/(.*?)\/(.*)$/;
-                        var match = regex.exec(url.pathname);
+                        regex = /^.*\/(archive)\/(.*?)\/(.*)$/;
+                        match = regex.exec(url.pathname);
                         if (!match || match.length !== 4) {
                             $dialog.alert({status: 0, message: "Unable to get upload from yubikey redirect"});
                             $location.search({});
@@ -456,8 +458,8 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                         uploadId = match[2];
                         fileName = match[3];
                     } else {
-                        var regex = /^.*\/(file|stream)\/(.*?)\/(.*?)\/(.*)$/;
-                        var match = regex.exec(url.pathname);
+                        regex = /^.*\/(file|stream)\/(.*?)\/(.*?)\/(.*)$/;
+                        match = regex.exec(url.pathname);
                         if (!match || match.length !== 5) {
                             $dialog.alert({status: 0, message: "Unable to get upload from yubikey redirect"});
                             $location.search({});
@@ -474,7 +476,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     fileName = decodeURIComponent(fileName);
 
                     var download = false;
-                    if (url.searchParams.get("dl") == 1) {
+                    if (url.searchParams.get("dl") === 1) {
                         download = true;
                     }
 
@@ -583,13 +585,13 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
 
         $scope.somethingToUpload = function () {
             return _.find($scope.files, function (file) {
-                if (file.metadata.status == "toUpload") return true;
+                if (file.metadata.status === "toUpload") return true;
             });
         };
 
         $scope.somethingToDownload = function () {
             return _.find($scope.files, function (file) {
-                if (file.metadata.status == "uploaded") return true;
+                if (file.metadata.status === "uploaded") return true;
             });
         };
 
@@ -625,7 +627,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Remove a file from the upload list
         $scope.removeFile = function (file) {
             $scope.files = _.reject($scope.files, function (f) {
-                return f.reference == file.reference;
+                return f.reference === file.reference;
             });
         };
 
@@ -685,7 +687,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                         // Match file metadata using the reference
                         _.each($scope.upload.files, function (file) {
                             _.every($scope.files, function (f) {
-                                if (f.reference == file.reference) {
+                                if (f.reference === file.reference) {
                                     f.metadata = file;
                                     f.metadata.status = "toUpload";
                                     return false;
@@ -708,7 +710,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             if (!$scope.upload.id) return;
             $scope.mode = 'download';
             _.each($scope.files, function (file) {
-                if (!(file.metadata && file.metadata.status == "toUpload")) return;
+                if (!(file.metadata && file.metadata.status === "toUpload")) return;
                 var progress = function (event) {
                     // Update progress bar callback
                     file.progress = parseInt(100.0 * event.loaded / event.total);
@@ -757,7 +759,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             $api.removeFile($scope.upload, file)
                 .then(function () {
                     $scope.files = _.reject($scope.files, function (f) {
-                        return f.metadata.id == file.metadata.id;
+                        return f.metadata.id === file.metadata.id;
                     });
                     // Redirect to main page if no more files
                     if (!$scope.files.length) {
@@ -774,19 +776,19 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Check if file is downloadable
         $scope.isDownloadable = function (file) {
             if ($scope.upload.stream) {
-                if (file.metadata.status == 'missing') return true;
+                if (file.metadata.status === 'missing') return true;
             } else {
-                if (file.metadata.status == 'uploaded') return true;
+                if (file.metadata.status === 'uploaded') return true;
             }
             return false;
         };
 
         // Check if file is in a error status
         $scope.isOk = function (file) {
-            if (file.metadata.status == 'toUpload') return true;
-            else if (file.metadata.status == 'uploading') return true;
-            else if (file.metadata.status == 'uploaded') return true;
-            else if ($scope.upload.stream && file.metadata.status == 'missing') return true;
+            if (file.metadata.status === 'toUpload') return true;
+            else if (file.metadata.status === 'uploading') return true;
+            else if (file.metadata.status === 'uploaded') return true;
+            else if ($scope.upload.stream && file.metadata.status === 'missing') return true;
             return false;
         };
 
@@ -798,7 +800,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
 
         $scope.getMode = function() {
             return $scope.upload.stream ? "stream" : "file";
-        }
+        };
 
         // Build file download URL
         var getFileUrl = function(mode, uploadID, fileID, fileName, yubikeyToken, dl) {
@@ -917,7 +919,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         };
 
         // Yubikey OTP download dialog
-        downloadWithYubikey = function (mode, uploadID, fileID, fileName, dl) {
+        function downloadWithYubikey(mode, uploadID, fileID, fileName, dl) {
             $dialog.openDialog({
                 backdrop: true,
                 backdropClick: true,
@@ -930,7 +932,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 }, function () {
                     // Avoid "Possibly unhandled rejection"
                 });
-        };
+        }
 
         // Download file with Yubikey OTP dialog
         $scope.downloadFileWithYubikey = function(file, dl) {
@@ -957,11 +959,11 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         $scope.getTTL = function () {
             var ttl = $scope.ttlValue;
             if (ttl > 0) {
-                if ($scope.ttlUnit == "minutes") {
+                if ($scope.ttlUnit === "minutes") {
                     ttl = ttl * 60;
-                } else if ($scope.ttlUnit == "hours") {
+                } else if ($scope.ttlUnit === "hours") {
                     ttl = ttl * 3600;
-                } else if ($scope.ttlUnit == "days") {
+                } else if ($scope.ttlUnit === "days") {
                     ttl = ttl * 86400;
                 }
             } else {
@@ -973,7 +975,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Return TTL unit and value
         $scope.getHumanReadableTTL = function (ttl) {
             var value, unit;
-            if (ttl == -1) {
+            if (ttl === -1) {
                 value = -1;
                 unit = "never"
             } else if (ttl < 3600) {
@@ -997,7 +999,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             var ok = true;
 
             // Fix never value
-            if ($scope.ttlUnit == 'never') {
+            if ($scope.ttlUnit === 'never') {
                 $scope.ttlValue = -1;
             }
 
@@ -1005,7 +1007,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             var ttl = $scope.getTTL();
 
             // Invalid negative value
-            if ($scope.ttlUnit != 'never' && ttl < 0) ok = false;
+            if ($scope.ttlUnit !== 'never' && ttl < 0) ok = false;
             // Check against server side allowed maximum
             if ($scope.config.maxTTL > 0 && ttl > $scope.config.maxTTL) ok = false;
 
@@ -1024,7 +1026,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
 
         // Set TTL value to server defaultTTL
         $scope.setDefaultTTL = function () {
-            if ($scope.config.maxTTL == -1) {
+            if ($scope.config.maxTTL === -1) {
                 // Never expiring upload is allowed
                 $scope.ttlUnits = ["days", "hours", "minutes", "never"];
             }
@@ -1035,7 +1037,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
 
         // Return upload expiration date string
         $scope.getExpirationDate = function () {
-            if ($scope.upload.ttl == -1) {
+            if ($scope.upload.ttl === -1) {
                 return "never expire";
             } else {
                 var d = new Date(($scope.upload.ttl + $scope.upload.uploadDate) * 1000);
@@ -1089,7 +1091,7 @@ plik.controller('LoginCtrl', ['$scope', '$api', '$config', '$location', '$dialog
                 }
             })
             .then(null, function (error) {
-                if (error.status != 401 && error.status != 403) {
+                if (error.status !== 401 && error.status !== 403) {
                     $dialog.alert(error);
                 }
             });
@@ -1100,7 +1102,7 @@ plik.controller('LoginCtrl', ['$scope', '$api', '$config', '$location', '$dialog
                 $location.path('/home');
             })
             .then(null, function (error) {
-                if (error.status != 401 && error.status != 403) {
+                if (error.status !== 401 && error.status !== 403) {
                     $dialog.alert(error);
                 }
             });
@@ -1166,7 +1168,7 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
                 $scope.getUploads();
             })
                 .then(null, function (error) {
-                    if (error.status == 401 || error.status == 403) {
+                    if (error.status === 401 || error.status === 403) {
                         $location.path('/login');
                     } else {
                         $dialog.alert(error);
@@ -1193,7 +1195,7 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
             $api.getUploads($scope.token, $scope.size, $scope.offset)
                 .then(function (uploads) {
                     $scope.uploads = $scope.uploads.concat(uploads);
-                    $scope.more = uploads.length == $scope.size;
+                    $scope.more = uploads.length === $scope.size;
                 })
                 .then(null, function (error) {
                     $dialog.alert(error);
@@ -1205,7 +1207,7 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
             $api.removeUpload(upload)
                 .then(function () {
                     $scope.uploads = _.reject($scope.uploads, function (u) {
-                        return u.id == upload.id;
+                        return u.id === upload.id;
                     });
                 })
                 .then(null, function (error) {
@@ -1242,7 +1244,7 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
             $dialog.alert({
                 title: "Really ?",
                 message: "Revoking a token will not delete associated uploads.",
-                confirm: true,
+                confirm: true
             }).result.then(
                 function () {
                     $api.revokeToken(token.token)
@@ -1274,7 +1276,7 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
             $dialog.alert({
                 title: "Really ?",
                 message: "Deleting your account will not delete your uploads.",
-                confirm: true,
+                confirm: true
             }).result.then(
                 function () {
                     $api.deleteAccount()
@@ -1318,7 +1320,7 @@ plik.controller('AlertDialogController', ['$scope', 'args',
 
         if (!$scope.title) {
             if ($scope.status) {
-                if ($scope.status == 100) {
+                if ($scope.status === 100) {
                     $scope.title = 'Success !';
                 } else {
                     $scope.title = 'Oops ! (' + $scope.status + ')';
@@ -1360,7 +1362,7 @@ plik.controller('YubikeyController', ['$scope',
         $scope.token = '';
 
         $scope.check = function (token) {
-            if (token.length == 44) {
+            if (token.length === 44) {
                 // Ugly but it works
                 setTimeout(function () {
                     $scope.$close(token);
