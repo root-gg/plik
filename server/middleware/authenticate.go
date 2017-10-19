@@ -30,11 +30,11 @@ THE SOFTWARE.
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 
-	"fmt"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/dgrijalva/jwt-go"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadataBackend"
 )
@@ -44,7 +44,6 @@ func Authenticate(allowToken bool) juliet.ContextMiddleware {
 	return func(ctx *juliet.Context, next http.Handler) http.Handler {
 		return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 			log := common.GetLogger(ctx)
-			log.Debug("User middleware")
 
 			if common.Config.Authentication {
 				if allowToken {

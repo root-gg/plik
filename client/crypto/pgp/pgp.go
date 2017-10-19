@@ -36,8 +36,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/root-gg/plik/client/Godeps/_workspace/src/golang.org/x/crypto/openpgp"
-	"github.com/root-gg/plik/client/Godeps/_workspace/src/golang.org/x/crypto/openpgp/armor"
+	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/armor"
 )
 
 // Backend object

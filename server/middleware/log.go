@@ -34,8 +34,8 @@ import (
 	"net/http/httputil"
 	"strings"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
+	"github.com/root-gg/juliet"
+	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -43,13 +43,14 @@ import (
 func Log(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		log := common.GetLogger(ctx)
-		log.Debug("Log handler")
 
 		if log.LogIf(logger.DEBUG) {
 
 			// Don't dump request body for file upload
 			dumpBody := true
-			if strings.HasPrefix(req.URL.Path, "/file") && req.Method == "POST" {
+			if (strings.HasPrefix(req.URL.Path, "/file") ||
+				strings.HasPrefix(req.URL.Path, "/stream")) &&
+				req.Method == "POST" {
 				dumpBody = false
 			}
 

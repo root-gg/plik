@@ -30,17 +30,17 @@ THE SOFTWARE.
 package stream
 
 import (
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
+	"github.com/root-gg/utils"
 )
 
-// BackendConfig describes configuration for File Databackend
+// BackendConfig describes configuration for stream data backend
 type BackendConfig struct {
 }
 
 // NewStreamBackendConfig instantiate a new default configuration
 // and override it with configuration passed as argument
-func NewStreamBackendConfig(config map[string]interface{}) (sbc *BackendConfig) {
-	sbc = new(BackendConfig)
-	utils.Assign(sbc, config)
+func NewStreamBackendConfig(config map[string]interface{}) (bc *BackendConfig) {
+	bc = new(BackendConfig)
+	utils.Assign(bc, config)
 	return
 }

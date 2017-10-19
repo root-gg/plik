@@ -34,7 +34,8 @@ THE SOFTWARE.
                     <input name="checkbox-destruct" type="checkbox" ng-model="upload.oneShot">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i>
                     Destruct after the first download
-                    <a tooltip-placement="right" tooltip="The files will be removed from the server right after the first download.">?</a>
+                    <a tooltip-placement="right"
+                       uib-tooltip="The files will be removed from the server right after the first download.">?</a>
                 </label>
             </div>
             <!-- STREAMING -->
@@ -42,7 +43,8 @@ THE SOFTWARE.
                 <label class="switch-input">
                     <input name="checkbox-destruct" type="checkbox" ng-model="upload.stream">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i> Streaming
-                    <a tooltip-placement="right" tooltip="The files will not be stored on the server. Upload will begin when the remote user starts downloading.">?</a>
+                    <a tooltip-placement="right"
+                       uib-tooltip="The files will not be stored on the server. Upload will begin when the remote user starts downloading.">?</a>
                 </label>
             </div>
             <!-- REMOVABLE -->
@@ -50,36 +52,44 @@ THE SOFTWARE.
                 <label class="switch-input">
                     <input name="checkbox-removable" type="checkbox" ng-model="upload.removable">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i> Removable
-                    <a tooltip-placement="right" tooltip="Allow to manually remove the uploaded files from the server at any moment.">?</a>
+                    <a tooltip-placement="right"
+                       uib-tooltip="Allow to manually remove the uploaded files from the server at any moment.">?</a>
                 </label>
             </div>
             <!-- PASSWORD -->
             <div class="menu-item">
                 <label class="switch-input">
-                    <input name="checkbox-password" type="checkbox" ng-model="$parent.password" ng-change="upload.password = ''">
+                    <input name="checkbox-password" type="checkbox" ng-model="$parent.password"
+                           ng-change="upload.password = ''">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i> Password
-                    <a tooltip-placement="right" tooltip="Protect your upload with credentials. You will be prompted for them before the upload and before the download.">?</a>
+                    <a tooltip-placement="right"
+                       uib-tooltip="Protect your upload with credentials. You will be prompted for them before the upload and before the download.">?</a>
                 </label>
             </div>
             <!-- YUBIKEY -->
             <div class="menu-item" ng-show="config.yubikeyEnabled">
                 <label class="switch-input">
-                    <input name="checkbox-yubikey" type="checkbox" ng-model="$parent.yubikey" ng-change="upload.yubikey = ''">
+                    <input name="checkbox-yubikey" type="checkbox" ng-model="$parent.yubikey"
+                           ng-change="upload.yubikey = ''">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i> Yubikey
-                    <a tooltip-placement="right" tooltip="Protect you upload with a Yubikey. You will be prompted for OTP before the upload and before the download.">?</a>
+                    <a tooltip-placement="right"
+                       uib-tooltip="Protect you upload with a Yubikey. You will be prompted for OTP before the upload and before the download.">?</a>
                 </label>
             </div>
             <!-- COMMENTS -->
             <div class="menu-item">
                 <label class="switch-input">
                     <input name="checkbox-comments" type="checkbox" ng-model="enableComments">
-                    <i data-swoff-text="OFF" data-swon-text="ON"></i> Comments (<a href="http://daringfireball.net/projects/markdown/syntax" target="_blank">Markdown</a>)
-                    <a tooltip-placement="right" tooltip="Add some comments to the upload. Markdown language supported and live preview.">?</a>
+                    <i data-swoff-text="OFF" data-swon-text="ON"></i> Comments (<a
+                        href="http://daringfireball.net/projects/markdown/syntax" target="_blank">Markdown</a>)
+                    <a tooltip-placement="right"
+                       uib-tooltip="Add some comments to the upload. Markdown language supported and live preview.">?</a>
                 </label>
             </div>
             <div class="menu-item">
                 <p></p>
-                <textarea class="form-control" ng-model="upload.comments" ng-show="enableComments=='1'" style=""></textarea>
+                <textarea class="form-control" ng-model="upload.comments" ng-show="enableComments=='1'"
+                          style=""></textarea>
             </div>
             <div class="menu-footer">
                 <p></p>
@@ -87,13 +97,17 @@ THE SOFTWARE.
             <!-- EXPIRATION TIME -->
             <div class="menu-item">
                 <p></p>
+
                 <div class="" style="text-align:center;">
                     <form class="form-inline">
                         <div class="form-group">
                             Files will be automatically removed in
                             <div style="display:inline-block;">
-                                <input class="form-control" style="width:60px;display:inline-block;" type="number" ng-model="$parent.ttlValue" ng-show="ttlUnit != 'never'">
-                                <select class="form-control" style="width:auto;display:inline-block;" ng-options="unit as unit for unit in ttlUnits" ng-model="$parent.ttlUnit"></select>
+                                <input class="form-control" style="width:60px;display:inline-block;" type="number"
+                                       ng-model="$parent.ttlValue" ng-show="ttlUnit != 'never'">
+                                <select class="form-control" style="width:auto;display:inline-block;"
+                                        ng-options="unit as unit for unit in ttlUnits"
+                                        ng-model="$parent.ttlUnit"></select>
                             </div>
                         </div>
                     </form>
@@ -102,9 +116,10 @@ THE SOFTWARE.
             <!-- CREATE EMPTY UPLOAD -->
             <div class="menu-item">
                 <p></p>
+
                 <div class="" style="text-align:center;">
                     <a href="" class="small" ng-click="newUpload(true);"
-                        tooltip-placement="bottom" tooltip="Allow to add files to an upload afterward it's creation.">
+                       tooltip-placement="bottom" uib-tooltip="Allow to add files to an upload afterward it's creation.">
                         Create empty upload
                     </a>
                 </div>
@@ -112,10 +127,6 @@ THE SOFTWARE.
         </div>
         <!-- DOWNLOAD MENU -->
         <div class="tile menu" ng-if="mode == 'download'">
-            <!-- SHORT UPLOAD LINK -->
-            <div class="menu-item text-center" ng-show="upload.shortUrl">
-                <p><a href="{{upload.shortUrl}}">{{upload.shortUrl}}</a></p>
-            </div>
             <!-- QR CODE -->
             <div class="text-center hidden-xs hidden-sm" ng-click="displayQRCodeUpload()">
                 <p><img ng-src="{{getQrCodeUploadUrl(200)}}" alt="QR Code"/></p>
@@ -126,7 +137,7 @@ THE SOFTWARE.
             </div>
             <div class="menu-item text-center" ng-if="upload.uploadToken">
                 <a href="" class="small" ng-click="setAdminUrl()"
-                   tooltip-placement="bottom" tooltip="Allow to add/remove files to an upload afterward it's creation.">
+                   tooltip-placement="bottom" uib-tooltip="Allow to add/remove files to an upload afterward it's creation.">
                     Admin url
                 </a>
             </div>
@@ -142,7 +153,7 @@ THE SOFTWARE.
                 </a>
                 <!-- WITH YUBIKEY -->
                 <button type="button" class="btn btn-lg btn-primary btn-block"
-                        ng-show="upload.protectedByYubikey" ng-click="downloadWithYubikey(getZipArchiveUrl())">
+                        ng-show="upload.protectedByYubikey" ng-click="downloadArchiveWithYubikey()">
                     <i class="glyphicon glyphicon-cloud-download"></i> Zip archive
                 </button>
             </div>
@@ -202,7 +213,7 @@ THE SOFTWARE.
                          ngf-multiple="true"
                          ngf-capture="'camera'"
                          ngf-drag-over-class="drag-over">
-                         <div class="drop-text hidden-xs">Drop files here or</div>
+                        <div class="drop-text hidden-xs">Drop files here or</div>
                         <!-- ADD FILE BUTTON -->
                         <div class="btn-file center-block">
                             <span class="btn btn-lg btn-primary btn-block">
@@ -221,7 +232,8 @@ THE SOFTWARE.
                     <!-- FILENAME COLUMN -->
                     <div class="col-xs-7">
                         <div class="file-flex">
-                            <div class="fa fa-pencil file-pencil-padding" ng-click="focus('EditableFileName-' + file.reference)"></div>
+                            <div class="fa fa-pencil file-pencil-padding"
+                                 ng-click="focus('EditableFileName-' + file.reference)"></div>
                             <div contenteditable ng-model="$parent.$parent.file.fileName"
                                  class="file-name" validator="fileNameValidator" invalid-class="file-name-invalid"
                                  ng-attr-id="{{ 'EditableFileName-' + file.reference }}"></div>
@@ -269,17 +281,28 @@ THE SOFTWARE.
                         <div ng-show="isDownloadable(file)">
                             <!-- DOWNLOAD WITHOUT YUBIKEY -->
                             <a href="{{getFileUrl(file,1)}}" ng-show="!upload.protectedByYubikey">
-                                <button data-action="share" title="Download" type="button" class="btn btn-success btn-sm"><span class="glyphicon glyphicon-cloud-download"></span><span class="hidden-xs hidden-sm"> Download</span></button>
+                                <button data-action="share" title="Download" type="button"
+                                        class="btn btn-success btn-sm"><span
+                                        class="glyphicon glyphicon-cloud-download"></span><span
+                                        class="hidden-xs hidden-sm"> Download</span></button>
                             </a>
                             <!-- DOWNLOAD WITH YUBIKEY -->
-                            <button title="Download" type="button" class="btn btn-success" ng-show="upload.protectedByYubikey" ng-click="downloadWithYubikey(getFileUrl(file))"><span class="glyphicon glyphicon-cloud-download"></span><span class="hidden-xs hidden-sm hidden-md"> Download</span></button>
+                            <button title="Download" type="button" class="btn btn-success"
+                                    ng-show="upload.protectedByYubikey"
+                                    ng-click="downloadFileWithYubikey(file)"><span
+                                    class="glyphicon glyphicon-cloud-download"></span><span
+                                    class="hidden-xs hidden-sm hidden-md"> Download</span></button>
                             <!-- QR CODE -->
-                            <button title="Display QRCode" type="button" class="btn btn-success btn-sm hidden-xs" ng-click="displayQRCodeFile(file)">
-                                <span class="glyphicon glyphicon-qrcode"></span> <!--<span class="hidden-xs hidden-sm hidden-md">QR Code</span>-->
+                            <button title="Display QRCode" type="button" class="btn btn-success btn-sm hidden-xs"
+                                    ng-click="displayQRCodeFile(file)">
+                                <span class="glyphicon glyphicon-qrcode"></span>
+                                <!--<span class="hidden-xs hidden-sm hidden-md">QR Code</span>-->
                             </button>
                             <!-- REMOVE FILE -->
-                            <button title="Delete File" type="button" class="btn btn-danger btn-sm" ng-click="deleteFile(file)" ng-show="upload.removable || upload.admin">
-                                <span class="glyphicon glyphicon-remove"></span> <!--<span class="hidden-xs hidden-sm hidden-md">Remove</span>-->
+                            <button title="Delete File" type="button" class="btn btn-danger btn-sm"
+                                    ng-click="deleteFile(file)" ng-show="upload.removable || upload.admin">
+                                <span class="glyphicon glyphicon-remove"></span>
+                                <!--<span class="hidden-xs hidden-sm hidden-md">Remove</span>-->
                             </button>
                         </div>
                     </div>
@@ -289,8 +312,9 @@ THE SOFTWARE.
         <!-- LINK LIST -->
         <div class="row" ng-show="mode == 'download' && files.length">
             <div class="col-sm-12">
-                <div class="tile link-summary"  style="text-align:center">
-                    <div ng-repeat="file in files" ng-show="isDownloadable(file) || (upload.stream && file.metadata.status == 'uploading')">
+                <div class="tile link-summary" style="text-align:center">
+                    <div ng-repeat="file in files"
+                         ng-show="isDownloadable(file) || (upload.stream && file.metadata.status == 'uploading')">
                         <a href="{{getFileUrl(file)}}"> {{getFileUrl(file)}}</a>
                     </div>
                 </div>

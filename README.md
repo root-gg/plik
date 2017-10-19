@@ -9,7 +9,6 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
 ### Main features
    - Multiple data backends : File, OpenStack Swift, WeedFS
    - Multiple metadata backends : File, MongoDB, Bolt
-   - Shorten backends : Shorten upload urls (is.gd && w000t.me available)
    - OneShot : Files are destructed after the first download
    - Stream : Files are streamed from the uploader to the downloader (nothing stored server side)  
    - Removable : Give the ability to the uploader to remove files at any time
@@ -21,34 +20,34 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
    - Upload restriction : Source IP / Token
 
 ### Version
-1.2
+1.2.1
 
 ### Installation
 
 ##### From release
 To run plik, it's very simple :
 ```sh
-$ wget https://github.com/root-gg/plik/releases/download/1.2/plik-1.2-linux-64bits.tar.gz
-$ tar xzvf plik-1.2-linux-64bits.tar.gz
-$ cd plik-1.2/server
+$ wget https://github.com/root-gg/plik/releases/download/1.2.1/plik-1.2.1-linux-64bits.tar.gz
+$ tar xzvf plik-1.2.1-linux-64bits.tar.gz
+$ cd plik-1.2.1/server
 $ ./plikd
 ```
 Et voilà ! You now have a fully functional instance of plik running on http://127.0.0.1:8080.  
 You can edit server/plikd.cfg to adapt the configuration to your needs (ports, ssl, ttl, backends params,...)
 
-##### From root.gg Debian repository
+##### From root.gg Debian repository
 
 Configure root.gg repository and install server and/or client
 ```
-    wget -O - http://mir.root.gg/gg.key | apt-key add -
-    echo "deb http://mir.root.gg/ $(lsb_release --codename --short) main" > /etc/apt/sources.list.d/root.gg.list
-    apt-get update
-    apt-get install plikd plik
+wget -O - http://mir.root.gg/gg.key | apt-key add -
+echo "deb http://mir.root.gg/ $(lsb_release --codename --short) main" > /etc/apt/sources.list.d/root.gg.list
+apt-get update
+apt-get install plikd plik
 ```
 
 Edit server configuration at /etc/plikd.cfg and start the server 
 ```
-    service plikd start
+service plikd start
 ```
 
 ##### From sources
@@ -114,7 +113,7 @@ Options:
 
 For example to create directory tar.gz archive and encrypt it with openssl :
 ```
-$plik -a -s mydirectory/
+$ plik -a -s mydirectory/
 Passphrase : 30ICoKdFeoKaKNdnFf36n0kMH
 Upload successfully created : 
     https://127.0.0.1:8080/#/?id=0KfNj6eMb93ilCrl
@@ -125,9 +124,9 @@ Commands :
 curl -s 'https://127.0.0.1:8080/file/0KfNj6eMb93ilCrl/q73tEBEqM04b22GP/mydirectory.tar.gz' | openssl aes-256-cbc -d -pass pass:30ICoKdFeoKaKNdnFf36n0kMH | tar xvf - --gzip
 ```
 
-Client configuration and preferences are stored at ~/.plikrc ( overridable with PLIKRC environement variable )
+Client configuration and preferences are stored at ~/.plikrc or /etc/plik/plikrc ( overridable with PLIKRC environement variable )
 
-### Available data backends
+###  Available data backends
 
 Plik is shipped with multiple data backend for uploaded files and metadata backend for the upload metadata.
 
@@ -143,7 +142,7 @@ Openstack Swift is a highly available, distributed, eventually consistent object
 
 SeaweedFS is a simple and highly scalable distributed file system.
 
-### Available metadata backends
+### Available metadata backends
 
  - File metadata backend : (DEPRECATED)
 
@@ -174,15 +173,17 @@ Suitable for distributed / High Availability deployment.
 ### Authentication
 
 Plik can authenticate users using Google and/or OVH API. 
-Once authenticated the only call Plik will ever make to those API is get the user ID, name and email. 
+Once authenticated the only call Plik will ever make to those API is to get the user ID, name and email. 
 Plik will never forward any upload data or metadata to any third party.   
 If source IP address restriction is enabled, user accounts can only be created from trusted IPs. But then 
-authenticated users can upload files without source IP restriction.   
+authenticated users can upload files without source IP restriction.
+It is also possible to deny unauthenticated uploads totally.
 
    - **Google** :
       - You'll need to create a new application in the [Google Developper Console](https://console.developers.google.com)
       - You'll be handed a Google API ClientID and a Google API ClientSecret that you'll need to put in the plikd.cfg file.
       - Do not forget to whitelist valid origin and redirect url ( https://yourdomain/auth/google/callback ) for your domain.
+      - It is possible to whitelist only one or more email domains.
    
    - **OVH** :
       - You'll need to create a new application in the OVH API : https://eu.api.ovh.com/createApp/
@@ -210,6 +211,10 @@ See the [Plik API reference](documentation/api.md)
 Plik comes with a simple Dockerfile that allows you to run it in a container :
 
 See the [Plik Docker reference](documentation/docker.md)
+
+Plik also comes with some useful scripts to test backends in standalone docker instances :
+
+See the [Plik Docker backend testing](testing)
 
 ### FAQ
 
@@ -275,11 +280,11 @@ You might want to install the "nginx-extras" Debian package with built-in HttpCh
 And add in your server configuration :
 
 ```sh
-        chunkin on;
-        error_page 411 = @my_411_error;
-        location @my_411_error {
-                chunkin_resume;
-        }
+chunkin on;
+error_page 411 = @my_411_error;
+location @my_411_error {
+        chunkin_resume;
+}
 ```
 
 * How to disable nginx buffering ?
@@ -288,19 +293,28 @@ By default nginx buffers large HTTP requests and reponses to a temporary file. T
 
 Detailed documentation : http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering
 ```
-   proxy_buffering off;
-   proxy_request_buffering off;
-   proxy_http_version 1.1;
-   proxy_buffer_size 1M;
-   proxy_buffers 8 1M;
-   client_body_buffer_size 1M;
+proxy_buffering off;
+proxy_request_buffering off;
+proxy_http_version 1.1;
+proxy_buffer_size 1M;
+proxy_buffers 8 1M;
+client_body_buffer_size 1M;
 ```
 
-* Why authentication don't work with HTTP connections ?
+* Why authentication does not work with HTTP connections ?
 
 Plik session cookies have the "secure" flag set, so they can only be transmitted over secure HTTPS connections.
 
-*  How to take and upload screenshots like a boss ?
+* Build failure "/usr/bin/env: ‘node’: No such file or directory"
+
+Debian users might need to install the nodejs-legacy package.
+
+```
+This package contains a symlink for legacy Node.js code requiring
+binary to be /usr/bin/node (not /usr/bin/nodejs as provided in Debian).
+```
+
+* How to take and upload screenshots like a boss ?
 
 ```
 alias pshot="scrot -s -e 'plik -q \$f | xclip ; xclip -o ; rm \$f'"
@@ -313,7 +327,6 @@ The screenshot is then removed of your home directory to avoid garbage.
 
 * How to contribute to the project ?
 
-Contributions are welcome, feel free to open issues and/or submit pull requests.  
-Please make your pull requests against the current development (RC) branch, not against master.  
+Contributions are welcome, feel free to open issues and/or submit pull requests.
 Please run/update the test suite using the makefile test target.
 

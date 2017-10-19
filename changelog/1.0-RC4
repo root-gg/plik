@@ -1,0 +1,22 @@
+Hello, 
+
+We're releasing the 1.0 RC4 of plik uploading system.
+
+Here is the changelog : 
+
+New : 
+- Display expiration date on upload
+- Use ENV variable PLIK_URL for bash client if config file not found
+
+Fix : 
+- Set default data backend to file, if no configuration file is found
+
+Misc : 
+- Clean code
+- Code standards : go lint / go vet / go imports
+- Bundle dependencies with Godeps
+- Add Travis continuous integration
+- Add API documentation in README
+
+
+The plik developping team

@@ -35,13 +35,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadataBackend"
-	"github.com/root-gg/plik/server/shortenBackend"
+	"github.com/root-gg/utils"
 )
 
 // CreateUpload create a new upload
@@ -49,10 +47,16 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	log := common.GetLogger(ctx)
 
 	user := common.GetUser(ctx)
-	if user == nil && !common.IsWhitelisted(ctx) {
-		log.Warning("Unable to create upload from untrusted source IP address")
-		common.Fail(ctx, req, resp, "Unable to create upload from untrusted source IP address. Please login or use a cli token.", 403)
-		return
+	if user == nil {
+		if common.Config.NoAnonymousUploads {
+			log.Warning("Unable to create upload from anonymous user")
+			common.Fail(ctx, req, resp, "Unable to create upload from anonymous user. Please login or use a cli token.", 403)
+			return
+		} else if !common.IsWhitelisted(ctx) {
+			log.Warning("Unable to create upload from untrusted source IP address")
+			common.Fail(ctx, req, resp, "Unable to create upload from untrusted source IP address. Please login or use a cli token.", 403)
+			return
+		}
 	}
 
 	upload := common.NewUpload()
@@ -77,6 +81,13 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 			common.Fail(ctx, req, resp, "Unable to deserialize json request bodyy", 500)
 			return
 		}
+	}
+
+	// Limit number of files per upload
+	if len(upload.Files) > common.Config.MaxFilePerUpload {
+		err := log.EWarningf("Unable to create upload : Maximum number file per upload reached (%d)", common.Config.MaxFilePerUpload)
+		common.Fail(ctx, req, resp, err.Error(), 403)
+		return
 	}
 
 	// Set upload id, creation date, upload token, ...
@@ -181,25 +192,6 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 		}
 
 		upload.Yubikey = upload.Yubikey[:12]
-	}
-
-	// A short url is created for each upload if a shorten backend is specified in the configuration.
-	// Referer header is used to get the url of incoming request, clients have to set it in order
-	// to get this feature working
-	if shortenBackend.GetShortenBackend() != nil {
-		if req.Header.Get("Referer") != "" {
-			u, err := url.Parse(req.Header.Get("Referer"))
-			if err != nil {
-				log.Warningf("Unable to parse referer url : %s", err)
-			}
-			longURL := u.Scheme + "://" + u.Host + "#/?id=" + upload.ID
-			shortURL, err := shortenBackend.GetShortenBackend().Shorten(ctx, longURL)
-			if err == nil {
-				upload.ShortURL = shortURL
-			} else {
-				log.Warningf("Unable to shorten url %s : %s", longURL, err)
-			}
-		}
 	}
 
 	// Create files

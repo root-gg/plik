@@ -1,0 +1,20 @@
+Hi !
+
+We are releasing plik 1.0 RC1, our simple, powerful, multi-backend uploading system. Yay !
+
+Here are the main features : 
+- OneShot uploads (optional) : upload is deleted after one download
+- Password (optional) : upload is protected by user/password (auth basic)
+- Yubikey (optional) : upload is protected by Yubikey OTP
+- Removable (optional) : upload files can be removed after uploads
+- Time To Live (optional) : set upload expiration
+- Comments (optional) : set comments on the upload
+- Metadata backends : file, mongodb
+- Data backends : file, openstack swift, weedfs
+- Shorten backends : shorten upload url 
+- Ssl, Cli client, ...
+
+Et voilà !
+
+Feel free to report bugs, create issues && contribute :)
+

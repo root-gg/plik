@@ -30,10 +30,10 @@ THE SOFTWARE.
 package weedfs
 
 import (
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
+	"github.com/root-gg/utils"
 )
 
-// BackendConfig describes configuration for WeedFS Databackend
+// BackendConfig describes configuration for WeedFS data backend
 type BackendConfig struct {
 	MasterURL          string
 	ReplicationPattern string
@@ -41,10 +41,10 @@ type BackendConfig struct {
 
 // NewWeedFsBackendConfig instantiate a new default configuration
 // and override it with configuration passed as argument
-func NewWeedFsBackendConfig(config map[string]interface{}) (weedFs *BackendConfig) {
-	weedFs = new(BackendConfig)
-	weedFs.MasterURL = "http://127.0.0.1:9333"
-	weedFs.ReplicationPattern = "000"
-	utils.Assign(weedFs, config)
+func NewWeedFsBackendConfig(config map[string]interface{}) (bc *BackendConfig) {
+	bc = new(BackendConfig)
+	bc.MasterURL = "http://127.0.0.1:9333"
+	bc.ReplicationPattern = "000"
+	utils.Assign(bc, config)
 	return
 }

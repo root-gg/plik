@@ -29,6 +29,18 @@ THE SOFTWARE.
 
 package swift
 
-type configInfo struct {
+import "github.com/root-gg/utils"
+
+// BackendConfig describes configuration for Swift data backend
+type BackendConfig struct {
 	Username, Password, Host, ProjectName, Container string
+}
+
+// NewSwitftBackendConfig instantiate a new default configuration
+// and override it with configuration passed as argument
+func NewSwitftBackendConfig(config map[string]interface{}) (bc *BackendConfig) {
+	bc = new(BackendConfig)
+	bc.Container = "plik"
+	utils.Assign(bc, config)
+	return
 }

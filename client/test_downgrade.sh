@@ -42,6 +42,8 @@ RELEASES=(
     1.1.1
     1.2-RC1
     1.2-RC2
+    1.2-RC3
+    1.2
 )
 
 ###
@@ -58,6 +60,7 @@ fi
 # Build current client
 ###
 
+echo "Builinding current plik client"
 go build -o plik
 CLIENT=$(readlink -f plik)
 
@@ -76,6 +79,21 @@ BUILD_PATH="$GOPATH/src/$PLIK_PACKAGE"
 
 export PLIKRC="$TMPDIR/.plikrc"
 echo "URL = \"$URL\"" > $PLIKRC
+
+# Defer server shutdown
+function shutdown {
+    echo "Shutting down plik server"
+    PID=$(ps a | grep plikd | grep -v grep | awk '{print $1}')
+    if [ "x$PID" != "x" ];then
+        kill $PID
+        sleep 1
+        PID=$(ps a | grep plikd | grep -v grep | awk '{print $1}')
+        if [ "x$PID" != "x" ];then
+            kill -9 $PID
+        fi
+    fi
+}
+trap shutdown EXIT
 
 ###
 # Downgrade client
@@ -120,7 +138,7 @@ do
 
     # Try to downgrade client
     cp $CLIENT ./plik
-    echo "y" | ./plik --update
+    for i in $(seq 0 100) ; do echo "y" ; done | ./plik --update
 
     # Verify updated client
     SERVER_MD5=$(md5sum "clients/$(go env GOOS)-$(go env GOARCH)/plik" | awk '{print $1}')
@@ -132,15 +150,5 @@ do
         exit 1
     fi
 
-    # Shutdown server
-    echo "Shutting down plik server"
-    PID=$(ps a | grep plikd | grep -v grep | awk '{print $1}')
-    if [ "x$PID" != "x" ];then
-        kill $PID
-        sleep 1
-        PID=$(ps a | grep plikd | grep -v grep | awk '{print $1}')
-        if [ "x$PID" != "x" ];then
-            kill -9 $PID
-        fi
-    fi
+    shutdown
 done

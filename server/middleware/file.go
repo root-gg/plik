@@ -33,8 +33,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/gorilla/mux"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
+	"github.com/gorilla/mux"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -42,7 +42,6 @@ import (
 func File(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		log := common.GetLogger(ctx)
-		log.Debug("File handler")
 
 		// Get upload from context
 		upload := common.GetUpload(ctx)

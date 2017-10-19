@@ -24,7 +24,7 @@
 # THE SOFTWARE.
 ###
 
-RELEASE_VERSION="1.2"
+RELEASE_VERSION="1.2.1"
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 RELEASE_TARGETS=darwin-386 darwin-amd64 freebsd-386 \
 freebsd-amd64 linux-386 linux-amd64 linux-arm openbsd-386 \
@@ -35,6 +35,14 @@ GOHOSTARCH=`go env GOHOSTARCH`
 
 DEBROOT_SERVER=debs/server
 DEBROOT_CLIENT=debs/client
+
+race_detector = GORACE="halt_on_error=1" go build -race
+ifdef ENABLE_RACE_DETECTOR
+	build = $(race_detector)
+else
+	build = go build
+endif
+test: build = $(race_detector)
 
 all: clean clean-frontend frontend clients server
 
@@ -52,7 +60,7 @@ frontend:
 ###
 server:
 	@server/gen_build_info.sh $(RELEASE_VERSION)
-	@cd server && go build -o plikd ./
+	@cd server && $(build) -o plikd ./
 
 ###
 # Build plik server for all architectures
@@ -68,7 +76,7 @@ servers: frontend
 		if [ $$GOOS = "windows" ] ; then SERVER_PATH=$$SERVER_DIR/plikd.exe ; fi ; \
 		if [ -e $$SERVER_PATH ] ; then continue ; fi ; \
 		echo "Compiling plik server for $$target to $$SERVER_PATH"; \
-		go build -o $$SERVER_PATH ;	\
+		$(build) -o $$SERVER_PATH ;	\
 	done
 
 
@@ -86,7 +94,7 @@ utils: servers
             if [ $$GOOS = "windows" ] ; then UTIL_PATH=$$UTIL_DIR/$$UTIL_BASE.exe ; fi ; \
             if [ -e $$UTIL_PATH ] ; then continue ; fi ; \
             echo "Compiling plik util file2bolt for $$target to $$UTIL_PATH"; \
-            go build -o $$UTIL_PATH $$util ; \
+            $(build) -o $$UTIL_PATH $$util ; \
         done ; \
 	done
 
@@ -96,7 +104,7 @@ utils: servers
 ###
 client:
 	@server/gen_build_info.sh $(RELEASE_VERSION)
-	@cd client && go build -o plik ./
+	@cd client && $(build) -o plik ./
 
 ###
 # Build plik client for all architectures
@@ -113,7 +121,7 @@ clients:
 		if [ $$GOOS = "windows" ] ; then CLIENT_PATH=$$CLIENT_DIR/plik.exe ; fi ; \
 		if [ -e $$CLIENT_PATH ] ; then continue ; fi ; \
 		echo "Compiling plik client for $$target to $$CLIENT_PATH"; \
-		go build -o $$CLIENT_PATH ; \
+		$(build) -o $$CLIENT_PATH ; \
 		md5sum $$CLIENT_PATH | awk '{print $$1}' > $$CLIENT_MD5; \
 	done
 	@mkdir -p clients/bash && cp client/plik.sh clients/bash
@@ -184,6 +192,7 @@ release-template: clean frontend clients
 	@mkdir -p $(RELEASE_DIR)/server/utils
 
 	@cp -R clients $(RELEASE_DIR)
+	@cp -R changelog $(RELEASE_DIR)
 	@cp -R server/plikd.cfg $(RELEASE_DIR)/server
 	@cp -R server/public/css $(RELEASE_DIR)/server/public
 	@cp -R server/public/fonts $(RELEASE_DIR)/server/public
@@ -239,38 +248,37 @@ releases: release-template servers utils
 # Run tests and sanity checks
 ###
 test:
-
+	@if curl -s 127.0.0.1:8080 > /dev/null ; then echo "Plik server probably already running" && exit 1 ; fi
 	@server/gen_build_info.sh $(RELEASE_VERSION)
 	@ERR="" ; for directory in server client ; do \
 		cd $$directory; \
 		echo -n "go test $$directory : "; \
-		TEST=`go test ./... 2>&1`; \
+		TEST=`go test -race ./... 2>&1`; \
 		if [ $$? = 0 ] ; then echo "OK" ; else echo "$$TEST" | grep -v "no test files" | grep -v "^\[" && ERR="1"; fi ; \
 		echo "go fmt $$directory : "; \
-		for file in $$(find -name "*.go" | grep -v Godeps ); do \
+		for file in $$(find -name "*.go" | grep -v vendor ); do \
 			echo -n " - file $$file : " ; \
 			FMT=`gofmt -l $$file` ; \
 			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
 		done; \
 		echo -n "go vet $$directory : "; \
-		VET=`go vet ./... 2>&1`; \
-		if [ $$? = 0 ] ; then echo "OK" ; else echo "FAIL" && echo "$$VET" && ERR="1" ; fi ; \
-		echo -n "go lint $$directory : "; \
-		LINT=`golint ./...`; \
-		if [ "$$LINT" = "" ] ; then echo "OK" ; else echo "FAIL" && echo "$$LINT" && ERR="1" ; fi ; \
+		for file in $$(find -name "*.go" | grep -v vendor ); do \
+			echo -n " - file $$file : " ; \
+			FMT=`go vet $$file` ; \
+			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
+		done; \
+		echo -n "golint $$directory : "; \
+		for file in $$(find -name "*.go" | grep -v vendor ); do \
+			echo -n " - file $$file : " ; \
+			FMT=`golint $$file` ; \
+			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
+		done; \
 		cd - 2>&1 > /dev/null; \
 	done ; if [ "$$ERR" = "1" ] ; then exit 1 ; fi
 	@echo "cli client integration tests :\n" && cd client && ./test.sh
 
 ###
-# Remove frontend build files
-###
-clean-frontend:
-	@rm -rf server/public/bower_components
-	@rm -rf server/public/public
-
-###
-# Remove all build files
+# Remove server build files
 ###
 clean:
 	@rm -rf server/common/version.go
@@ -283,9 +291,16 @@ clean:
 	@rm -rf releases
 
 ###
+# Remove frontend build files
+###
+clean-frontend:
+	@rm -rf server/public/bower_components
+	@rm -rf server/public/public
+
+###
 # Remove all build files and node modules
 ###
-clean-all: clean
+clean-all: clean clean-frontend
 	@rm -rf server/public/node_modules
 
 ###

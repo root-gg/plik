@@ -35,10 +35,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
-	mgo "github.com/root-gg/plik/server/Godeps/_workspace/src/gopkg.in/mgo.v2"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/gopkg.in/mgo.v2/bson"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
+	mgo "gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 /*
@@ -62,6 +62,7 @@ func NewMongoMetadataBackend(config map[string]interface{}) (mmb *MetadataBacken
 	dialInfo := &mgo.DialInfo{}
 	dialInfo.Addrs = []string{mmb.config.URL}
 	dialInfo.Database = mmb.config.Database
+	dialInfo.Timeout = 5 * time.Second
 	if mmb.config.Username != "" && mmb.config.Password != "" {
 		dialInfo.Username = mmb.config.Username
 		dialInfo.Password = mmb.config.Password
@@ -71,11 +72,16 @@ func NewMongoMetadataBackend(config map[string]interface{}) (mmb *MetadataBacken
 			return tls.Dial("tcp", addr.String(), &tls.Config{InsecureSkipVerify: true})
 		}
 	}
+
+	common.Logger().Infof("Connecting to mongodb @ %s/%s", mmb.config.URL, mmb.config.Database)
+
 	var err error
 	mmb.session, err = mgo.DialWithInfo(dialInfo)
 	if err != nil {
 		common.Logger().Fatalf("Unable to contact mongodb at %s : %s", mmb.config.URL, err.Error())
 	}
+
+	common.Logger().Infof("Connected to mongodb @ %s/%s", mmb.config.URL, mmb.config.Database)
 
 	// Ensure everything is persisted and replicated
 	mmb.session.SetMode(mgo.Strong, false)

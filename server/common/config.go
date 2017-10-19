@@ -34,17 +34,21 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/BurntSushi/toml"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/GeertJohan/yubigo"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
+	"github.com/BurntSushi/toml"
+	"github.com/GeertJohan/yubigo"
+	"github.com/root-gg/logger"
 )
 
 // Configuration object
 type Configuration struct {
-	LogLevel      string `json:"-"`
+	LogLevel string `json:"-"`
+
 	ListenAddress string `json:"-"`
 	ListenPort    int    `json:"-"`
-	MaxFileSize   int64  `json:"maxFileSize"`
+	Path          string `json:"-"`
+
+	MaxFileSize      int64 `json:"maxFileSize"`
+	MaxFilePerUpload int   `json:"maxFilePerUpload"`
 
 	DefaultTTL int `json:"defaultTTL"`
 	MaxTTL     int `json:"maxTTL"`
@@ -64,13 +68,15 @@ type Configuration struct {
 	SourceIPHeader  string   `json:"-"`
 	UploadWhitelist []string `json:"-"`
 
-	Authentication       bool   `json:"authentication"`
-	GoogleAuthentication bool   `json:"googleAuthentication"`
-	GoogleAPISecret      string `json:"-"`
-	GoogleAPIClientID    string `json:"-"`
-	OvhAuthentication    bool   `json:"ovhAuthentication"`
-	OvhAPIKey            string `json:"-"`
-	OvhAPISecret         string `json:"-"`
+	Authentication       bool     `json:"authentication"`
+	NoAnonymousUploads   bool     `json:"-"`
+	GoogleAuthentication bool     `json:"googleAuthentication"`
+	GoogleAPISecret      string   `json:"-"`
+	GoogleAPIClientID    string   `json:"-"`
+	GoogleValidDomains   []string `json:"-"`
+	OvhAuthentication    bool     `json:"ovhAuthentication"`
+	OvhAPIKey            string   `json:"-"`
+	OvhAPISecret         string   `json:"-"`
 
 	MetadataBackend       string                 `json:"-"`
 	MetadataBackendConfig map[string]interface{} `json:"-"`
@@ -80,9 +86,6 @@ type Configuration struct {
 
 	StreamMode          bool                   `json:"streamMode"`
 	StreamBackendConfig map[string]interface{} `json:"-"`
-
-	ShortenBackend       string                 `json:"shortenBackend"`
-	ShortenBackendConfig map[string]interface{} `json:"-"`
 }
 
 // Config static variable
@@ -93,20 +96,19 @@ var UploadWhitelist []*net.IPNet
 
 // NewConfiguration creates a new configuration
 // object with default values
-func NewConfiguration() (this *Configuration) {
-	this = new(Configuration)
-	this.LogLevel = "INFO"
-	this.ListenAddress = "0.0.0.0"
-	this.ListenPort = 8080
-	this.DataBackend = "file"
-	this.MetadataBackend = "file"
-	this.MaxFileSize = 10737418240 // 10GB
-	this.DefaultTTL = 2592000      // 30 days
-	this.MaxTTL = 0
-	this.SslEnabled = false
-	this.SslCert = ""
-	this.SslKey = ""
-	this.StreamMode = true
+func NewConfiguration() (config *Configuration) {
+	config = new(Configuration)
+	config.LogLevel = "INFO"
+	config.ListenAddress = "0.0.0.0"
+	config.ListenPort = 8080
+	config.DataBackend = "file"
+	config.MetadataBackend = "file"
+	config.MaxFileSize = 10737418240 // 10GB
+	config.MaxFilePerUpload = 1000
+	config.DefaultTTL = 2592000 // 30 days
+	config.MaxTTL = 0
+	config.SslEnabled = false
+	config.StreamMode = true
 	return
 }
 
@@ -115,6 +117,7 @@ func NewConfiguration() (this *Configuration) {
 // override default params
 func LoadConfiguration(file string) {
 	Config = NewConfiguration()
+
 	if _, err := toml.DecodeFile(file, Config); err != nil {
 		Logger().Fatalf("Unable to load config file %s : %s", file, err)
 	}
@@ -125,6 +128,8 @@ func LoadConfiguration(file string) {
 	} else {
 		Logger().SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel)
 	}
+
+	Config.Path = strings.TrimSuffix(Config.Path, "/")
 
 	// Do user specified a ApiKey and ApiSecret for Yubikey
 	if Config.YubikeyEnabled {
@@ -166,10 +171,12 @@ func LoadConfiguration(file string) {
 
 	if !Config.GoogleAuthentication && !Config.OvhAuthentication {
 		Config.Authentication = false
+		Config.NoAnonymousUploads = false
 	}
 
 	if Config.MetadataBackend == "file" {
 		Config.Authentication = false
+		Config.NoAnonymousUploads = false
 	}
 
 	if Config.DownloadDomain != "" {

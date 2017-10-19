@@ -35,18 +35,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/gorilla/mux"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
+	"github.com/gorilla/mux"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/utils"
 )
 
 // Upload retrieve the requested upload metadata from the metadataBackend and save it to the request context.
 func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		log := common.GetLogger(ctx)
-		log.Debug("Upload handler")
 
 		// Get the upload id from the url params
 		vars := mux.Vars(req)

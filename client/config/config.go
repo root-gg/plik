@@ -42,12 +42,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/BurntSushi/toml"
-	homedir "github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/mitchellh/go-homedir"
-	"github.com/root-gg/plik/client/Godeps/_workspace/src/github.com/root-gg/utils"
+	"github.com/BurntSushi/toml"
+	homedir "github.com/mitchellh/go-homedir"
 	"github.com/root-gg/plik/client/archive"
 	"github.com/root-gg/plik/client/crypto"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 )
 
 // Config static variable
@@ -134,6 +134,15 @@ func NewFileToUpload() (fileToUpload *FileToUpload) {
 	return
 }
 
+// LoadConfigFromFile load TOML config file
+func LoadConfigFromFile(path string) error {
+	if _, err := toml.DecodeFile(path, &Config); err != nil {
+		return fmt.Errorf("Failed to deserialize ~/.plickrc : %s", err)
+	}
+
+	return nil
+}
+
 // Load creates a new default configuration and override it with .plikrc fike.
 // If plikrc does not exist, ask domain,
 // and create a new one in user HOMEDIR
@@ -142,96 +151,115 @@ func Load() (err error) {
 	Upload = common.NewUpload()
 	Files = make([]*FileToUpload, 0)
 
-	// Get config file
-	configFile := os.Getenv("PLIKRC")
-	if configFile == "" {
-		// Detect home dir
-		home, err := homedir.Dir()
+	// Load config file from environment variable
+	path := os.Getenv("PLIKRC")
+	if path != "" {
+		_, err := os.Stat(path)
 		if err != nil {
-			home = os.Getenv("HOME")
+			return fmt.Errorf("Plikrc file %s not found", path)
 		}
-		if home == "" {
-			return fmt.Errorf("Unable to find home directory, please use PLIKRC environement variable")
-		}
-		configFile = home + "/.plikrc"
+		return LoadConfigFromFile(path)
 	}
 
-	// Stat file
-	_, err = os.Stat(configFile)
+	// Detect home dir
+	home, err := homedir.Dir()
 	if err != nil {
-		// File not found.
+		home = os.Getenv("HOME")
+		if home == "" {
+			home = "."
+		}
+	}
 
-		// Check if quiet mode ( you'll have to pass --server flag )
-		for _, arg := range os.Args[1:] {
-			if arg == "-q" || arg == "--quiet" {
+	// Load config file from ~/.plikrc
+	path = home + "/.plikrc"
+	_, err = os.Stat(path)
+	if err == nil {
+		err = LoadConfigFromFile(path)
+		if err == nil {
+			return
+		}
+	} else {
+
+		// Load global config file from /etc directory
+		path = "/etc/plik/plikrc"
+		_, err = os.Stat(path)
+		if err == nil {
+			err = LoadConfigFromFile(path)
+			if err == nil {
 				return
 			}
 		}
 
-		// Ask for domain
-		var domain string
-		fmt.Printf("Please enter your plik domain [default:http://127.0.0.1:8080] : ")
-		_, err := fmt.Scanf("%s", &domain)
-		if err == nil {
-			domain = strings.TrimRight(domain, "/")
-			parsedDomain, err := url.Parse(domain)
-			if err == nil {
-				if parsedDomain.Scheme == "" {
-					parsedDomain.Scheme = "http"
-				}
-				Config.URL = parsedDomain.String()
-			}
-		}
+	}
 
-		// Try to HEAD the site to see if we have a redirection
-		resp, err := http.Head(Config.URL)
-		if err != nil {
-			return err
-		}
-
-		finalURL := resp.Request.URL.String()
-		if finalURL != "" && finalURL != Config.URL {
-			fmt.Printf("We have been redirected to : %s\n", finalURL)
-			fmt.Printf("Replace current url (%s) with the new one ? [Y/n] ", Config.URL)
-
-			input := "y"
-			fmt.Scanln(&input)
-
-			if strings.HasPrefix(strings.ToLower(input), "y") {
-				Config.URL = strings.TrimSuffix(finalURL, "/")
-			}
-		}
-
-		// Enable client updates ?
-		fmt.Printf("Do you want to enable client auto update ? [Y/n] ")
-		input := "y"
-		fmt.Scanln(&input)
-		if strings.HasPrefix(strings.ToLower(input), "y") {
-			Config.AutoUpdate = true
-		}
-
-		// Encode in toml
-		buf := new(bytes.Buffer)
-		if err = toml.NewEncoder(buf).Encode(Config); err != nil {
-			return fmt.Errorf("Failed to serialize ~/.plickrc : %s", err)
-		}
-
-		// Write file
-		f, err := os.OpenFile(configFile, os.O_CREATE|os.O_RDWR, 0700)
-		if err != nil {
-			return fmt.Errorf("Failed to save ~/.plickrc : %s", err)
-		}
-
-		f.Write(buf.Bytes())
-		f.Close()
-
-		fmt.Println("Plik client settings successfully saved to " + configFile)
-	} else {
-		// Load toml
-		if _, err := toml.DecodeFile(configFile, &Config); err != nil {
-			return fmt.Errorf("Failed to deserialize ~/.plickrc : %s", err)
+	// Check if quiet mode ( you'll have to pass --server flag )
+	for _, arg := range os.Args[1:] {
+		if arg == "-q" || arg == "--quiet" {
+			return nil
 		}
 	}
+
+	// Config file not found. Create one.
+	path = home + "/.plikrc"
+
+	// Ask for domain
+	var domain string
+	fmt.Println("Please enter your plik domain [default:http://127.0.0.1:8080] : ")
+	_, err = fmt.Scanf("%s", &domain)
+	if err == nil {
+		domain = strings.TrimRight(domain, "/")
+		parsedDomain, err := url.Parse(domain)
+		if err == nil {
+			if parsedDomain.Scheme == "" {
+				parsedDomain.Scheme = "http"
+			}
+			Config.URL = parsedDomain.String()
+		}
+	}
+
+	// Try to HEAD the site to see if we have a redirection
+	resp, err := http.Head(Config.URL)
+	if err != nil {
+		return err
+	}
+
+	finalURL := resp.Request.URL.String()
+	if finalURL != "" && finalURL != Config.URL {
+		fmt.Printf("We have been redirected to : %s\n", finalURL)
+		fmt.Printf("Replace current url (%s) with the new one ? [Y/n] ", Config.URL)
+
+		input := "y"
+		fmt.Scanln(&input)
+
+		if strings.HasPrefix(strings.ToLower(input), "y") {
+			Config.URL = strings.TrimSuffix(finalURL, "/")
+		}
+	}
+
+	// Enable client updates ?
+	fmt.Println("Do you want to enable client auto update ? [Y/n] ")
+	input := "y"
+	fmt.Scanln(&input)
+	if strings.HasPrefix(strings.ToLower(input), "y") {
+		Config.AutoUpdate = true
+	}
+
+	// Encode in TOML
+	buf := new(bytes.Buffer)
+	if err = toml.NewEncoder(buf).Encode(Config); err != nil {
+		return fmt.Errorf("Failed to serialize ~/.plickrc : %s", err)
+	}
+
+	// Write file
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0700)
+	if err != nil {
+		return fmt.Errorf("Failed to save ~/.plickrc : %s", err)
+	}
+
+	f.Write(buf.Bytes())
+	f.Close()
+
+	fmt.Println("Plik client settings successfully saved to " + path)
 	return
 }
 

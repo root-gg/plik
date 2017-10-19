@@ -36,15 +36,15 @@ import (
 )
 
 var (
-	randRunes = []rune("abcdefghijklmnopqrstABCDEFGHIJKLMNOP0123456789")
+	randRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 )
 
 // Upload object
 type Upload struct {
-	ID             string `json:"id" bson:"id"`
-	Creation       int64  `json:"uploadDate" bson:"uploadDate"`
-	TTL            int    `json:"ttl" bson:"ttl"`
-	ShortURL       string `json:"shortUrl" bson:"shortUrl"`
+	ID       string `json:"id" bson:"id"`
+	Creation int64  `json:"uploadDate" bson:"uploadDate"`
+	TTL      int    `json:"ttl" bson:"ttl"`
+
 	DownloadDomain string `json:"downloadDomain" bson:"-"`
 	RemoteIP       string `json:"uploadIp,omitempty" bson:"uploadIp"`
 	Comments       string `json:"comments" bson:"comments"`
@@ -66,6 +66,8 @@ type Upload struct {
 
 	ProtectedByYubikey bool   `json:"protectedByYubikey" bson:"protectedByYubikey"`
 	Yubikey            string `json:"yubikey,omitempty" bson:"yubikey"`
+
+	//ShortURL       string `json:"shortUrl" bson:"shortUrl"` removed v1.2.1
 }
 
 // NewUpload instantiate a new upload object

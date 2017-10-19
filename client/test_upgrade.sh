@@ -43,6 +43,8 @@ RELEASES=(
     1.1.1
     1.2-RC1
     1.2-RC2
+    1.2-RC3
+    1.2
 )
 
 ###
@@ -155,7 +157,7 @@ do
 
     # Update client
     echo "Update client from v$RELEASE :"
-    echo "Y" | client/plik --update
+    for i in $(seq 0 100) ; do echo "y" ; done | client/plik --update
 
     # Verify updated client
     TARGET_MD5=$(md5sum "client/plik" | awk '{print $1}')

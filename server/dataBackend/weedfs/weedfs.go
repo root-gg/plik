@@ -39,7 +39,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -142,7 +142,7 @@ func (weedFs *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file 
 			return
 		}
 	} else {
-		err = log.EWarningf("Missing fid from WeedFS master response \"%s\" at %", bodyStr, assignURL)
+		err = log.EWarningf("Missing fid from WeedFS master response \"%s\" at %s", bodyStr, assignURL)
 		return
 	}
 

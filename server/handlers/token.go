@@ -34,11 +34,11 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/gorilla/mux"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
+	"github.com/gorilla/mux"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/utils"
 )
 
 // CreateToken create a new token
@@ -131,7 +131,7 @@ func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	// TODO RACE CONDITION if simulatneous delete occur
+	// TODO RACE CONDITION if simultaneous delete occur
 
 	// Delete token
 	user.Tokens = append(user.Tokens[:index], user.Tokens[index+1:]...)

@@ -32,25 +32,22 @@ package swift
 import (
 	"io"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/ncw/swift"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/utils"
+	"github.com/ncw/swift"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 )
 
 // Backend object
 type Backend struct {
-	config     *configInfo
-	connection swift.Connection
+	config     *BackendConfig
+	connection *swift.Connection
 }
 
-// NewSwiftBackend instantiate a new Openjuliet Swift Data Backend
+// NewSwiftBackend instantiate a new OpenSwift Data Backend
 // from configuration passed as argument
 func NewSwiftBackend(config map[string]interface{}) (sb *Backend) {
 	sb = new(Backend)
-	sb.config = new(configInfo)
-	sb.config.Container = "PlickData"
-	utils.Assign(sb.config, config)
+	sb.config = NewSwitftBackendConfig(config)
 	return sb
 }
 
@@ -147,11 +144,11 @@ func (sb *Backend) getFileID(upload *common.Upload, fileID string) string {
 func (sb *Backend) auth(ctx *juliet.Context) (err error) {
 	log := common.GetLogger(ctx)
 
-	if sb.connection.Authenticated() {
+	if sb.connection != nil && sb.connection.Authenticated() {
 		return
 	}
 
-	connection := swift.Connection{
+	connection := &swift.Connection{
 		UserName: sb.config.Username,
 		ApiKey:   sb.config.Password,
 		AuthUrl:  sb.config.Host,

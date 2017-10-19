@@ -32,7 +32,7 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -40,7 +40,6 @@ import (
 func Logger(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		log := common.Logger().Copy()
-		log.Debug("Logger handler")
 		ctx.Set("logger", log)
 		next.ServeHTTP(resp, req)
 	})

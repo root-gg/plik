@@ -28,10 +28,13 @@ THE SOFTWARE.
     position: fixed;
     width: 100px;
     height: 100px;
-    top: 0; left: 0; bottom: 0; right: 0;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
     z-index: 1;
     opacity: 0;
-    border: 3px solid rgba(255,255,255,.1);
+    border: 3px solid rgba(255, 255, 255, .1);
 
     animation: pulsejg1 1s linear 1;
     border-radius: 999px;
@@ -43,10 +46,13 @@ THE SOFTWARE.
     position: fixed;
     width: 100px;
     height: 100px;
-    top: 0; left: 0; bottom: 0; right: 0;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
     z-index: 2;
     opacity: 0;
-    border: 1px solid rgba(255,255,255,0);
+    border: 1px solid rgba(255, 255, 255, 0);
 
     animation: pulsejg2 1s linear 1;
     border-radius: 999px;

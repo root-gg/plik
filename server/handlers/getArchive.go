@@ -36,8 +36,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/gorilla/mux"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
+	"github.com/gorilla/mux"
+	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/dataBackend"
 	"github.com/root-gg/plik/server/metadataBackend"
@@ -124,8 +124,8 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 	}
 
 	if strings.HasSuffix(".zip", fileName) {
-		log.Warningf("Invalid file name %s. Missing .zip extention", fileName)
-		common.Fail(ctx, req, resp, fmt.Sprintf("Invalid file name %s. Missing .zip extention", fileName), 400)
+		log.Warningf("Invalid file name %s. Missing .zip extension", fileName)
+		common.Fail(ctx, req, resp, fmt.Sprintf("Invalid file name %s. Missing .zip extension", fileName), 400)
 		return
 	}
 

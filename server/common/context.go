@@ -35,8 +35,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/Godeps/_workspace/src/github.com/root-gg/logger"
+	"github.com/root-gg/juliet"
+	"github.com/root-gg/logger"
 )
 
 var rootLogger = logger.NewLogger()
@@ -145,10 +145,36 @@ func Fail(ctx *juliet.Context, req *http.Request, resp http.ResponseWriter, mess
 			}
 		}
 		if redirect {
-			http.Redirect(resp, req, fmt.Sprintf("/#/?err=%s&errcode=%d&uri=%s", message, status, req.RequestURI), 301)
+			http.Redirect(resp, req, fmt.Sprintf("%s/#!/?err=%s&errcode=%d&uri=%s", Config.Path, message, status, req.RequestURI), 301)
 			return
 		}
 	}
 
 	http.Error(resp, NewResult(message, nil).ToJSONString(), status)
+}
+
+// StripPrefix returns a handler that serves HTTP requests
+// removing the given prefix from the request URL's Path
+// It differs from http.StripPrefix by defaulting to "/" and not ""
+func StripPrefix(prefix string, handler http.Handler) http.Handler {
+	if prefix == "" || prefix == "/" {
+		return handler
+	}
+	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		// Relative paths to javascript, css, ... imports won't work without a tailing slash
+		if req.URL.Path == prefix {
+			http.Redirect(resp, req, prefix+"/", 301)
+			return
+		}
+		if p := strings.TrimPrefix(req.URL.Path, prefix); len(p) < len(req.URL.Path) {
+			req.URL.Path = p
+		} else {
+			http.NotFound(resp, req)
+			return
+		}
+		if !strings.HasPrefix(req.URL.Path, "/") {
+			req.URL.Path = "/" + req.URL.Path
+		}
+		handler.ServeHTTP(resp, req)
+	})
 }

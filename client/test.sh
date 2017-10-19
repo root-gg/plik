@@ -28,6 +28,7 @@
 
 set -e
 export SHELLOPTS
+export ENABLE_RACE_DETECTOR=1
 
 ORIGIN=$(dirname $(readlink -f $0))
 cd "$ORIGIN/.."
@@ -72,14 +73,19 @@ EOF
 ###
 
 echo -n "Start Plik server : "
-(cd server && ./plikd > $SERVER_LOG 2>&1) >/dev/null 2>&1 &
+
+PLIKD_CONFIG=${PLIKD_CONFIG-../server/plikd.cfg}
+echo "PLIKD_CONFIG = $PLIKD_CONFIG"
+
+(cd server && ./plikd -config $PLIKD_CONFIG > $SERVER_LOG 2>&1) >/dev/null 2>&1 &
 
 # Verify that server is running
 sleep 1
 if curl $URL 2>/dev/null | grep plik >/dev/null 2>&1 ; then
     echo "OK"
 else
-    echo "FAIL"
+    echo "UNABLE TO START PLIK SERVER"
+    cat $SERVER_LOG
     exit 1
 fi
 
@@ -100,9 +106,9 @@ function shutdown {
             echo -e "\n"
         fi
     fi
-    echo "Shutting down plik server"
     PID=$(ps a | grep plikd | grep -v grep | awk '{print $1}')
     if [ "x$PID" != "x" ];then
+        echo "Shutting down plik server"
         kill $PID
         sleep 1
         PID=$(ps a | grep plikd | grep -v grep | awk '{print $1}')
@@ -393,26 +399,6 @@ grep "$URL/file/.*/.*/FILE1" $CLIENT_LOG >/dev/null 2>/dev/null
 
 echo "OK"
 
-#---------------------------------------------
-
-echo -n " - quiet and no .plikrc : "
-
-before
-rm $PLIKRC
-cp $SPECIMEN $TMPDIR/upload/FILE1
-upload -q
-test $(cat $CLIENT_LOG | wc -l) -eq 1
-grep "$URL/file/.*/.*/FILE1" $CLIENT_LOG >/dev/null 2>/dev/null
-
-before
-rm $PLIKRC
-cp $SPECIMEN $TMPDIR/upload/FILE1
-upload --quiet
-test $(cat $CLIENT_LOG | wc -l) -eq 1
-grep "$URL/file/.*/.*/FILE1" $CLIENT_LOG >/dev/null 2>/dev/null
-
-echo "OK"
-
 ###
 # Tar archive
 ###
@@ -654,6 +640,8 @@ Wslu8jCqJpbcKUL7k2mfTKwJ97h1Go5LMurSR9W2psZrmyHXbCccu0CghK/Y7g==
 =/xyA
 -----END PGP PRIVATE KEY BLOCK-----
 EOF
+
+touch "$TMPDIR/pubring.gpg"
 gpg --import $TMPDIR/pgp.key >/dev/null 2>/dev/null
 
 # Use temporary keyring
