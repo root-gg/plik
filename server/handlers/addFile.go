@@ -282,8 +282,8 @@ func preprocessor(ctx *juliet.Context, file io.Reader, preprocessWriter io.Write
 		}
 	}
 
-	err = preprocessWriter.Close()
-	if err != nil {
+	errClose := preprocessWriter.Close()
+	if errClose != nil {
 		log.Warningf("Unable to close preprocessWriter : %s", err)
 	}
 
