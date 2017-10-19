@@ -79,26 +79,6 @@ servers: frontend
 		$(build) -o $$SERVER_PATH ;	\
 	done
 
-
-###
-# Build plik utils for all architectures
-###
-utils: servers
-	@cd utils && for util in `ls *.go` ; do \
-        for target in $(RELEASE_TARGETS) ; do \
-            UTIL_DIR=../servers/$$target/utils; \
-            UTIL_BASE=`basename $$util .go`; \
-            UTIL_PATH=$$UTIL_DIR/$$UTIL_BASE;  \
-            mkdir -p $$UTIL_DIR;  \
-            export GOOS=`echo $$target | cut -d "-" -f 1`; 	\
-            if [ $$GOOS = "windows" ] ; then UTIL_PATH=$$UTIL_DIR/$$UTIL_BASE.exe ; fi ; \
-            if [ -e $$UTIL_PATH ] ; then continue ; fi ; \
-            echo "Compiling plik util file2bolt for $$target to $$UTIL_PATH"; \
-            $(build) -o $$UTIL_PATH $$util ; \
-        done ; \
-	done
-
-
 ###
 # Build plik client for the current architecture
 ###
@@ -126,9 +106,9 @@ clients:
 	done
 	@mkdir -p clients/bash && cp client/plik.sh clients/bash
 
-##
+###
 # Build docker
-##
+###
 docker: release
 	@cp Dockerfile $(RELEASE_DIR)
 	@cd $(RELEASE_DIR) && docker build -t rootgg/plik .
@@ -189,7 +169,6 @@ debs-client: clients
 ###
 release-template: clean frontend clients
 	@mkdir -p $(RELEASE_DIR)/server/public
-	@mkdir -p $(RELEASE_DIR)/server/utils
 
 	@cp -R clients $(RELEASE_DIR)
 	@cp -R changelog $(RELEASE_DIR)
@@ -215,13 +194,12 @@ release: release-template server
 ###
 # Build release archives for all architectures
 ###
-releases: release-template servers utils
+releases: release-template servers
 
 	@mkdir -p releases
 
 	@cd release && for target in $(RELEASE_TARGETS) ; do \
 		SERVER_PATH=../servers/$$target/plikd;  \
-		UTIL_DIR=../servers/$$target/utils;  \
 		OS=`echo $$target | cut -d "-" -f 1`; \
 		ARCH=`echo $$target | cut -d "-" -f 2`; \
 		if [ $$OS = "darwin" ] ; then OS="macos" ; fi ; \
@@ -229,7 +207,6 @@ releases: release-template servers utils
 		if [ $$ARCH = "386" ] ; then ARCH="32bits" ; fi ; \
 		if [ $$ARCH = "amd64" ] ; then ARCH="64bits" ; fi ; \
 		cp -R $$SERVER_PATH plik-$(RELEASE_VERSION)/server; \
-		cp -R $$UTIL_DIR plik-$(RELEASE_VERSION)/server; \
 		if [ $$OS = "windows" ] ; then \
 			TARBALL_NAME=plik-$(RELEASE_VERSION)-$$OS-$$ARCH.zip; \
 			echo "Packaging plik release for $$target to $$TARBALL_NAME"; \
