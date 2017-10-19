@@ -44,9 +44,9 @@ module.exports = function (grunt) {
                     "bower_components/filesize/lib/filesize.js",
                     "bower_components/zeroclipboard/dist/ZeroClipboard.js",
                     "bower_components/angular-contenteditable/angular-contenteditable.js",
-                    "bower_components/showdown/src/showdown.js",
+                    "bower_components/showdown/src/showdown.js"
                 ],
-                dest: 'public/js/vendor.js',
+                dest: 'public/js/vendor.js'
 
             },
             css_vendors: {
@@ -66,7 +66,7 @@ module.exports = function (grunt) {
                     expand: true,
                     src: [
                         'bower_components/bootstrap/fonts/*',
-                        'bower_components/fontawesome/fonts/*',
+                        'bower_components/fontawesome/fonts/*'
                     ],
                     dest: 'public/fonts/',
                     flatten: true
@@ -92,7 +92,7 @@ module.exports = function (grunt) {
             },
             javascript: {
                 files: {
-                    'public/js/vendor.js': ['public/js/vendor.js'],
+                    'public/js/vendor.js': ['public/js/vendor.js']
                 }
             }
 
