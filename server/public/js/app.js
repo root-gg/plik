@@ -321,6 +321,11 @@ var plik = angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'conten
             .when('/home', {controller: 'HomeCtrl', templateUrl: 'partials/home.html'})
             .otherwise({redirectTo: '/'});
     })
+    .config(['$locationProvider', function($locationProvider) {
+        // see https://github.com/angular/angular.js/commit/aa077e81129c740041438688dff2e8d20c3d7b52
+        // see https://webmasters.googleblog.com/2015/10/deprecating-our-ajax-crawling-scheme.html
+        $locationProvider.hashPrefix("");
+    }])
     .config(['$httpProvider', function ($httpProvider) {
         $httpProvider.defaults.headers.common['X-ClientApp'] = 'web_client';
         $httpProvider.defaults.xsrfCookieName = 'plik-xsrf';

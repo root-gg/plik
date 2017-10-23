@@ -145,7 +145,7 @@ func Fail(ctx *juliet.Context, req *http.Request, resp http.ResponseWriter, mess
 			}
 		}
 		if redirect {
-			http.Redirect(resp, req, fmt.Sprintf("%s/#!/?err=%s&errcode=%d&uri=%s", Config.Path, message, status, req.RequestURI), 301)
+			http.Redirect(resp, req, fmt.Sprintf("%s/#/?err=%s&errcode=%d&uri=%s", Config.Path, message, status, req.RequestURI), 301)
 			return
 		}
 	}
