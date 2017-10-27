@@ -21,16 +21,16 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
    - Upload restriction : Source IP / Token
 
 ### Version
-1.2.1
+1.2.2
 
 ### Installation
 
 ##### From release
 To run plik, it's very simple :
 ```sh
-$ wget https://github.com/root-gg/plik/releases/download/1.2.1/plik-1.2.1-linux-64bits.tar.gz
-$ tar xzvf plik-1.2.1-linux-64bits.tar.gz
-$ cd plik-1.2.1/server
+$ wget https://github.com/root-gg/plik/releases/download/1.2.2/plik-1.2.2-linux-64bits.tar.gz
+$ tar xzvf plik-1.2.2-linux-64bits.tar.gz
+$ cd plik-1.2.2/server
 $ ./plikd
 ```
 Et voilà ! You now have a fully functional instance of plik running on http://127.0.0.1:8080.  
