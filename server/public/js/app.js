@@ -1300,7 +1300,7 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
 
         // Get upload url
         $scope.getUploadUrl = function (upload) {
-            return $api.base + '/#/?id=' + upload.id;
+            return $api.base + '/#!/?id=' + upload.id;
         };
 
         // Get file url
