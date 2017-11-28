@@ -1,17 +1,17 @@
 language: go
-
-sudo: required
-
 go:
-  - 1.9.1
-
+  - stable
+services:
+  - docker
 before_install:
-  # Update node_js version : https://github.com/travis-ci/travis-ci/issues/7108
-  - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install stable
-  - npm install -g bower
-
+  - . $HOME/.nvm/nvm.sh
+  - nvm install stable
+  - nvm use stable
 before_script:
   - go get -u github.com/golang/lint/golint
-
 script:
   - make test && make
+after_success:
+  - make docker 
+  - docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+  - docker push rootgg/plik
