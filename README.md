@@ -19,6 +19,7 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
    - Comments : Add custom message (in Markdown format)
    - User authentication : Google / OVH
    - Upload restriction : Source IP / Token
+   - [ShareX](https://getsharex.com/) Uploader : Directly integrated into ShareX
 
 ### Version
 1.2.2
