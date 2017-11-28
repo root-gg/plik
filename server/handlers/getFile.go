@@ -107,7 +107,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	resp.Header().Set("X-Content-Type-Options", "nosniff")
 	resp.Header().Set("X-XSS-Protection", "1; mode=block")
 	resp.Header().Set("X-Frame-Options", "DENY")
-	resp.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'none'; style-src 'none'; img-src 'none'; connect-src 'none'; font-src 'none'; object-src 'none'; media-src 'none'; child-src 'none'; form-action 'none'; frame-ancestors 'none'; plugin-types ''; sandbox ''")
+	resp.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'none'; style-src 'none'; img-src 'none'; connect-src 'none'; font-src 'none'; object-src 'none'; media-src 'self'; child-src 'none'; form-action 'none'; frame-ancestors 'none'")
 
 	/* Additional header for disabling cache if the upload is OneShot */
 	if upload.OneShot {
