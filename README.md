@@ -127,7 +127,7 @@ curl -s 'https://127.0.0.1:8080/file/0KfNj6eMb93ilCrl/q73tEBEqM04b22GP/mydirecto
 
 Client configuration and preferences are stored at ~/.plikrc or /etc/plik/plikrc ( overridable with PLIKRC environement variable )
 
-###  Available data backends
+### Available data backends
 
 Plik is shipped with multiple data backend for uploaded files and metadata backend for the upload metadata.
 
