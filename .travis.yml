@@ -12,6 +12,4 @@ before_script:
 script:
   - make test && make
 after_success:
-  - make docker 
-  - docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
-  - docker push rootgg/plik
+  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then make docker && docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD" && docker push rootgg/plik; fi'
