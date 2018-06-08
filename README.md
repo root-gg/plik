@@ -21,6 +21,7 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
    - User authentication : Google / OVH
    - Upload restriction : Source IP / Token
    - [ShareX](https://getsharex.com/) Uploader : Directly integrated into ShareX
+   - [plikSharp](https://github.com/iss0/plikSharp) : A .NET API client for Plik
 
 ### Version
 1.2.2
