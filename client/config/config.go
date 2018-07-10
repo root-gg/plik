@@ -108,6 +108,7 @@ func NewUploadConfig() (config *UploadConfig) {
 	config.SecureOptions = make(map[string]interface{})
 	config.SecureOptions["Openssl"] = "/usr/bin/openssl"
 	config.SecureOptions["Cipher"] = "aes-256-cbc"
+	config.SecureOptions["Options"] = "-md sha256"
 	config.DownloadBinary = "curl"
 	config.Comments = ""
 	config.Yubikey = false
