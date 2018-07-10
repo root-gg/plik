@@ -423,7 +423,9 @@ func UnmarshalArgs(arguments map[string]interface{}) (err error) {
 	}
 
 	// Enable secure mode ?
-	if arguments["-s"].(bool) || arguments["--secure"] != nil || Config.Secure {
+	if arguments["--not-secure"].(bool) {
+		Config.Secure = false
+	} else if arguments["-s"].(bool) || arguments["--secure"] != nil || Config.Secure {
 		Config.Secure = true
 		secureMethod := Config.SecureMethod
 		if arguments["--secure"] != nil && arguments["--secure"].(string) != "" {
