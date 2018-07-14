@@ -38,8 +38,8 @@ import (
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/dataBackend"
-	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/plik/server/data"
+	"github.com/root-gg/plik/server/metadata"
 )
 
 // GetFile download a file
@@ -135,11 +135,11 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	// GET  Request => Print file content
 	if req.Method == "GET" {
 		// Get file in data backend
-		var backend dataBackend.DataBackend
+		var backend data.Backend
 		if upload.Stream {
-			backend = dataBackend.GetStreamBackend()
+			backend = data.GetStreamBackend()
 		} else {
-			backend = dataBackend.GetDataBackend()
+			backend = data.GetDataBackend()
 		}
 
 		fileReader, err := backend.GetFile(ctx, upload, file.ID)
@@ -156,7 +156,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		// and ensure proper locking ( which is the case of bolt and looks doable with mongodb but would break the interface ).
 		if upload.OneShot {
 			file.Status = "downloaded"
-			err = metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file)
+			err = metadata.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file)
 			if err != nil {
 				log.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.ID, err)
 			}

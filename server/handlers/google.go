@@ -39,7 +39,7 @@ import (
 	"github.com/nu7hatch/gouuid"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/plik/server/metadata"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	api_oauth2 "google.golang.org/api/oauth2/v2"
@@ -193,7 +193,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 	userID := "google:" + userInfo.Id
 
 	// Get user from metadata backend
-	user, err := metadataBackend.GetMetaDataBackend().GetUser(ctx, userID, "")
+	user, err := metadata.GetMetaDataBackend().GetUser(ctx, userID, "")
 	if err != nil {
 		log.Warningf("Unable to get user : %s", err)
 		common.Fail(ctx, req, resp, "Unable to get user", 500)
@@ -230,7 +230,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			}
 
 			// Save user to metadata backend
-			err = metadataBackend.GetMetaDataBackend().SaveUser(ctx, user)
+			err = metadata.GetMetaDataBackend().SaveUser(ctx, user)
 			if err != nil {
 				log.Warningf("Unable to save user to metadata backend : %s", err)
 				common.Fail(ctx, req, resp, "Authentification error", 403)

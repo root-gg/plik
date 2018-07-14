@@ -39,8 +39,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/dataBackend"
-	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/plik/server/data"
+	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
 )
 
@@ -168,11 +168,11 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	go preprocessor(ctx, file, preprocessWriter, preprocessOutputCh)
 
 	// Save file in the data backend
-	var backend dataBackend.DataBackend
+	var backend data.Backend
 	if upload.Stream {
-		backend = dataBackend.GetStreamBackend()
+		backend = data.GetStreamBackend()
 	} else {
-		backend = dataBackend.GetDataBackend()
+		backend = data.GetDataBackend()
 	}
 	backendDetails, err := backend.AddFile(ctx, upload, newFile, preprocessReader)
 	if err != nil {
@@ -204,7 +204,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 
 	// Update upload metadata
 	upload.Files[newFile.ID] = newFile
-	err = metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, newFile)
+	err = metadata.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, newFile)
 	if err != nil {
 		log.Warningf("Unable to update metadata : %s", err)
 		common.Fail(ctx, req, resp, "Unable to update upload metadata", 500)

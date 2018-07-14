@@ -37,7 +37,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
 )
 
@@ -82,7 +82,7 @@ func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	user.Tokens = append(user.Tokens, token)
 
 	// Save token
-	err = metadataBackend.GetMetaDataBackend().SaveUser(ctx, user)
+	err = metadata.GetMetaDataBackend().SaveUser(ctx, user)
 	if err != nil {
 		log.Warningf("Unable to save user to metadata backend : %s", err)
 		common.Fail(ctx, req, resp, "Unable to create token", 500)
@@ -137,7 +137,7 @@ func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	user.Tokens = append(user.Tokens[:index], user.Tokens[index+1:]...)
 
 	// Save user to metadata backend
-	err := metadataBackend.GetMetaDataBackend().SaveUser(ctx, user)
+	err := metadata.GetMetaDataBackend().SaveUser(ctx, user)
 	if err != nil {
 		log.Warningf("Unable to save user to metadata backend : %s", err)
 		common.Fail(ctx, req, resp, "Unable to create token", 500)

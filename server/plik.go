@@ -41,9 +41,9 @@ import (
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/dataBackend"
+	"github.com/root-gg/plik/server/data"
 	"github.com/root-gg/plik/server/handlers"
-	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/plik/server/middleware"
 )
 
@@ -72,8 +72,8 @@ func main() {
 	}
 
 	// Initialize all backends
-	metadataBackend.Initialize()
-	dataBackend.Initialize()
+	metadata.Initialize()
+	data.Initialize()
 
 	// Initialize the httpdown wrapper
 	hd := &httpdown.HTTP{
@@ -187,7 +187,7 @@ func UploadsCleaningRoutine() {
 		log.Infof("Cleaning expired uploads...")
 
 		// Get uploads that needs to be removed
-		uploadIds, err := metadataBackend.GetMetaDataBackend().GetUploadsToRemove(ctx)
+		uploadIds, err := metadata.GetMetaDataBackend().GetUploadsToRemove(ctx)
 		if err != nil {
 			log.Warningf("Failed to get expired uploads : %s", err)
 		} else {
@@ -195,21 +195,21 @@ func UploadsCleaningRoutine() {
 			for _, uploadID := range uploadIds {
 				log.Infof("Removing expired upload %s", uploadID)
 				// Get upload metadata
-				upload, err := metadataBackend.GetMetaDataBackend().Get(ctx, uploadID)
+				upload, err := metadata.GetMetaDataBackend().Get(ctx, uploadID)
 				if err != nil {
 					log.Warningf("Unable to get infos for upload: %s", err)
 					continue
 				}
 
 				// Remove from data backend
-				err = dataBackend.GetDataBackend().RemoveUpload(ctx, upload)
+				err = data.GetDataBackend().RemoveUpload(ctx, upload)
 				if err != nil {
 					log.Warningf("Unable to remove upload data : %s", err)
 					continue
 				}
 
 				// Remove from metadata backend
-				err = metadataBackend.GetMetaDataBackend().Remove(ctx, upload)
+				err = metadata.GetMetaDataBackend().Remove(ctx, upload)
 				if err != nil {
 					log.Warningf("Unable to remove upload metadata : %s", err)
 				}

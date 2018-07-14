@@ -33,7 +33,7 @@ import (
 	"fmt"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
 	"net/http"
 	"strconv"
@@ -73,7 +73,7 @@ func DeleteAccount(ctx *juliet.Context, resp http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	err := metadataBackend.GetMetaDataBackend().RemoveUser(ctx, user)
+	err := metadata.GetMetaDataBackend().RemoveUser(ctx, user)
 	if err != nil {
 		log.Warningf("Unable to remove user %s : %s", user.ID, err)
 		common.Fail(ctx, req, resp, "Unable to remove user", 500)
@@ -111,7 +111,7 @@ func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 	}
 
 	// Get uploads
-	ids, err := metadataBackend.GetMetaDataBackend().GetUserUploads(ctx, user, token)
+	ids, err := metadata.GetMetaDataBackend().GetUserUploads(ctx, user, token)
 	if err != nil {
 		log.Warningf("Unable to get uploads for user %s : %s", user.ID, err)
 		common.Fail(ctx, req, resp, "Unable to get uploads", 500)
@@ -154,7 +154,7 @@ func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 
 	uploads := []*common.Upload{}
 	for _, id := range ids[offset : offset+size] {
-		upload, err := metadataBackend.GetMetaDataBackend().Get(ctx, id)
+		upload, err := metadata.GetMetaDataBackend().Get(ctx, id)
 		if err != nil {
 			log.Warningf("Unable to get upload %s : %s", id, err)
 			continue
@@ -202,7 +202,7 @@ func RemoveUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 	}
 
 	// Get uploads
-	ids, err := metadataBackend.GetMetaDataBackend().GetUserUploads(ctx, user, token)
+	ids, err := metadata.GetMetaDataBackend().GetUserUploads(ctx, user, token)
 	if err != nil {
 		log.Warningf("Unable to get uploads for user %s : %s", user.ID, err)
 		common.Fail(ctx, req, resp, "Unable to get uploads", 500)
@@ -211,13 +211,13 @@ func RemoveUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 
 	removed := 0
 	for _, id := range ids {
-		upload, err := metadataBackend.GetMetaDataBackend().Get(ctx, id)
+		upload, err := metadata.GetMetaDataBackend().Get(ctx, id)
 		if err != nil {
 			log.Warningf("Unable to get upload %s : %s", id, err)
 			continue
 		}
 
-		err = metadataBackend.GetMetaDataBackend().Remove(ctx, upload)
+		err = metadata.GetMetaDataBackend().Remove(ctx, upload)
 		if err != nil {
 			log.Warningf("Unable to remove upload %s : %s", id, err)
 		} else {

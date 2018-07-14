@@ -36,7 +36,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/plik/server/metadata"
 )
 
 // Authenticate verify that a request has either a whitelisted url or a valid auth token
@@ -50,7 +50,7 @@ func Authenticate(allowToken bool) juliet.ContextMiddleware {
 					// Get user from token header
 					tokenHeader := req.Header.Get("X-PlikToken")
 					if tokenHeader != "" {
-						user, err := metadataBackend.GetMetaDataBackend().GetUser(ctx, "", tokenHeader)
+						user, err := metadata.GetMetaDataBackend().GetUser(ctx, "", tokenHeader)
 						if err != nil {
 							log.Warningf("Unable to get user from token %s : %s", tokenHeader, err)
 							common.Fail(ctx, req, resp, "Unable to get user", 500)
@@ -147,7 +147,7 @@ func Authenticate(allowToken bool) juliet.ContextMiddleware {
 
 					// Get user from session
 					if userID, ok := session.Claims["uid"]; ok {
-						user, err := metadataBackend.GetMetaDataBackend().GetUser(ctx, userID.(string), "")
+						user, err := metadata.GetMetaDataBackend().GetUser(ctx, userID.(string), "")
 						if err != nil {
 							log.Warningf("Unable to get user from session : %s", err)
 							common.Logout(resp)

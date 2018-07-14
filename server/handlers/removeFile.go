@@ -35,8 +35,8 @@ import (
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/dataBackend"
-	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/plik/server/data"
+	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
 )
 
@@ -78,7 +78,7 @@ func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 
 	// Set status to removed, and save metadatas
 	file.Status = "removed"
-	if err := metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file); err != nil {
+	if err := metadata.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file); err != nil {
 		log.Warningf("Unable to update metadata : %s", err)
 		common.Fail(ctx, req, resp, "Unable to update upload metadata", 500)
 		return
@@ -86,11 +86,11 @@ func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 
 	// Remove file from data backend
 	// Get file in data backend
-	var backend dataBackend.DataBackend
+	var backend data.Backend
 	if upload.Stream {
-		backend = dataBackend.GetStreamBackend()
+		backend = data.GetStreamBackend()
 	} else {
-		backend = dataBackend.GetDataBackend()
+		backend = data.GetDataBackend()
 	}
 
 	if err := backend.RemoveFile(ctx, upload, file.ID); err != nil {
