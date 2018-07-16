@@ -38,8 +38,8 @@ import (
 	"github.com/boombuler/barcode/qr"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/dataBackend"
-	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/plik/server/data"
+	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
 )
 
@@ -136,13 +136,13 @@ func RemoveUploadIfNoFileAvailable(ctx *juliet.Context, upload *common.Upload) {
 		log.Debugf("No more files in upload. Removing.")
 
 		if !upload.Stream {
-			err := dataBackend.GetDataBackend().RemoveUpload(ctx, upload)
+			err := data.GetDataBackend().RemoveUpload(ctx, upload)
 			if err != nil {
 				log.Warningf("Unable to remove upload : %s", err)
 				return
 			}
 		}
-		err := metadataBackend.GetMetaDataBackend().Remove(ctx, upload)
+		err := metadata.GetMetaDataBackend().Remove(ctx, upload)
 		if err != nil {
 			log.Warningf("Unable to remove upload : %s", err)
 			return

@@ -38,7 +38,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
 )
 
@@ -57,7 +57,7 @@ func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 		}
 
 		// Get upload metadata
-		upload, err := metadataBackend.GetMetaDataBackend().Get(ctx, uploadID)
+		upload, err := metadata.GetMetaDataBackend().Get(ctx, uploadID)
 		if err != nil {
 			log.Warningf("Upload not found : %s", err)
 			common.Fail(ctx, req, resp, fmt.Sprintf("Upload %s not found", uploadID), 404)

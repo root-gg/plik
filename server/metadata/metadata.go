@@ -27,21 +27,21 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package metadataBackend
+package metadata
 
 import (
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadataBackend/bolt"
-	"github.com/root-gg/plik/server/metadataBackend/file"
-	"github.com/root-gg/plik/server/metadataBackend/mongo"
+	"github.com/root-gg/plik/server/metadata/bolt"
+	"github.com/root-gg/plik/server/metadata/file"
+	"github.com/root-gg/plik/server/metadata/mongo"
 )
 
-var metadataBackend MetadataBackend
+var metadataBackend Backend
 
-// MetadataBackend interface describes methods that metadata backends
+// Backend interface describes methods that metadata backends
 // must implements to be compatible with plik.
-type MetadataBackend interface {
+type Backend interface {
 	Create(ctx *juliet.Context, upload *common.Upload) (err error)
 	Get(ctx *juliet.Context, id string) (upload *common.Upload, err error)
 	AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error)
@@ -58,7 +58,7 @@ type MetadataBackend interface {
 
 // GetMetaDataBackend is a singleton pattern.
 // Init static backend if not already and return it
-func GetMetaDataBackend() MetadataBackend {
+func GetMetaDataBackend() Backend {
 	if metadataBackend == nil {
 		Initialize()
 	}

@@ -241,7 +241,7 @@ test:
 		echo -n "go vet $$directory : "; \
 		for file in $$(find -name "*.go" | grep -v vendor ); do \
 			echo -n " - file $$file : " ; \
-			FMT=`go vet $$file` ; \
+			FMT=`go tool vet $$file` ; \
 			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
 		done; \
 		echo -n "golint $$directory : "; \

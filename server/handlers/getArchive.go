@@ -39,8 +39,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/dataBackend"
-	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/plik/server/data"
+	"github.com/root-gg/plik/server/metadata"
 )
 
 // GetArchive download all file of the upload in a zip archive
@@ -83,7 +83,7 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 		// and ensure proper locking ( which is the case of bolt and looks doable with mongodb but would break the interface ).
 		if upload.OneShot {
 			file.Status = "downloaded"
-			err := metadataBackend.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file)
+			err := metadata.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file)
 			if err != nil {
 				log.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.ID, err)
 				continue
@@ -149,7 +149,7 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 			return
 		}
 
-		backend := dataBackend.GetDataBackend()
+		backend := data.GetDataBackend()
 
 		// The zip archive is piped directly to http response body without buffering
 		archive := zip.NewWriter(resp)

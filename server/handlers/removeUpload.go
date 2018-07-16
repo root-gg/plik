@@ -34,8 +34,8 @@ import (
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/dataBackend"
-	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/plik/server/data"
+	"github.com/root-gg/plik/server/metadata"
 )
 
 // RemoveUpload create a new upload
@@ -59,7 +59,7 @@ func RemoveUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	// Remove from data backend
-	err := dataBackend.GetDataBackend().RemoveUpload(ctx, upload)
+	err := data.GetDataBackend().RemoveUpload(ctx, upload)
 	if err != nil {
 		log.Warningf("Unable to remove upload data : %s", err)
 		common.Fail(ctx, req, resp, "Unable to remove upload", 500)
@@ -67,7 +67,7 @@ func RemoveUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	// Remove from metadata backend
-	err = metadataBackend.GetMetaDataBackend().Remove(ctx, upload)
+	err = metadata.GetMetaDataBackend().Remove(ctx, upload)
 	if err != nil {
 		log.Warningf("Unable to remove upload metadata : %s", err)
 		common.Fail(ctx, req, resp, "Unable to remove upload metadata", 500)

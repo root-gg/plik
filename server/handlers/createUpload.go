@@ -38,7 +38,7 @@ import (
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadataBackend"
+	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
 )
 
@@ -211,7 +211,7 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	// Save the metadata
-	err = metadataBackend.GetMetaDataBackend().Create(ctx, upload)
+	err = metadata.GetMetaDataBackend().Create(ctx, upload)
 	if err != nil {
 		log.Warningf("Create new upload error : %s", err)
 		common.Fail(ctx, req, resp, "Unable to create new upload", 500)

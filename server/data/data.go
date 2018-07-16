@@ -27,25 +27,25 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package dataBackend
+package data
 
 import (
 	"io"
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/dataBackend/file"
-	"github.com/root-gg/plik/server/dataBackend/stream"
-	"github.com/root-gg/plik/server/dataBackend/swift"
-	"github.com/root-gg/plik/server/dataBackend/weedfs"
+	"github.com/root-gg/plik/server/data/file"
+	"github.com/root-gg/plik/server/data/stream"
+	"github.com/root-gg/plik/server/data/swift"
+	"github.com/root-gg/plik/server/data/weedfs"
 )
 
-var dataBackend DataBackend
-var streamBackend DataBackend
+var dataBackend Backend
+var streamBackend Backend
 
-// DataBackend interface describes methods that data backends
+// Backend interface describes methods that data backends
 // must implements to be compatible with plik.
-type DataBackend interface {
+type Backend interface {
 	GetFile(ctx *juliet.Context, u *common.Upload, id string) (rc io.ReadCloser, err error)
 	AddFile(ctx *juliet.Context, u *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error)
 	RemoveFile(ctx *juliet.Context, u *common.Upload, id string) (err error)
@@ -53,12 +53,12 @@ type DataBackend interface {
 }
 
 // GetDataBackend return the primary data backend
-func GetDataBackend() DataBackend {
+func GetDataBackend() Backend {
 	return dataBackend
 }
 
 // GetStreamBackend return the stream data backend
-func GetStreamBackend() DataBackend {
+func GetStreamBackend() Backend {
 	return streamBackend
 }
 
