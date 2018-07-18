@@ -245,7 +245,7 @@ download && check
 
 before
 cp $SPECIMEN $TMPDIR/upload/FILE1
-upload --n CUSTOM
+upload -n CUSTOM
 mv $TMPDIR/upload/FILE1 $TMPDIR/upload/CUSTOM
 download && check
 
