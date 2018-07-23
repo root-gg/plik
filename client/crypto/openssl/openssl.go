@@ -128,7 +128,7 @@ func (ob *Backend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
 
 // Comments implementation for OpenSSL Crypto Backend
 func (ob *Backend) Comments() string {
-	return fmt.Sprintf("openssl %s -d -pass pass:%s", ob.Config.Cipher, ob.Config.Passphrase)
+	return fmt.Sprintf("openssl %s -d -pass pass:%s %s", ob.Config.Cipher, ob.Config.Passphrase, ob.Config.Options)
 }
 
 // GetConfiguration implementation for OpenSSL Crypto Backend

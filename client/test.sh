@@ -135,7 +135,11 @@ function before
     # Reset .plikrc file
     export PLIKRC="$TMPDIR/.plikrc"
     echo "URL = \"$URL\"" > $PLIKRC
+    if [ "$SECURE" != "" ]; then
+        echo "Secure = true" >> $PLIKRC
+    fi
 
+    unset SECURE
     unset UPLOAD_CMD
     unset UPLOAD_ID
     unset UPLOAD_OPTS
@@ -245,7 +249,7 @@ download && check
 
 before
 cp $SPECIMEN $TMPDIR/upload/FILE1
-upload --n CUSTOM
+upload -n CUSTOM
 mv $TMPDIR/upload/FILE1 $TMPDIR/upload/CUSTOM
 download && check
 
@@ -397,6 +401,18 @@ upload --quiet
 test $(cat $CLIENT_LOG | wc -l) -eq 1
 grep "$URL/file/.*/.*/FILE1" $CLIENT_LOG >/dev/null 2>/dev/null
 
+echo "OK"
+
+#---------------------------------------------
+
+echo -n " - not secure : "
+
+SECURE="true"
+before
+cp $SPECIMEN $TMPDIR/upload/FILE1
+upload --not-secure && download && check
+# should not pipe curl return to a secure option command
+grep '^curl ' $CLIENT_LOG | grep -v '|' >/dev/null 2>/dev/null
 echo "OK"
 
 ###
