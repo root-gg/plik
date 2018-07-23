@@ -21,7 +21,9 @@ EXPOSE 8080
 
 # Copy plik
 ADD server /home/plik/server/
-ADD clients /home/plik/clients/
+COPY plikd /home/plik/server/plikd
+
+ADD client /home/plik/clients/
 RUN chown -R plik:plik /home/plik
 RUN chmod +x /home/plik/server/plikd
 
