@@ -127,7 +127,10 @@ func RemoveUploadIfNoFileAvailable(ctx *juliet.Context, upload *common.Upload) {
 	// Test if there are remaining files
 	filesInUpload := len(upload.Files)
 	for _, f := range upload.Files {
-		if f.Status != "uploaded" {
+		if upload.Stream && f.Status != "missing" {
+			filesInUpload--
+		}
+		if !upload.Stream && f.Status != "uploaded" {
 			filesInUpload--
 		}
 	}
