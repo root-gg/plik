@@ -126,7 +126,7 @@ THE SOFTWARE.
             </div>
         </div>
         <!-- DOWNLOAD MENU -->
-        <div class="tile menu" ng-if="mode == 'download'">
+        <div class="tile menu" ng-if="mode == 'download' && somethingToDownload()">
             <!-- QR CODE -->
             <div class="text-center hidden-xs hidden-sm" ng-click="displayQRCodeUpload()">
                 <p><img ng-src="{{getQrCodeUploadUrl(200)}}" alt="QR Code"/></p>

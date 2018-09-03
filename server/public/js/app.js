@@ -107,7 +107,7 @@ angular.module('dialog', ['ui.bootstrap']).
                     args: function () {
                         return {
                             data: angular.copy(data)
-                        }
+                        };
                     }
                 }
             };
@@ -434,9 +434,8 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 if (err === "Invalid yubikey token" && $location.search().uri) {
                     var uri = $location.search().uri;
                     if ( !uri ) {
-                        $dialog.alert({status: 0, message: "Unable to get uri from yubikey redirect"});
-                        $location.search({});
-                        $location.hash("");
+                        $dialog.alert({status: 0, message: "Unable to get uri from yubikey redirect"})
+                            .result.then($scope.mainpage);
                         return;
                     }
 
@@ -453,9 +452,8 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                         regex = /^.*\/(archive)\/(.*?)\/(.*)$/;
                         match = regex.exec(url.pathname);
                         if (!match || match.length !== 4) {
-                            $dialog.alert({status: 0, message: "Unable to get upload from yubikey redirect"});
-                            $location.search({});
-                            $location.hash("");
+                            $dialog.alert({status: 0, message: "Unable to get upload from yubikey redirect"})
+                                .result.then($scope.mainpage);
                             return;
                         }
 
@@ -466,9 +464,8 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                         regex = /^.*\/(file|stream)\/(.*?)\/(.*?)\/(.*)$/;
                         match = regex.exec(url.pathname);
                         if (!match || match.length !== 5) {
-                            $dialog.alert({status: 0, message: "Unable to get upload from yubikey redirect"});
-                            $location.search({});
-                            $location.hash("");
+                            $dialog.alert({status: 0, message: "Unable to get upload from yubikey redirect"})
+                                .result.then($scope.mainpage);
                             return;
                         }
 
@@ -493,9 +490,8 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     downloadWithYubikey(mode, uploadId, fileId, fileName, download);
                 } else {
                     var code = $location.search().errcode;
-                    $dialog.alert({status: code, message: err});
-                    $location.search({});
-                    $location.hash("");
+                    $dialog.alert({status: code, message: err}).result.then($scope.mainpage);
+                    return;
                 }
             } else {
                 // Load current upload id
@@ -517,7 +513,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     });
                 })
                 .then(null, function (error) {
-                    $dialog.alert(error);
+                    $dialog.alert(error).result.then($scope.mainpage);
                 });
         };
 
@@ -585,18 +581,6 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 file.metadata = {status: "toUpload"};
 
                 $scope.files.push(file);
-            });
-        };
-
-        $scope.somethingToUpload = function () {
-            return _.find($scope.files, function (file) {
-                if (file.metadata.status === "toUpload") return true;
-            });
-        };
-
-        $scope.somethingToDownload = function () {
-            return _.find($scope.files, function (file) {
-                if (file.metadata.status === "uploaded") return true;
             });
         };
 
@@ -724,6 +708,11 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 $api.uploadFile($scope.upload, file, progress, $scope.basicAuth)
                     .then(function (metadata) {
                         file.metadata = metadata;
+
+                        // Redirect to home when all stream uploads are downloaded
+                        if (!$scope.somethingOk()) {
+                            $scope.mainpage();
+                        }
                     })
                     .then(null, function (error) {
                         file.metadata.status = "toUpload";
@@ -745,10 +734,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 function () {
                     $api.removeUpload($scope.upload)
                         .then(function () {
-                            // Redirect to main page
-                            $location.search({});
-                            $location.hash("");
-                            $route.reload();
+                            $scope.mainpage();
                         })
                         .then(null, function (error) {
                             $dialog.alert(error);
@@ -768,9 +754,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     });
                     // Redirect to main page if no more files
                     if (!$scope.files.length) {
-                        $location.search({});
-                        $location.hash("");
-                        $route.reload();
+                        $scope.mainpage();
                     }
                 })
                 .then(null, function (error) {
@@ -797,6 +781,27 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             return false;
         };
 
+        // Is there at least one file ready to be uploaded
+        $scope.somethingToUpload = function () {
+            return _.find($scope.files, function (file) {
+                if (file.metadata.status === "toUpload") return true;
+            });
+        };
+
+        // Is there at least one file ready to be downloaded
+        $scope.somethingToDownload = function () {
+            return _.find($scope.files, function (file) {
+                if (file.metadata.status === "uploaded") return true;
+            });
+        };
+
+        // Is there at least one file not in error
+        $scope.somethingOk = function () {
+            return _.find($scope.files, function (file) {
+                return $scope.isOk(file);
+            });
+        };
+
         // Compute human readable size
         $scope.humanReadableSize = function (size) {
             if (_.isUndefined(size)) return;
@@ -812,13 +817,13 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             var domain = $scope.config.downloadDomain ? $scope.config.downloadDomain : $api.base;
             var url = domain + '/' + mode + '/' + uploadID;
             if (fileID) {
-                url += '/' + fileID
+                url += '/' + fileID;
             }
             if (fileName) {
-                url+= '/' + fileName
+                url+= '/' + fileName;
             }
             if (yubikeyToken) {
-                url +=  "/yubikey/" + yubikeyToken
+                url +=  "/yubikey/" + yubikeyToken;
             }
             if (dl) {
                 // Force file download
@@ -919,7 +924,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     $scope.upload.yubikey = token;
                     $scope.newUpload();
                 }, function () {
-
+                    // Avoid "Possibly unhandled rejection"
                 });
         };
 
@@ -1058,6 +1063,13 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Focus the given element by id
         $scope.focus = function (id) {
             angular.element('#' + id)[0].focus();
+        };
+
+        // Redirect to main page
+        $scope.mainpage = function() {
+            $location.search({});
+            $location.hash("");
+            $route.reload();
         };
 
         $scope.init();
