@@ -73,8 +73,8 @@ func IsWhitelisted(ctx *juliet.Context) bool {
 	if len(UploadWhitelist) > 0 {
 		sourceIP := GetSourceIP(ctx)
 		if sourceIP != nil {
-			for _, net := range UploadWhitelist {
-				if net.Contains(sourceIP) {
+			for _, subnet := range UploadWhitelist {
+				if subnet.Contains(sourceIP) {
 					whitelisted = true
 					break
 				}
