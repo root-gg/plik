@@ -98,16 +98,16 @@ Options:
   --server SERVER           Overrides plik url
   --token TOKEN             Specify an upload token
   --comments COMMENT        Set comments of the upload ( MarkDown compatible )
-  -p                        Protect the upload with login and password
-  --password PASSWD         Protect the upload with login:password ( if omitted default login is "plik" )
+  -p                        Protect the upload with login and password ( be prompted )
+  --password PASSWD         Protect the upload with "login:password" ( if omitted default login is "plik" )
   -y, --yubikey             Protect the upload with a Yubikey OTP
   -a                        Archive upload using default archive params ( see ~/.plikrc )
-  --archive MODE            Archive upload using specified archive backend : tar|zip
+  --archive MODE            Archive upload using the specified archive backend : tar|zip
   --compress MODE           [tar] Compression codec : gzip|bzip2|xz|lzip|lzma|lzop|compress|no
   --archive-options OPTIONS [tar|zip] Additional command line options
-  -s                        Encrypt upload using default encrypt params ( see ~/.plikrc )
-  --not-secure              Do not encrypt upload regardless of ~/.plikrc configurations
-  --secure MODE             Archive upload using specified archive backend : openssl|pgp
+  -s                        Encrypt upload using the default encryption parameters ( see ~/.plikrc )
+  --not-secure              Do not encrypt upload files regardless of the ~/.plikrc configurations
+  --secure MODE             Encrypt upload files using the specified crypto backend : openssl|pgp
   --cipher CIPHER           [openssl] Openssl cipher to use ( see openssl help )
   --passphrase PASSPHRASE   [openssl] Passphrase or '-' to be prompted for a passphrase
   --recipient RECIPIENT     [pgp] Set recipient for pgp backend ( example : --recipient Bob )
