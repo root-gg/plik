@@ -60,7 +60,9 @@ import (
 
 // Vars
 var arguments map[string]interface{}
-var transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+var transport = &http.Transport{
+	Proxy:           http.ProxyFromEnvironment,
+	TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 var client = http.Client{Transport: transport}
 var basicAuth string
 var err error
