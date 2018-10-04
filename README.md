@@ -24,7 +24,7 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
    - [plikSharp](https://github.com/iss0/plikSharp) : A .NET API client for Plik
 
 ### Version
-1.2.2
+1.2.3
 
 ### Installation
 

@@ -83,7 +83,7 @@ func (weedFs *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id st
 	// Get WeedFS volume url
 	volumeURL, err := weedFs.getvolumeURL(ctx, weedFsVolume)
 	if err != nil {
-		err = log.EWarningf("Unable to get WeedFS volume url %s : %s", weedFsVolume)
+		err = log.EWarningf("Unable to get WeedFS volume url %s", weedFsVolume)
 		return
 	}
 
@@ -285,7 +285,7 @@ func (weedFs *Backend) getvolumeURL(ctx *juliet.Context, volumeID string) (URL s
 	// Read response body
 	bodyStr, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		err = log.EWarningf("Unable to read response from WeedFS master at %s : %s", volumeID, URL, err)
+		err = log.EWarningf("Unable to read response from WeedFS master at %s : %s", URL, err)
 		return
 	}
 

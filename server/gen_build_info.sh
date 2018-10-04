@@ -59,6 +59,9 @@ if is_mint_repo; then
     isMint=true
 fi
 
+echo "Building Plik $version with go $goVersion"
+echo "Commit $full_rev mint=$isMint release=$isRelease"
+
 # compute clients code
 clients=""
 clientList=$(find clients -name "plik*" 2> /dev/null | sort -n)

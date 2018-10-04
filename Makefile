@@ -24,7 +24,7 @@
 # THE SOFTWARE.
 ###
 
-RELEASE_VERSION="1.2.2"
+RELEASE_VERSION="1.2.3"
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 RELEASE_TARGETS=darwin-386 darwin-amd64 freebsd-386 \
 freebsd-amd64 linux-386 linux-amd64 linux-arm openbsd-386 \
@@ -59,14 +59,13 @@ frontend:
 # Build plik server for the current architecture
 ###
 server:
-	@server/gen_build_info.sh $(RELEASE_VERSION)
+	@echo "Compiling plik server"
 	@cd server && $(build) -o plikd ./
 
 ###
 # Build plik server for all architectures
 ###
-servers: frontend
-	@server/gen_build_info.sh $(RELEASE_VERSION)
+servers: frontend build-info
 	@cd server && for target in $(RELEASE_TARGETS) ; do \
 		SERVER_DIR=../servers/$$target; \
 		SERVER_PATH=$$SERVER_DIR/plikd;  \
@@ -82,15 +81,14 @@ servers: frontend
 ###
 # Build plik client for the current architecture
 ###
-client:
-	@server/gen_build_info.sh $(RELEASE_VERSION)
+client: build-info
+	@echo "Compiling plik client"
 	@cd client && $(build) -o plik ./
 
 ###
 # Build plik client for all architectures
 ###
-clients:
-	@server/gen_build_info.sh $(RELEASE_VERSION)
+clients: build-info
 	@cd client && for target in $(RELEASE_TARGETS) ; do	\
 		CLIENT_DIR=../clients/$$target;	\
 		CLIENT_PATH=$$CLIENT_DIR/plik;	\
@@ -220,6 +218,11 @@ releases: release-template servers
 
 	@md5sum releases/* > releases/md5sum.txt
 
+###
+# Generate build info
+###
+build-info:
+	@server/gen_build_info.sh $(RELEASE_VERSION)
 
 ###
 # Run tests and sanity checks
@@ -285,4 +288,4 @@ clean-all: clean clean-frontend
 # by make, we must declare these targets as phony to avoid :
 # "make: `client' is up to date" cases at compile time
 ###
-.PHONY: client server
+.PHONY: all $(MAKECMDGOALS)
