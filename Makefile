@@ -54,18 +54,19 @@ frontend:
 	@if [ ! -d server/public/bower_components ]; then cd server/public && node_modules/bower/bin/bower install --allow-root ; fi
 	@if [ ! -d server/public/public ]; then cd server/public && node_modules/grunt-cli/bin/grunt ; fi
 
-
 ###
 # Build plik server for the current architecture
 ###
 server:
-	@echo "Compiling plik server"
+	@server/gen_build_info.sh $(RELEASE_VERSION)
+	@echo "Compiling Plik server"
 	@cd server && $(build) -o plikd ./
 
 ###
 # Build plik server for all architectures
 ###
-servers: frontend build-info
+servers: frontend
+	@server/gen_build_info.sh $(RELEASE_VERSION)
 	@cd server && for target in $(RELEASE_TARGETS) ; do \
 		SERVER_DIR=../servers/$$target; \
 		SERVER_PATH=$$SERVER_DIR/plikd;  \
@@ -74,21 +75,23 @@ servers: frontend build-info
 		mkdir -p ../servers/$$target; \
 		if [ $$GOOS = "windows" ] ; then SERVER_PATH=$$SERVER_DIR/plikd.exe ; fi ; \
 		if [ -e $$SERVER_PATH ] ; then continue ; fi ; \
-		echo "Compiling plik server for $$target to $$SERVER_PATH"; \
+		echo "Compiling Plik server for $$target to $$SERVER_PATH"; \
 		$(build) -o $$SERVER_PATH ;	\
 	done
 
 ###
 # Build plik client for the current architecture
 ###
-client: build-info
-	@echo "Compiling plik client"
+client:
+	@server/gen_build_info.sh $(RELEASE_VERSION)
+	@echo "Building Plik client"
 	@cd client && $(build) -o plik ./
 
 ###
 # Build plik client for all architectures
 ###
-clients: build-info
+clients:
+	@server/gen_build_info.sh $(RELEASE_VERSION)
 	@cd client && for target in $(RELEASE_TARGETS) ; do	\
 		CLIENT_DIR=../clients/$$target;	\
 		CLIENT_PATH=$$CLIENT_DIR/plik;	\
@@ -98,7 +101,7 @@ clients: build-info
 		mkdir -p $$CLIENT_DIR; \
 		if [ $$GOOS = "windows" ] ; then CLIENT_PATH=$$CLIENT_DIR/plik.exe ; fi ; \
 		if [ -e $$CLIENT_PATH ] ; then continue ; fi ; \
-		echo "Compiling plik client for $$target to $$CLIENT_PATH"; \
+		echo "Compiling Plik client for $$target to $$CLIENT_PATH"; \
 		$(build) -o $$CLIENT_PATH ; \
 		md5sum $$CLIENT_PATH | awk '{print $$1}' > $$CLIENT_MD5; \
 	done
@@ -161,7 +164,6 @@ debs-client: clients
 		dpkg-deb --build $(DEBROOT_CLIENT) debs/plik-$(RELEASE_VERSION)-$$arch.deb ; \
 	done
 
-
 ###
 # Prepare the release base (css, js, ...)
 ###
@@ -180,14 +182,12 @@ release-template: clean frontend clients
 	@cp -R server/public/index.html $(RELEASE_DIR)/server/public
 	@cp -R server/public/favicon.ico $(RELEASE_DIR)/server/public
 
-
 ###
 # Build release archive
 ###
 release: release-template server
 	@cp -R server/plikd $(RELEASE_DIR)/server
 	@cd release && tar czvf plik-$(RELEASE_VERSION)-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz plik-$(RELEASE_VERSION)
-
 
 ###
 # Build release archives for all architectures
@@ -288,4 +288,4 @@ clean-all: clean clean-frontend
 # by make, we must declare these targets as phony to avoid :
 # "make: `client' is up to date" cases at compile time
 ###
-.PHONY: all $(MAKECMDGOALS)
+.PHONY: client server
