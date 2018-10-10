@@ -16,10 +16,10 @@
 			"revisionTime": "2017-01-11T22:54:38Z"
 		},
 		{
-			"checksumSHA1": "9mCBr9M68W1ZM13FrRGqxXLim1E=",
-			"path": "github.com/cheggaaa/pb",
-			"revision": "467c52dcaefb4913d1feb16f6a771777c9613a64",
-			"revisionTime": "2015-04-08T11:49:33Z"
+			"checksumSHA1": "1u7H4ZVGqPX5gFyHIr5DpIbu3Js=",
+			"path": "github.com/camathieu/pb",
+			"revision": "889de99fc8d51d3efa9ccd29c1cc42182d88d500",
+			"revisionTime": "2019-04-03T13:24:34Z"
 		},
 		{
 			"checksumSHA1": "0MYmdYaLj/5FqaW7vsXho8F9+Hg=",
@@ -32,6 +32,12 @@
 			"path": "github.com/kardianos/osext",
 			"revision": "10da29423eb9a6269092eebdc2be32209612d9d2",
 			"revisionTime": "2015-11-24T17:03:42Z"
+		},
+		{
+			"checksumSHA1": "qR7D38Zmn9TPUvGn64k+r0+Kq1c=",
+			"path": "github.com/mattn/go-runewidth",
+			"revision": "703b5e6b11ae25aeb2af9ebb5d5fdf8fa2575211",
+			"revisionTime": "2018-12-18T00:06:49Z"
 		},
 		{
 			"checksumSHA1": "BT3BK4a+5+8WCnM1e71uIwJGsBs=",
@@ -119,6 +125,12 @@
 			"path": "golang.org/x/crypto/openpgp/s2k",
 			"revision": "c84e1f8e3a7e322d497cd16c0e8a13c7e127baf3",
 			"revisionTime": "2015-04-22T11:17:00Z"
+		},
+		{
+			"checksumSHA1": "h7T+YPjgH20kHOKUibYbCxdXHxs=",
+			"path": "golang.org/x/sys/unix",
+			"revision": "baf5eb976a8cd65845293cd814ea151018552292",
+			"revisionTime": "2019-04-02T08:43:10Z"
 		}
 	],
 	"rootPath": "github.com/root-gg/plik/client"

@@ -82,9 +82,9 @@ echo "PLIKD_CONFIG = $PLIKD_CONFIG"
 # Verify that server is running
 sleep 1
 if curl $URL 2>/dev/null | grep plik >/dev/null 2>&1 ; then
-    echo "OK"
+    echo "Plik server is running"
 else
-    echo "UNABLE TO START PLIK SERVER"
+    echo "Plik server is not running"
     cat $SERVER_LOG
     exit 1
 fi
@@ -303,12 +303,13 @@ echo "OK"
 echo -n " - streaming : "
 
 before
-cp $SPECIMEN $TMPDIR/upload/FILE1
+FILE="FILE_$RANDOM"
+cp $SPECIMEN $TMPDIR/upload/$FILE
 # Start upload cmd in background to create upload then kill it
 (
     set -e
     upload -S &
-    child=$!
+    child=$(ps x | grep "plik \-S $FILE" | awk '{print $1}')
     sleep 1
     (
         kill -0 $child && kill $child
@@ -316,16 +317,18 @@ cp $SPECIMEN $TMPDIR/upload/FILE1
         kill -0 $child && kill -9 $child
     ) >/dev/null 2>&1 &
 )
+sleep 3
 uploadOpts
 echo "$UPLOAD_OPTS" | grep '"stream": true' >/dev/null 2>/dev/null
 
 before
-cp $SPECIMEN $TMPDIR/upload/FILE1
+FILE="FILE_$RANDOM"
+cp $SPECIMEN $TMPDIR/upload/$FILE
 # Start upload cmd in background to create upload then kill it
 (
     set -e
     upload --stream &
-    child=$!
+    child=$(ps x | grep "plik \--stream $FILE" | awk '{print $1}')
     sleep 1
     (
         kill -0 $child && kill $child
@@ -333,6 +336,7 @@ cp $SPECIMEN $TMPDIR/upload/FILE1
         kill -0 $child && kill -9 $child
     ) >/dev/null 2>&1 &
 )
+sleep 3
 uploadOpts
 echo "$UPLOAD_OPTS" | grep '"stream": true' >/dev/null 2>/dev/null
 

@@ -44,13 +44,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/cheggaaa/pb"
-	docopt "github.com/docopt/docopt-go"
+	"github.com/docopt/docopt-go"
 	"github.com/kardianos/osext"
 	"github.com/olekukonko/ts"
 	"github.com/root-gg/plik/client/config"
@@ -64,6 +62,7 @@ var transport = &http.Transport{
 	Proxy:           http.ProxyFromEnvironment,
 	TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 var client = http.Client{Transport: transport}
+var progress *Progress
 var basicAuth string
 var err error
 
@@ -71,7 +70,7 @@ var err error
 func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	ts.GetSize()
+	ts.GetSize() // ?
 
 	// Load config
 	err = config.Load()
@@ -184,34 +183,42 @@ Options:
 		}
 	}
 
+	if uploadInfo.Stream {
+		for _, fileToUpload := range config.Files {
+			fmt.Printf("%s\n", getFileCommand(uploadInfo, fileToUpload.File))
+		}
+		printf("\n")
+	}
+
+	// Create the progress bar pool
+	// Nothing should be printed between this an progress.Stop()
+	progress = newProgress(uploadInfo)
+
 	if config.Config.Archive {
 		pipeReader, pipeWriter := io.Pipe()
 		err = config.GetArchiveBackend().Archive(arguments["FILE"].([]string), pipeWriter)
 		if err != nil {
-			printf("Unable to archive files : %s\n", err)
 			os.Exit(1)
 		}
 
 		file, err := upload(uploadInfo, config.Files[0], pipeReader)
 		if err != nil {
-			printf("Unable to upload archive : %s\n", err)
-			return
+			os.Exit(1)
 		}
 		uploadInfo.Files[file.ID] = file
 		pipeReader.CloseWithError(err)
-
 	} else {
 		if len(config.Files) == 0 {
 			file, err := upload(uploadInfo, config.Files[0], os.Stdin)
 			if err != nil {
-				printf("Unable to upload from STDIN : %s\n", err)
-				return
+				os.Exit(1)
 			}
 
 			uploadInfo.Files[file.ID] = file
 		} else {
-			// Upload individual files
 			var wg sync.WaitGroup
+
+			// Upload individual files
 			for _, fileToUpload := range config.Files {
 				wg.Add(1)
 				go func(fileToUpload *config.FileToUpload) {
@@ -219,29 +226,38 @@ Options:
 
 					file, err := upload(uploadInfo, fileToUpload, fileToUpload.FileHandle)
 					if err != nil {
-						printf("Unable to upload file : \n")
-						printf("%s\n", err)
+						uploadInfo.Files[fileToUpload.ID].Status = "error"
 						return
 					}
 
 					uploadInfo.Files[file.ID] = file
 				}(fileToUpload)
 			}
+
+			// Wait for all files to be uploaded
 			wg.Wait()
 		}
 	}
+
+	// Finalize the progress bar pool
+	progress.stop()
 
 	// Display commands
 	if !uploadInfo.Stream {
 		printf("\nCommands : \n")
 		for _, file := range uploadInfo.Files {
 			// Print file information (only url if quiet mode is enabled)
+			if file.Status == "error" {
+				continue
+			}
 			if config.Config.Quiet {
 				fmt.Println(getFileURL(uploadInfo, file))
 			} else {
 				fmt.Println(getFileCommand(uploadInfo, file))
 			}
 		}
+	} else {
+		printf("\n")
 	}
 }
 
@@ -289,17 +305,17 @@ func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error
 	return
 }
 
+// This function is executed in parallel for each file, this function should not raw print anything as it will clash with the progressbar console output
 func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader io.Reader) (file *common.File, err error) {
 	pipeReader, pipeWriter := io.Pipe()
 	multipartWriter := multipart.NewWriter(pipeWriter)
 
-	if uploadInfo.Stream {
-		fmt.Printf("%s\n", getFileCommand(uploadInfo, fileToUpload.File))
-	}
+	var writer io.Writer // Final writer for the upload data that also pipe the data to the progress bar display if any
+	var done func(error) // Callback to call with nil if the upload succeed or with the error to update the progress bar display accordingly
 
 	errCh := make(chan error)
 	go func(errCh chan error) {
-		part, err := multipartWriter.CreateFormFile("file", fileToUpload.Name)
+		mimeWriter, err := multipartWriter.CreateFormFile("file", fileToUpload.Name)
 		if err != nil {
 			err = fmt.Errorf("Unable to create multipartWriter : %s", err)
 			pipeWriter.CloseWithError(err)
@@ -307,31 +323,17 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 			return
 		}
 
-		var multiWriter io.Writer
-
-		if config.Config.Quiet {
-			multiWriter = part
-		} else {
-			bar := pb.New64(fileToUpload.CurrentSize).SetUnits(pb.U_BYTES)
-			bar.Prefix(fmt.Sprintf("%-"+strconv.Itoa(config.GetLongestFilename())+"s : ", fileToUpload.Name))
-			bar.ShowSpeed = true
-			bar.ShowFinalTime = false
-			bar.SetWidth(100)
-			bar.SetMaxWidth(100)
-			multiWriter = io.MultiWriter(part, bar)
-			bar.Start()
-			defer bar.Finish()
-		}
+		writer, done = progress.register(fileToUpload, mimeWriter)
 
 		if config.Config.Secure {
-			err = config.GetCryptoBackend().Encrypt(reader, multiWriter)
+			err = config.GetCryptoBackend().Encrypt(reader, writer)
 			if err != nil {
 				pipeWriter.CloseWithError(err)
 				errCh <- err
 				return
 			}
 		} else {
-			_, err = io.Copy(multiWriter, reader)
+			_, err = io.Copy(writer, reader)
 			if err != nil {
 				pipeWriter.CloseWithError(err)
 				errCh <- err
@@ -356,12 +358,14 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 	var URL *url.URL
 	URL, err = url.Parse(config.Config.URL + "/" + mode + "/" + uploadInfo.ID + "/" + fileToUpload.ID + "/" + fileToUpload.Name)
 	if err != nil {
+		done(err)
 		return nil, err
 	}
 
 	var req *http.Request
 	req, err = http.NewRequest("POST", URL.String(), pipeReader)
 	if err != nil {
+		done(err)
 		return nil, err
 	}
 
@@ -374,17 +378,20 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 
 	resp, err := makeRequest(req)
 	if err != nil {
+		done(err)
 		return nil, err
 	}
 
 	err = <-errCh
 	if err != nil {
+		done(err)
 		return nil, err
 	}
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		done(err)
 		return nil, err
 	}
 
@@ -392,8 +399,11 @@ func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader
 	file = new(common.File)
 	err = json.Unmarshal(body, file)
 	if err != nil {
+		done(err)
 		return nil, err
 	}
+
+	done(nil)
 
 	config.Debug(fmt.Sprintf("Uploaded %s : %s", file.Name, config.Sdump(file)))
 
