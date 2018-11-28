@@ -29,7 +29,7 @@ THE SOFTWARE.
         <!-- UPLOAD MENU -->
         <div class="tile menu" ng-if="mode == 'upload'">
             <!-- ONE SHOT -->
-            <div class="menu-item">
+            <div class="menu-item" ng-show="config.oneShot">
                 <label class="switch-input">
                     <input name="checkbox-destruct" type="checkbox" ng-model="upload.oneShot">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i>
@@ -57,7 +57,7 @@ THE SOFTWARE.
                 </label>
             </div>
             <!-- PASSWORD -->
-            <div class="menu-item">
+            <div class="menu-item" ng-show="config.protectedByPassword">
                 <label class="switch-input">
                     <input name="checkbox-password" type="checkbox" ng-model="$parent.password"
                            ng-change="upload.password = ''">
