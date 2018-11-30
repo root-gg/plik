@@ -70,6 +70,8 @@ type Configuration struct {
 
 	Authentication       bool     `json:"authentication"`
 	NoAnonymousUploads   bool     `json:"-"`
+	OneShot              bool     `json:"oneShot"`
+	ProtectedByPassword  bool     `json:"protectedByPassword"`
 	GoogleAuthentication bool     `json:"googleAuthentication"`
 	GoogleAPISecret      string   `json:"-"`
 	GoogleAPIClientID    string   `json:"-"`
@@ -109,6 +111,8 @@ func NewConfiguration() (config *Configuration) {
 	config.MaxTTL = 0
 	config.SslEnabled = false
 	config.StreamMode = true
+	config.OneShot = true
+	config.ProtectedByPassword = true
 	return
 }
 

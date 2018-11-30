@@ -110,6 +110,12 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 		}
 	}
 
+	if upload.OneShot && !common.Config.OneShot {
+		log.Warning("One shot downloads are not enabled.")
+		common.Fail(ctx, req, resp, "One shot downloads are not enabled.", 403)
+		return
+	}
+
 	if upload.Stream {
 		if !common.Config.StreamMode {
 			log.Warning("Stream mode is not enabled")
@@ -148,6 +154,12 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	// Add Authorization header to the response for convenience
 	// So clients can just copy this header into the next request
 	if upload.Password != "" {
+		if !common.Config.ProtectedByPassword {
+			log.Warning("Password protection is not enabled")
+			common.Fail(ctx, req, resp, "Password protection is not enabled", 403)
+			return
+		}
+
 		upload.ProtectedByPassword = true
 		if upload.Login == "" {
 			upload.Login = "plik"
