@@ -31,12 +31,13 @@ package handlers
 
 import (
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
-	"net/http"
-	"strconv"
 )
 
 // UserInfo return user information ( name / email / tokens / ... )
@@ -226,4 +227,52 @@ func RemoveUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 	}
 
 	resp.Write(common.NewResult(fmt.Sprintf("%d uploads removed", removed), nil).ToJSON())
+}
+
+// GetStatistics return the server statistics
+func GetUserStatistics(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+	log := common.GetLogger(ctx)
+
+	// Get user from context
+	user := common.GetUser(ctx)
+	if user == nil {
+		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+		return
+	}
+
+	// Get token from URL query parameter
+	var token *common.Token
+	tokenStr := req.URL.Query().Get("token")
+
+	if tokenStr != "" {
+		for _, t := range user.Tokens {
+			if t.Token == tokenStr {
+				token = t
+				break
+			}
+		}
+		if token == nil {
+			log.Warningf("Unable to get uploads for token %s : Invalid token", tokenStr)
+			common.Fail(ctx, req, resp, "Unable to get uploads : Invalid token", 400)
+			return
+		}
+	}
+
+	// Get server statistics
+	stats, err := metadata.GetMetaDataBackend().GetUserStatistics(ctx, user, token)
+	if err != nil {
+		log.Warningf("Unable to get server statistics : %s", err)
+		common.Fail(ctx, req, resp, "Unable to get server statistics", 500)
+		return
+	}
+
+	// Print stats in the json response.
+	var json []byte
+	if json, err = utils.ToJson(stats); err != nil {
+		log.Warningf("Unable to serialize json response : %s", err)
+		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
+		return
+	}
+
+	resp.Write(json)
 }

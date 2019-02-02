@@ -25,291 +25,354 @@
  */
 
 // Editable file name directive
-angular.module('contentEditable', []).
-    directive('contenteditable', [function () {
-        return {
-            restrict: 'A',          // only activate on element attribute
-            require: '?ngModel',    // get a hold of NgModelController
-            scope: {
-                invalidClass: '@',  // Bind invalid-class attr evaluated expr
-                validator: '&'      // Bind parent scope value
-            },
-            link: function (scope, element, attrs, ngModel) {
-                if (!ngModel) return; // do nothing if no ng-model
-                scope.validator = scope.validator(); // ???
+angular.module('contentEditable', []).directive('contenteditable', [function () {
+    return {
+        restrict: 'A',          // only activate on element attribute
+        require: '?ngModel',    // get a hold of NgModelController
+        scope: {
+            invalidClass: '@',  // Bind invalid-class attr evaluated expr
+            validator: '&'      // Bind parent scope value
+        },
+        link: function (scope, element, attrs, ngModel) {
+            if (!ngModel) return; // do nothing if no ng-model
+            scope.validator = scope.validator(); // ???
 
-                // Update view from model
-                ngModel.$render = function () {
-                    var string = ngModel.$viewValue;
-                    validate(string);
-                    element.text(string);
-                };
-
-                // Update model from view
-                function update() {
-                    var string = element.text();
-                    validate(string);
-                    ngModel.$setViewValue(string);
-                }
-
-                // Validate input and update css class
-                function validate(string) {
-                    if (scope.validator) {
-                        if (scope.validator(string)) {
-                            element.removeClass(scope.invalidClass);
-                        } else {
-                            element.addClass(scope.invalidClass);
-                        }
-                    }
-                }
-
-                // Listen for change events to enable binding
-                element.on('blur keyup change', function () {
-                    scope.$evalAsync(update);
-                });
-            }
-        };
-    }]);
-
-// Modal dialog service
-angular.module('dialog', ['ui.bootstrap']).
-    factory('$dialog', function ($uibModal) {
-
-        var module = {};
-
-        // Define error partial here so we can display a connection error
-        // without having to load the template from the server
-        var alertTemplate  = '<div class="modal-header">' + "\n";
-        alertTemplate +=    '<h1>{{title}}</h1>' + "\n";
-        alertTemplate += '</div>' + "\n";
-        alertTemplate += '<div class="modal-body">' + "\n";
-        alertTemplate +=    '<p>{{message}}</p>' + "\n";
-        alertTemplate +=    '<p ng-show="data.value">' + "\n";
-        alertTemplate +=        '{{value}}' + "\n";
-        alertTemplate +=    '</p>' + "\n";
-        alertTemplate += '</div>' + "\n";
-        alertTemplate += '<div class="modal-footer" ng-if="confirm">' + "\n";
-        alertTemplate +=    '<button ng-click="$dismiss()" class="btn btn-danger">Cancel</button>' + "\n";
-        alertTemplate +=    '<button ng-click="$close()" class="btn btn-success">OK</button>' + "\n";
-        alertTemplate += '</div>' + "\n";
-        alertTemplate += '<div class="modal-footer" ng-if="!confirm">' + "\n";
-        alertTemplate +=    '<button ng-click="$close()" class="btn btn-primary">Close</button>' + "\n";
-        alertTemplate += '</div>' + "\n";
-
-        // alert dialog
-        module.alert = function (data) {
-            var options = {
-                backdrop: true,
-                backdropClick: true,
-                template: alertTemplate,
-                controller: 'AlertDialogController',
-                resolve: {
-                    args: function () {
-                        return {
-                            data: angular.copy(data)
-                        };
-                    }
-                }
+            // Update view from model
+            ngModel.$render = function () {
+                var string = ngModel.$viewValue;
+                validate(string);
+                element.text(string);
             };
 
-            return module.openDialog(options);
+            // Update model from view
+            function update() {
+                var string = element.text();
+                validate(string);
+                ngModel.$setViewValue(string);
+            }
+
+            // Validate input and update css class
+            function validate(string) {
+                if (scope.validator) {
+                    if (scope.validator(string)) {
+                        element.removeClass(scope.invalidClass);
+                    } else {
+                        element.addClass(scope.invalidClass);
+                    }
+                }
+            }
+
+            // Listen for change events to enable binding
+            element.on('blur keyup change', function () {
+                scope.$evalAsync(update);
+            });
+        }
+    };
+}]);
+
+// Modal dialog service
+angular.module('dialog', ['ui.bootstrap']).factory('$dialog', function ($uibModal) {
+
+    var module = {};
+
+    // Define error partial here so we can display a connection error
+    // without having to load the template from the server
+    var alertTemplate = '<div class="modal-header">' + "\n";
+    alertTemplate += '<h1>{{title}}</h1>' + "\n";
+    alertTemplate += '</div>' + "\n";
+    alertTemplate += '<div class="modal-body">' + "\n";
+    alertTemplate += '<p>{{message}}</p>' + "\n";
+    alertTemplate += '<p ng-show="data.value">' + "\n";
+    alertTemplate += '{{value}}' + "\n";
+    alertTemplate += '</p>' + "\n";
+    alertTemplate += '</div>' + "\n";
+    alertTemplate += '<div class="modal-footer" ng-if="confirm">' + "\n";
+    alertTemplate += '<button ng-click="$dismiss()" class="btn btn-danger">Cancel</button>' + "\n";
+    alertTemplate += '<button ng-click="$close()" class="btn btn-success">OK</button>' + "\n";
+    alertTemplate += '</div>' + "\n";
+    alertTemplate += '<div class="modal-footer" ng-if="!confirm">' + "\n";
+    alertTemplate += '<button ng-click="$close()" class="btn btn-primary">Close</button>' + "\n";
+    alertTemplate += '</div>' + "\n";
+
+    // alert dialog
+    module.alert = function (data) {
+        var options = {
+            backdrop: true,
+            backdropClick: true,
+            template: alertTemplate,
+            controller: 'AlertDialogController',
+            resolve: {
+                args: function () {
+                    return {
+                        data: angular.copy(data)
+                    };
+                }
+            }
         };
 
-        // generic dialog
-        module.openDialog = function (options) {
-            return $uibModal.open(options);
-        };
+        return module.openDialog(options);
+    };
 
-        return module;
-    });
+    // generic dialog
+    module.openDialog = function (options) {
+        return $uibModal.open(options);
+    };
+
+    return module;
+});
 
 // API Service
-angular.module('api', ['ngFileUpload']).
-    factory('$api', function ($http, $q, Upload) {
-        var api = {base: window.location.origin + window.location.pathname.replace(/\/$/, '') };
+angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upload) {
+    var api = {base: window.location.origin + window.location.pathname.replace(/\/$/, '')};
 
-        // Make the actual HTTP call and return a promise
-        api.call = function (url, method, params, data, uploadToken) {
-            var promise = $q.defer();
-            var headers = {};
-            if (uploadToken) headers['X-UploadToken'] = uploadToken;
-            $http({
+    // Make the actual HTTP call and return a promise
+    api.call = function (url, method, params, data, uploadToken) {
+        var promise = $q.defer();
+        var headers = {};
+        if (uploadToken) headers['X-UploadToken'] = uploadToken;
+        if (api.fake_user) headers['X-Plik-Impersonate'] = api.fake_user.id;
+        $http({
+            url: url,
+            method: method,
+            params: params,
+            data: data,
+            headers: headers
+        })
+            .then(function success(resp) {
+                promise.resolve(resp.data);
+            }, function error(resp) {
+                // Format HTTP error return for the dialog service
+                var message = (resp.data && resp.data.message) ? resp.data.message : "Unknown error";
+                promise.reject({status: resp.status, message: message});
+            });
+        return promise.promise;
+    };
+
+    // Make the actual HTTP call to upload a file and return a promise
+    api.upload = function (url, file, progress_cb, basicAuth, uploadToken) {
+        var promise = $q.defer();
+        var headers = {};
+        if (uploadToken) headers['X-UploadToken'] = uploadToken;
+        if (basicAuth) headers['Authorization'] = "Basic " + basicAuth;
+
+        Upload
+            .upload({
                 url: url,
-                method: method,
-                params: params,
-                data: data,
+                method: 'POST',
+                file: Upload.rename(file, file.fileName),
                 headers: headers
             })
-                .then(function success(resp) {
-                    promise.resolve(resp.data);
-                }, function error(resp) {
-                    // Format HTTP error return for the dialog service
-                    var message = (resp.data && resp.data.message) ? resp.data.message : "Unknown error";
-                    promise.reject({status: resp.status, message: message});
-                });
-            return promise.promise;
-        };
+            .then(function success(resp) {
+                promise.resolve(resp.data);
+            }, function error(resp) {
+                // Format HTTP error return for the dialog service
+                var message = (resp.data && resp.data.message) ? resp.data.message : "Unknown error";
+                promise.reject({status: resp.status, message: message});
+            }, progress_cb);
 
-        // Make the actual HTTP call to upload a file and return a promise
-        api.upload = function (url, file, progress_cb, basicAuth, uploadToken) {
-            var promise = $q.defer();
-            var headers = {};
-            if (uploadToken) headers['X-UploadToken'] = uploadToken;
-            if (basicAuth) headers['Authorization'] = "Basic " + basicAuth;
+        return promise.promise;
+    };
 
-            Upload
-                .upload({
-                    url: url,
-                    method: 'POST',
-                    file: Upload.rename(file, file.fileName),
-                    headers: headers
-                })
-                .then(function success(resp) {
-                    promise.resolve(resp.data);
-                }, function error(resp) {
-                    // Format HTTP error return for the dialog service
-                    var message = (resp.data && resp.data.message) ? resp.data.message : "Unknown error";
-                    promise.reject({status: resp.status, message: message});
-                }, progress_cb);
+    // Get upload metadata
+    api.getUpload = function (uploadId, uploadToken) {
+        var url = api.base + '/upload/' + uploadId;
+        return api.call(url, 'GET', {}, {}, uploadToken);
+    };
 
-            return promise.promise;
-        };
+    // Create an upload with current settings
+    api.createUpload = function (upload) {
+        var url = api.base + '/upload';
+        return api.call(url, 'POST', {}, upload);
+    };
 
-        // Get upload metadata
-        api.getUpload = function (uploadId, uploadToken) {
-            var url = api.base + '/upload/' + uploadId;
-            return api.call(url, 'GET', {}, {}, uploadToken);
-        };
+    // Remove an upload
+    api.removeUpload = function (upload) {
+        var url = api.base + '/upload/' + upload.id;
+        return api.call(url, 'DELETE', {}, {}, upload.uploadToken);
+    };
 
-        // Create an upload with current settings
-        api.createUpload = function (upload) {
-            var url = api.base + '/upload';
-            return api.call(url, 'POST', {}, upload);
-        };
+    // Upload a file
+    api.uploadFile = function (upload, file, progres_cb, basicAuth) {
+        var mode = upload.stream ? "stream" : "file";
+        var url;
+        if (file.metadata.id) {
+            url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
+        } else {
+            // When adding file to an existing upload
+            url = api.base + '/' + mode + '/' + upload.id;
+        }
+        return api.upload(url, file, progres_cb, basicAuth, upload.uploadToken);
+    };
 
-        // Remove an upload
-        api.removeUpload = function (upload) {
-            var url = api.base + '/upload/' + upload.id;
-            return api.call(url, 'DELETE', {}, {}, upload.uploadToken);
-        };
+    // Remove a file
+    api.removeFile = function (upload, file) {
+        var mode = upload.stream ? "stream" : "file";
+        var url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
+        return api.call(url, 'DELETE', {}, {}, upload.uploadToken);
+    };
 
-        // Upload a file
-        api.uploadFile = function (upload, file, progres_cb, basicAuth) {
-            var mode = upload.stream ? "stream" : "file";
-            var url;
-            if (file.metadata.id) {
-                url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
-            } else {
-                // When adding file to an existing upload
-                url = api.base + '/' + mode + '/' + upload.id;
-            }
-            return api.upload(url, file, progres_cb, basicAuth, upload.uploadToken);
-        };
+    // Log in
+    api.login = function (provider) {
+        var url = api.base + '/auth/' + provider + '/login';
+        return api.call(url, 'GET');
+    };
 
-        // Remove a file
-        api.removeFile = function (upload, file) {
-            var mode = upload.stream ? "stream" : "file";
-            var url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
-            return api.call(url, 'DELETE', {}, {}, upload.uploadToken);
-        };
+    // Log out
+    api.logout = function () {
+        var url = api.base + '/auth/logout';
+        return api.call(url, 'GET');
+    };
 
-        // Log in
-        api.login = function (provider) {
-            var url = api.base + '/auth/' + provider + '/login';
-            return api.call(url, 'GET');
-        };
+    // Get user info
+    api.getUser = function () {
+        var url = api.base + '/me';
+        return api.call(url, 'GET');
+    };
 
-        // Log out
-        api.logout = function () {
-            var url = api.base + '/auth/logout';
-            return api.call(url, 'GET');
-        };
+    // Get upload metadata
+    api.getUploads = function (token, size, offset) {
+        var url = api.base + '/me/uploads';
+        return api.call(url, 'GET', {token: token, size: size, offset: offset});
+    };
 
-        // Get user info
-        api.getUser = function () {
-            var url = api.base + '/me';
-            return api.call(url, 'GET');
-        };
+    // Get user statistics
+    api.getUserStats = function () {
+        var url = api.base + '/me/stats';
+        return api.call(url, 'GET');
+    };
 
-        // Get upload metadata
-        api.getUploads = function (token, size, offset) {
-            var url = api.base + '/me/uploads';
-            return api.call(url, 'GET', {token: token, size: size, offset: offset});
-        };
+    // Remove uploads
+    api.deleteUploads = function (token) {
+        var url = api.base + '/me/uploads';
+        return api.call(url, 'DELETE', {token: token});
+    };
 
-        // Remove uploads
-        api.deleteUploads = function (token) {
-            var url = api.base + '/me/uploads';
-            return api.call(url, 'DELETE', {token: token});
-        };
+    // Delete account
+    api.deleteAccount = function () {
+        var url = api.base + '/me';
+        return api.call(url, 'DELETE');
+    };
 
-        // Delete account
-        api.deleteAccount = function () {
-            var url = api.base + '/me';
-            return api.call(url, 'DELETE');
-        };
+    // Create a new upload token
+    api.createToken = function (comment) {
+        var url = api.base + '/me/token';
+        return api.call(url, 'POST', {}, {comment: comment});
+    };
 
-        // Create a new upload token
-        api.createToken = function (comment) {
-            var url = api.base + '/me/token';
-            return api.call(url, 'POST', {}, {comment: comment});
-        };
+    // Revoke an upload token
+    api.revokeToken = function (token) {
+        var url = api.base + '/me/token/' + token;
+        return api.call(url, 'DELETE');
+    };
 
-        // Revoke an upload token
-        api.revokeToken = function (token) {
-            var url = api.base + '/me/token/' + token;
-            return api.call(url, 'DELETE');
-        };
+    // Get server version
+    api.getVersion = function () {
+        var url = api.base + '/version';
+        return api.call(url, 'GET');
+    };
 
-        // Get server version
-        api.getVersion = function () {
-            var url = api.base + '/version';
-            return api.call(url, 'GET');
-        };
+    // Get server config
+    api.getConfig = function () {
+        var url = api.base + '/config';
+        return api.call(url, 'GET');
+    };
 
-        // Get server config
-        api.getConfig = function () {
-            var url = api.base + '/config';
-            return api.call(url, 'GET');
-        };
+    // Get server statistics
+    api.getServerStats = function () {
+        var url = api.base + '/stats';
+        return api.call(url, 'GET');
+    };
 
-        return api;
-    });
+    // Get server statistics
+    api.getUsers = function () {
+        var url = api.base + '/users';
+        return api.call(url, 'GET');
+    };
+
+    return api;
+});
 
 // Config Service
-angular.module('config', ['api']).
-    factory('$config', function ($rootScope, $api) {
-        var module = {
-            config: $api.getConfig(),
-            user: $api.getUser()
-        };
+angular.module('config', ['api']).factory('$config', function ($rootScope, $api) {
+    var module = {
+        config: $api.getConfig(),
+        user: $api.getUser()
+    };
 
-        // Return config promise
-        module.getConfig = function () {
+    // Return config promise
+    module.getConfig = function () {
+        if (module.config) {
             return module.config;
-        };
+        }
+        return module.refreshConfig();
+    };
 
-        // Refresh config promise and notify listeners (top menu)
-        module.refreshConfig = function () {
-            module.config = $api.getConfig();
-            $rootScope.$broadcast('config_refreshed', module.config);
-            return module.config;
-        };
+    // Refresh config promise and notify listeners (top menu)
+    module.refreshConfig = function () {
+        module.config = $api.getConfig();
+        $rootScope.$broadcast('config_refreshed', module.config);
+        return module.config;
+    };
 
-        // Return user promise
-        module.getUser = function () {
+    // Return user promise
+    module.getUser = function () {
+        if (module.user) {
             return module.user;
-        };
+        }
+        return module.refreshUser();
+    };
 
-        // Refresh user promise and notify listeners (top menu)
-        module.refreshUser = function () {
-            module.user = $api.getUser();
-            $rootScope.$broadcast('user_refreshed', module.user);
-            return module.user;
-        };
+    // Return original user promise
+    module.getOriginalUser = function () {
+        if (module.original_user) {
+            return module.original_user;
+        }
+        module.refreshUser();
+        return module.original_user;
+    };
 
-        return module;
-    });
+    // Refresh user promise and notify listeners (top menu)
+    module.refreshUser = function () {
+        module.user = $api.getUser();
+        if (!module.original_user) {
+            module.original_user = module.user;
+        }
+        $rootScope.$broadcast('user_refreshed', module.user);
+        return module.user;
+    };
+
+    // Return server version
+    module.getVersion = function () {
+        if (module.version) {
+            return module.version;
+        }
+        return module.refreshVersion()
+    };
+
+    // Refresh server version promise and notify listeners (top menu)
+    module.refreshVersion = function () {
+        module.version = $api.getVersion();
+        $rootScope.$broadcast('version_refreshed', module.version);
+        return module.version;
+    };
+
+    // Return server serverStats
+    module.getServerStats = function () {
+        if (module.serverStats) {
+            return module.serverStats;
+        }
+        return module.refreshServerStats()
+    };
+
+    // Refresh server serverStats promise and notify listeners (top menu)
+    module.refreshServerStats = function () {
+        module.serverStats = $api.getServerStats();
+        $rootScope.$broadcast('serverStats_refreshed', module.serverStats);
+        return module.serverStats;
+    };
+
+    return module;
+});
 
 // Plik app bootstrap and global configuration
 var plik = angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'contentEditable', 'btford.markdown'])
@@ -319,9 +382,10 @@ var plik = angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'conten
             .when('/clients', {controller: 'ClientListCtrl', templateUrl: 'partials/clients.html'})
             .when('/login', {controller: 'LoginCtrl', templateUrl: 'partials/login.html'})
             .when('/home', {controller: 'HomeCtrl', templateUrl: 'partials/home.html'})
+            .when('/admin', {controller: 'AdminCtrl', templateUrl: 'partials/admin.html'})
             .otherwise({redirectTo: '/'});
     })
-    .config(['$locationProvider', function($locationProvider) {
+    .config(['$locationProvider', function ($locationProvider) {
         // see https://github.com/angular/angular.js/commit/aa077e81129c740041438688dff2e8d20c3d7b52
         // see https://webmasters.googleblog.com/2015/10/deprecating-our-ajax-crawling-scheme.html
         $locationProvider.hashPrefix("");
@@ -433,7 +497,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             if (!_.isUndefined(err)) {
                 if (err === "Invalid yubikey token" && $location.search().uri) {
                     var uri = $location.search().uri;
-                    if ( !uri ) {
+                    if (!uri) {
                         $dialog.alert({status: 0, message: "Unable to get uri from yubikey redirect"})
                             .result.then($scope.mainpage);
                         return;
@@ -448,7 +512,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     var fileName;
                     var regex;
                     var match;
-                    if(url.pathname.startsWith("/archive")) {
+                    if (url.pathname.startsWith("/archive")) {
                         regex = /^.*\/(archive)\/(.*?)\/(.*)$/;
                         match = regex.exec(url.pathname);
                         if (!match || match.length !== 4) {
@@ -808,22 +872,22 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             return filesize(size, {base: 2});
         };
 
-        $scope.getMode = function() {
+        $scope.getMode = function () {
             return $scope.upload.stream ? "stream" : "file";
         };
 
         // Build file download URL
-        var getFileUrl = function(mode, uploadID, fileID, fileName, yubikeyToken, dl) {
+        var getFileUrl = function (mode, uploadID, fileID, fileName, yubikeyToken, dl) {
             var domain = $scope.config.downloadDomain ? $scope.config.downloadDomain : $api.base;
             var url = domain + '/' + mode + '/' + uploadID;
             if (fileID) {
                 url += '/' + fileID;
             }
             if (fileName) {
-                url+= '/' + fileName;
+                url += '/' + fileName;
             }
             if (yubikeyToken) {
-                url +=  "/yubikey/" + yubikeyToken;
+                url += "/yubikey/" + yubikeyToken;
             }
             if (dl) {
                 // Force file download
@@ -945,13 +1009,13 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         }
 
         // Download file with Yubikey OTP dialog
-        $scope.downloadFileWithYubikey = function(file, dl) {
+        $scope.downloadFileWithYubikey = function (file, dl) {
             if (!file || !file.metadata) return;
             downloadWithYubikey($scope.getMode(), $scope.upload.id, file.metadata.id, file.metadata.fileName, dl);
         };
 
         // Download archive with Yubikey OTP dialog
-        $scope.downloadArchiveWithYubikey = function(file, dl) {
+        $scope.downloadArchiveWithYubikey = function (file, dl) {
             downloadWithYubikey("archive", $scope.upload.id, null, "archive.zip", dl);
         };
 
@@ -1066,7 +1130,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         };
 
         // Redirect to main page
-        $scope.mainpage = function() {
+        $scope.mainpage = function () {
             $location.search({});
             $location.hash("");
             $route.reload();
@@ -1089,7 +1153,7 @@ plik.controller('ClientListCtrl', ['$scope', '$api', '$dialog',
                 $dialog.alert(error);
             });
 
-        $scope.getClientPath = function(client) {
+        $scope.getClientPath = function (client) {
             return $api.base + client.path;
         }
     }]);
@@ -1149,7 +1213,7 @@ plik.controller('LoginCtrl', ['$scope', '$api', '$config', '$location', '$dialog
         };
     }]);
 
-// Token controller
+// Home controller
 plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location',
     function ($scope, $api, $config, $dialog, $location) {
 
@@ -1169,7 +1233,7 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
         // Get server config
         $config.config
             .then(function (config) {
-                // Check if token authentication is enabled server side
+                // Check if authentication is enabled server side
                 if (!config.authentication) {
                     $location.path('/');
                 }
@@ -1183,6 +1247,7 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
             promise.then(function (user) {
                 $scope.user = user;
                 $scope.getUploads();
+                $scope.getUserStats();
             })
                 .then(null, function (error) {
                     if (error.status === 401 || error.status === 403) {
@@ -1208,11 +1273,22 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
             $scope.offset = $scope.uploads.length;
             $scope.more = false;
 
-            // Get user uploads
+            // Get user uploadsfake_user
             $api.getUploads($scope.token, $scope.size, $scope.offset)
                 .then(function (uploads) {
                     $scope.uploads = $scope.uploads.concat(uploads);
                     $scope.more = uploads.length === $scope.size;
+                })
+                .then(null, function (error) {
+                    $dialog.alert(error);
+                });
+        };
+
+        // Get user statistics
+        $scope.getUserStats = function () {
+            $api.getUserStats()
+                .then(function (stats) {
+                    $scope.user.stats = stats;
                 })
                 .then(null, function (error) {
                     $dialog.alert(error);
@@ -1328,6 +1404,127 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
 
         loadUser($config.getUser());
     }]);
+
+// Admin controller
+plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location',
+    function ($scope, $api, $config, $dialog, $location) {
+
+        // Get server config
+        $config.config
+            .then(function (config) {
+                // Check if authentication is enabled server side
+                if (!config.authentication) {
+                    $location.path('/');
+                }
+
+                // Get authenticated user
+                $config.getOriginalUser()
+                    .then(function (original_user) {
+                        $scope.original_user = original_user;
+
+                        // Check if authenticated user is admin
+                        if (!original_user.admin) {
+                            $location.path('/');
+                        }
+
+                        // Get server version
+                        $config.getVersion()
+                            .then(function (version) {
+                                $scope.version = version;
+                            })
+                            .then(null, function (error) {
+                                $dialog.alert(error);
+                            });
+                    })
+                    .then(null, function (error) {
+                        $dialog.alert(error);
+                    });
+            })
+            .then(null, function (error) {
+                $dialog.alert(error);
+            });
+
+        // Display statistics page
+        $scope.displayStats = function () {
+            $scope.stats = undefined;
+            $scope.users = undefined;
+            $scope.display = 'stats';
+
+            // Get server statistics
+            $config.getServerStats()
+                .then(function (stats) {
+                    $scope.stats = stats;
+                })
+                .then(null, function (error) {
+                    $dialog.alert(error);
+                });
+        };
+
+        // Display user management page
+        $scope.displayUsers = function () {
+            $scope.stats = undefined;
+            $scope.users = undefined;
+            $scope.display = 'users';
+
+            // Load possible fake user
+            $scope.fake_user = $api.fake_user;
+
+            // Get the list whole list of users
+            // This might need pagination at some point
+            $api.getUsers()
+                .then(function (users) {
+                    // Success
+                    $scope.users = users;
+                })
+                .then(null, function (error) {
+                    // Failure
+                    $dialog.alert(error);
+                });
+        };
+
+        // This functionality allows an admin to browse another user account
+        // In order to delete it or delete some uploads if needed
+        $scope.impersonate = function (user) {
+            if (!user) {
+                // call with no user to cancel the effect
+                $scope.setFakeUser(undefined);
+                $config.refreshUser();
+                return;
+            }
+
+            $scope.setFakeUser(user);
+
+            // Dummy try to double check that we can get the user
+            $api.getUser()
+                .then(function () {
+                    // Success
+                    $config.refreshUser();
+                })
+                .then(null, function (error) {
+                    // Failure
+                    $dialog.alert(error);
+                    $scope.setFakeUser(undefined);
+                });
+        };
+
+        $scope.setFakeUser = function (user) {
+            $api.fake_user = user;
+
+            // We can't call the $api.fake_user from the HTML partial
+            $scope.fake_user = user;
+        };
+
+        // Compute human readable size
+        // TODO This should be global as we also use it in other controllers
+        $scope.humanReadableSize = function (size) {
+            if (_.isUndefined(size)) return;
+            return filesize(size, {base: 2});
+        };
+
+        $scope.displayStats();
+
+    }]);
+
 
 // Alert modal dialog controller
 plik.controller('AlertDialogController', ['$scope', 'args',

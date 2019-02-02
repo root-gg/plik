@@ -85,10 +85,10 @@ func main() {
 	stdChain := juliet.NewChain(middleware.Logger, middleware.SourceIP, middleware.Log)
 
 	// Get user from session cookie
-	authChain := stdChain.Append(middleware.Authenticate(false))
+	authChain := stdChain.Append(middleware.Authenticate(false), middleware.Impersonate)
 
 	// Get user from session cookie or X-PlikToken header
-	tokenChain := stdChain.Append(middleware.Authenticate(true))
+	tokenChain := stdChain.Append(middleware.Authenticate(true), middleware.Impersonate)
 
 	// Redirect on error for webapp
 	stdChainWithRedirect := juliet.NewChain(middleware.RedirectOnFailure).AppendChain(stdChain)
@@ -125,6 +125,9 @@ func main() {
 	router.Handle("/me/token/{token}", authChain.Then(handlers.RevokeToken)).Methods("DELETE")
 	router.Handle("/me/uploads", authChain.Then(handlers.GetUserUploads)).Methods("GET")
 	router.Handle("/me/uploads", authChain.Then(handlers.RemoveUserUploads)).Methods("DELETE")
+	router.Handle("/me/stats", authChain.Then(handlers.GetUserStatistics)).Methods("GET")
+	router.Handle("/stats", authChain.Then(handlers.GetServerStatistics)).Methods("GET")
+	router.Handle("/users", authChain.Then(handlers.GetUsers)).Methods("GET")
 	router.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
 	router.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir("../clients"))))
 	router.PathPrefix("/changelog/").Handler(http.StripPrefix("/changelog/", http.FileServer(http.Dir("../changelog"))))

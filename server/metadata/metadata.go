@@ -42,17 +42,23 @@ var metadataBackend Backend
 // Backend interface describes methods that metadata backends
 // must implements to be compatible with plik.
 type Backend interface {
+	// Upload
 	Create(ctx *juliet.Context, upload *common.Upload) (err error)
 	Get(ctx *juliet.Context, id string) (upload *common.Upload, err error)
 	AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error)
 	RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error)
 	Remove(ctx *juliet.Context, upload *common.Upload) (err error)
 
+	// User
 	SaveUser(ctx *juliet.Context, user *common.User) (err error)
 	GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error)
 	RemoveUser(ctx *juliet.Context, user *common.User) (err error)
-
 	GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error)
+	GetUserStatistics(ctx *juliet.Context, user *common.User, token *common.Token) (stats *common.UserStats, err error)
+
+	// Server
+	GetUsers(ctx *juliet.Context) (ids []string, err error)
+	GetServerStatistics(ctx *juliet.Context) (stats *common.ServerStats, err error)
 	GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error)
 }
 

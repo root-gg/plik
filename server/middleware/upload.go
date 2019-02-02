@@ -92,10 +92,10 @@ func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 		if uploadToken != "" && uploadToken == upload.UploadToken {
 			upload.IsAdmin = true
 		} else {
-			// Check if upload belongs to user
+			// Check if upload belongs to user or if user is admin
 			if common.Config.Authentication && upload.User != "" {
 				user := common.GetUser(ctx)
-				if user != nil && user.ID == upload.User {
+				if user != nil && (user.ID == upload.User || user.IsAdmin()) {
 					upload.IsAdmin = true
 				}
 			}

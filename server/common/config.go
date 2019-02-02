@@ -79,6 +79,7 @@ type Configuration struct {
 	OvhAuthentication    bool     `json:"ovhAuthentication"`
 	OvhAPIKey            string   `json:"-"`
 	OvhAPISecret         string   `json:"-"`
+	Admins               []string `json:"-"`
 
 	MetadataBackend       string                 `json:"-"`
 	MetadataBackendConfig map[string]interface{} `json:"-"`

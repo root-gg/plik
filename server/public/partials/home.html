@@ -35,6 +35,15 @@ THE SOFTWARE.
 
                 <p>{{user.name}}</p>
             </div>
+            <p>&nbsp;</p>
+            <!-- USER STATS -->
+            <div class="menu-item text-center" ng-if="user.stats">
+                <p>Uploads : {{user.stats.uploads}}</p>
+
+                <p>Files : {{user.stats.files}}</p>
+
+                <p>Total Size : {{humanReadableSize(user.stats.totalSize)}}</p>
+            </div>
         </div>
         <!-- LOGOUT BUTTON -->
         <div class="tile menu">

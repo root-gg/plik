@@ -57,6 +57,8 @@ THE SOFTWARE.
                     <a href="#/login" ng-if="config.authentication && !user"><i class="fa fa-lock"></i> Authentication</a>
                     <a href="#/login" ng-if="config.authentication && user">{{user.login}}</a>
                     &nbsp;
+                    <a href="#/admin" ng-if="config.authentication && user && user.admin"><i class="fa fa-wrench"></i> Admin&nbsp;</a>
+
                     <a href="#/clients"><i class="fa fa-keyboard-o"></i> Command line client</a>
                     &nbsp;
                     <a href="https://github.com/root-gg/plik/tree/master"><i class="fa fa-github"></i> Source code</a>

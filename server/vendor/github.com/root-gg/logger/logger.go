@@ -138,7 +138,7 @@ func (logger *Logger) EWarning(message string) (err error) {
 
 func (logger *Logger) EWarningf(format string, values ...interface{}) (err error) {
 	err = errors.New(fmt.Sprintf(format, values...))
-	logger.Error(WARNING, err.Error())
+	logger.Log(WARNING, err.Error())
 	return
 }
 
@@ -158,7 +158,7 @@ func (logger *Logger) ECritical(message string) (err error) {
 
 func (logger *Logger) ECriticalf(format string, values ...interface{}) (err error) {
 	err = errors.New(fmt.Sprintf(format, values...))
-	logger.Error(CRITICAL, err.Error())
+	logger.Log(CRITICAL, err.Error())
 	return
 }
 
@@ -178,7 +178,7 @@ func (logger *Logger) Error(level Level, message string) (err error) {
 
 func (logger *Logger) Errorf(level Level, format string, values ...interface{}) (err error) {
 	err = errors.New(fmt.Sprintf(format, values...))
-	logger.Error(level, err.Error())
+	logger.Log(level, err.Error())
 	return
 }
 

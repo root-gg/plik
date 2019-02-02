@@ -38,6 +38,13 @@ type User struct {
 	Name   string   `json:"name,omitempty" bson:"name"`
 	Email  string   `json:"email,omitempty" bson:"email"`
 	Tokens []*Token `json:"tokens,omitempty" bson:"tokens"`
+	Admin  bool     `json:"admin" bson:"-"`
+}
+
+type UserStats struct {
+	Uploads   int   `json:"uploads"`
+	Files     int   `json:"files"`
+	TotalSize int64 `json:"totalSize"`
 }
 
 // NewUser create a new user object
@@ -53,6 +60,23 @@ func (user *User) NewToken() (token *Token) {
 	token.Create()
 	user.Tokens = append(user.Tokens, token)
 	return
+}
+
+// IsAdmin check if the user is a Plik server administrator
+func (user *User) IsAdmin() bool {
+	if user.Admin == true {
+		return true
+	}
+
+	// Check if user is admin
+	for _, id := range Config.Admins {
+		if user.ID == id {
+			user.Admin = true
+			return true
+		}
+	}
+
+	return false
 }
 
 // Logout delete plik session cookies

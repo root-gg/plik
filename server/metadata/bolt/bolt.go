@@ -30,13 +30,13 @@ THE SOFTWARE.
 package bolt
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"log"
+	"strings"
 	"time"
 
-	"bytes"
 	"github.com/boltdb/bolt"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
@@ -52,6 +52,8 @@ type MetadataBackend struct {
 // NewBoltMetadataBackend instantiate a new Bolt Metadata Backend
 // from configuration passed as argument
 func NewBoltMetadataBackend(config map[string]interface{}) (bmb *MetadataBackend) {
+	log := common.Logger()
+
 	bmb = new(MetadataBackend)
 	bmb.Config = NewBoltMetadataBackendConfig(config)
 
@@ -103,7 +105,7 @@ func (bmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (
 	err = bmb.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get metadata Bolt bucket")
+			return fmt.Errorf("Unable to get uploads Bolt bucket")
 		}
 
 		err := bucket.Put([]byte(upload.ID), j)
@@ -166,7 +168,6 @@ func (bmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (
 // Get implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) Get(ctx *juliet.Context, id string) (upload *common.Upload, err error) {
 	log := common.GetLogger(ctx)
-	var b []byte
 
 	if id == "" {
 		err = log.EWarning("Unable to get upload : Missing upload id")
@@ -177,24 +178,24 @@ func (bmb *MetadataBackend) Get(ctx *juliet.Context, id string) (upload *common.
 	err = bmb.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get metadata Bolt bucket")
+			return fmt.Errorf("Unable to get uploads Bolt bucket")
 		}
 
-		b = bucket.Get([]byte(id))
+		b := bucket.Get([]byte(id))
 		if b == nil || len(b) == 0 {
 			return fmt.Errorf("Unable to get upload metadata from Bolt bucket")
+		}
+
+		// Unserialize metadata from json
+		upload = new(common.Upload)
+		err = json.Unmarshal(b, upload)
+		if err != nil {
+			return log.EWarningf("Unable to unserialize metadata from json \"%s\" : %s", string(b), err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return
-	}
-
-	// Unserialize metadata from json
-	upload = new(common.Upload)
-	if err = json.Unmarshal(b, upload); err != nil {
-		err = log.EWarningf("Unable to unserialize metadata from json \"%s\" : %s", string(b), err)
 		return
 	}
 
@@ -219,7 +220,7 @@ func (bmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.
 	err = bmb.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get metadata Bolt bucket")
+			return fmt.Errorf("Unable to get uploads Bolt bucket")
 		}
 
 		// Get json
@@ -272,7 +273,7 @@ func (bmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Uploa
 	err = bmb.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
 		if bucket == nil {
-			return fmt.Errorf("Unable to get metadata Bolt bucket")
+			return fmt.Errorf("Unable to get uploads Bolt bucket")
 		}
 
 		b := bucket.Get([]byte(upload.ID))
@@ -325,6 +326,10 @@ func (bmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (
 	// Remove upload from bolt database
 	err = bmb.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("uploads"))
+		if bucket == nil {
+			return fmt.Errorf("Unable to get uploads Bolt bucket")
+		}
+
 		err := bucket.Delete([]byte(upload.ID))
 		if err != nil {
 			return err
@@ -457,9 +462,8 @@ func (bmb *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (er
 }
 
 // GetUser implementation for Bolt Metadata Backend
-func (bmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string) (u *common.User, err error) {
+func (bmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error) {
 	log := common.GetLogger(ctx)
-	var b []byte
 
 	if id == "" && token == "" {
 		err = log.EWarning("Unable to get user : Missing user id or token")
@@ -482,22 +486,26 @@ func (bmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string
 			id = string(idBytes)
 		}
 
-		b = bucket.Get([]byte(id))
+		b := bucket.Get([]byte(id))
+
+		// User not found but no error
+		if b == nil || len(b) == 0 {
+			return nil
+		}
+
+		// Unserialize user from json
+		user = common.NewUser()
+		err = json.Unmarshal(b, user)
+		if err != nil {
+			return log.EWarningf("Unable to unserialize user from json \"%s\" : %s", string(b), err)
+		}
+
+		user.IsAdmin()
+
 		return nil
 	})
 	if err != nil {
 		err = log.EWarningf("Unable to get user : %s", err)
-		return
-	}
-
-	// User not found but no error
-	if b == nil || len(b) == 0 {
-		return
-	}
-
-	// Unserialize user from json
-	u = common.NewUser()
-	if err = json.Unmarshal(b, u); err != nil {
 		return
 	}
 
@@ -550,7 +558,11 @@ func (bmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.Use
 	}
 
 	err = bmb.db.View(func(tx *bolt.Tx) error {
-		c := tx.Bucket([]byte("uploads")).Cursor()
+		bucket := tx.Bucket([]byte("uploads"))
+		if bucket == nil {
+			return fmt.Errorf("Unable to get uploads Bolt bucket")
+		}
+		cursor := bucket.Cursor()
 
 		// User index key is build as follow :
 		//  - User index prefix 2 byte ( "_u" )
@@ -561,17 +573,17 @@ func (bmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.Use
 		// AuthToken is stored in the value to permit byToken filtering
 		startKey := append([]byte{'_', 'u'}, []byte(user.ID)...)
 
-		k, t := c.Seek(startKey)
-		for k != nil && bytes.HasPrefix(k, startKey) {
+		key, t := cursor.Seek(startKey)
+		for key != nil && bytes.HasPrefix(key, startKey) {
 
 			// byToken filter
 			if token == nil || string(t) == token.Token {
 				// Extract upload id from key ( 16 last bytes )
-				ids = append(ids, string(k[len(k)-16:]))
+				ids = append(ids, string(key[len(key)-16:]))
 			}
 
 			// Scan the bucket forward
-			k, t = c.Next()
+			key, t = cursor.Next()
 		}
 
 		return nil
@@ -586,7 +598,11 @@ func (bmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.Use
 // GetUploadsToRemove implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error) {
 	err = bmb.db.View(func(tx *bolt.Tx) error {
-		c := tx.Bucket([]byte("uploads")).Cursor()
+		bucket := tx.Bucket([]byte("uploads"))
+		if bucket == nil {
+			return fmt.Errorf("Unable to get uploads Bolt bucket")
+		}
+		cursor := bucket.Cursor()
 
 		// Expire index is build as follow :
 		//  - Expire index prefix 2 byte ( "_e" )
@@ -601,16 +617,150 @@ func (bmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []strin
 
 		// Seek just after the seek key
 		// All uploads above the cursor are expired
-		c.Seek(startKey)
+		cursor.Seek(startKey)
 		for {
 			// Scan the bucket upwards
-			k, _ := c.Prev()
-			if k == nil || !bytes.HasPrefix(k, []byte("_e")) {
+			key, _ := cursor.Prev()
+			if key == nil || !bytes.HasPrefix(key, []byte("_e")) {
 				break
 			}
 
 			// Extract upload id from key ( 16 last bytes )
-			ids = append(ids, string(k[10:]))
+			ids = append(ids, string(key[10:]))
+		}
+
+		return nil
+	})
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+// GetUserStatistics implementation for Bolt Metadata Backend
+func (bmb *MetadataBackend) GetUserStatistics(ctx *juliet.Context, user *common.User, token *common.Token) (stats *common.UserStats, err error) {
+	//log := common.GetLogger(ctx)
+
+	stats = new(common.UserStats)
+
+	ids, err := bmb.GetUserUploads(ctx, user, token)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, id := range ids {
+		upload, err := bmb.Get(ctx, id)
+		if err != nil {
+			continue
+		}
+
+		stats.Uploads++
+		stats.Files += len(upload.Files)
+
+		for _, file := range upload.Files {
+			stats.TotalSize += file.CurrentSize
+		}
+	}
+
+	return
+}
+
+// GetUsers implementation for Bolt Metadata Backend
+func (bmb *MetadataBackend) GetUsers(ctx *juliet.Context) (ids []string, err error) {
+	log := common.GetLogger(ctx)
+
+	// Get users from Bolt database
+	err = bmb.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte("users"))
+		if bucket == nil {
+			return fmt.Errorf("Unable to get users Bolt bucket")
+		}
+
+		cursor := bucket.Cursor()
+
+		for id, _ := cursor.First(); id != nil; id, _ = cursor.Next() {
+			strid := string(id)
+
+			// Discard tokens from the token index
+			// TODO add an _ in front of the tokens
+			if !(strings.HasPrefix(strid, "ovh") || strings.HasPrefix(strid, "google")) {
+				continue
+			}
+
+			ids = append(ids, strid)
+		}
+
+		return nil
+	})
+	if err != nil {
+		err = log.EWarningf("Unable to get users : %s", err)
+		return
+	}
+
+	return
+}
+
+// GetServerStatistics implementation for Bolt Metadata Backend
+func (bmb *MetadataBackend) GetServerStatistics(ctx *juliet.Context) (stats *common.ServerStats, err error) {
+	//log := common.GetLogger(ctx)
+
+	stats = new(common.ServerStats)
+
+	// Get ALL upload ids
+	var ids []string
+	err = bmb.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte("uploads"))
+		if bucket == nil {
+			return fmt.Errorf("Unable to get uploads Bolt bucket")
+		}
+		cursor := bucket.Cursor()
+
+		for key, _ := cursor.First(); key != nil; key, _ = cursor.Next() {
+			// Ignore indexes
+			if bytes.HasPrefix(key, []byte("_")) {
+				continue
+			}
+
+			ids = append(ids, string(key))
+		}
+
+		return nil
+	})
+	if err != nil {
+		return
+	}
+
+	// Compute upload statistics
+
+	byTypeAggregator := common.NewByTypeAggregator()
+
+	for _, id := range ids {
+		upload, err := bmb.Get(ctx, id)
+		if upload == nil || err != nil {
+			continue
+		}
+
+		stats.AddUpload(upload)
+
+		for _, file := range upload.Files {
+			byTypeAggregator.AddFile(file)
+		}
+	}
+
+	stats.FileTypeByCount = byTypeAggregator.GetFileTypeByCount(10)
+	stats.FileTypeBySize = byTypeAggregator.GetFileTypeBySize(10)
+
+	// User count
+	err = bmb.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte("users"))
+		if bucket == nil {
+			return fmt.Errorf("Unable to get users Bolt bucket")
+		}
+		cursor := bucket.Cursor()
+
+		for key, _ := cursor.First(); key != nil; key, _ = cursor.Next() {
+			stats.Users++
 		}
 
 		return nil

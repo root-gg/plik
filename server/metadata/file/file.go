@@ -438,3 +438,24 @@ func (fmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.Use
 	err = log.EWarningf("Unable to get user uploads : Not implemented")
 	return
 }
+
+// GetUserStatistics implementation for File Metadata Backend
+func (fmb *MetadataBackend) GetUserStatistics(ctx *juliet.Context, user *common.User, token *common.Token) (stats *common.UserStats, err error) {
+	log := common.GetLogger(ctx)
+	err = log.EWarningf("Unable to get user statistics : Not implemented")
+	return
+}
+
+// GetUsers implementation for File Metadata Backend
+func (fmb *MetadataBackend) GetUsers(ctx *juliet.Context) (ids []string, err error) {
+	log := common.GetLogger(ctx)
+	err = log.EWarningf("Unable to get user statistics : Not implemented")
+	return
+}
+
+// GetServerStatistics implementation for File Metadata Backend
+func (fmb *MetadataBackend) GetServerStatistics(ctx *juliet.Context) (stats *common.ServerStats, err error) {
+	log := common.GetLogger(ctx)
+	err = log.EWarningf("Unable to get server statistics : Not implemented")
+	return
+}
