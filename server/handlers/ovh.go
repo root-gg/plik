@@ -39,7 +39,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/nu7hatch/gouuid"
+	uuid "github.com/nu7hatch/gouuid"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadata"
@@ -85,7 +85,6 @@ func decodeOVHResponse(resp *http.Response) ([]byte, error) {
 	return body, nil
 }
 
-const ovhAPIEndpoint string = "https://eu.api.ovh.com"
 const ovhAPIVersion string = "1.0"
 
 // OvhLogin return ovh api user consent URL.
@@ -115,7 +114,7 @@ func OvhLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 	redirectionURL := origin + "auth/ovh/callback"
 	ovhReqBody := "{\"accessRules\":[{\"method\":\"GET\",\"path\":\"/me\"}], \"redirection\":\"" + redirectionURL + "\"}"
 
-	url := fmt.Sprintf("%s/%s/auth/credential", ovhAPIEndpoint, ovhAPIVersion)
+	url := fmt.Sprintf("%s/%s/auth/credential", common.Config.OvhAPIEndpoint, ovhAPIVersion)
 
 	ovhReq, err := http.NewRequest("POST", url, strings.NewReader(ovhReqBody))
 	ovhReq.Header.Add("X-Ovh-Application", common.Config.OvhAPIKey)
@@ -148,7 +147,7 @@ func OvhLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 	// Generate session jwt
 	session := jwt.New(jwt.SigningMethodHS256)
 	session.Claims["ovh-consumer-key"] = userConsentResponse.ConsumerKey
-	session.Claims["ovh-api-endpoint"] = ovhAPIEndpoint + "/" + ovhAPIVersion
+	session.Claims["ovh-api-endpoint"] = common.Config.OvhAPIEndpoint + "/" + ovhAPIVersion
 
 	sessionString, err := session.SignedString([]byte(common.Config.OvhAPISecret))
 	if err != nil {

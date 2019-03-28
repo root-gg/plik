@@ -75,6 +75,7 @@ type Configuration struct {
 	GoogleAPIClientID    string   `json:"-"`
 	GoogleValidDomains   []string `json:"-"`
 	OvhAuthentication    bool     `json:"ovhAuthentication"`
+	OvhAPIEndpoint       string   `json:"OvhApiEndpoint"`
 	OvhAPIKey            string   `json:"-"`
 	OvhAPISecret         string   `json:"-"`
 
