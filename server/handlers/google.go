@@ -225,7 +225,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			if !goodDomain {
 				// User not from accepted google domains list
 				log.Warningf("Unacceptable user domain : %s", components[1])
-				common.Fail(ctx, req, resp, fmt.Sprintf("Authentification error : Unauthorized dommain %s", components[1]), 403)
+				common.Fail(ctx, req, resp, fmt.Sprintf("Authentification error : Unauthorized domain %s", components[1]), 403)
 				return
 			}
 
