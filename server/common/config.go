@@ -77,6 +77,7 @@ type Configuration struct {
 	GoogleAPIClientID    string   `json:"-"`
 	GoogleValidDomains   []string `json:"-"`
 	OvhAuthentication    bool     `json:"ovhAuthentication"`
+	OvhAPIEndpoint       string   `json:"ovhApiEndpoint"`
 	OvhAPIKey            string   `json:"-"`
 	OvhAPISecret         string   `json:"-"`
 	Admins               []string `json:"-"`
@@ -114,6 +115,7 @@ func NewConfiguration() (config *Configuration) {
 	config.StreamMode = true
 	config.OneShot = true
 	config.ProtectedByPassword = true
+	config.OvhAPIEndpoint = "https://eu.api.ovh.com/1.0"
 	return
 }
 
