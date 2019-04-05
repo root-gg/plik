@@ -4,29 +4,20 @@
 ##
 #
 
-# Let's start with a fresh debian jessie
-FROM debian:jessie
+FROM debian:latest
 
-# Some generic information
-MAINTAINER Charles-Antoine Mathieu
-MAINTAINER Mathieu Bodjikian
+ADD plikd.cfg /home/plik/server/plikd.cfg
 
-RUN apt-get update && apt-get install -y ca-certificates
+RUN apt update && apt install -y ca-certificates curl && \
+        useradd plik && \
+        curl -s https://api.github.com/repos/root-gg/plik/releases/latest | grep -o "https://.*linux-64bits.tar.gz" | xargs curl -L --output /tmp/plik.tar.gz && \
+        cd /home/plik && tar --strip 1 -xvzf /tmp/plik.tar.gz && rm -f /tmp/plik.tar.gz && \
+        chown -R plik:plik /home/plik && \
+        chmod +x /home/plik/server/plikd && \
+        apt -y purge curl && rm -rf /var/lib/apt/lists/* && rm -rf /var/cache
 
-# Create user
-RUN useradd -U -d /home/plik -m -s /bin/false plik 
-
-# Expose the plik port
 EXPOSE 8080
 
-# Copy plik
-ADD server /home/plik/server/
-ADD clients /home/plik/clients/
-RUN chown -R plik:plik /home/plik
-RUN chmod +x /home/plik/server/plikd
-
-# Launch it
 USER plik
 WORKDIR /home/plik/server
-CMD ./plikd
-
+CMD ["/home/plik/server/plikd"]
