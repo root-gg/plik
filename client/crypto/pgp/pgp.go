@@ -122,26 +122,37 @@ func (pb *Backend) Configure(arguments map[string]interface{}) (err error) {
 }
 
 // Encrypt implementation for PGP Crypto Backend
-func (pb *Backend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
-	w, err := armor.Encode(writer, "PGP MESSAGE", nil)
-	if err != nil {
-		return (err)
-	}
+func (pb *Backend) Encrypt(in io.Reader) (out io.Reader, err error) {
+	out, writer := io.Pipe()
 
-	plaintext, err := openpgp.Encrypt(w, []*openpgp.Entity{pb.Config.Entity}, nil, &openpgp.FileHints{IsBinary: true}, nil)
-	if err != nil {
-		return (err)
-	}
+	go func() {
+		w, err := armor.Encode(writer, "PGP MESSAGE", nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to armor encode pgp : %s\n", err)
+			writer.CloseWithError(err)
+			return
+		}
 
-	_, err = io.Copy(plaintext, reader)
-	if err != nil {
-		return (err)
-	}
+		plaintext, err := openpgp.Encrypt(w, []*openpgp.Entity{pb.Config.Entity}, nil, &openpgp.FileHints{IsBinary: true}, nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to encrypt pgp : %s\n", err)
+			writer.CloseWithError(err)
+			return
+		}
 
-	plaintext.Close()
-	w.Close()
+		_, err = io.Copy(plaintext, in)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to pipe pgp : %s\n", err)
+			writer.CloseWithError(err)
+			return
+		}
 
-	return
+		plaintext.Close()
+		w.Close()
+		writer.Close()
+	}()
+
+	return out, nil
 }
 
 // Comments implementation for PGP Crypto Backend

@@ -30,40 +30,37 @@ THE SOFTWARE.
 package main
 
 import (
-	"bytes"
-	"crypto/tls"
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math/rand"
-	"mime/multipart"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/docopt/docopt-go"
 	"github.com/kardianos/osext"
 	"github.com/olekukonko/ts"
-	"github.com/root-gg/plik/client/config"
+	"github.com/root-gg/plik/client/archive"
+	"github.com/root-gg/plik/client/crypto"
+	"github.com/root-gg/plik/plik"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/utils"
 )
 
 // Vars
 var arguments map[string]interface{}
-var transport = &http.Transport{
-	Proxy:           http.ProxyFromEnvironment,
-	TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
-var client = http.Client{Transport: transport}
-var progress *Progress
-var basicAuth string
+var config *CliConfig
+var archiveBackend archive.Backend
+var cryptoBackend crypto.Backend
+var client *plik.Client
+
 var err error
 
 // Main
@@ -71,13 +68,6 @@ func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	ts.GetSize() // ?
-
-	// Load config
-	err = config.Load()
-	if err != nil {
-		fmt.Printf("Unable to load configuration : %s\n", err)
-		os.Exit(1)
-	}
 
 	// Usage /!\ INDENT THIS WITH SPACES NOT TABS /!\
 	usage := `plik
@@ -117,12 +107,30 @@ Options:
 	// Parse command line arguments
 	arguments, _ = docopt.Parse(usage, nil, true, "", false)
 
-	// Unmarshal arguments in configuration
-	err = config.UnmarshalArgs(arguments)
+	// Load config
+	config, err = LoadConfig()
 	if err != nil {
-		fmt.Printf("%s\n", err)
+		fmt.Fprintf(os.Stderr, "Unable to load configuration : %s\n", err)
 		os.Exit(1)
 	}
+
+	// Load arguments
+	err = config.UnmarshalArgs(arguments)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+
+	if config.Debug {
+		fmt.Println("Arguments : ")
+		utils.Dump(arguments)
+		fmt.Println("Configuration : ")
+		utils.Dump(config)
+	}
+
+	client = plik.NewClient(config.URL)
+	client.Debug = config.Debug
+	client.ClientName = "plik_cli"
 
 	// Check client version
 	updateFlag := arguments["--update"].(bool)
@@ -132,8 +140,8 @@ Options:
 			os.Exit(0)
 		}
 	} else {
-		printf("Unable to update Plik client : \n")
-		printf("%s\n", err)
+		fmt.Fprintf(os.Stderr, "Unable to update Plik client : \n")
+		fmt.Fprintf(os.Stderr, "%s\n", err)
 		if updateFlag {
 			os.Exit(1)
 		}
@@ -147,113 +155,170 @@ Options:
 	if runtime.GOOS != "windows" {
 		if (fi.Mode()&os.ModeCharDevice) != 0 && len(arguments["FILE"].([]string)) == 0 {
 			fmt.Println(usage)
-			os.Exit(0)
+			os.Exit(1)
 		}
 	} else {
 		if len(arguments["FILE"].([]string)) == 0 {
 			fmt.Println(usage)
-			os.Exit(0)
-		}
-	}
-
-	// Create upload
-	config.Debug("Sending upload params : " + config.Sdump(config.Upload))
-	uploadInfo, err := createUpload(config.Upload)
-	if err != nil {
-		printf("Unable to create upload\n")
-		printf("%s\n", err)
-		os.Exit(1)
-	}
-	config.Debug("Got upload info : " + config.Sdump(uploadInfo))
-
-	// Mon, 02 Jan 2006 15:04:05 MST
-	creationDate := time.Unix(uploadInfo.Creation, 0).Format(time.RFC1123)
-
-	// Display upload url
-	printf("Upload successfully created at %s : \n", creationDate)
-	printf("    %s/#/?id=%s\n\n", config.Config.URL, uploadInfo.ID)
-
-	// Match file id from server using client reference
-	for _, clientFile := range config.Files {
-		for _, serverFile := range uploadInfo.Files {
-			if clientFile.Reference == serverFile.Reference {
-				clientFile.ID = serverFile.ID
-				break
-			}
-		}
-	}
-
-	if uploadInfo.Stream {
-		for _, fileToUpload := range config.Files {
-			fmt.Printf("%s\n", getFileCommand(uploadInfo, fileToUpload.File))
-		}
-		printf("\n")
-	}
-
-	// Create the progress bar pool
-	// Nothing should be printed between this an progress.Stop()
-	progress = newProgress(uploadInfo)
-
-	if config.Config.Archive {
-		pipeReader, pipeWriter := io.Pipe()
-		err = config.GetArchiveBackend().Archive(arguments["FILE"].([]string), pipeWriter)
-		if err != nil {
 			os.Exit(1)
 		}
+	}
 
-		file, err := upload(uploadInfo, config.Files[0], pipeReader)
-		if err != nil {
-			os.Exit(1)
-		}
-		uploadInfo.Files[file.ID] = file
-		pipeReader.CloseWithError(err)
+	var files []*plik.File
+	if len(config.filePaths) == 0 {
+		file := plik.NewFileFromReader("STDIN", bufio.NewReader(os.Stdin))
+		files = append(files, file)
 	} else {
-		if len(config.Files) == 0 {
-			file, err := upload(uploadInfo, config.Files[0], os.Stdin)
+		if config.Archive {
+			archiveBackend, err = archive.NewArchiveBackend(config.ArchiveMethod, config.ArchiveOptions)
 			if err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to initialize archive backend : %s", err)
 				os.Exit(1)
 			}
 
-			uploadInfo.Files[file.ID] = file
-		} else {
-			var wg sync.WaitGroup
-
-			// Upload individual files
-			for _, fileToUpload := range config.Files {
-				wg.Add(1)
-				go func(fileToUpload *config.FileToUpload) {
-					defer wg.Done()
-
-					file, err := upload(uploadInfo, fileToUpload, fileToUpload.FileHandle)
-					if err != nil {
-						uploadInfo.Files[fileToUpload.ID].Status = "error"
-						return
-					}
-
-					uploadInfo.Files[file.ID] = file
-				}(fileToUpload)
+			err = archiveBackend.Configure(arguments) // TODO clean this
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to configure archive backend : %s", err)
+				os.Exit(1)
 			}
 
-			// Wait for all files to be uploaded
-			wg.Wait()
+			reader, err := archiveBackend.Archive(config.filePaths)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to create archive : %s", err)
+				os.Exit(1)
+			}
+
+			filename := archiveBackend.GetFileName(config.filePaths)
+			file := plik.NewFileFromReader(filename, reader)
+			files = append(files, file)
+		} else {
+			for _, path := range config.filePaths {
+				file, err := plik.NewFileFromPath(path)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s : %s\n", path, err)
+					os.Exit(1)
+				}
+				files = append(files, file)
+			}
 		}
 	}
 
-	// Finalize the progress bar pool
-	progress.stop()
+	if config.filenameOverride != "" {
+		if len(files) != 1 {
+			fmt.Fprintf(os.Stderr, "Can't override filename if more than one file to upload\n")
+			os.Exit(1)
+		}
+		files[0].Name = config.filenameOverride
+	}
 
-	// Display commands
-	if !uploadInfo.Stream {
+	// Initialize crypto backend
+	if config.Secure {
+		cryptoBackend, err = crypto.NewCryptoBackend(config.SecureMethod, config.SecureOptions)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to initialize crypto backend : %s", err)
+			os.Exit(1)
+		}
+		err = cryptoBackend.Configure(arguments) // TODO clean this
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to configure crypto backend : %s", err)
+			os.Exit(1)
+		}
+	}
+
+	// Initialize progress bar display
+	var progress *Progress
+	if !config.Quiet && !config.Debug {
+		progress = NewProgress(files)
+	}
+
+	upload := client.NewUpload()
+	upload.Token = config.Token
+	upload.TTL = config.TTL
+	upload.Stream = config.Stream
+	upload.OneShot = config.OneShot
+	upload.Removable = config.Removable
+	upload.Comments = config.Comments
+	upload.Login = config.Login
+	upload.Password = config.Password
+	upload.Yubikey = config.yubikeyToken
+
+	// Add files to upload
+	for _, file := range files {
+		if config.Secure {
+			reader, err := cryptoBackend.Encrypt(file.Reader)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to encrypt file :%s", err)
+				os.Exit(1)
+			}
+			file.Reader = reader
+		}
+
+		if !config.Quiet && !config.Debug {
+			progress.register(file)
+		}
+
+		upload.AddFiles(file)
+	}
+
+	// Create upload on server
+	err = upload.Create()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to create upload : %s\n", err)
+		os.Exit(1)
+	}
+
+	// Mon, 02 Jan 2006 15:04:05 MST
+	creationDate := time.Unix(upload.Info().Creation, 0).Format(time.RFC1123)
+
+	// Display upload url
+	printf("Upload successfully created at %s : \n", creationDate)
+	printf("    %s/#/?id=%s\n\n", config.URL, upload.Info().ID)
+
+	// TODO
+	if config.Stream && !config.Debug {
+		for _, file := range files {
+			cmd, err := getFileCommand(upload, file)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to get download command for file %s : %s\n", file.Name, err)
+			}
+			fmt.Println(cmd)
+		}
+		printf("\n")
+	}
+
+	if !config.Quiet && !config.Debug {
+		// Nothing should be printed between this an progress.Stop()
+		progress.start()
+	}
+
+	// Upload files
+	_ = upload.Upload()
+
+	if !config.Quiet && !config.Debug {
+		// Finalize the progress bar display
+		progress.stop()
+	}
+
+	// Display download commands
+	if !config.Stream {
 		printf("\nCommands : \n")
-		for _, file := range uploadInfo.Files {
+		for _, file := range files {
 			// Print file information (only url if quiet mode is enabled)
-			if file.Status == "error" {
+			if file.Error != nil {
 				continue
 			}
-			if config.Config.Quiet {
-				fmt.Println(getFileURL(uploadInfo, file))
+			if config.Quiet {
+				URL, err := upload.GetFileURL(file)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Unable to get download command for file %s : %s\n", file.Name, err)
+				}
+				fmt.Println(URL)
 			} else {
-				fmt.Println(getFileCommand(uploadInfo, file))
+				cmd, err := getFileCommand(upload, file)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Unable to get download command for file %s : %s\n", file.Name, err)
+				}
+				fmt.Println(cmd)
 			}
 		}
 	} else {
@@ -261,180 +326,34 @@ Options:
 	}
 }
 
-func createUpload(uploadParams *common.Upload) (upload *common.Upload, err error) {
-	var URL *url.URL
-	URL, err = url.Parse(config.Config.URL + "/upload")
-	if err != nil {
-		return
-	}
-
-	var j []byte
-	j, err = json.Marshal(uploadParams)
-	if err != nil {
-		return
-	}
-
-	var req *http.Request
-	req, err = http.NewRequest("POST", URL.String(), bytes.NewBuffer(j))
-	if err != nil {
-		return
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := makeRequest(req)
-	if err != nil {
-		return
-	}
-
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return
-	}
-
-	basicAuth = resp.Header.Get("Authorization")
-
-	// Parse Json response
-	upload = new(common.Upload)
-	err = json.Unmarshal(body, upload)
-	if err != nil {
-		return
-	}
-
-	return
-}
-
-// This function is executed in parallel for each file, this function should not raw print anything as it will clash with the progressbar console output
-func upload(uploadInfo *common.Upload, fileToUpload *config.FileToUpload, reader io.Reader) (file *common.File, err error) {
-	pipeReader, pipeWriter := io.Pipe()
-	multipartWriter := multipart.NewWriter(pipeWriter)
-
-	var writer io.Writer // Final writer for the upload data that also pipe the data to the progress bar display if any
-	var done func(error) // Callback to call with nil if the upload succeed or with the error to update the progress bar display accordingly
-
-	errCh := make(chan error)
-	go func(errCh chan error) {
-		mimeWriter, err := multipartWriter.CreateFormFile("file", fileToUpload.Name)
-		if err != nil {
-			err = fmt.Errorf("Unable to create multipartWriter : %s", err)
-			pipeWriter.CloseWithError(err)
-			errCh <- err
-			return
-		}
-
-		writer, done = progress.register(fileToUpload, mimeWriter)
-
-		if config.Config.Secure {
-			err = config.GetCryptoBackend().Encrypt(reader, writer)
-			if err != nil {
-				pipeWriter.CloseWithError(err)
-				errCh <- err
-				return
-			}
-		} else {
-			_, err = io.Copy(writer, reader)
-			if err != nil {
-				pipeWriter.CloseWithError(err)
-				errCh <- err
-				return
-			}
-		}
-
-		err = multipartWriter.Close()
-		if err != nil {
-			err = fmt.Errorf("Unable to close multipartWriter : %s", err)
-		}
-
-		pipeWriter.CloseWithError(err)
-		errCh <- err
-	}(errCh)
-
-	mode := "file"
-	if uploadInfo.Stream {
-		mode = "stream"
-	}
-
-	var URL *url.URL
-	URL, err = url.Parse(config.Config.URL + "/" + mode + "/" + uploadInfo.ID + "/" + fileToUpload.ID + "/" + fileToUpload.Name)
-	if err != nil {
-		done(err)
-		return nil, err
-	}
-
-	var req *http.Request
-	req, err = http.NewRequest("POST", URL.String(), pipeReader)
-	if err != nil {
-		done(err)
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
-	req.Header.Set("X-UploadToken", uploadInfo.UploadToken)
-
-	if uploadInfo.ProtectedByPassword {
-		req.Header.Set("Authorization", basicAuth)
-	}
-
-	resp, err := makeRequest(req)
-	if err != nil {
-		done(err)
-		return nil, err
-	}
-
-	err = <-errCh
-	if err != nil {
-		done(err)
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		done(err)
-		return nil, err
-	}
-
-	// Parse Json response
-	file = new(common.File)
-	err = json.Unmarshal(body, file)
-	if err != nil {
-		done(err)
-		return nil, err
-	}
-
-	done(nil)
-
-	config.Debug(fmt.Sprintf("Uploaded %s : %s", file.Name, config.Sdump(file)))
-
-	return file, nil
-}
-
-func getFileCommand(upload *common.Upload, file *common.File) (command string) {
-
+func getFileCommand(upload *plik.Upload, file *plik.File) (command string, err error) {
 	// Step one - Downloading file
-	switch config.Config.DownloadBinary {
+	switch config.DownloadBinary {
 	case "wget":
 		command += "wget -q -O-"
 	case "curl":
 		command += "curl -s"
 	default:
-		command += config.Config.DownloadBinary
+		command += config.DownloadBinary
 	}
 
-	command += fmt.Sprintf(` "%s"`, getFileURL(upload, file))
+	URL, err := upload.GetFileURL(file)
+	if err != nil {
+		return "", err
+	}
+	command += fmt.Sprintf(` "%s"`, URL)
 
 	// If Ssl
-	if config.Config.Secure {
-		command += fmt.Sprintf(" | %s", config.GetCryptoBackend().Comments())
+	if config.Secure {
+		command += fmt.Sprintf(" | %s", cryptoBackend.Comments())
 	}
 
 	// If archive
-	if config.Config.Archive {
-		if config.Config.ArchiveMethod == "zip" {
+	if config.Archive {
+		if config.ArchiveMethod == "zip" {
 			command += fmt.Sprintf(` > '%s'`, file.Name)
 		} else {
-			command += fmt.Sprintf(" | %s", config.GetArchiveBackend().Comments())
+			command += fmt.Sprintf(" | %s", archiveBackend.Comments())
 		}
 	} else {
 		command += fmt.Sprintf(` > '%s'`, file.Name)
@@ -443,38 +362,14 @@ func getFileCommand(upload *common.Upload, file *common.File) (command string) {
 	return
 }
 
-func getFileURL(upload *common.Upload, file *common.File) (fileURL string) {
-	mode := "file"
-	if upload.Stream {
-		mode = "stream"
-	}
-
-	var domain string
-	if upload.DownloadDomain != "" {
-		domain = upload.DownloadDomain
-	} else {
-		domain = config.Config.URL
-	}
-
-	fileURL += fmt.Sprintf("%s/%s/%s/%s/%s", domain, mode, upload.ID, file.ID, file.Name)
-
-	// Parse to get a nice escaped url
-	u, err := url.Parse(fileURL)
-	if err != nil {
-		return ""
-	}
-
-	return u.String()
-}
-
 func updateClient(updateFlag bool) (err error) {
 	// Do not check for update if AutoUpdate is not enabled
-	if !updateFlag && !config.Config.AutoUpdate {
+	if !updateFlag && !config.AutoUpdate {
 		return
 	}
 
 	// Do not update when quiet mode is enabled
-	if !updateFlag && config.Config.Quiet {
+	if !updateFlag && config.Quiet {
 		return
 	}
 
@@ -497,7 +392,7 @@ func updateClient(updateFlag bool) (err error) {
 	var buildInfo *common.BuildInfo
 
 	var URL *url.URL
-	URL, err = url.Parse(config.Config.URL + "/version")
+	URL, err = url.Parse(config.URL + "/version")
 	if err != nil {
 		err = fmt.Errorf("Unable to get server version : %s", err)
 		return
@@ -509,7 +404,7 @@ func updateClient(updateFlag bool) (err error) {
 		return
 	}
 
-	resp, err := makeRequest(req)
+	resp, err := client.MakeRequest(req)
 	if resp == nil {
 		err = fmt.Errorf("Unable to get server version : %s", err)
 		return
@@ -539,7 +434,7 @@ func updateClient(updateFlag bool) (err error) {
 		for _, client := range buildInfo.Clients {
 			if client.OS == runtime.GOOS && client.ARCH == runtime.GOARCH {
 				newMD5 = client.Md5
-				downloadURL = config.Config.URL + "/" + client.Path
+				downloadURL = config.URL + "/" + client.Path
 				break
 			}
 		}
@@ -551,7 +446,7 @@ func updateClient(updateFlag bool) (err error) {
 	} else if resp.StatusCode == 404 {
 		// <1.1 fallback on MD5SUM file
 
-		baseURL := config.Config.URL + "/clients/" + runtime.GOOS + "-" + runtime.GOARCH
+		baseURL := config.URL + "/clients/" + runtime.GOOS + "-" + runtime.GOARCH
 		var URL *url.URL
 		URL, err = url.Parse(baseURL + "/MD5SUM")
 		if err != nil {
@@ -564,7 +459,7 @@ func updateClient(updateFlag bool) (err error) {
 			return
 		}
 
-		resp, err = makeRequest(req)
+		resp, err = client.MakeRequest(req)
 		if err != nil {
 			err = fmt.Errorf("Unable to get server version : %s", err)
 			return
@@ -650,7 +545,7 @@ func updateClient(updateFlag bool) (err error) {
 		for _, release := range releases {
 			// Get release notes from server
 			var URL *url.URL
-			URL, err = url.Parse(config.Config.URL + "/changelog/" + release.Name)
+			URL, err = url.Parse(config.URL + "/changelog/" + release.Name)
 			if err != nil {
 				continue
 			}
@@ -661,7 +556,7 @@ func updateClient(updateFlag bool) (err error) {
 				continue
 			}
 
-			resp, err = makeRequest(req)
+			resp, err = client.MakeRequest(req)
 			if err != nil {
 				err = fmt.Errorf("Unable to get release notes for version %s : %s", release.Name, err)
 				continue
@@ -730,7 +625,7 @@ func updateClient(updateFlag bool) (err error) {
 		err = fmt.Errorf("Unable to download client : %s", err)
 		return
 	}
-	resp, err = makeRequest(req)
+	resp, err = client.MakeRequest(req)
 	if err != nil {
 		err = fmt.Errorf("Unable to download client : %s", err)
 		return
@@ -770,81 +665,16 @@ func updateClient(updateFlag bool) (err error) {
 	}
 
 	if newVersion != "" {
-		printf("Plik client successfully updated to %s\n", newVersion)
+		fmt.Printf("Plik client successfully updated to %s\n", newVersion)
 	} else {
-		printf("Plik client successfully updated\n")
-	}
-
-	return
-}
-
-func makeRequest(req *http.Request) (resp *http.Response, err error) {
-
-	// Set client version headers
-	req.Header.Set("X-ClientApp", "cli_client")
-	bi := common.GetBuildInfo()
-	if bi != nil {
-		version := runtime.GOOS + "-" + runtime.GOARCH + "-" + bi.Version
-		req.Header.Set("X-ClientVersion", version)
-	}
-
-	// Set authentication header
-	if config.Config.Token != "" {
-		req.Header.Set("X-PlikToken", config.Config.Token)
-	}
-
-	// Log request
-	if config.Config.Debug {
-		dump, err := httputil.DumpRequest(req, true)
-		if err == nil {
-			config.Debug(string(dump))
-		} else {
-			printf("Unable to dump HTTP request : %s", err)
-		}
-	}
-
-	// Make request
-	resp, err = client.Do(req)
-	if err != nil {
-		return
-	}
-
-	// Log response
-	if config.Config.Debug {
-		dump, err := httputil.DumpResponse(resp, true)
-		if err == nil {
-			config.Debug(string(dump))
-		} else {
-			printf("Unable to dump HTTP response : %s", err)
-		}
-	}
-
-	// Parse Json error
-	if resp.StatusCode != 200 {
-		defer resp.Body.Close()
-		var body []byte
-		body, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return
-		}
-
-		result := new(common.Result)
-		err = json.Unmarshal(body, result)
-		if err == nil && result.Message != "" {
-			err = fmt.Errorf("%s : %s", resp.Status, result.Message)
-		} else if len(body) > 0 {
-			err = fmt.Errorf("%s : %s", resp.Status, string(body))
-		} else {
-			err = fmt.Errorf("%s", resp.Status)
-		}
-		return
+		fmt.Printf("Plik client successfully updated\n")
 	}
 
 	return
 }
 
 func printf(format string, args ...interface{}) {
-	if !config.Config.Quiet {
+	if !config.Quiet {
 		fmt.Printf(format, args...)
 	}
 }

@@ -38,9 +38,7 @@ import (
 	"sync"
 
 	"github.com/camathieu/pb"
-
-	"github.com/root-gg/plik/client/config"
-	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/plik"
 )
 
 // Progress manage the progress bar pool
@@ -48,32 +46,31 @@ type Progress struct {
 	bars []*pb.ProgressBar
 	pool *pb.Pool
 
+	prefixLength int
+
 	mu   sync.Mutex
-	wg   sync.WaitGroup
 	once sync.Once
 }
 
-// Create the progress bar pool
-func newProgress(uploadInfo *common.Upload) (p *Progress) {
+// NewProgress creates a progress bar pool
+func NewProgress(files []*plik.File) (p *Progress) {
 	p = new(Progress)
 
-	if !config.Config.Quiet {
-		p.wg.Add(len(uploadInfo.Files))
+	for _, file := range files {
+		if p.prefixLength < len(file.Name) {
+			p.prefixLength = len(file.Name)
+		}
 	}
 
 	return p
 }
 
 // Register a new progress bar
-func (p *Progress) register(fileToUpload *config.FileToUpload, writer io.Writer) (multiWriter io.Writer, done func(error)) {
-	if config.Config.Quiet {
-		// Noop
-		return writer, func(error) {}
-	}
-
+func (p *Progress) register(file *plik.File) {
 	// Upload progress ( Size, Progressbar, Transfer Speed, Elapsed Time,... )
-	linePrefix := fmt.Sprintf("%-"+strconv.Itoa(config.GetLongestFilename())+"s : ", fileToUpload.Name)
-	bar := pb.New64(fileToUpload.CurrentSize).SetUnits(pb.U_BYTES).Prefix(linePrefix)
+	linePrefix := fmt.Sprintf("%-"+strconv.Itoa(p.prefixLength)+"s : ", file.Name)
+
+	bar := pb.New64(file.CurrentSize).SetUnits(pb.U_BYTES).Prefix(linePrefix)
 	bar.Prefix(linePrefix)
 	bar.ShowSpeed = true
 	bar.ShowFinalTime = true
@@ -85,28 +82,17 @@ func (p *Progress) register(fileToUpload *config.FileToUpload, writer io.Writer)
 	p.bars = append(p.bars, bar)
 	p.mu.Unlock()
 
-	// Write to the progress bar and to the multipart MIME writer
-	multiWriter = io.MultiWriter(writer, bar)
+	file.Reader = io.TeeReader(file.Reader, bar)
 
-	// Callback to call when the upload is finished or encounters an error
-	done = func(err error) {
-		if err != nil {
+	file.Done = func() {
+		if file.Error != nil {
 			// Keep only the first line of the error
-			str := strings.TrimSuffix(strings.SplitAfterN(err.Error(), "\n", 2)[0], "\n")
+			str := strings.TrimSuffix(strings.SplitAfterN(file.Error.Error(), "\n", 2)[0], "\n")
 			bar.FinishError(errors.New(str))
 		} else {
 			bar.Finish()
 		}
 	}
-
-	// Wait for all progress bars to be initialized
-	p.wg.Done()
-	p.wg.Wait()
-
-	// Start the progress bar pool
-	p.start()
-
-	return multiWriter, done
 }
 
 // Start the progress bar pool

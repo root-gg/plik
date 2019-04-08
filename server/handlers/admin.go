@@ -14,8 +14,7 @@ import (
 	"github.com/root-gg/utils"
 )
 
-// TODO implement pagination
-// AdminGetUsers return users information ( name / email / tokens / ... )
+// GetUsers return users information ( name / email / tokens / ... )
 func GetUsers(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 

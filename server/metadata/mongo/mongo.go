@@ -383,7 +383,7 @@ func (mmb *MetadataBackend) GetUsers(ctx *juliet.Context) (ids []string, err err
 	collection := session.DB(mmb.config.Database).C(mmb.config.UserCollection)
 
 	var results []struct {
-		Id string `bson:"id"`
+		ID string `bson:"id"`
 	}
 	err = collection.Find(nil).Select(bson.M{"id": 1}).Sort("id").All(&results)
 	if err != nil {
@@ -391,7 +391,7 @@ func (mmb *MetadataBackend) GetUsers(ctx *juliet.Context) (ids []string, err err
 	}
 
 	for _, result := range results {
-		ids = append(ids, result.Id)
+		ids = append(ids, result.ID)
 	}
 
 	return

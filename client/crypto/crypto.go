@@ -41,7 +41,7 @@ import (
 // types of crypto backend must implement to work.
 type Backend interface {
 	Configure(arguments map[string]interface{}) (err error)
-	Encrypt(reader io.Reader, writer io.Writer) (err error)
+	Encrypt(in io.Reader) (out io.Reader, err error)
 	Comments() string
 	GetConfiguration() interface{}
 }

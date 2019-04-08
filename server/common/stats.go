@@ -6,6 +6,7 @@ package common
 
 import "sort"
 
+// ServerStats describe the Plik server available statistics
 type ServerStats struct {
 	Users            int               `json:"users"`
 	Uploads          int               `json:"uploads"`
@@ -17,11 +18,13 @@ type ServerStats struct {
 	FileTypeBySize   []FileTypeBySize  `json:"fileTypeBySize"`
 }
 
+// FileTypeByCount is used to return file type statistics
 type FileTypeByCount struct {
 	Type  string `json:"type" bson:"_id"`
 	Total int    `json:"total" bson:"total"`
 }
 
+// FileTypeBySize is used to return file size statistics
 type FileTypeBySize struct {
 	Type  string `json:"type" bson:"_id"`
 	Total int64  `json:"total" bson:"total"`
@@ -72,6 +75,7 @@ type ByTypeAggregator struct {
 	values map[string]*byTypeValue
 }
 
+// NewByTypeAggregator returns a new file type aggregator
 func NewByTypeAggregator() (aggr *ByTypeAggregator) {
 	aggr = new(ByTypeAggregator)
 	aggr.values = make(map[string]*byTypeValue)
@@ -88,7 +92,7 @@ func (aggr *ByTypeAggregator) AddFile(file *File) {
 	}
 }
 
-// GetFileTypeByCount get limit most FileTypeByCount
+// GetFileTypeByCount returns limit most FileTypeByCount
 func (aggr *ByTypeAggregator) GetFileTypeByCount(limit int) []FileTypeByCount {
 	array := make(byTypeValuePairListByCount, len(aggr.values))
 	i := 0
@@ -112,7 +116,7 @@ func (aggr *ByTypeAggregator) GetFileTypeByCount(limit int) []FileTypeByCount {
 	return result
 }
 
-// GetFileTypeBySize get limit most FileTypeBySize
+// GetFileTypeBySize returns limit most FileTypeBySize
 func (aggr *ByTypeAggregator) GetFileTypeBySize(limit int) []FileTypeBySize {
 	array := make(byTypeValuePairListBySize, len(aggr.values))
 

@@ -69,7 +69,7 @@ func (tb *Backend) Configure(arguments map[string]interface{}) (err error) {
 }
 
 // Archive implementation for TAR Archive Backend
-func (tb *Backend) Archive(files []string, writer io.WriteCloser) (err error) {
+func (tb *Backend) Archive(files []string) (reader io.Reader, err error) {
 	if len(files) == 0 {
 		fmt.Println("Unable to make a tar archive from STDIN")
 		os.Exit(1)
@@ -84,9 +84,12 @@ func (tb *Backend) Archive(files []string, writer io.WriteCloser) (err error) {
 	args = append(args, strings.Fields(tb.Config.Options)...)
 	args = append(args, files...)
 
+	reader, writer := io.Pipe()
+
 	cmd := exec.Command(tb.Config.Tar, args...)
 	cmd.Stdout = writer
 	cmd.Stderr = os.Stderr
+
 	go func() {
 		err := cmd.Start()
 		if err != nil {
@@ -103,10 +106,12 @@ func (tb *Backend) Archive(files []string, writer io.WriteCloser) (err error) {
 		err = writer.Close()
 		if err != nil {
 			fmt.Printf("Unable to run tar cmd : %s\n", err)
+			os.Exit(1)
 			return
 		}
 	}()
-	return
+
+	return reader, nil
 }
 
 // Comments implementation for TAR Archive Backend

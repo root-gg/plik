@@ -219,12 +219,12 @@ echo "OK"
 echo -n " - debug : "
 
 before
-$CLIENT -d >$CLIENT_LOG 2>&1
+$CLIENT -d $SPECIMEN >$CLIENT_LOG 2>&1
 grep "Arguments" $CLIENT_LOG >/dev/null 2>/dev/null
 grep "Configuration" $CLIENT_LOG >/dev/null 2>/dev/null
 
 before
-$CLIENT --debug >$CLIENT_LOG 2>&1
+$CLIENT --debug $SPECIMEN >$CLIENT_LOG 2>&1
 grep "Arguments" $CLIENT_LOG >/dev/null 2>/dev/null
 grep "Configuration" $CLIENT_LOG >/dev/null 2>/dev/null
 
@@ -613,7 +613,7 @@ before
 cp $SPECIMEN $TMPDIR/upload/FILE1
 upload -s --secure-options '-a' && download && check
 curl $(cat $CLIENT_LOG | grep "curl" | sed -n 's/^.*"\(.*\)".*$/\1/p') >$TMPDIR/download/ARMORED 2>/dev/null
-file $TMPDIR/download/ARMORED | grep "ASCII text" >/dev/null 2>/dev/null
+file $TMPDIR/download/ARMORED | grep "ASCII text\|base64" >/dev/null 2>/dev/null
 echo "OK"
 
 ###

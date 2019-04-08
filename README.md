@@ -222,6 +222,12 @@ Plik also comes with some useful scripts to test backends in standalone docker i
 
 See the [Plik Docker backend testing](testing)
 
+### Go client
+
+Plik now comes with a golang library above which the cli client is built
+
+See the [Plik library reference](plik/README.md)
+
 ### FAQ
 
 * Why is stream mode broken in multiple instance deployement ?

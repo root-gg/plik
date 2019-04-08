@@ -18,8 +18,8 @@ func Impersonate(ctx *juliet.Context, next http.Handler) http.Handler {
 		log := common.GetLogger(ctx)
 
 		// Get user to impersonate from header
-		newUserId := req.Header.Get("X-Plik-Impersonate")
-		if newUserId != "" {
+		newUserID := req.Header.Get("X-Plik-Impersonate")
+		if newUserID != "" {
 
 			// Check authorization
 			user := common.GetUser(ctx)
@@ -29,9 +29,9 @@ func Impersonate(ctx *juliet.Context, next http.Handler) http.Handler {
 				return
 			}
 
-			newUser, err := metadata.GetMetaDataBackend().GetUser(ctx, newUserId, "")
+			newUser, err := metadata.GetMetaDataBackend().GetUser(ctx, newUserID, "")
 			if err != nil {
-				log.Warningf("Unable to get user to impersonate %s : %s", newUserId, err)
+				log.Warningf("Unable to get user to impersonate %s : %s", newUserID, err)
 				common.Fail(ctx, req, resp, "Unable to get user to impersonate", 500)
 				return
 			}

@@ -81,7 +81,7 @@ func (ob *Backend) Configure(arguments map[string]interface{}) (err error) {
 }
 
 // Encrypt implementation for OpenSSL Crypto Backend
-func (ob *Backend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
+func (ob *Backend) Encrypt(in io.Reader) (out io.Reader, err error) {
 	passReader, passWriter, err := os.Pipe()
 	if err != nil {
 		fmt.Printf("Unable to make pipe : %s\n", err)
@@ -101,29 +101,36 @@ func (ob *Backend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
 		return
 	}
 
+	out, writer := io.Pipe()
+
 	var args []string
 	args = append(args, ob.Config.Cipher)
 	args = append(args, "-pass", fmt.Sprintf("fd:3"))
 	args = append(args, strings.Fields(ob.Config.Options)...)
 
-	cmd := exec.Command(ob.Config.Openssl, args...)
-	cmd.Stdin = reader                                  // fd:0
-	cmd.Stdout = writer                                 // fd:1
-	cmd.Stderr = os.Stderr                              // fd:2
-	cmd.ExtraFiles = append(cmd.ExtraFiles, passReader) // fd:3
-	err = cmd.Start()
-	if err != nil {
-		fmt.Printf("Unable to run openssl cmd : %s\n", err)
-		os.Exit(1)
-		return
-	}
-	err = cmd.Wait()
-	if err != nil {
-		fmt.Printf("Unable to run openssl cmd : %s\n", err)
-		os.Exit(1)
-		return
-	}
-	return
+	go func() {
+		cmd := exec.Command(ob.Config.Openssl, args...)
+		cmd.Stdin = in                                      // fd:0
+		cmd.Stdout = writer                                 // fd:1
+		cmd.Stderr = os.Stderr                              // fd:2
+		cmd.ExtraFiles = append(cmd.ExtraFiles, passReader) // fd:3
+		err := cmd.Start()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to run openssl cmd : %s\n", err)
+			writer.CloseWithError(err)
+			return
+		}
+		err = cmd.Wait()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to run openssl cmd : %s\n", err)
+			writer.CloseWithError(err)
+			return
+		}
+
+		writer.Close()
+	}()
+
+	return out, nil
 }
 
 // Comments implementation for OpenSSL Crypto Backend

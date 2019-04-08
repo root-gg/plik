@@ -41,6 +41,7 @@ type User struct {
 	Admin  bool     `json:"admin" bson:"-"`
 }
 
+// UserStats represents the user statistics
 type UserStats struct {
 	Uploads   int   `json:"uploads"`
 	Files     int   `json:"files"`

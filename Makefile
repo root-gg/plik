@@ -238,24 +238,26 @@ test:
 		echo "go fmt $$directory : "; \
 		for file in $$(find -name "*.go" | grep -v vendor ); do \
 			echo -n " - file $$file : " ; \
-			FMT=`gofmt -l $$file` ; \
+			FMT=`gofmt -l $$file 2>&1` ; \
 			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
 		done; \
 		echo -n "go vet $$directory : "; \
+		#for file in $$(find -name "*.go" | grep -v vendor ); do \
+		#	echo -n " - file $$file : " ; \
+		#	FMT=`go vet $$file 2>&1` ; \
+		#	if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
+		#done; \
+		VET=`go vet ./...` ; \
+		if [ "$$VET" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
+		echo "golint $$directory : "; \
 		for file in $$(find -name "*.go" | grep -v vendor ); do \
 			echo -n " - file $$file : " ; \
-			FMT=`go tool vet $$file` ; \
-			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
-		done; \
-		echo -n "golint $$directory : "; \
-		for file in $$(find -name "*.go" | grep -v vendor ); do \
-			echo -n " - file $$file : " ; \
-			FMT=`golint $$file` ; \
+			FMT=`golint $$file 2>&1` ; \
 			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
 		done; \
 		cd - 2>&1 > /dev/null; \
 	done ; if [ "$$ERR" = "1" ] ; then exit 1 ; fi
-	@echo "cli client integration tests :\n" && cd client && ./test.sh
+	@echo "cli client integration tests :" && cd client && ./test.sh
 
 ###
 # Remove server build files

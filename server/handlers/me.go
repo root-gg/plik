@@ -229,7 +229,7 @@ func RemoveUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 	resp.Write(common.NewResult(fmt.Sprintf("%d uploads removed", removed), nil).ToJSON())
 }
 
-// GetStatistics return the server statistics
+// GetUserStatistics return the server statistics
 func GetUserStatistics(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := common.GetLogger(ctx)
 

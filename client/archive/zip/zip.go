@@ -66,7 +66,7 @@ func (zb *Backend) Configure(arguments map[string]interface{}) (err error) {
 }
 
 // Archive implementation for ZIP Archive Backend
-func (zb *Backend) Archive(files []string, writer io.WriteCloser) (err error) {
+func (zb *Backend) Archive(files []string) (reader io.Reader, err error) {
 	if len(files) == 0 {
 		fmt.Println("Unable to make a zip archive from STDIN")
 		os.Exit(1)
@@ -77,6 +77,8 @@ func (zb *Backend) Archive(files []string, writer io.WriteCloser) (err error) {
 	args = append(args, strings.Fields(zb.Config.Options)...)
 	args = append(args, "-r", "-")
 	args = append(args, files...)
+
+	reader, writer := io.Pipe()
 
 	cmd := exec.Command(zb.Config.Zip, args...)
 	cmd.Stdout = writer
@@ -100,7 +102,8 @@ func (zb *Backend) Archive(files []string, writer io.WriteCloser) (err error) {
 			return
 		}
 	}()
-	return
+
+	return reader, nil
 }
 
 // Comments implementation for ZIP Archive Backend
