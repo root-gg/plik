@@ -39,11 +39,12 @@ RUN useradd -d /opt/plik -m plik
 WORKDIR /opt/plik
 
 # Add clients and server blobs (you can uncomment the clients line to shrink your image even further)
-COPY --from=buildenv /go/src/github.com/root-gg/plik/clients /opt/plik/clients
+COPY --from=buildenv /go/src/github.com/root-gg/plik/clients       /opt/plik/clients
+COPY --from=buildenv /go/src/github.com/root-gg/plik/server/public /opt/plik/public
 COPY --from=buildenv /go/src/github.com/root-gg/plik/server/plikd  /opt/plik/server/plikd
 
 # Add configuration and fix permissions
-ADD plikd.cfg /opt/plik/plikd.cfg
+ADD server/plikd.cfg /opt/plik/plikd.cfg
 RUN chown -R plik:plik /opt/plik
 
 EXPOSE 8080
