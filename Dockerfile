@@ -18,9 +18,6 @@ RUN apk add --update --no-cache \
 
 WORKDIR /go/src/github.com/root-gg/plik/
 
-# Get tools for testing
-RUN go get golang.org/x/lint/golint
-
 # Fetch code and use a nasty hack to make docker build ignore "go get" ignore
 # the "undefined: common.GetBuildInfo" error from misc.go
 RUN git clone https://github.com/root-gg/plik . --branch $GIT_BRANCH
