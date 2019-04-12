@@ -5,7 +5,7 @@
 #
 
 ARG ALPINE_VERSION=3.9
-ARG GOLANG_VERSION=1.11.1
+ARG GOLANG_VERSION=1.12.3
 
 # Let's setup the build environment
 
@@ -26,7 +26,7 @@ RUN go get golang.org/x/lint/golint
 RUN git clone https://github.com/root-gg/plik . --branch $GIT_BRANCH
 
 # Build all the binaries
-RUN make test && make
+RUN make
 
 FROM alpine:${ALPINE_VERSION}
 
