@@ -176,7 +176,7 @@ Options:
 				os.Exit(1)
 			}
 
-			err = archiveBackend.Configure(arguments) // TODO clean this
+			err = archiveBackend.Configure(arguments)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Unable to configure archive backend : %s", err)
 				os.Exit(1)
@@ -218,7 +218,7 @@ Options:
 			fmt.Fprintf(os.Stderr, "Unable to initialize crypto backend : %s", err)
 			os.Exit(1)
 		}
-		err = cryptoBackend.Configure(arguments) // TODO clean this
+		err = cryptoBackend.Configure(arguments)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to configure crypto backend : %s", err)
 			os.Exit(1)
@@ -274,7 +274,6 @@ Options:
 	printf("Upload successfully created at %s : \n", creationDate)
 	printf("    %s/#/?id=%s\n\n", config.URL, upload.Info().ID)
 
-	// TODO
 	if config.Stream && !config.Debug {
 		for _, file := range files {
 			cmd, err := getFileCommand(upload, file)

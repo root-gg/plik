@@ -78,7 +78,8 @@ func newUpload(client *Client) (upload *Upload) {
 // AddFiles add one or several files to be uploaded
 func (upload *Upload) AddFiles(files ...*File) {
 	for _, file := range files {
-		// TODO EXPLAIN
+		// We use the reference to avoid using filenames to match files with their server side generated ID
+		// Correct use of an array would have been a way better option
 		i := strconv.Itoa(len(upload.files))
 		file.Reference = i
 		upload.files = append(upload.files, file)

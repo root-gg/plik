@@ -24,14 +24,14 @@
 # THE SOFTWARE.
 ###
 
-RELEASE_VERSION="1.2.3"
+RELEASE_VERSION=$(shell version/version.sh)
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 RELEASE_TARGETS=darwin-386 darwin-amd64 freebsd-386 \
 freebsd-amd64 linux-386 linux-amd64 linux-arm openbsd-386 \
 openbsd-amd64 windows-amd64 windows-386
 
-GOHOSTOS=`go env GOHOSTOS`
-GOHOSTARCH=`go env GOHOSTARCH`
+GOHOSTOS=$(shell go env GOHOSTOS)
+GOHOSTARCH=$(shell go env GOHOSTARCH)
 
 DEBROOT_SERVER=debs/server
 DEBROOT_CLIENT=debs/client

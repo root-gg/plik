@@ -34,6 +34,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/root-gg/plik/version"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -70,12 +71,7 @@ func NewClient(url string) (c *Client) {
 
 	// Default values for X-ClientApp and X-ClientVersion HTTP Headers
 	c.ClientName = "plik_client"
-
-	// This breaks go get so ignore until we find a better way to do
-	//bi := common.GetBuildInfo()
-	//if bi != nil {
-	c.ClientVersion = runtime.GOOS + "-" + runtime.GOARCH //+ "-" + bi.Version
-	//}
+	c.ClientVersion = runtime.GOOS + "-" + runtime.GOARCH + "-" + version.Get()
 
 	// Create a new default HTTP client. Override it if may you have more specific requirements
 	transport := &http.Transport{
