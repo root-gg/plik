@@ -4,20 +4,50 @@
 ##
 #
 
-FROM debian:latest
+ARG ALPINE_VERSION=3.9
+ARG GOLANG_VERSION=1.11.1
 
-ADD plikd.cfg /home/plik/server/plikd.cfg
+# Let's setup the build environment
 
-RUN apt update && apt install -y ca-certificates curl && \
-        useradd plik && \
-        curl -s https://api.github.com/repos/root-gg/plik/releases/latest | grep -o "https://.*linux-64bits.tar.gz" | xargs curl -L --output /tmp/plik.tar.gz && \
-        cd /home/plik && tar --strip 1 -xvzf /tmp/plik.tar.gz && rm -f /tmp/plik.tar.gz && \
-        chown -R plik:plik /home/plik && \
-        chmod +x /home/plik/server/plikd && \
-        apt -y purge curl && rm -rf /var/lib/apt/lists/* && rm -rf /var/cache
+FROM golang:${GOLANG_VERSION}-alpine${ALPINE_VERSION} AS buildenv
+
+ENV GIT_BRANCH=dev
+
+RUN apk add --update --no-cache \
+	git bash make nodejs-npm curl
+
+WORKDIR /go/src/github.com/root-gg/plik/
+
+# Get tools for testing
+RUN go get golang.org/x/lint/golint
+
+# Fetch code and use a nasty hack to make docker build ignore "go get" ignore
+# the "undefined: common.GetBuildInfo" error from misc.go
+RUN git clone https://github.com/root-gg/plik . --branch $GIT_BRANCH
+
+# Build all the binaries
+RUN make test && make
+
+FROM alpine:${ALPINE_VERSION}
+
+# Prepare base image
+RUN apk add --update --no-cache shadow
+
+RUN useradd -d /opt/plik -m plik
+
+# Get the binaries from the builder image
+WORKDIR /opt/plik
+
+# Add clients and server blobs (you can uncomment the clients line to shrink your image even further)
+COPY --from=buildenv /go/src/github.com/root-gg/plik/clients /opt/plik/clients
+COPY --from=buildenv /go/src/github.com/root-gg/plik/server/plikd  /opt/plik/server/plikd
+
+# Add configuration and fix permissions
+ADD plikd.cfg /opt/plik/plikd.cfg
+RUN chown -R plik:plik /opt/plik
 
 EXPOSE 8080
 
 USER plik
-WORKDIR /home/plik/server
-CMD ["/home/plik/server/plikd"]
+
+CMD ["/opt/plik/server/plikd"]
