@@ -4,13 +4,11 @@
 ##
 #
 
-ARG ALPINE_VERSION=3.9
 ARG GOLANG_VERSION=1.12.3
 
 # Let's setup the build environment
 
-#FROM golang:${GOLANG_VERSION}-alpine${ALPINE_VERSION} AS buildenv
-FROM golang:1.12.3-stretch AS buildenv
+FROM golang:${GOLANG_VERSION}-stretch AS buildenv
 
 ENV GIT_BRANCH=master
 
@@ -33,7 +31,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 make
 # Last stage, let's only save, what we actually need
 FROM scratch
 
-#USER 1000
+USER 1000
 
 WORKDIR /opt/plik
 
