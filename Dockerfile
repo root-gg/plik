@@ -4,11 +4,13 @@
 ##
 #
 
+ARG ALPINE_VERSION=3.9
 ARG GOLANG_VERSION=1.12.3
 
 # Let's setup the build environment
 
-FROM golang:${GOLANG_VERSION}-stretch AS buildenv
+#FROM golang:${GOLANG_VERSION}-alpine${ALPINE_VERSION} AS buildenv
+FROM golang:1.12.3-stretch AS buildenv
 
 ENV GIT_BRANCH=master
 
@@ -29,16 +31,23 @@ RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 make test
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 make
 
 # Last stage, let's only save, what we actually need
-FROM scratch
+FROM alpine:${ALPINE_VERSION}
 
-USER 1000
+RUN apk add --update --no-cache shadow ca-certificates \
+	&& useradd -d /opt/plik -m plik
+
+WORKDIR /opt/plik
+
+RUN apk add --update --no-cache ca-certificates shadow
+
+USER plik
 
 WORKDIR /opt/plik
 
 # Add clients and server blobs (you can uncomment the clients line to shrink your image even further)
-COPY --from=buildenv --chown=1000 /go/src/github.com/root-gg/plik/clients       /opt/plik/clients
-COPY --from=buildenv --chown=1000 /go/src/github.com/root-gg/plik/server/public /opt/plik/public
-COPY --from=buildenv --chown=1000 /go/src/github.com/root-gg/plik/server/plikd  /opt/plik/server/plikd
+COPY --from=buildenv --chown=plik /go/src/github.com/root-gg/plik/clients       /opt/plik/clients
+COPY --from=buildenv --chown=plik /go/src/github.com/root-gg/plik/server/public /opt/plik/public
+COPY --from=buildenv --chown=plik /go/src/github.com/root-gg/plik/server/plikd  /opt/plik/server/plikd
 
 # Add configuration
 ADD server/plikd.cfg /opt/plik/plikd.cfg
