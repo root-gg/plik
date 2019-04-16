@@ -1,17 +1,12 @@
-language: go
-
 sudo: required
 
-go:
-  - 1.11.1
-
-before_install:
-  # Update node_js version : https://github.com/travis-ci/travis-ci/issues/7108
-  - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install stable
-  - npm install -g bower
+services:
+        - docker
 
 before_script:
-  - go get -u github.com/golang/lint/golint
+        - export BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
+        - echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, PR=$PR, BRANCH=$BRANCH"
 
 script:
-  - make test && make
+        - docker build -t root-gg/plik
+        - docker ps -a
