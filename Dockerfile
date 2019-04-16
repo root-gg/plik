@@ -12,8 +12,6 @@ ARG GOLANG_VERSION=1.12.3
 #FROM golang:${GOLANG_VERSION}-alpine${ALPINE_VERSION} AS buildenv
 FROM golang:1.12.3-stretch AS buildenv
 
-ENV GIT_BRANCH=master
-
 WORKDIR /go/src/github.com/root-gg/plik/
 
 RUN apt update && apt install -y \
@@ -23,8 +21,7 @@ RUN apt update && apt install -y \
 
 RUN go get golang.org/x/lint/golint
 
-# Fetch the plik code
-#RUN git clone https://github.com/root-gg/plik . --branch $GIT_BRANCH
+# Add the plik code
 ADD . .
 
 # Build all the binaries
