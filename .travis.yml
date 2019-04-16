@@ -1,8 +1,3 @@
-branches:
-        only:
-                - master
-                - luminouspanda/update-travis-for-docker
-
 sudo: required
 
 services:
@@ -13,6 +8,4 @@ before_script:
         - echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, PR=$PR, BRANCH=$BRANCH"
 
 script:
-        - ls -la
-        - docker build -t luminouspanda/plik .
-        - docker ps -a
+        - docker build -t root-gg/plik .
