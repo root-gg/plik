@@ -25,7 +25,7 @@ RUN go get golang.org/x/lint/golint
 
 # Fetch the plik code
 #RUN git clone https://github.com/root-gg/plik . --branch $GIT_BRANCH
-ADD .
+ADD . .
 
 # Build all the binaries
 RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 make test 
