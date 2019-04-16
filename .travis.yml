@@ -1,3 +1,8 @@
+branches:
+        only:
+                - master
+                - luminouspanda/update-travis-for-docker
+
 sudo: required
 
 services:
