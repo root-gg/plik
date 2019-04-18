@@ -5,3 +5,4 @@ services:
 
 script:
         - docker build -t root-gg/plik .
+        - docker run -d root-gg/plik
