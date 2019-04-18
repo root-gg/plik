@@ -33,7 +33,6 @@ import (
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/metadata/bolt"
-	"github.com/root-gg/plik/server/metadata/file"
 	"github.com/root-gg/plik/server/metadata/mongo"
 )
 
@@ -75,8 +74,6 @@ func GetMetaDataBackend() Backend {
 func Initialize() {
 	if metadataBackend == nil {
 		switch common.Config.MetadataBackend {
-		case "file":
-			metadataBackend = file.NewFileMetadataBackend(common.Config.MetadataBackendConfig)
 		case "mongo":
 			metadataBackend = mongo.NewMongoMetadataBackend(common.Config.MetadataBackendConfig)
 		case "bolt":

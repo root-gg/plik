@@ -150,23 +150,9 @@ SeaweedFS is a simple and highly scalable distributed file system.
 
 ### Available metadata backends
 
- - File metadata backend : (DEPRECATED)
-
-This backend has been deprecated in Plik 1.2 in favor of BoltDB backend.
-The authentication mechanisms ( User / Tokens ) are NOT implemented in this backend.
-Migration from file backend to BoltDB backend can be done using the migrate_from_file_to_bolt script.
-
-```
-server/utils/file2bolt --directory server/files --db server/plik.db
-```
-
-This backend save upload metadata as JSON in a .config file in the upload directory.
-This is only suitable for a single instance deployment as locking append at the process level. 
-Using multiple plik instance with this backend will result in corrupted metadata JSON files. Use mongodb backend instead.
-
  - Bolt metadata backend : https://github.com/boltdb/bolt
 
-This is the successor of the file metadata backend, it store all the metadata in a single bolt.db file. 
+This backend stores all the metadata in a single bolt.db file.
 Performance is improved by keeping all metadata in memory to avoid costly filesystem stat operations.  
 Boltdb also support of atomic transactions that ensure the metadata consistency over time.
 
@@ -174,7 +160,7 @@ Only suitable for a single instance deployment as the Bolt database can only be 
 
  - Mongodb metadata backend : https://www.mongodb.org
 
-Suitable for distributed / High Availability deployment. 
+Suitable for distributed / High Availability deployment.
 
 ### Authentication
 
