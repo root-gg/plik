@@ -81,8 +81,8 @@ func GoogleLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
-	state.Claims["origin"] = origin
-	state.Claims["expire"] = time.Now().Add(time.Minute * 5).Unix()
+	state.Claims.(jwt.MapClaims)["origin"] = origin
+	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
 
 	/* Sign state */
 	b64state, err := state.SignedString([]byte(common.Config.GoogleAPISecret))
@@ -136,8 +136,8 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			return nil, fmt.Errorf("Unexpected siging method : %v", token.Header["alg"])
 		}
 
-		// Verify expiration date
-		if expire, ok := token.Claims["expire"]; ok {
+		// Verify expiration data
+		if expire, ok := token.Claims.(jwt.MapClaims)["expire"]; ok {
 			if _, ok = expire.(float64); ok {
 				if time.Now().Unix() > (int64)(expire.(float64)) {
 					return nil, fmt.Errorf("State has expired")
@@ -157,7 +157,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		return
 	}
 
-	origin := state.Claims["origin"].(string)
+	origin := state.Claims.(jwt.MapClaims)["origin"].(string)
 
 	conf := &oauth2.Config{
 		ClientID:     common.Config.GoogleAPIClientID,
@@ -245,8 +245,8 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 
 	// Generate session jwt
 	session := jwt.New(jwt.SigningMethodHS256)
-	session.Claims["uid"] = user.ID
-	session.Claims["provider"] = "google"
+	session.Claims.(jwt.MapClaims)["uid"] = user.ID
+	session.Claims.(jwt.MapClaims)["provider"] = "google"
 
 	// Generate xsrf token
 	xsrfToken, err := uuid.NewV4()
@@ -255,7 +255,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		common.Fail(ctx, req, resp, "Unable to generate xsrf token", 500)
 		return
 	}
-	session.Claims["xsrf"] = xsrfToken.String()
+	session.Claims.(jwt.MapClaims)["xsrf"] = xsrfToken.String()
 
 	sessionString, err := session.SignedString([]byte(common.Config.GoogleAPISecret))
 	if err != nil {

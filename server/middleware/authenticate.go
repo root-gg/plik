@@ -94,7 +94,7 @@ func Authenticate(allowToken bool) juliet.ContextMiddleware {
 						}
 
 						// Get authentication provider
-						provider, ok := t.Claims["provider"]
+						provider, ok := t.Claims.(jwt.MapClaims)["provider"]
 						if !ok {
 							return nil, fmt.Errorf("Missing authentication provider")
 						}
@@ -123,7 +123,7 @@ func Authenticate(allowToken bool) juliet.ContextMiddleware {
 
 					// Verify xsrf token
 					if req.Method != "GET" && req.Method != "HEAD" {
-						if xsrfCookie, ok := session.Claims["xsrf"]; ok {
+						if xsrfCookie, ok := session.Claims.(jwt.MapClaims)["xsrf"]; ok {
 							xsrfHeader := req.Header.Get("X-XRSFToken")
 							if xsrfHeader == "" {
 								log.Warning("Missing xsrf header")
@@ -146,7 +146,7 @@ func Authenticate(allowToken bool) juliet.ContextMiddleware {
 					}
 
 					// Get user from session
-					if userID, ok := session.Claims["uid"]; ok {
+					if userID, ok := session.Claims.(jwt.MapClaims)["uid"]; ok {
 						user, err := metadata.GetMetaDataBackend().GetUser(ctx, userID.(string), "")
 						if err != nil {
 							log.Warningf("Unable to get user from session : %s", err)

@@ -144,8 +144,8 @@ func OvhLogin(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 
 	// Generate session jwt
 	session := jwt.New(jwt.SigningMethodHS256)
-	session.Claims["ovh-consumer-key"] = userConsentResponse.ConsumerKey
-	session.Claims["ovh-api-endpoint"] = common.Config.OvhAPIEndpoint
+	session.Claims.(jwt.MapClaims)["ovh-consumer-key"] = userConsentResponse.ConsumerKey
+	session.Claims.(jwt.MapClaims)["ovh-api-endpoint"] = common.Config.OvhAPIEndpoint
 
 	sessionString, err := session.SignedString([]byte(common.Config.OvhAPISecret))
 	if err != nil {
@@ -220,7 +220,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	}
 
 	// Get OVH consumer key from session
-	ovhConsumerKey, ok := ovhAuthCookie.Claims["ovh-consumer-key"]
+	ovhConsumerKey, ok := ovhAuthCookie.Claims.(jwt.MapClaims)["ovh-consumer-key"]
 	if !ok {
 		log.Warning("Invalid OVH session cookie : missing ovh-consumer-key")
 		cleanOvhAuthSessionCookie(resp)
@@ -229,7 +229,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	}
 
 	// Get OVH API endpoint
-	endpoint, ok := ovhAuthCookie.Claims["ovh-api-endpoint"]
+	endpoint, ok := ovhAuthCookie.Claims.(jwt.MapClaims)["ovh-api-endpoint"]
 	if !ok {
 		log.Warning("Invalid OVH session cookie : missing ovh-api-endpoint")
 		cleanOvhAuthSessionCookie(resp)
@@ -330,8 +330,8 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 
 	// Generate session jwt
 	session := jwt.New(jwt.SigningMethodHS256)
-	session.Claims["uid"] = user.ID
-	session.Claims["provider"] = "ovh"
+	session.Claims.(jwt.MapClaims)["uid"] = user.ID
+	session.Claims.(jwt.MapClaims)["provider"] = "ovh"
 
 	// Generate xsrf token
 	xsrfToken, err := uuid.NewV4()
@@ -341,7 +341,7 @@ func OvhCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 		common.Fail(ctx, req, resp, "Unable to generate xsrf token", 500)
 		return
 	}
-	session.Claims["xsrf"] = xsrfToken.String()
+	session.Claims.(jwt.MapClaims)["xsrf"] = xsrfToken.String()
 
 	sessionString, err := session.SignedString([]byte(common.Config.OvhAPISecret))
 	if err != nil {
