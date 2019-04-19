@@ -34,6 +34,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/root-gg/plik/server/context"
 	"strings"
 	"time"
 
@@ -51,17 +52,14 @@ type MetadataBackend struct {
 
 // NewBoltMetadataBackend instantiate a new Bolt Metadata Backend
 // from configuration passed as argument
-func NewBoltMetadataBackend(config map[string]interface{}) (bmb *MetadataBackend) {
-	log := common.Logger()
-
+func NewBoltMetadataBackend(config *MetadataBackendConfig) (bmb *MetadataBackend, err error) {
 	bmb = new(MetadataBackend)
-	bmb.Config = NewBoltMetadataBackendConfig(config)
+	bmb.Config = config
 
 	// Open the Bolt database
-	var err error
 	bmb.db, err = bolt.Open(bmb.Config.Path, 0600, &bolt.Options{Timeout: 10 * time.Second})
 	if err != nil {
-		log.Fatalf("Unable to open Bolt database %s : %s", bmb.Config.Path, err)
+		return nil, fmt.Errorf("Unable to open Bolt database %s : %s", bmb.Config.Path, err)
 	}
 
 	// Create Bolt buckets if needed
@@ -79,15 +77,15 @@ func NewBoltMetadataBackend(config map[string]interface{}) (bmb *MetadataBackend
 		return nil
 	})
 	if err != nil {
-		log.Fatalf("Unable to create Bolt buckets : %s", err)
+		return nil, fmt.Errorf("Unable to create Bolt buckets : %s", err)
 	}
 
-	return
+	return bmb, nil
 }
 
 // Create implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if upload == nil {
 		err = log.EWarning("Unable to save upload : Missing upload")
@@ -167,7 +165,7 @@ func (bmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (
 
 // Get implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) Get(ctx *juliet.Context, id string) (upload *common.Upload, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if id == "" {
 		err = log.EWarning("Unable to get upload : Missing upload id")
@@ -204,7 +202,7 @@ func (bmb *MetadataBackend) Get(ctx *juliet.Context, id string) (upload *common.
 
 // AddOrUpdateFile implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if upload == nil {
 		err = log.EWarning("Unable to add file : Missing upload")
@@ -257,7 +255,7 @@ func (bmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.
 
 // RemoveFile implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if upload == nil {
 		err = log.EWarning("Unable to remove file : Missing upload")
@@ -316,7 +314,7 @@ func (bmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Uploa
 
 // Remove implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if upload == nil {
 		err = log.EWarning("Unable to remove upload : Missing upload")
@@ -388,7 +386,7 @@ func (bmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (
 
 // SaveUser implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if user == nil {
 		err = log.EWarning("Unable to save user : Missing user")
@@ -463,7 +461,7 @@ func (bmb *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (er
 
 // GetUser implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if id == "" && token == "" {
 		err = log.EWarning("Unable to get user : Missing user id or token")
@@ -500,7 +498,8 @@ func (bmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string
 			return log.EWarningf("Unable to unserialize user from json \"%s\" : %s", string(b), err)
 		}
 
-		user.IsAdmin()
+		// TODO bad design here
+		context.GetConfig(ctx).IsAdmin(user)
 
 		return nil
 	})
@@ -514,7 +513,7 @@ func (bmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string
 
 // RemoveUser implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if user == nil {
 		err = log.EWarning("Unable to remove user : Missing user")
@@ -550,7 +549,7 @@ func (bmb *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (
 
 // GetUserUploads implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if user == nil {
 		err = log.EWarning("Unable to get user uploads : Missing user")
@@ -640,7 +639,7 @@ func (bmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []strin
 
 // GetUserStatistics implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) GetUserStatistics(ctx *juliet.Context, user *common.User, token *common.Token) (stats *common.UserStats, err error) {
-	//log := common.GetLogger(ctx)
+	//log := context.GetLogger(ctx)
 
 	stats = new(common.UserStats)
 
@@ -668,7 +667,7 @@ func (bmb *MetadataBackend) GetUserStatistics(ctx *juliet.Context, user *common.
 
 // GetUsers implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) GetUsers(ctx *juliet.Context) (ids []string, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Get users from Bolt database
 	err = bmb.db.View(func(tx *bolt.Tx) error {
@@ -703,7 +702,7 @@ func (bmb *MetadataBackend) GetUsers(ctx *juliet.Context) (ids []string, err err
 
 // GetServerStatistics implementation for Bolt Metadata Backend
 func (bmb *MetadataBackend) GetServerStatistics(ctx *juliet.Context) (stats *common.ServerStats, err error) {
-	//log := common.GetLogger(ctx)
+	//log := context.GetLogger(ctx)
 
 	stats = new(common.ServerStats)
 

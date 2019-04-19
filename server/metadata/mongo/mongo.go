@@ -31,13 +31,14 @@ package mongo
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net"
 	"strconv"
 	"time"
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
+	"github.com/root-gg/plik/server/context"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -55,13 +56,9 @@ type MetadataBackend struct {
 
 // NewMongoMetadataBackend instantiate a new MongoDB Metadata Backend
 // from configuration passed as argument
-func NewMongoMetadataBackend(config map[string]interface{}) (mmb *MetadataBackend) {
-	log := common.Logger()
-
+func NewMongoMetadataBackend(config *MetadataBackendConfig) (mmb *MetadataBackend, err error) {
 	mmb = new(MetadataBackend)
-	mmb.config = NewMongoMetadataBackendConfig(config)
-	utils.Dump(config)
-	utils.Dump(mmb.config)
+	mmb.config = config
 
 	// Open connection
 	dialInfo := &mgo.DialInfo{}
@@ -78,25 +75,27 @@ func NewMongoMetadataBackend(config map[string]interface{}) (mmb *MetadataBacken
 		}
 	}
 
-	log.Infof("Connecting to mongodb @ %s/%s", mmb.config.URL, mmb.config.Database)
+	// TODO use logger or move
+	fmt.Printf("Connecting to mongodb @ %s/%s", mmb.config.URL, mmb.config.Database)
 
-	var err error
 	mmb.session, err = mgo.DialWithInfo(dialInfo)
 	if err != nil {
-		log.Fatalf("Unable to contact mongodb at %s : %s", mmb.config.URL, err.Error())
+		return nil, fmt.Errorf("Unable to contact mongodb at %s : %s", mmb.config.URL, err.Error())
 	}
 
-	log.Infof("Connected to mongodb @ %s/%s", mmb.config.URL, mmb.config.Database)
+	// TODO use logger or move
+	fmt.Printf("Connected to mongodb @ %s/%s", mmb.config.URL, mmb.config.Database)
 
-	// Ensure everything is persisted and replicated
+	// Ensure log.Infof(everything is persisted and replicated
 	mmb.session.SetMode(mgo.Strong, false)
 	mmb.session.SetSafe(&mgo.Safe{})
-	return
+
+	return mmb, nil
 }
 
 // Create implementation from MongoDB Metadata Backend
 func (mmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if upload == nil {
 		err = log.EWarning("Unable to save upload : Missing upload")
@@ -115,7 +114,7 @@ func (mmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (
 
 // Get implementation from MongoDB Metadata Backend
 func (mmb *MetadataBackend) Get(ctx *juliet.Context, id string) (u *common.Upload, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if id == "" {
 		err = log.EWarning("Unable to get upload : Missing upload id")
@@ -135,7 +134,7 @@ func (mmb *MetadataBackend) Get(ctx *juliet.Context, id string) (u *common.Uploa
 
 // AddOrUpdateFile implementation from MongoDB Metadata Backend
 func (mmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if upload == nil {
 		err = log.EWarning("Unable to add file : Missing upload")
@@ -159,7 +158,7 @@ func (mmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.
 
 // RemoveFile implementation from MongoDB Metadata Backend
 func (mmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if upload == nil {
 		err = log.EWarning("Unable to remove file : Missing upload")
@@ -183,7 +182,7 @@ func (mmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Uploa
 
 // Remove implementation from MongoDB Metadata Backend
 func (mmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if upload == nil {
 		err = log.EWarning("Unable to remove upload : Missing upload")
@@ -202,7 +201,7 @@ func (mmb *MetadataBackend) Remove(ctx *juliet.Context, upload *common.Upload) (
 
 // SaveUser implementation from MongoDB Metadata Backend
 func (mmb *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if user == nil {
 		err = log.EWarning("Unable to save user : Missing user")
@@ -222,7 +221,7 @@ func (mmb *MetadataBackend) SaveUser(ctx *juliet.Context, user *common.User) (er
 
 // GetUser implementation from MongoDB Metadata Backend
 func (mmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if id == "" && token == "" {
 		err = log.EWarning("Unable to get user : Missing user id or token")
@@ -252,14 +251,15 @@ func (mmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string
 		err = log.EWarning("Unable to get user from mongodb : Missing user id or token")
 	}
 
-	user.IsAdmin()
+	// TODO Bad design here
+	context.GetConfig(ctx).IsAdmin(user)
 
 	return
 }
 
 // RemoveUser implementation from MongoDB Metadata Backend
 func (mmb *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if user == nil {
 		err = log.EWarning("Unable to remove user : Missing user")
@@ -281,7 +281,7 @@ func (mmb *MetadataBackend) RemoveUser(ctx *juliet.Context, user *common.User) (
 
 // GetUserUploads implementation from MongoDB Metadata Backend
 func (mmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if user == nil {
 		err = log.EWarning("Unable to get user uploads : Missing user")
@@ -314,7 +314,7 @@ func (mmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.Use
 
 // GetUploadsToRemove implementation from MongoDB Metadata Backend
 func (mmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	session := mmb.session.Copy()
 	defer session.Close()
@@ -340,7 +340,7 @@ func (mmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []strin
 
 // GetUserStatistics implementation for MongoDB Metadata Backend
 func (mmb *MetadataBackend) GetUserStatistics(ctx *juliet.Context, user *common.User, token *common.Token) (stats *common.UserStats, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if user == nil {
 		err = log.EWarning("Unable to get user uploads : Missing user")
@@ -351,7 +351,7 @@ func (mmb *MetadataBackend) GetUserStatistics(ctx *juliet.Context, user *common.
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 
-	match := bson.M{"user" : user.ID}
+	match := bson.M{"user": user.ID}
 	if token != nil {
 		match["token"] = token.Token
 	}
@@ -362,7 +362,7 @@ func (mmb *MetadataBackend) GetUserStatistics(ctx *juliet.Context, user *common.
 		{"$project": bson.M{"file_count": bson.M{"$size": bson.M{"$objectToArray": "$files"}}}},
 		{"$unwind": "$files"},
 		{"$group": bson.M{"_id": nil, "files": bson.M{"$sum": 1}, "totalSize": bson.M{"$sum": "$files.v.fileSize"}, "uploads": bson.M{"$addToSet": "$_id"}}},
-		{"$project": bson.M{"Files": "$files", "TotalSize" : "$totalSize", "Uploads" : bson.M{"$size": "uploads"}}},
+		{"$project": bson.M{"Files": "$files", "TotalSize": "$totalSize", "Uploads": bson.M{"$size": "uploads"}}},
 	}
 
 	stats = new(common.UserStats)
@@ -376,7 +376,7 @@ func (mmb *MetadataBackend) GetUserStatistics(ctx *juliet.Context, user *common.
 
 // GetUsers implementation for MongoDB Metadata Backend
 func (mmb *MetadataBackend) GetUsers(ctx *juliet.Context) (ids []string, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	session := mmb.session.Copy()
 	defer session.Close()
@@ -399,7 +399,9 @@ func (mmb *MetadataBackend) GetUsers(ctx *juliet.Context) (ids []string, err err
 
 // GetServerStatistics implementation for MongoDB Metadata Backend
 func (mmb *MetadataBackend) GetServerStatistics(ctx *juliet.Context) (stats *common.ServerStats, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
+	config := context.GetConfig(ctx)
+
 	stats = new(common.ServerStats)
 	session := mmb.session.Copy()
 	defer session.Close()
@@ -459,7 +461,7 @@ func (mmb *MetadataBackend) GetServerStatistics(ctx *juliet.Context) (stats *com
 
 	stats.TotalSize = result2.Total
 
-	if !common.Config.NoAnonymousUploads {
+	if !config.NoAnonymousUploads {
 
 		// TOTAL SIZE OF ALL ANONYMOUS UPLOAD FILES
 		// db.plik_meta.aggregate([{$match: {user:""}},{$project: {"files": { $objectToArray : "$files" } }}, {$unwind: "$files"}, {$group : { _id: null, total : { $sum : "$files.v.fileSize"} }}]).pretty()

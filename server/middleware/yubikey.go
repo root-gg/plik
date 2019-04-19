@@ -34,20 +34,21 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 )
 
 // Yubikey verify that a valid OTP token has been provided
 func Yubikey(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		log := common.GetLogger(ctx)
+		log := context.GetLogger(ctx)
+		config := context.GetConfig(ctx)
 
 		// Get upload from context
-		upload := common.GetUpload(ctx)
+		upload := context.GetUpload(ctx)
 		if upload == nil {
 			// This should never append
 			log.Critical("Missing upload in file handler")
-			common.Fail(ctx, req, resp, "Internal error", 500)
+			context.Fail(ctx, req, resp, "Internal error", 500)
 			return
 		}
 
@@ -55,9 +56,9 @@ func Yubikey(ctx *juliet.Context, next http.Handler) http.Handler {
 		if upload.Yubikey != "" {
 
 			// Error if yubikey is disabled on server, and enabled on upload
-			if !common.Config.YubikeyEnabled {
+			if !config.YubikeyEnabled {
 				log.Warningf("Got a Yubikey upload but Yubikey backend is disabled")
-				common.Fail(ctx, req, resp, "Yubikey are disabled on this server", 403)
+				context.Fail(ctx, req, resp, "Yubikey are disabled on this server", 403)
 				return
 			}
 
@@ -65,29 +66,29 @@ func Yubikey(ctx *juliet.Context, next http.Handler) http.Handler {
 			token := vars["yubikey"]
 			if token == "" {
 				log.Warningf("Missing yubikey token")
-				common.Fail(ctx, req, resp, "Invalid yubikey token", 401)
+				context.Fail(ctx, req, resp, "Invalid yubikey token", 401)
 				return
 			}
 			if len(token) != 44 {
 				log.Warningf("Invalid yubikey token : %s", token)
-				common.Fail(ctx, req, resp, "Invalid yubikey token", 401)
+				context.Fail(ctx, req, resp, "Invalid yubikey token", 401)
 				return
 			}
 			if token[:12] != upload.Yubikey {
 				log.Warningf("Invalid yubikey device : %s", token)
-				common.Fail(ctx, req, resp, "Invalid yubikey token", 401)
+				context.Fail(ctx, req, resp, "Invalid yubikey token", 401)
 				return
 			}
 
-			_, isValid, err := common.Config.YubiAuth.Verify(token)
+			_, isValid, err := config.YubiAuth.Verify(token)
 			if err != nil {
 				log.Warningf("Failed to validate yubikey token : %s", err)
-				common.Fail(ctx, req, resp, "Invalid yubikey token", 500)
+				context.Fail(ctx, req, resp, "Invalid yubikey token", 500)
 				return
 			}
 			if !isValid {
 				log.Warningf("Invalid yubikey token : %s", token)
-				common.Fail(ctx, req, resp, "Invalid yubikey token", 401)
+				context.Fail(ctx, req, resp, "Invalid yubikey token", 401)
 				return
 			}
 		}

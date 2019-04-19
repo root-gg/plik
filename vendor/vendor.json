@@ -75,24 +75,6 @@
 			"revisionTime": "2018-01-11T23:17:33Z"
 		},
 		{
-			"checksumSHA1": "imR2wF388/0fBU6RRWx8RvTi8Q8=",
-			"path": "github.com/facebookgo/clock",
-			"revision": "600d898af40aa09a7a93ecb9265d87b0504b6f03",
-			"revisionTime": "2015-04-10T01:09:13Z"
-		},
-		{
-			"checksumSHA1": "qW17jvGOQVNepIjy+iW53TRP44k=",
-			"path": "github.com/facebookgo/httpdown",
-			"revision": "5979d39b15c26299dc282711b0d65b113daccea6",
-			"revisionTime": "2018-07-06T03:59:22Z"
-		},
-		{
-			"checksumSHA1": "SzXvrWxavFo8HD/2hnbdu17C3VE=",
-			"path": "github.com/facebookgo/stats",
-			"revision": "1b76add642e42c6ffba7211ad7b3939ce654526e",
-			"revisionTime": "2015-10-06T22:16:25Z"
-		},
-		{
 			"checksumSHA1": "Y2MOwzNZfl4NRNDbLCZa6sgx7O0=",
 			"path": "github.com/golang/protobuf/proto",
 			"revision": "e91709a02e0e8ff8b86b7aa913fdc9ae9498e825",

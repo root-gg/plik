@@ -31,23 +31,23 @@ package handlers
 
 import (
 	"fmt"
+	"github.com/root-gg/plik/server/context"
 	"net/http"
 	"strconv"
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
 )
 
 // UserInfo return user information ( name / email / tokens / ... )
 func UserInfo(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Get user from context
-	user := common.GetUser(ctx)
+	user := context.GetUser(ctx)
 	if user == nil {
-		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+		context.Fail(ctx, req, resp, "Missing user, Please login first", 401)
 		return
 	}
 
@@ -56,7 +56,7 @@ func UserInfo(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 	json, err := utils.ToJson(user)
 	if err != nil {
 		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
+		context.Fail(ctx, req, resp, "Unable to serialize json response", 500)
 		return
 	}
 	resp.Write(json)
@@ -64,32 +64,32 @@ func UserInfo(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 
 // DeleteAccount remove a user account
 func DeleteAccount(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Get user from context
-	user := common.GetUser(ctx)
+	user := context.GetUser(ctx)
 	if user == nil {
 		// This should never append
-		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+		context.Fail(ctx, req, resp, "Missing user, Please login first", 401)
 		return
 	}
 
-	err := metadata.GetMetaDataBackend().RemoveUser(ctx, user)
+	err := context.GetMetadataBackend(ctx).RemoveUser(ctx, user)
 	if err != nil {
 		log.Warningf("Unable to remove user %s : %s", user.ID, err)
-		common.Fail(ctx, req, resp, "Unable to remove user", 500)
+		context.Fail(ctx, req, resp, "Unable to remove user", 500)
 		return
 	}
 }
 
 // GetUserUploads get user uploads
 func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Get user from context
-	user := common.GetUser(ctx)
+	user := context.GetUser(ctx)
 	if user == nil {
-		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+		context.Fail(ctx, req, resp, "Missing user, Please login first", 401)
 		return
 	}
 
@@ -106,16 +106,16 @@ func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		}
 		if token == nil {
 			log.Warningf("Unable to get uploads for token %s : Invalid token", tokenStr)
-			common.Fail(ctx, req, resp, "Unable to get uploads : Invalid token", 400)
+			context.Fail(ctx, req, resp, "Unable to get uploads : Invalid token", 400)
 			return
 		}
 	}
 
 	// Get uploads
-	ids, err := metadata.GetMetaDataBackend().GetUserUploads(ctx, user, token)
+	ids, err := context.GetMetadataBackend(ctx).GetUserUploads(ctx, user, token)
 	if err != nil {
 		log.Warningf("Unable to get uploads for user %s : %s", user.ID, err)
-		common.Fail(ctx, req, resp, "Unable to get uploads", 500)
+		context.Fail(ctx, req, resp, "Unable to get uploads", 500)
 		return
 	}
 
@@ -126,7 +126,7 @@ func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		size, err = strconv.Atoi(sizeStr)
 		if err != nil || size <= 0 || size > 100 {
 			log.Warningf("Invalid size parameter : %s", sizeStr)
-			common.Fail(ctx, req, resp, "Invalid size parameter", 400)
+			context.Fail(ctx, req, resp, "Invalid size parameter", 400)
 			return
 		}
 	}
@@ -138,7 +138,7 @@ func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		offset, err = strconv.Atoi(offsetStr)
 		if err != nil || offset < 0 {
 			log.Warningf("Invalid offset parameter : %s", offsetStr)
-			common.Fail(ctx, req, resp, "Invalid offset parameter", 400)
+			context.Fail(ctx, req, resp, "Invalid offset parameter", 400)
 			return
 		}
 	}
@@ -155,7 +155,7 @@ func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 
 	uploads := []*common.Upload{}
 	for _, id := range ids[offset : offset+size] {
-		upload, err := metadata.GetMetaDataBackend().Get(ctx, id)
+		upload, err := context.GetMetadataBackend(ctx).Get(ctx, id)
 		if err != nil {
 			log.Warningf("Unable to get upload %s : %s", id, err)
 			continue
@@ -174,7 +174,7 @@ func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 	var json []byte
 	if json, err = utils.ToJson(uploads); err != nil {
 		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
+		context.Fail(ctx, req, resp, "Unable to serialize json response", 500)
 		return
 	}
 	resp.Write(json)
@@ -182,12 +182,12 @@ func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 
 // RemoveUserUploads delete all user uploads
 func RemoveUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Get user from context
-	user := common.GetUser(ctx)
+	user := context.GetUser(ctx)
 	if user == nil {
-		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+		context.Fail(ctx, req, resp, "Missing user, Please login first", 401)
 		return
 	}
 
@@ -203,22 +203,22 @@ func RemoveUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 	}
 
 	// Get uploads
-	ids, err := metadata.GetMetaDataBackend().GetUserUploads(ctx, user, token)
+	ids, err := context.GetMetadataBackend(ctx).GetUserUploads(ctx, user, token)
 	if err != nil {
 		log.Warningf("Unable to get uploads for user %s : %s", user.ID, err)
-		common.Fail(ctx, req, resp, "Unable to get uploads", 500)
+		context.Fail(ctx, req, resp, "Unable to get uploads", 500)
 		return
 	}
 
 	removed := 0
 	for _, id := range ids {
-		upload, err := metadata.GetMetaDataBackend().Get(ctx, id)
+		upload, err := context.GetMetadataBackend(ctx).Get(ctx, id)
 		if err != nil {
 			log.Warningf("Unable to get upload %s : %s", id, err)
 			continue
 		}
 
-		err = metadata.GetMetaDataBackend().Remove(ctx, upload)
+		err = context.GetMetadataBackend(ctx).Remove(ctx, upload)
 		if err != nil {
 			log.Warningf("Unable to remove upload %s : %s", id, err)
 		} else {
@@ -231,12 +231,12 @@ func RemoveUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 
 // GetUserStatistics return the server statistics
 func GetUserStatistics(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Get user from context
-	user := common.GetUser(ctx)
+	user := context.GetUser(ctx)
 	if user == nil {
-		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+		context.Fail(ctx, req, resp, "Missing user, Please login first", 401)
 		return
 	}
 
@@ -253,16 +253,16 @@ func GetUserStatistics(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 		}
 		if token == nil {
 			log.Warningf("Unable to get uploads for token %s : Invalid token", tokenStr)
-			common.Fail(ctx, req, resp, "Unable to get uploads : Invalid token", 400)
+			context.Fail(ctx, req, resp, "Unable to get uploads : Invalid token", 400)
 			return
 		}
 	}
 
 	// Get server statistics
-	stats, err := metadata.GetMetaDataBackend().GetUserStatistics(ctx, user, token)
+	stats, err := context.GetMetadataBackend(ctx).GetUserStatistics(ctx, user, token)
 	if err != nil {
 		log.Warningf("Unable to get server statistics : %s", err)
-		common.Fail(ctx, req, resp, "Unable to get server statistics", 500)
+		context.Fail(ctx, req, resp, "Unable to get server statistics", 500)
 		return
 	}
 
@@ -270,7 +270,7 @@ func GetUserStatistics(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 	var json []byte
 	if json, err = utils.ToJson(stats); err != nil {
 		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
+		context.Fail(ctx, req, resp, "Unable to serialize json response", 500)
 		return
 	}
 

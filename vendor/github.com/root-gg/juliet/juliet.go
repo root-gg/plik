@@ -13,16 +13,24 @@ type ContextHandler func(ctx *Context) http.Handler
 // ContextHandlerFunc is a constructor to close a Context into a http.HandlerFunc
 type ContextHandlerFunc func(ctx *Context, resp http.ResponseWriter, req *http.Request)
 
+type ContextBuilder func() *Context
+
 // Chain link context middlewares to each other.
 // Chain are immutable and any operation on them returns a new Chain object.
 type Chain struct {
-	parent     *Chain
+	parent     	*Chain
 	middleware ContextMiddleware
+	contextBuilder ContextBuilder
 }
 
 // NewChain creates a new contextMiddleware chain.
 func NewChain(cms ...ContextMiddleware) (chain *Chain) {
+	return NewChainWithContextBuilder(nil, cms...)
+}
+
+func NewChainWithContextBuilder(contextBuilder ContextBuilder, cms ...ContextMiddleware) (chain *Chain) {
 	chain = new(Chain)
+	chain.contextBuilder = contextBuilder
 	if len(cms) > 0 {
 		chain.middleware = cms[0]
 		if len(cms) > 1 {
@@ -36,6 +44,7 @@ func NewChain(cms ...ContextMiddleware) (chain *Chain) {
 func (chain *Chain) append(cm ContextMiddleware) (newChain *Chain) {
 	newChain = NewChain(cm)
 	newChain.parent = chain
+	newChain.contextBuilder = chain.contextBuilder
 	return newChain
 }
 
@@ -68,7 +77,7 @@ func (chain *Chain) head() (head *Chain) {
 
 // copy duplicate the whole chain of contextMiddleware.
 func (chain *Chain) copy() (newChain *Chain) {
-	newChain = NewChain(chain.middleware)
+	newChain = NewChainWithContextBuilder(chain.contextBuilder, chain.middleware)
 	if chain.parent != nil {
 		newChain.parent = chain.parent.copy()
 	}
@@ -108,6 +117,16 @@ func (chain *Chain) ThenHandlerFunc(fn func(http.ResponseWriter, *http.Request))
 	return
 }
 
+func (chain *Chain) getContextBuilder() ContextBuilder {
+	if chain.contextBuilder != nil {
+		return chain.contextBuilder
+	}
+	if chain.parent != nil {
+		return chain.parent.getContextBuilder()
+	}
+	return NewContext
+}
+
 // ChainHandler holds a chain and a final handler.
 // It satisfy the http.Handler interface and can be
 // served directly by a net/http server.
@@ -126,7 +145,8 @@ func newHandler(chain *Chain, handler ContextHandler) (ch *ChainHandler) {
 
 // ServeHTTP builds the chain of handlers in order, closing the context along the way and executes it.
 func (ch *ChainHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
-	ctx := NewContext()
+
+	ctx := ch.chain.getContextBuilder()()
 
 	// Build the context handler chain
 	handler := ch.handler(ctx)

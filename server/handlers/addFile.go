@@ -32,6 +32,7 @@ package handlers
 import (
 	"crypto/md5"
 	"fmt"
+	"github.com/root-gg/plik/server/context"
 	"io"
 	"net/http"
 	"time"
@@ -40,7 +41,6 @@ import (
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data"
-	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
 )
 
@@ -53,23 +53,24 @@ type preprocessOutputReturn struct {
 
 // AddFile add a file to an existing upload.
 func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
+	config := context.GetConfig(ctx)
 
 	// Get upload from context
-	upload := common.GetUpload(ctx)
+	upload := context.GetUpload(ctx)
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in AddFileHandler")
-		common.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", 500)
 		return
 	}
 
 	// Check anonymous user uploads
-	if common.Config.NoAnonymousUploads {
-		user := common.GetUser(ctx)
+	if config.NoAnonymousUploads {
+		user := context.GetUser(ctx)
 		if user == nil {
 			log.Warning("Unable to add file from anonymous user")
-			common.Fail(ctx, req, resp, "Unable to add file from anonymous user. Please login or use a cli token.", 403)
+			context.Fail(ctx, req, resp, "Unable to add file from anonymous user. Please login or use a cli token.", 403)
 			return
 		}
 	}
@@ -77,7 +78,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	// Check authorization
 	if !upload.IsAdmin {
 		log.Warningf("Unable to add file : unauthorized")
-		common.Fail(ctx, req, resp, "You are not allowed to add file to this upload", 403)
+		context.Fail(ctx, req, resp, "You are not allowed to add file to this upload", 403)
 		return
 	}
 
@@ -88,9 +89,9 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	var newFile *common.File
 	if fileID == "" {
 		// Limit number of files per upload
-		if len(upload.Files) >= common.Config.MaxFilePerUpload {
-			err := log.EWarningf("Unable to add file : Maximum number file per upload reached (%d)", common.Config.MaxFilePerUpload)
-			common.Fail(ctx, req, resp, err.Error(), 403)
+		if len(upload.Files) >= config.MaxFilePerUpload {
+			err := log.EWarningf("Unable to add file : Maximum number file per upload reached (%d)", config.MaxFilePerUpload)
+			context.Fail(ctx, req, resp, err.Error(), 403)
 			return
 		}
 
@@ -103,7 +104,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 			newFile = upload.Files[fileID]
 		} else {
 			log.Warningf("Invalid file id %s", fileID)
-			common.Fail(ctx, req, resp, "Invalid file id", 404)
+			context.Fail(ctx, req, resp, "Invalid file id", 404)
 			return
 		}
 	}
@@ -120,7 +121,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	multiPartReader, err := req.MultipartReader()
 	if err != nil {
 		log.Warningf("Failed to get file from multipart request : %s", err)
-		common.Fail(ctx, req, resp, "Failed to get file from multipart request", 400)
+		context.Fail(ctx, req, resp, "Failed to get file from multipart request", 400)
 		return
 	}
 
@@ -136,7 +137,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 			// Check file name length
 			if len(part.FileName()) > 1024 {
 				log.Warning("File name is too long")
-				common.Fail(ctx, req, resp, "File name is too long. Maximum length is 1024 characters", 400)
+				context.Fail(ctx, req, resp, "File name is too long. Maximum length is 1024 characters", 400)
 				return
 			}
 
@@ -146,12 +147,12 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	}
 	if file == nil {
 		log.Warning("Missing file from multipart request")
-		common.Fail(ctx, req, resp, "Missing file from multipart request", 400)
+		context.Fail(ctx, req, resp, "Missing file from multipart request", 400)
 		return
 	}
 	if newFile.Name == "" {
 		log.Warning("Missing file name from multipart request")
-		common.Fail(ctx, req, resp, "Missing file name from multipart request", 400)
+		context.Fail(ctx, req, resp, "Missing file name from multipart request", 400)
 		return
 	}
 
@@ -170,14 +171,14 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	// Save file in the data backend
 	var backend data.Backend
 	if upload.Stream {
-		backend = data.GetStreamBackend()
+		backend = context.GetStreamBackend(ctx)
 	} else {
-		backend = data.GetDataBackend()
+		backend = context.GetDataBackend(ctx)
 	}
 	backendDetails, err := backend.AddFile(ctx, upload, newFile, preprocessReader)
 	if err != nil {
 		log.Warningf("Unable to save file : %s", err)
-		common.Fail(ctx, req, resp, "Unable to save file", 500)
+		context.Fail(ctx, req, resp, "Unable to save file", 500)
 		return
 	}
 
@@ -185,7 +186,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	preprocessOutput := <-preprocessOutputCh
 	if preprocessOutput.err != nil {
 		log.Warningf("Unable to execute preprocessor : %s", err)
-		common.Fail(ctx, req, resp, "Unable to save file", 500)
+		context.Fail(ctx, req, resp, "Unable to save file", 500)
 		return
 	}
 
@@ -204,10 +205,10 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 
 	// Update upload metadata
 	upload.Files[newFile.ID] = newFile
-	err = metadata.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, newFile)
+	err = context.GetMetadataBackend(ctx).AddOrUpdateFile(ctx, upload, newFile)
 	if err != nil {
 		log.Warningf("Unable to update metadata : %s", err)
-		common.Fail(ctx, req, resp, "Unable to update upload metadata", 500)
+		context.Fail(ctx, req, resp, "Unable to update upload metadata", 500)
 		return
 	}
 
@@ -221,7 +222,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		resp.Write(json)
 	} else {
 		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
+		context.Fail(ctx, req, resp, "Unable to serialize json response", 500)
 		return
 	}
 }
@@ -230,7 +231,8 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 //  - Compute/Limit upload size
 //  - Compute md5sum
 func preprocessor(ctx *juliet.Context, file io.Reader, preprocessWriter io.WriteCloser, outputCh chan preprocessOutputReturn) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
+	config := context.GetConfig(ctx)
 
 	var err error
 	var totalBytes int64
@@ -262,8 +264,8 @@ func preprocessor(ctx *juliet.Context, file io.Reader, preprocessWriter io.Write
 		totalBytes += int64(bytesRead)
 
 		// Check upload max size limit
-		if int64(totalBytes) > common.Config.MaxFileSize {
-			err = log.EWarningf("File too big (limit is set to %d bytes)", common.Config.MaxFileSize)
+		if int64(totalBytes) > config.MaxFileSize {
+			err = log.EWarningf("File too big (limit is set to %d bytes)", config.MaxFileSize)
 			break
 		}
 

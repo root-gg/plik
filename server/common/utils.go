@@ -1,10 +1,12 @@
+package common
+
 /**
 
     Plik upload server
 
 The MIT License (MIT)
 
-Copyright (c) <2015>
+Copyright (c) <2015> Copyright holders list can be found in AUTHORS file
 	- Mathieu Bodjikian <mathieu@bodjikian.fr>
 	- Charles-Antoine Mathieu <skatkatt@root.gg>
 
@@ -27,20 +29,33 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package middleware
-
 import (
 	"net/http"
-
-	"github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/common"
+	"strings"
 )
 
-// Logger create a new Logger instance for this request and save it to the request context
-func Logger(ctx *juliet.Context, next http.Handler) http.Handler {
+// StripPrefix returns a handler that serves HTTP requests
+// removing the given prefix from the request URL's Path
+// It differs from http.StripPrefix by defaulting to "/" and not ""
+func StripPrefix(prefix string, handler http.Handler) http.Handler {
+	if prefix == "" || prefix == "/" {
+		return handler
+	}
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		log := common.Logger().Copy()
-		ctx.Set("logger", log)
-		next.ServeHTTP(resp, req)
+		// Relative paths to javascript, css, ... imports won't work without a tailing slash
+		if req.URL.Path == prefix {
+			http.Redirect(resp, req, prefix+"/", 301)
+			return
+		}
+		if p := strings.TrimPrefix(req.URL.Path, prefix); len(p) < len(req.URL.Path) {
+			req.URL.Path = p
+		} else {
+			http.NotFound(resp, req)
+			return
+		}
+		if !strings.HasPrefix(req.URL.Path, "/") {
+			req.URL.Path = "/" + req.URL.Path
+		}
+		handler.ServeHTTP(resp, req)
 	})
 }

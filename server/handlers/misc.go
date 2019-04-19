@@ -30,6 +30,7 @@ THE SOFTWARE.
 package handlers
 
 import (
+	"github.com/root-gg/plik/server/context"
 	"image/png"
 	"net/http"
 	"strconv"
@@ -38,20 +39,18 @@ import (
 	"github.com/boombuler/barcode/qr"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/data"
-	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
 )
 
 // GetVersion return the build information.
 func GetVersion(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Print version and build information in the json response.
 	json, err := utils.ToJson(common.GetBuildInfo())
 	if err != nil {
 		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
+		context.Fail(ctx, req, resp, "Unable to serialize json response", 500)
 		return
 	}
 
@@ -60,13 +59,14 @@ func GetVersion(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 
 // GetConfiguration return the server configuration
 func GetConfiguration(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
+	config := context.GetConfig(ctx)
 
 	// Print configuration in the json response.
-	json, err := utils.ToJson(common.Config)
+	json, err := utils.ToJson(config)
 	if err != nil {
 		log.Warningf("Unable to serialize response body : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize response body", 500)
+		context.Fail(ctx, req, resp, "Unable to serialize response body", 500)
 		return
 	}
 	resp.Write(json)
@@ -79,7 +79,7 @@ func Logout(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 
 // GetQrCode return a QRCode for the requested URL
 func GetQrCode(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Check params
 	urlParam := req.FormValue("url")
@@ -92,7 +92,7 @@ func GetQrCode(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request)
 	}
 	if sizeInt > 1000 {
 		log.Warning("QRCode size must be lower than 1000")
-		common.Fail(ctx, req, resp, "QRCode size must be lower than 1000", 400)
+		context.Fail(ctx, req, resp, "QRCode size must be lower than 1000", 400)
 		return
 	}
 
@@ -100,7 +100,7 @@ func GetQrCode(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request)
 	qrcode, err := qr.Encode(urlParam, qr.H, qr.Auto)
 	if err != nil {
 		log.Warningf("Unable to generate QRCode : %s", err)
-		common.Fail(ctx, req, resp, "Unable to generate QRCode", 500)
+		context.Fail(ctx, req, resp, "Unable to generate QRCode", 500)
 		return
 	}
 
@@ -108,7 +108,7 @@ func GetQrCode(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request)
 	qrcode, err = barcode.Scale(qrcode, sizeInt, sizeInt)
 	if err != nil {
 		log.Warningf("Unable to scale QRCode : %s", err)
-		common.Fail(ctx, req, resp, "Unable to generate QRCode", 500)
+		context.Fail(ctx, req, resp, "Unable to generate QRCode", 500)
 		return
 	}
 
@@ -122,7 +122,7 @@ func GetQrCode(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request)
 // RemoveUploadIfNoFileAvailable iterates on upload files and remove upload files
 // and metadata if all the files have been downloaded (useful for OneShot uploads)
 func RemoveUploadIfNoFileAvailable(ctx *juliet.Context, upload *common.Upload) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Test if there are remaining files
 	filesInUpload := len(upload.Files)
@@ -139,13 +139,13 @@ func RemoveUploadIfNoFileAvailable(ctx *juliet.Context, upload *common.Upload) {
 		log.Debugf("No more files in upload. Removing.")
 
 		if !upload.Stream {
-			err := data.GetDataBackend().RemoveUpload(ctx, upload)
+			err := context.GetDataBackend(ctx).RemoveUpload(ctx, upload)
 			if err != nil {
 				log.Warningf("Unable to remove upload : %s", err)
 				return
 			}
 		}
-		err := metadata.GetMetaDataBackend().Remove(ctx, upload)
+		err := context.GetMetadataBackend(ctx).Remove(ctx, upload)
 		if err != nil {
 			log.Warningf("Unable to remove upload : %s", err)
 			return

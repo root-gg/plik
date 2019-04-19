@@ -1,8 +1,4 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
+/* The MIT License (MIT)
 
 Copyright (c) <2015>
 	- Mathieu Bodjikian <mathieu@bodjikian.fr>
@@ -24,10 +20,9 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
+THE SOFTWARE. */
 
-package common
+package context
 
 import (
 	"fmt"
@@ -37,21 +32,51 @@ import (
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/logger"
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/data"
+	"github.com/root-gg/plik/server/metadata"
 )
 
-var rootLogger = logger.NewLogger()
+// TODO Error Management
 
-// Logger return the root logger.
-func Logger() *logger.Logger {
-	return rootLogger
+// GetConfig from the request context.
+func GetConfig(ctx *juliet.Context) (config *common.Configuration) {
+	if config, ok := ctx.Get("config"); ok {
+		return config.(*common.Configuration)
+	}
+	return nil
 }
 
-// GetLogger from the request context ( defaults to rootLogger ).
+// GetLogger from the request context.
 func GetLogger(ctx *juliet.Context) *logger.Logger {
 	if log, ok := ctx.Get("logger"); ok {
 		return log.(*logger.Logger)
 	}
-	return rootLogger
+	return nil
+}
+
+// GetMetadataBackend from the request context.
+func GetMetadataBackend(ctx *juliet.Context) metadata.Backend {
+	if backend, ok := ctx.Get("metadata_backend"); ok {
+		return backend.(metadata.Backend)
+	}
+	return nil
+}
+
+// GetDataBackend from the request context.
+func GetDataBackend(ctx *juliet.Context) data.Backend {
+	if backend, ok := ctx.Get("data_backend"); ok {
+		return backend.(data.Backend)
+	}
+	return nil
+}
+
+// GetStreamBackend from the request context.
+func GetStreamBackend(ctx *juliet.Context) data.Backend {
+	if backend, ok := ctx.Get("stream_backend"); ok {
+		return backend.(data.Backend)
+	}
+	return nil
 }
 
 // GetSourceIP from the request context.
@@ -68,12 +93,14 @@ func IsWhitelisted(ctx *juliet.Context) bool {
 		return whitelisted.(bool)
 	}
 
+	uploadWhitelist := GetConfig(ctx).GetUploadWhitelist()
+
 	// Check if the source IP address is in whitelist
 	whitelisted := false
-	if len(UploadWhitelist) > 0 {
+	if len(uploadWhitelist) > 0 {
 		sourceIP := GetSourceIP(ctx)
 		if sourceIP != nil {
-			for _, subnet := range UploadWhitelist {
+			for _, subnet := range uploadWhitelist {
 				if subnet.Contains(sourceIP) {
 					whitelisted = true
 					break
@@ -88,33 +115,33 @@ func IsWhitelisted(ctx *juliet.Context) bool {
 }
 
 // GetUser from the request context.
-func GetUser(ctx *juliet.Context) *User {
+func GetUser(ctx *juliet.Context) *common.User {
 	if user, ok := ctx.Get("user"); ok {
-		return user.(*User)
+		return user.(*common.User)
 	}
 	return nil
 }
 
 // GetToken from the request context.
-func GetToken(ctx *juliet.Context) *Token {
+func GetToken(ctx *juliet.Context) *common.Token {
 	if token, ok := ctx.Get("token"); ok {
-		return token.(*Token)
+		return token.(*common.Token)
 	}
 	return nil
 }
 
 // GetFile from the request context.
-func GetFile(ctx *juliet.Context) *File {
+func GetFile(ctx *juliet.Context) *common.File {
 	if file, ok := ctx.Get("file"); ok {
-		return file.(*File)
+		return file.(*common.File)
 	}
 	return nil
 }
 
 // GetUpload from the request context.
-func GetUpload(ctx *juliet.Context) *Upload {
+func GetUpload(ctx *juliet.Context) *common.Upload {
 	if upload, ok := ctx.Get("upload"); ok {
-		return upload.(*Upload)
+		return upload.(*common.Upload)
 	}
 	return nil
 }
@@ -145,36 +172,11 @@ func Fail(ctx *juliet.Context, req *http.Request, resp http.ResponseWriter, mess
 			}
 		}
 		if redirect {
-			http.Redirect(resp, req, fmt.Sprintf("%s/#/?err=%s&errcode=%d&uri=%s", Config.Path, message, status, req.RequestURI), 301)
+			config := GetConfig(ctx)
+			http.Redirect(resp, req, fmt.Sprintf("%s/#/?err=%s&errcode=%d&uri=%s", config.Path, message, status, req.RequestURI), 301)
 			return
 		}
 	}
 
-	http.Error(resp, NewResult(message, nil).ToJSONString(), status)
-}
-
-// StripPrefix returns a handler that serves HTTP requests
-// removing the given prefix from the request URL's Path
-// It differs from http.StripPrefix by defaulting to "/" and not ""
-func StripPrefix(prefix string, handler http.Handler) http.Handler {
-	if prefix == "" || prefix == "/" {
-		return handler
-	}
-	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		// Relative paths to javascript, css, ... imports won't work without a tailing slash
-		if req.URL.Path == prefix {
-			http.Redirect(resp, req, prefix+"/", 301)
-			return
-		}
-		if p := strings.TrimPrefix(req.URL.Path, prefix); len(p) < len(req.URL.Path) {
-			req.URL.Path = p
-		} else {
-			http.NotFound(resp, req)
-			return
-		}
-		if !strings.HasPrefix(req.URL.Path, "/") {
-			req.URL.Path = "/" + req.URL.Path
-		}
-		handler.ServeHTTP(resp, req)
-	})
+	http.Error(resp, common.NewResult(message, nil).ToJSONString(), status)
 }

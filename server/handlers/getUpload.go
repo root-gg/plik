@@ -30,35 +30,37 @@ THE SOFTWARE.
 package handlers
 
 import (
+	"github.com/root-gg/plik/server/context"
 	"net/http"
 
 	"github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/utils"
 )
 
 // GetUpload return upload metadata
 func GetUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
+	config := context.GetConfig(ctx)
 
 	// Get upload from context
-	upload := common.GetUpload(ctx)
+	upload := context.GetUpload(ctx)
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in getUploadHandler")
-		common.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", 500)
 		return
 	}
 
 	// Remove all private information (ip, data backend details, ...) before
 	// sending metadata back to the client
 	upload.Sanitize()
+	upload.DownloadDomain = config.DownloadDomain
 
 	// Print upload metadata in the json response.
 	json, err := utils.ToJson(upload)
 	if err != nil {
 		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
+		context.Fail(ctx, req, resp, "Unable to serialize json response", 500)
 		return
 	}
 

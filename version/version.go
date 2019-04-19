@@ -26,6 +26,6 @@ package version
 
 const version = "1.3-RC1"
 
-func Get() string{
+func Get() string {
 	return version
 }

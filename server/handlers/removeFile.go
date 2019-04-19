@@ -31,56 +31,55 @@ package handlers
 
 import (
 	"fmt"
+	"github.com/root-gg/plik/server/context"
 	"net/http"
 
 	"github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data"
-	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
 )
 
 // RemoveFile remove a file from an existing upload
 func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Get upload from context
-	upload := common.GetUpload(ctx)
+	upload := context.GetUpload(ctx)
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in removeFileHandler")
-		common.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", 500)
 		return
 	}
 
 	// Check authorization
 	if !upload.Removable && !upload.IsAdmin {
 		log.Warningf("Unable to remove file : unauthorized")
-		common.Fail(ctx, req, resp, "You are not allowed to remove file from this upload", 403)
+		context.Fail(ctx, req, resp, "You are not allowed to remove file from this upload", 403)
 		return
 	}
 
 	// Get file from context
-	file := common.GetFile(ctx)
+	file := context.GetFile(ctx)
 	if file == nil {
 		// This should never append
 		log.Critical("Missing file in removeFileHandler")
-		common.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", 500)
 		return
 	}
 
 	// Check if file is not already removed
 	if file.Status == "removed" {
 		log.Warning("Can't remove an already removed file")
-		common.Fail(ctx, req, resp, fmt.Sprintf("File %s has already been removed", file.Name), 404)
+		context.Fail(ctx, req, resp, fmt.Sprintf("File %s has already been removed", file.Name), 404)
 		return
 	}
 
 	// Set status to removed, and save metadatas
 	file.Status = "removed"
-	if err := metadata.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file); err != nil {
+	if err := context.GetMetadataBackend(ctx).AddOrUpdateFile(ctx, upload, file); err != nil {
 		log.Warningf("Unable to update metadata : %s", err)
-		common.Fail(ctx, req, resp, "Unable to update upload metadata", 500)
+		context.Fail(ctx, req, resp, "Unable to update upload metadata", 500)
 		return
 	}
 
@@ -88,14 +87,14 @@ func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 	// Get file in data backend
 	var backend data.Backend
 	if upload.Stream {
-		backend = data.GetStreamBackend()
+		backend = context.GetStreamBackend(ctx)
 	} else {
-		backend = data.GetDataBackend()
+		backend = context.GetDataBackend(ctx)
 	}
 
 	if err := backend.RemoveFile(ctx, upload, file.ID); err != nil {
 		log.Warningf("Unable to delete file : %s", err)
-		common.Fail(ctx, req, resp, "Unable to delete file", 500)
+		context.Fail(ctx, req, resp, "Unable to delete file", 500)
 		return
 	}
 
@@ -106,7 +105,7 @@ func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 	json, err := utils.ToJson(upload)
 	if err != nil {
 		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
+		context.Fail(ctx, req, resp, "Unable to serialize json response", 500)
 		return
 	}
 

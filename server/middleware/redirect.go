@@ -39,7 +39,6 @@ import (
 func RedirectOnFailure(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		ctx.Set("redirect", true)
-
 		next.ServeHTTP(resp, req)
 	})
 }

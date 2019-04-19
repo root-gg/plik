@@ -32,11 +32,7 @@ package metadata
 import (
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadata/bolt"
-	"github.com/root-gg/plik/server/metadata/mongo"
 )
-
-var metadataBackend Backend
 
 // Backend interface describes methods that metadata backends
 // must implements to be compatible with plik.
@@ -59,27 +55,4 @@ type Backend interface {
 	GetUsers(ctx *juliet.Context) (ids []string, err error)
 	GetServerStatistics(ctx *juliet.Context) (stats *common.ServerStats, err error)
 	GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error)
-}
-
-// GetMetaDataBackend is a singleton pattern.
-// Init static backend if not already and return it
-func GetMetaDataBackend() Backend {
-	if metadataBackend == nil {
-		Initialize()
-	}
-	return metadataBackend
-}
-
-// Initialize backend from type found in configuration
-func Initialize() {
-	if metadataBackend == nil {
-		switch common.Config.MetadataBackend {
-		case "mongo":
-			metadataBackend = mongo.NewMongoMetadataBackend(common.Config.MetadataBackendConfig)
-		case "bolt":
-			metadataBackend = bolt.NewBoltMetadataBackend(common.Config.MetadataBackendConfig)
-		default:
-			common.Logger().Fatalf("Invalid metadata backend %s", common.Config.DataBackend)
-		}
-	}
 }

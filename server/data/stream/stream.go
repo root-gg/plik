@@ -30,6 +30,7 @@ THE SOFTWARE.
 package stream
 
 import (
+	"github.com/root-gg/plik/server/context"
 	"io"
 
 	"github.com/root-gg/juliet"
@@ -44,9 +45,9 @@ type Backend struct {
 
 // NewStreamBackend instantiate a new Stream Data Backend
 // from configuration passed as argument
-func NewStreamBackend(config map[string]interface{}) (sb *Backend) {
+func NewStreamBackend(config *BackendConfig) (sb *Backend) {
 	sb = new(Backend)
-	sb.Config = NewStreamBackendConfig(config)
+	sb.Config = config
 	sb.Store = make(map[string]io.ReadCloser)
 	return
 }
@@ -54,7 +55,7 @@ func NewStreamBackend(config map[string]interface{}) (sb *Backend) {
 // GetFile implementation for steam data backend will search
 // on filesystem the requested steam and return its reading filehandle
 func (sb *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id string) (stream io.ReadCloser, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 	storeID := upload.ID + "/" + id
 	stream, ok := sb.Store[storeID]
 	if !ok {
@@ -67,7 +68,7 @@ func (sb *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id string
 // AddFile implementation for steam data backend will creates a new steam for the given upload
 // and save it on filesystem with the given steam reader
 func (sb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, stream io.Reader) (backendDetails map[string]interface{}, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 	backendDetails = make(map[string]interface{})
 	id := upload.ID + "/" + file.ID
 	pipeReader, pipeWriter := io.Pipe()

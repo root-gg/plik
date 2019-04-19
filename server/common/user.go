@@ -63,23 +63,6 @@ func (user *User) NewToken() (token *Token) {
 	return
 }
 
-// IsAdmin check if the user is a Plik server administrator
-func (user *User) IsAdmin() bool {
-	if user.Admin == true {
-		return true
-	}
-
-	// Check if user is admin
-	for _, id := range Config.Admins {
-		if user.ID == id {
-			user.Admin = true
-			return true
-		}
-	}
-
-	return false
-}
-
 // Logout delete plik session cookies
 func Logout(resp http.ResponseWriter) {
 	// Delete session cookie

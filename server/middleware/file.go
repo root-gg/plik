@@ -31,24 +31,24 @@ package middleware
 
 import (
 	"fmt"
+	"github.com/root-gg/plik/server/context"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/common"
 )
 
 // File retrieve the requested file metadata from the metadataBackend and save it in the request context.
 func File(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		log := common.GetLogger(ctx)
+		log := context.GetLogger(ctx)
 
 		// Get upload from context
-		upload := common.GetUpload(ctx)
+		upload := context.GetUpload(ctx)
 		if upload == nil {
 			// This should never append
 			log.Critical("Missing upload in file handler")
-			common.Fail(ctx, req, resp, "Internal error", 500)
+			context.Fail(ctx, req, resp, "Internal error", 500)
 			return
 		}
 
@@ -57,7 +57,7 @@ func File(ctx *juliet.Context, next http.Handler) http.Handler {
 		fileID := vars["fileID"]
 		if fileID == "" {
 			log.Warning("Missing file id")
-			common.Fail(ctx, req, resp, "Missing file id", 400)
+			context.Fail(ctx, req, resp, "Missing file id", 400)
 			return
 		}
 
@@ -65,7 +65,7 @@ func File(ctx *juliet.Context, next http.Handler) http.Handler {
 		fileName := vars["filename"]
 		if fileName == "" {
 			log.Warning("Missing file name")
-			common.Fail(ctx, req, resp, "Missing file name", 400)
+			context.Fail(ctx, req, resp, "Missing file name", 400)
 			return
 		}
 
@@ -73,14 +73,14 @@ func File(ctx *juliet.Context, next http.Handler) http.Handler {
 		file, ok := upload.Files[fileID]
 		if !ok {
 			log.Warningf("File %s not found", fileID)
-			common.Fail(ctx, req, resp, fmt.Sprintf("File %s not found", fileID), 404)
+			context.Fail(ctx, req, resp, fmt.Sprintf("File %s not found", fileID), 404)
 			return
 		}
 
 		// Compare url filename with upload filename
 		if file.Name != fileName {
 			log.Warningf("Invalid filename %s mismatch %s", fileName, file.Name)
-			common.Fail(ctx, req, resp, fmt.Sprintf("File %s not found", fileName), 404)
+			context.Fail(ctx, req, resp, fmt.Sprintf("File %s not found", fileName), 404)
 			return
 		}
 

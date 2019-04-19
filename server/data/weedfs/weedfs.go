@@ -41,6 +41,7 @@ import (
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 )
 
 var (
@@ -54,15 +55,15 @@ type Backend struct {
 
 // NewWeedFsBackend instantiate a new WeedFS Data Backend
 // from configuration passed as argument
-func NewWeedFsBackend(config map[string]interface{}) (weedFs *Backend) {
+func NewWeedFsBackend(config *BackendConfig) (weedFs *Backend) {
 	weedFs = new(Backend)
-	weedFs.Config = NewWeedFsBackendConfig(config)
+	weedFs.Config = config
 	return
 }
 
 // GetFile implementation for WeedFS Data Backend
 func (weedFs *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id string) (reader io.ReadCloser, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	file := upload.Files[id]
 
@@ -102,7 +103,7 @@ func (weedFs *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id st
 
 // AddFile implementation for WeedFS Data Backend
 func (weedFs *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	backendDetails = make(map[string]interface{})
 
@@ -166,7 +167,7 @@ func (weedFs *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file 
 	pipeReader, pipeWriter := io.Pipe()
 	multipartWriter := multipart.NewWriter(pipeWriter)
 	go func() {
-		log := common.GetLogger(ctx)
+		log := context.GetLogger(ctx)
 		filePart, err := multipartWriter.CreateFormFile("file", file.Name)
 		if err != nil {
 			log.Warningf("Unable to create multipart form : %s", err)
@@ -206,7 +207,7 @@ func (weedFs *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file 
 
 // RemoveFile implementation for WeedFS Data Backend
 func (weedFs *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, id string) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Get file metadata
 	file := upload.Files[id]
@@ -271,7 +272,7 @@ func (weedFs *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) 
 }
 
 func (weedFs *Backend) getvolumeURL(ctx *juliet.Context, volumeID string) (URL string, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Ask a WeedFS master the volume urls
 	URL = weedFs.Config.MasterURL + "/dir/lookup?volumeId=" + volumeID

@@ -7,6 +7,9 @@ package common
 import "testing"
 
 // Test loading the default configuration
-func TestLoadConfig(*testing.T) {
-	LoadConfiguration("../plikd.cfg")
+func TestLoadConfig(t *testing.T) {
+	_, err := LoadConfiguration("../plikd.cfg")
+	if err != nil {
+		t.Error(err)
+	}
 }

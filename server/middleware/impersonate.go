@@ -8,37 +8,37 @@ import (
 	"net/http"
 
 	"github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadata"
+	"github.com/root-gg/plik/server/context"
 )
 
 // Impersonate allow an administrator to pretend being another user
 func Impersonate(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		log := common.GetLogger(ctx)
+		log := context.GetLogger(ctx)
+		config := context.GetConfig(ctx)
 
 		// Get user to impersonate from header
 		newUserID := req.Header.Get("X-Plik-Impersonate")
 		if newUserID != "" {
 
 			// Check authorization
-			user := common.GetUser(ctx)
-			if user == nil || !user.IsAdmin() {
+			user := context.GetUser(ctx)
+			if user == nil || !config.IsAdmin(user) {
 				log.Warningf("Unable to impersonate user : unauthorized")
-				common.Fail(ctx, req, resp, "You need administrator privileges", 403)
+				context.Fail(ctx, req, resp, "You need administrator privileges", 403)
 				return
 			}
 
-			newUser, err := metadata.GetMetaDataBackend().GetUser(ctx, newUserID, "")
+			newUser, err := context.GetMetadataBackend(ctx).GetUser(ctx, newUserID, "")
 			if err != nil {
 				log.Warningf("Unable to get user to impersonate %s : %s", newUserID, err)
-				common.Fail(ctx, req, resp, "Unable to get user to impersonate", 500)
+				context.Fail(ctx, req, resp, "Unable to get user to impersonate", 500)
 				return
 			}
 
 			if newUser == nil {
 				log.Warningf("Unable to get user to impersonate : user does not exists")
-				common.Fail(ctx, req, resp, "Unable to get user to impersonate : User does not exists", 403)
+				context.Fail(ctx, req, resp, "Unable to get user to impersonate : User does not exists", 403)
 				return
 			}
 

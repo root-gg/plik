@@ -7,7 +7,6 @@ server/public/public
 clients
 client/client
 servers
-server/server
 server/common/version.go
 release
 releases

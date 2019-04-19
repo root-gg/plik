@@ -31,24 +31,24 @@ package handlers
 
 import (
 	"encoding/json"
+	"github.com/root-gg/plik/server/context"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
 )
 
 // CreateToken create a new token
 func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Get user from context
-	user := common.GetUser(ctx)
+	user := context.GetUser(ctx)
 	if user == nil {
-		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+		context.Fail(ctx, req, resp, "Missing user, Please login first", 401)
 		return
 	}
 
@@ -61,7 +61,7 @@ func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		log.Warningf("Unable to read request body : %s", err)
-		common.Fail(ctx, req, resp, "Unable to read request body", 403)
+		context.Fail(ctx, req, resp, "Unable to read request body", 403)
 		return
 	}
 
@@ -70,7 +70,7 @@ func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 		err = json.Unmarshal(body, token)
 		if err != nil {
 			log.Warningf("Unable to deserialize json request body : %s", err)
-			common.Fail(ctx, req, resp, "Unable to deserialize json request body", 400)
+			context.Fail(ctx, req, resp, "Unable to deserialize json request body", 400)
 			return
 		}
 	}
@@ -82,10 +82,10 @@ func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	user.Tokens = append(user.Tokens, token)
 
 	// Save token
-	err = metadata.GetMetaDataBackend().SaveUser(ctx, user)
+	err = context.GetMetadataBackend(ctx).SaveUser(ctx, user)
 	if err != nil {
 		log.Warningf("Unable to save user to metadata backend : %s", err)
-		common.Fail(ctx, req, resp, "Unable to create token", 500)
+		context.Fail(ctx, req, resp, "Unable to create token", 500)
 		return
 	}
 
@@ -93,7 +93,7 @@ func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	var json []byte
 	if json, err = utils.ToJson(token); err != nil {
 		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
+		context.Fail(ctx, req, resp, "Unable to serialize json response", 500)
 		return
 	}
 	resp.Write(json)
@@ -101,12 +101,12 @@ func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 
 // RevokeToken remove a token
 func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Get user from context
-	user := common.GetUser(ctx)
+	user := context.GetUser(ctx)
 	if user == nil {
-		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+		context.Fail(ctx, req, resp, "Missing user, Please login first", 401)
 		return
 	}
 
@@ -114,7 +114,7 @@ func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	vars := mux.Vars(req)
 	tokenStr, ok := vars["token"]
 	if !ok || tokenStr == "" {
-		common.Fail(ctx, req, resp, "Missing token", 400)
+		context.Fail(ctx, req, resp, "Missing token", 400)
 	}
 
 	// Get token from user
@@ -127,7 +127,7 @@ func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	}
 	if index < 0 {
 		log.Warningf("Unable to get token %s from user %s", tokenStr, user.ID)
-		common.Fail(ctx, req, resp, "Invalid token", 403)
+		context.Fail(ctx, req, resp, "Invalid token", 403)
 		return
 	}
 
@@ -137,10 +137,10 @@ func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	user.Tokens = append(user.Tokens[:index], user.Tokens[index+1:]...)
 
 	// Save user to metadata backend
-	err := metadata.GetMetaDataBackend().SaveUser(ctx, user)
+	err := context.GetMetadataBackend(ctx).SaveUser(ctx, user)
 	if err != nil {
 		log.Warningf("Unable to save user to metadata backend : %s", err)
-		common.Fail(ctx, req, resp, "Unable to create token", 500)
+		context.Fail(ctx, req, resp, "Unable to create token", 500)
 		return
 	}
 }

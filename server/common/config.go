@@ -30,13 +30,13 @@ THE SOFTWARE.
 package common
 
 import (
+	"fmt"
 	"net"
 	"net/url"
 	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/GeertJohan/yubigo"
-	"github.com/root-gg/logger"
 )
 
 // Configuration object
@@ -90,13 +90,9 @@ type Configuration struct {
 
 	StreamMode          bool                   `json:"streamMode"`
 	StreamBackendConfig map[string]interface{} `json:"-"`
+
+	uploadWhitelist []*net.IPNet
 }
-
-// Config static variable
-var Config *Configuration
-
-// UploadWhitelist is only parsed once at startup time
-var UploadWhitelist []*net.IPNet
 
 // NewConfiguration creates a new configuration
 // object with default values
@@ -122,77 +118,87 @@ func NewConfiguration() (config *Configuration) {
 // LoadConfiguration creates a new empty configuration
 // and try to load specified file with toml library to
 // override default params
-func LoadConfiguration(file string) {
-	Config = NewConfiguration()
+func LoadConfiguration(file string) (config *Configuration, err error) {
+	config = NewConfiguration()
 
-	if _, err := toml.DecodeFile(file, Config); err != nil {
-		Logger().Fatalf("Unable to load config file %s : %s", file, err)
-	}
-	Logger().SetMinLevelFromString(Config.LogLevel)
-
-	if Config.LogLevel == "DEBUG" {
-		Logger().SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel | logger.FshortFile | logger.FshortFunction)
-	} else {
-		Logger().SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel)
+	if _, err := toml.DecodeFile(file, config); err != nil {
+		return nil, fmt.Errorf("Unable to load config file %s : %s", file, err)
 	}
 
-	Config.Path = strings.TrimSuffix(Config.Path, "/")
+	config.Path = strings.TrimSuffix(config.Path, "/")
 
 	// Do user specified a ApiKey and ApiSecret for Yubikey
-	if Config.YubikeyEnabled {
-		yubiAuth, err := yubigo.NewYubiAuth(Config.YubikeyAPIKey, Config.YubikeyAPISecret)
+	if config.YubikeyEnabled {
+		yubiAuth, err := yubigo.NewYubiAuth(config.YubikeyAPIKey, config.YubikeyAPISecret)
 		if err != nil {
-			Logger().Warningf("Failed to load yubikey backend : %s", err)
-			Config.YubikeyEnabled = false
+			return nil, fmt.Errorf("Failed to load yubikey backend : %s", err)
+		}
+		config.YubiAuth = yubiAuth
+	}
+
+	// UploadWhitelist is only parsed once at startup time
+	for _, cidr := range config.UploadWhitelist {
+		if !strings.Contains(cidr, "/") {
+			cidr += "/32"
+		}
+		if _, cidr, err := net.ParseCIDR(cidr); err == nil {
+			config.uploadWhitelist = append(config.uploadWhitelist, cidr)
 		} else {
-			Config.YubiAuth = yubiAuth
+			return nil, fmt.Errorf("Failed to parse upload whitelist : %s", cidr)
 		}
 	}
 
-	// Parse upload whitelist
-	UploadWhitelist = make([]*net.IPNet, 0)
-	if Config.UploadWhitelist != nil {
-		for _, cidr := range Config.UploadWhitelist {
-			if !strings.Contains(cidr, "/") {
-				cidr += "/32"
-			}
-			if _, net, err := net.ParseCIDR(cidr); err == nil {
-				UploadWhitelist = append(UploadWhitelist, net)
-			} else {
-				Logger().Fatalf("Failed to parse upload whitelist : %s", cidr)
-			}
-		}
-	}
-
-	if Config.GoogleAPIClientID != "" && Config.GoogleAPISecret != "" {
-		Config.GoogleAuthentication = true
+	if config.GoogleAPIClientID != "" && config.GoogleAPISecret != "" {
+		config.GoogleAuthentication = true
 	} else {
-		Config.GoogleAuthentication = false
+		config.GoogleAuthentication = false
 	}
 
-	if Config.OvhAPIKey != "" && Config.OvhAPISecret != "" {
-		Config.OvhAuthentication = true
+	if config.OvhAPIKey != "" && config.OvhAPISecret != "" {
+		config.OvhAuthentication = true
 	} else {
-		Config.OvhAuthentication = false
+		config.OvhAuthentication = false
 	}
 
-	if !Config.GoogleAuthentication && !Config.OvhAuthentication {
-		Config.Authentication = false
-		Config.NoAnonymousUploads = false
+	if !config.GoogleAuthentication && !config.OvhAuthentication {
+		config.Authentication = false
+		config.NoAnonymousUploads = false
 	}
 
-	if Config.MetadataBackend == "file" {
-		Config.Authentication = false
-		Config.NoAnonymousUploads = false
+	if config.MetadataBackend == "file" {
+		config.Authentication = false
+		config.NoAnonymousUploads = false
 	}
 
-	if Config.DownloadDomain != "" {
-		strings.Trim(Config.DownloadDomain, "/ ")
+	if config.DownloadDomain != "" {
+		strings.Trim(config.DownloadDomain, "/ ")
 		var err error
-		if Config.DownloadDomainURL, err = url.Parse(Config.DownloadDomain); err != nil {
-			Logger().Fatalf("Invalid download domain URL %s : %s", Config.DownloadDomain, err)
+		if config.DownloadDomainURL, err = url.Parse(config.DownloadDomain); err != nil {
+			return nil, fmt.Errorf("Invalid download domain URL %s : %s", config.DownloadDomain, err)
 		}
 	}
 
-	Logger().Dump(logger.DEBUG, Config)
+	return config, nil
+}
+
+// GetUploadWhitelist return the IP upload whitelist
+func (config *Configuration) GetUploadWhitelist() []*net.IPNet {
+	return config.uploadWhitelist
+}
+
+// IsAdmin check if the user is a Plik server administrator
+func (config *Configuration) IsAdmin(user *User) bool {
+	if user.Admin == true {
+		return true
+	}
+
+	// Check if user is admin
+	for _, id := range config.Admins {
+		if user.ID == id {
+			user.Admin = true
+			return true
+		}
+	}
+
+	return false
 }

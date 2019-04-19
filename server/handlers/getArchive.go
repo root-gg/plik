@@ -32,6 +32,7 @@ package handlers
 import (
 	"archive/zip"
 	"fmt"
+	"github.com/root-gg/plik/server/context"
 	"io"
 	"net/http"
 	"strings"
@@ -39,33 +40,32 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/data"
-	"github.com/root-gg/plik/server/metadata"
 )
 
 // GetArchive download all file of the upload in a zip archive
 func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
+	config := context.GetConfig(ctx)
 
 	// If a download domain is specified verify that the request comes from this specific domain
-	if common.Config.DownloadDomainURL != nil {
-		if req.Host != common.Config.DownloadDomainURL.Host {
+	if config.DownloadDomainURL != nil {
+		if req.Host != config.DownloadDomainURL.Host {
 			downloadURL := fmt.Sprintf("%s://%s%s",
-				common.Config.DownloadDomainURL.Scheme,
-				common.Config.DownloadDomainURL.Host,
+				config.DownloadDomainURL.Scheme,
+				config.DownloadDomainURL.Host,
 				req.RequestURI)
-			log.Warningf("Invalid download domain %s, expected %s", req.Host, common.Config.DownloadDomainURL.Host)
+			log.Warningf("Invalid download domain %s, expected %s", req.Host, config.DownloadDomainURL.Host)
 			http.Redirect(resp, req, downloadURL, 301)
 			return
 		}
 	}
 
 	// Get upload from context
-	upload := common.GetUpload(ctx)
+	upload := context.GetUpload(ctx)
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in getFileHandler")
-		common.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", 500)
 		return
 	}
 
@@ -83,7 +83,7 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 		// and ensure proper locking ( which is the case of bolt and looks doable with mongodb but would break the interface ).
 		if upload.OneShot {
 			file.Status = "downloaded"
-			err := metadata.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file)
+			err := context.GetMetadataBackend(ctx).AddOrUpdateFile(ctx, upload, file)
 			if err != nil {
 				log.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.ID, err)
 				continue
@@ -94,7 +94,7 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 	}
 
 	if len(files) == 0 {
-		common.Fail(ctx, req, resp, "Nothing to archive", 404)
+		context.Fail(ctx, req, resp, "Nothing to archive", 404)
 		return
 	}
 
@@ -119,13 +119,13 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 	fileName := vars["filename"]
 	if fileName == "" {
 		log.Warning("Missing file name")
-		common.Fail(ctx, req, resp, "Missing file name", 400)
+		context.Fail(ctx, req, resp, "Missing file name", 400)
 		return
 	}
 
 	if strings.HasSuffix(".zip", fileName) {
 		log.Warningf("Invalid file name %s. Missing .zip extension", fileName)
-		common.Fail(ctx, req, resp, fmt.Sprintf("Invalid file name %s. Missing .zip extension", fileName), 400)
+		context.Fail(ctx, req, resp, fmt.Sprintf("Invalid file name %s. Missing .zip extension", fileName), 400)
 		return
 	}
 
@@ -145,11 +145,11 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 		// Get file in data backend
 
 		if upload.Stream {
-			common.Fail(ctx, req, resp, "Archive feature is not available in stream mode", 404)
+			context.Fail(ctx, req, resp, "Archive feature is not available in stream mode", 404)
 			return
 		}
 
-		backend := data.GetDataBackend()
+		backend := context.GetDataBackend(ctx)
 
 		// The zip archive is piped directly to http response body without buffering
 		archive := zip.NewWriter(resp)
@@ -158,14 +158,14 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 			fileReader, err := backend.GetFile(ctx, upload, file.ID)
 			if err != nil {
 				log.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.ID, err)
-				common.Fail(ctx, req, resp, fmt.Sprintf("Failed to read file %s", file.Name), 404)
+				context.Fail(ctx, req, resp, fmt.Sprintf("Failed to read file %s", file.Name), 404)
 				return
 			}
 
 			fileWriter, err := archive.Create(file.Name)
 			if err != nil {
 				log.Warningf("Failed to add file %s to the archive : %s", file.Name, err)
-				common.Fail(ctx, req, resp, fmt.Sprintf("Failed to add file %s to the archive", file.Name), 500)
+				context.Fail(ctx, req, resp, fmt.Sprintf("Failed to add file %s to the archive", file.Name), 500)
 				return
 			}
 

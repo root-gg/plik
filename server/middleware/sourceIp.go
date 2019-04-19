@@ -35,24 +35,25 @@ import (
 	"net/http"
 
 	"github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 )
 
 // SourceIP extract the source IP address from the request and save it to the request context
 func SourceIP(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		log := common.GetLogger(ctx)
+		log := context.GetLogger(ctx)
+		config := context.GetConfig(ctx)
 
 		var sourceIPstr string
-		if common.Config.SourceIPHeader != "" && req.Header.Get(common.Config.SourceIPHeader) != "" {
+		if config.SourceIPHeader != "" && req.Header.Get(config.SourceIPHeader) != "" {
 			// Get source ip from header if behind reverse proxy.
-			sourceIPstr = req.Header.Get(common.Config.SourceIPHeader)
+			sourceIPstr = req.Header.Get(config.SourceIPHeader)
 		} else {
 			var err error
 			sourceIPstr, _, err = net.SplitHostPort(req.RemoteAddr)
 			if err != nil {
-				common.Logger().Warningf("Unable to parse source IP address %s", req.RemoteAddr)
-				common.Fail(ctx, req, resp, "Unable to parse source IP address", 500)
+				log.Warningf("Unable to parse source IP address %s", req.RemoteAddr)
+				context.Fail(ctx, req, resp, "Unable to parse source IP address", 500)
 				return
 			}
 		}
@@ -60,8 +61,8 @@ func SourceIP(ctx *juliet.Context, next http.Handler) http.Handler {
 		// Parse source IP address
 		sourceIP := net.ParseIP(sourceIPstr)
 		if sourceIP == nil {
-			common.Logger().Warningf("Unable to parse source IP address %s", sourceIPstr)
-			common.Fail(ctx, req, resp, "Unable to parse source IP address", 500)
+			log.Warningf("Unable to parse source IP address %s", sourceIPstr)
+			context.Fail(ctx, req, resp, "Unable to parse source IP address", 500)
 			return
 		}
 

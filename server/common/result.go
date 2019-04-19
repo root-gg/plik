@@ -50,11 +50,11 @@ func NewResult(message string, value interface{}) (r *Result) {
 }
 
 // ToJSON serialize result object to JSON
+// TODO Error Management
 func (result *Result) ToJSON() []byte {
 	j, err := utils.ToJson(result)
 	if err != nil {
 		msg := fmt.Sprintf("Unable to serialize result %s to json : %s", result.Message, err)
-		Logger().Warning(msg)
 		return []byte("{message:\"" + msg + "\"}")
 	}
 

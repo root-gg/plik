@@ -34,14 +34,7 @@ import (
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/data/file"
-	"github.com/root-gg/plik/server/data/stream"
-	"github.com/root-gg/plik/server/data/swift"
-	"github.com/root-gg/plik/server/data/weedfs"
 )
-
-var dataBackend Backend
-var streamBackend Backend
 
 // Backend interface describes methods that data backends
 // must implements to be compatible with plik.
@@ -50,33 +43,4 @@ type Backend interface {
 	AddFile(ctx *juliet.Context, u *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error)
 	RemoveFile(ctx *juliet.Context, u *common.Upload, id string) (err error)
 	RemoveUpload(ctx *juliet.Context, u *common.Upload) (err error)
-}
-
-// GetDataBackend return the primary data backend
-func GetDataBackend() Backend {
-	return dataBackend
-}
-
-// GetStreamBackend return the stream data backend
-func GetStreamBackend() Backend {
-	return streamBackend
-}
-
-// Initialize backend from type found in configuration
-func Initialize() {
-	if dataBackend == nil {
-		switch common.Config.DataBackend {
-		case "file":
-			dataBackend = file.NewFileBackend(common.Config.DataBackendConfig)
-		case "swift":
-			dataBackend = swift.NewSwiftBackend(common.Config.DataBackendConfig)
-		case "weedfs":
-			dataBackend = weedfs.NewWeedFsBackend(common.Config.DataBackendConfig)
-		default:
-			common.Logger().Fatalf("Invalid data backend %s", common.Config.DataBackend)
-		}
-	}
-	if common.Config.StreamMode {
-		streamBackend = stream.NewStreamBackend(common.Config.StreamBackendConfig)
-	}
 }

@@ -101,7 +101,6 @@ func (upload *Upload) Sanitize() {
 	for _, file := range upload.Files {
 		file.Sanitize()
 	}
-	upload.DownloadDomain = Config.DownloadDomain
 }
 
 // GenerateRandomID generates a random string with specified length.

@@ -37,57 +37,57 @@ import (
 	"strings"
 
 	"github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
-	"github.com/root-gg/plik/server/metadata"
 )
 
 // GetFile download a file
 func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
+	config := context.GetConfig(ctx)
 
 	// If a download domain is specified verify that the request comes from this specific domain
-	if common.Config.DownloadDomainURL != nil {
-		if req.Host != common.Config.DownloadDomainURL.Host {
+	if config.DownloadDomainURL != nil {
+		if req.Host != config.DownloadDomainURL.Host {
 			downloadURL := fmt.Sprintf("%s://%s%s",
-				common.Config.DownloadDomainURL.Scheme,
-				common.Config.DownloadDomainURL.Host,
+				config.DownloadDomainURL.Scheme,
+				config.DownloadDomainURL.Host,
 				req.RequestURI)
-			log.Warningf("Invalid download domain %s, expected %s", req.Host, common.Config.DownloadDomainURL.Host)
+			log.Warningf("Invalid download domain %s, expected %s", req.Host, config.DownloadDomainURL.Host)
 			http.Redirect(resp, req, downloadURL, 301)
 			return
 		}
 	}
 
 	// Get upload from context
-	upload := common.GetUpload(ctx)
+	upload := context.GetUpload(ctx)
 	if upload == nil {
 		// This should never append
 		log.Critical("Missing upload in getFileHandler")
-		common.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", 500)
 		return
 	}
 
 	// Get file from context
-	file := common.GetFile(ctx)
+	file := context.GetFile(ctx)
 	if file == nil {
 		// This should never append
 		log.Critical("Missing file in getFileHandler")
-		common.Fail(ctx, req, resp, "Internal error", 500)
+		context.Fail(ctx, req, resp, "Internal error", 500)
 		return
 	}
 
 	// If upload has OneShot option, test if file has not been already downloaded once
 	if upload.OneShot && file.Status == "downloaded" {
 		log.Warningf("File %s has already been downloaded", file.Name)
-		common.Fail(ctx, req, resp, fmt.Sprintf("File %s has already been downloaded", file.Name), 404)
+		context.Fail(ctx, req, resp, fmt.Sprintf("File %s has already been downloaded", file.Name), 404)
 		return
 	}
 
 	// If the file is marked as deleted by a previous call, we abort request
 	if file.Status == "removed" {
 		log.Warningf("File %s has been removed", file.Name)
-		common.Fail(ctx, req, resp, "File %s has been removed", 404)
+		context.Fail(ctx, req, resp, "File %s has been removed", 404)
 		return
 	}
 
@@ -137,15 +137,15 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		// Get file in data backend
 		var backend data.Backend
 		if upload.Stream {
-			backend = data.GetStreamBackend()
+			backend = context.GetStreamBackend(ctx)
 		} else {
-			backend = data.GetDataBackend()
+			backend = context.GetDataBackend(ctx)
 		}
 
 		fileReader, err := backend.GetFile(ctx, upload, file.ID)
 		if err != nil {
 			log.Warningf("Failed to get file %s in upload %s : %s", file.Name, upload.ID, err)
-			common.Fail(ctx, req, resp, fmt.Sprintf("Failed to read file %s", file.Name), 404)
+			context.Fail(ctx, req, resp, fmt.Sprintf("Failed to read file %s", file.Name), 404)
 			return
 		}
 		defer fileReader.Close()
@@ -156,7 +156,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		// and ensure proper locking ( which is the case of bolt and looks doable with mongodb but would break the interface ).
 		if upload.OneShot {
 			file.Status = "downloaded"
-			err = metadata.GetMetaDataBackend().AddOrUpdateFile(ctx, upload, file)
+			err = context.GetMetadataBackend(ctx).AddOrUpdateFile(ctx, upload, file)
 			if err != nil {
 				log.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.ID, err)
 			}

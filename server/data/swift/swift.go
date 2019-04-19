@@ -35,6 +35,7 @@ import (
 	"github.com/ncw/swift"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 )
 
 // Backend object
@@ -45,15 +46,15 @@ type Backend struct {
 
 // NewSwiftBackend instantiate a new OpenSwift Data Backend
 // from configuration passed as argument
-func NewSwiftBackend(config map[string]interface{}) (sb *Backend) {
+func NewSwiftBackend(config *BackendConfig) (sb *Backend) {
 	sb = new(Backend)
-	sb.config = NewSwitftBackendConfig(config)
+	sb.config = config
 	return sb
 }
 
 // GetFile implementation for Swift Data Backend
 func (sb *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, fileID string) (reader io.ReadCloser, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	err = sb.auth(ctx)
 	if err != nil {
@@ -76,7 +77,7 @@ func (sb *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, fileID st
 
 // AddFile implementation for Swift Data Backend
 func (sb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	err = sb.auth(ctx)
 	if err != nil {
@@ -99,7 +100,7 @@ func (sb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *com
 
 // RemoveFile implementation for Swift Data Backend
 func (sb *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, fileID string) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	err = sb.auth(ctx)
 	if err != nil {
@@ -119,7 +120,7 @@ func (sb *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, fileID
 // RemoveUpload implementation for Swift Data Backend
 // Iterates on each upload file and call RemoveFile
 func (sb *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	err = sb.auth(ctx)
 	if err != nil {
@@ -142,7 +143,7 @@ func (sb *Backend) getFileID(upload *common.Upload, fileID string) string {
 }
 
 func (sb *Backend) auth(ctx *juliet.Context) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	if sb.connection != nil && sb.connection.Authenticated() {
 		return

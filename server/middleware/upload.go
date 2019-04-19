@@ -31,36 +31,36 @@ package middleware
 
 import (
 	"fmt"
+	"github.com/root-gg/plik/server/context"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/utils"
 )
 
 // Upload retrieve the requested upload metadata from the metadataBackend and save it to the request context.
 func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		log := common.GetLogger(ctx)
+		log := context.GetLogger(ctx)
+		config := context.GetConfig(ctx)
 
 		// Get the upload id from the url params
 		vars := mux.Vars(req)
 		uploadID := vars["uploadID"]
 		if uploadID == "" {
 			log.Warning("Missing upload id")
-			common.Fail(ctx, req, resp, "Missing upload id", 400)
+			context.Fail(ctx, req, resp, "Missing upload id", 400)
 			return
 		}
 
 		// Get upload metadata
-		upload, err := metadata.GetMetaDataBackend().Get(ctx, uploadID)
+		upload, err := context.GetMetadataBackend(ctx).Get(ctx, uploadID)
 		if err != nil {
 			log.Warningf("Upload not found : %s", err)
-			common.Fail(ctx, req, resp, fmt.Sprintf("Upload %s not found", uploadID), 404)
+			context.Fail(ctx, req, resp, fmt.Sprintf("Upload %s not found", uploadID), 404)
 			return
 		}
 
@@ -71,7 +71,7 @@ func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 		// Test if upload is not expired
 		if upload.IsExpired() {
 			log.Warningf("Upload is expired since %s", time.Since(time.Unix(upload.Creation, int64(0)).Add(time.Duration(upload.TTL)*time.Second)).String())
-			common.Fail(ctx, req, resp, fmt.Sprintf("Upload %s has expired", uploadID), 404)
+			context.Fail(ctx, req, resp, fmt.Sprintf("Upload %s has expired", uploadID), 404)
 			return
 		}
 
@@ -84,7 +84,7 @@ func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 			// Shouldn't redirect here to let the browser ask for credentials and retry
 			ctx.Set("redirect", false)
 
-			common.Fail(ctx, req, resp, "Please provide valid credentials to access this upload", 401)
+			context.Fail(ctx, req, resp, "Please provide valid credentials to access this upload", 401)
 		}
 
 		// Check upload token
@@ -93,9 +93,9 @@ func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 			upload.IsAdmin = true
 		} else {
 			// Check if upload belongs to user or if user is admin
-			if common.Config.Authentication && upload.User != "" {
-				user := common.GetUser(ctx)
-				if user != nil && (user.ID == upload.User || user.IsAdmin()) {
+			if config.Authentication && upload.User != "" {
+				user := context.GetUser(ctx)
+				if user != nil && (user.ID == upload.User || config.IsAdmin(user)) {
 					upload.IsAdmin = true
 				}
 			}

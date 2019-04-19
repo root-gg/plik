@@ -31,6 +31,7 @@ package file
 
 import (
 	"fmt"
+	"github.com/root-gg/plik/server/context"
 	"io"
 	"os"
 
@@ -45,16 +46,16 @@ type Backend struct {
 
 // NewFileBackend instantiate a new File Data Backend
 // from configuration passed as argument
-func NewFileBackend(config map[string]interface{}) (fb *Backend) {
+func NewFileBackend(config *BackendConfig) (fb *Backend) {
 	fb = new(Backend)
-	fb.Config = NewFileBackendConfig(config)
+	fb.Config = config
 	return
 }
 
 // GetFile implementation for file data backend will search
 // on filesystem the asked file and return its reading filehandle
 func (fb *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id string) (file io.ReadCloser, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Get upload directory
 	directory, err := fb.getDirectoryFromUploadID(upload.ID)
@@ -80,7 +81,7 @@ func (fb *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id string
 // AddFile implementation for file data backend will creates a new file for the given upload
 // and save it on filesystem with the given file reader
 func (fb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Get upload directory
 	directory, err := fb.getDirectoryFromUploadID(upload.ID)
@@ -125,7 +126,7 @@ func (fb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *com
 // RemoveFile implementation for file data backend will delete the given
 // file from filesystem
 func (fb *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, id string) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Get upload directory
 	directory, err := fb.getDirectoryFromUploadID(upload.ID)
@@ -153,7 +154,7 @@ func (fb *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, id str
 // delete the whole upload. Given that an upload is a directory,
 // we remove the whole directory at once.
 func (fb *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
-	log := common.GetLogger(ctx)
+	log := context.GetLogger(ctx)
 
 	// Get upload directory
 	fullPath, err := fb.getDirectoryFromUploadID(upload.ID)
