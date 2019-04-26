@@ -4,7 +4,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) <2015>
+Copyright (c) <2015> Copyright holders list can be found in AUTHORS file
 	- Mathieu Bodjikian <mathieu@bodjikian.fr>
 	- Charles-Antoine Mathieu <skatkatt@root.gg>
 
@@ -27,22 +27,30 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package bolt
+package common
 
 import (
-	"github.com/root-gg/utils"
+	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-// MetadataBackendConfig object
-type MetadataBackendConfig struct {
-	Path string
+func TestNewFile(t *testing.T) {
+	file := NewFile()
+	require.NotNil(t, file, "invalid file")
+	require.NotZero(t, file.ID, "invalid file id")
 }
 
-// NewBoltMetadataBackendConfig configures the backend
-// from config passed as argument
-func NewBoltMetadataBackendConfig(config map[string]interface{}) (mbc *MetadataBackendConfig) {
-	mbc = new(MetadataBackendConfig)
-	mbc.Path = "plik.db"
-	utils.Assign(mbc, config)
-	return
+func TestFileGenerateID(t *testing.T) {
+	file := &File{}
+	file.GenerateID()
+	require.NotEqual(t, "", file.ID, "missing file id")
+}
+
+func TestFileSanitize(t *testing.T) {
+	file := &File{}
+	file.BackendDetails = make(map[string]interface{})
+	file.BackendDetails["key"] = "value"
+	file.Sanitize()
+	require.Nil(t, file.BackendDetails, "invalid backend details")
 }

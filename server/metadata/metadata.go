@@ -38,10 +38,8 @@ import (
 // must implements to be compatible with plik.
 type Backend interface {
 	// Upload
-	Create(ctx *juliet.Context, upload *common.Upload) (err error)
+	Upsert(ctx *juliet.Context, upload *common.Upload) (err error)
 	Get(ctx *juliet.Context, id string) (upload *common.Upload, err error)
-	AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error)
-	RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error)
 	Remove(ctx *juliet.Context, upload *common.Upload) (err error)
 
 	// User

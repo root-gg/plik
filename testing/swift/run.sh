@@ -37,7 +37,7 @@ check_docker_connectivity
 DOCKER_IMAGE="rootgg/swift:latest"
 DOCKER_NAME="plik.swift"
 DOCKER_PORT=2604
-SWIFT_DIRECTORY="/tmp/plik.swift.tmpdir"
+#SWIFT_DIRECTORY="/tmp/plik.swift.tmpdir"
 
 function start {
     if status ; then
@@ -50,13 +50,14 @@ function start {
             docker rm -f "$DOCKER_NAME"
         fi
 
-        echo -e "\n - Cleaning swift directory $SWIFT_DIRECTORY\n"
+        #echo -e "\n - Cleaning swift directory $SWIFT_DIRECTORY\n"
 
-        test -d "$SWIFT_DIRECTORY" && rm -rf "$SWIFT_DIRECTORY"
-        mkdir -p "$SWIFT_DIRECTORY"
+        #test -d "$SWIFT_DIRECTORY" && rm -rf "$SWIFT_DIRECTORY"
+        #mkdir -p "$SWIFT_DIRECTORY"
 
         echo -e "\n - Starting $DOCKER_NAME\n"
-        docker run -d -p "$DOCKER_PORT:8080" --name "$DOCKER_NAME" -v "$SWIFT_DIRECTORY:/srv" "$DOCKER_IMAGE"
+        #docker run -d -p "$DOCKER_PORT:8080" --name "$DOCKER_NAME" -v "$SWIFT_DIRECTORY:/srv" "$DOCKER_IMAGE"
+        docker run -d -p "$DOCKER_PORT:8080" --name "$DOCKER_NAME" "$DOCKER_IMAGE"
 
         for i in $(seq 0 30)
         do

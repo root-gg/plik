@@ -33,12 +33,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/root-gg/plik/server/context"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
 
@@ -79,7 +79,7 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 		err = json.Unmarshal(body, upload)
 		if err != nil {
 			log.Warningf("Unable to deserialize request body : %s", err)
-			context.Fail(ctx, req, resp, "Unable to deserialize json request bodyy", 500)
+			context.Fail(ctx, req, resp, "Unable to deserialize json request body", 400)
 			return
 		}
 	}
@@ -114,6 +114,12 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	if upload.OneShot && !config.OneShot {
 		log.Warning("One shot downloads are not enabled.")
 		context.Fail(ctx, req, resp, "One shot downloads are not enabled.", 403)
+		return
+	}
+
+	if upload.Removable && !config.Removable {
+		log.Warning("Removable uploads are not enabled.")
+		context.Fail(ctx, req, resp, "Removable uploads are not enabled.", 403)
 		return
 	}
 
@@ -191,7 +197,7 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 			return
 		}
 
-		_, ok, err := config.YubiAuth.Verify(upload.Yubikey)
+		_, ok, err := config.GetYubiAuth().Verify(upload.Yubikey)
 		if err != nil {
 			log.Warningf("Unable to validate yubikey token : %s", err)
 			context.Fail(ctx, req, resp, "Unable to validate yubikey token", 500)
@@ -224,7 +230,7 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	// Save the metadata
-	err = context.GetMetadataBackend(ctx).Create(ctx, upload)
+	err = context.GetMetadataBackend(ctx).Upsert(ctx, upload)
 	if err != nil {
 		log.Warningf("Create new upload error : %s", err)
 		context.Fail(ctx, req, resp, "Unable to create new upload", 500)
@@ -239,7 +245,7 @@ func CreateUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 
 	// Show upload token since its an upload creation
 	upload.UploadToken = uploadToken
-	upload.IsAdmin = true
+	upload.Admin = true
 
 	// Print upload metadata in the json response.
 	var json []byte

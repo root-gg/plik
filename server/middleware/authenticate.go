@@ -30,13 +30,11 @@ THE SOFTWARE.
 package middleware
 
 import (
-	"fmt"
-	"github.com/root-gg/plik/server/context"
 	"net/http"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 )
 
 // Authenticate verify that a request has either a whitelisted url or a valid auth token
@@ -72,49 +70,25 @@ func Authenticate(allowToken bool) juliet.ContextMiddleware {
 							}
 						}
 						if token == nil {
+							// THIS SHOULD NEVER HAPPEN
 							log.Warningf("Unable to get token %s from user %s", tokenHeader, user.ID)
-							context.Fail(ctx, req, resp, "Invalid token", 403)
+							context.Fail(ctx, req, resp, "Invalid token", 500)
 							return
 						}
 
 						// Save user and token in the request context
 						ctx.Set("user", user)
 						ctx.Set("token", token)
+
+						next.ServeHTTP(resp, req)
+						return
 					}
 				}
 
-				// Get user from session cookie
 				sessionCookie, err := req.Cookie("plik-session")
 				if err == nil && sessionCookie != nil {
-
 					// Parse session cookie
-					session, err := jwt.Parse(sessionCookie.Value, func(t *jwt.Token) (interface{}, error) {
-						// Verify signing algorithm
-						if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-							return nil, fmt.Errorf("Unexpected siging method : %v", t.Header["alg"])
-						}
-
-						// Get authentication provider
-						provider, ok := t.Claims.(jwt.MapClaims)["provider"]
-						if !ok {
-							return nil, fmt.Errorf("Missing authentication provider")
-						}
-
-						switch provider {
-						case "google":
-							if !config.GoogleAuthentication {
-								return nil, fmt.Errorf("Missing Google API credentials")
-							}
-							return []byte(config.GoogleAPISecret), nil
-						case "ovh":
-							if !config.OvhAuthentication {
-								return nil, fmt.Errorf("Missing OVH API credentials")
-							}
-							return []byte(config.OvhAPISecret), nil
-						default:
-							return nil, fmt.Errorf("Invalid authentication provider : %s", provider)
-						}
-					})
+					uid, xsrf, err := common.ParseSessionCookie(sessionCookie.Value, config)
 					if err != nil {
 						log.Warningf("Invalid session : %s", err)
 						common.Logout(resp)
@@ -122,48 +96,44 @@ func Authenticate(allowToken bool) juliet.ContextMiddleware {
 						return
 					}
 
-					// Verify xsrf token
+					// Verify XSRF token
 					if req.Method != "GET" && req.Method != "HEAD" {
-						if xsrfCookie, ok := session.Claims.(jwt.MapClaims)["xsrf"]; ok {
-							xsrfHeader := req.Header.Get("X-XRSFToken")
-							if xsrfHeader == "" {
-								log.Warning("Missing xsrf header")
-								common.Logout(resp)
-								context.Fail(ctx, req, resp, "Missing xsrf header", 403)
-								return
-							}
-							if xsrfCookie != xsrfHeader {
-								log.Warning("Invalid xsrf header")
-								common.Logout(resp)
-								context.Fail(ctx, req, resp, "Invalid xsrf header", 403)
-								return
-							}
-						} else {
-							log.Warning("Invalid session : missing xsrf token")
+						xsrfHeader := req.Header.Get("X-XSRFToken")
+						if xsrfHeader == "" {
+							log.Warning("Missing xsrf header")
 							common.Logout(resp)
-							context.Fail(ctx, req, resp, "Invalid session : missing xsrf token", 500)
+							context.Fail(ctx, req, resp, "Missing xsrf header", 403)
+							return
+						}
+						if xsrf != xsrfHeader {
+							log.Warning("Invalid xsrf header")
+							common.Logout(resp)
+							context.Fail(ctx, req, resp, "Invalid xsrf header", 403)
 							return
 						}
 					}
 
 					// Get user from session
-					if userID, ok := session.Claims.(jwt.MapClaims)["uid"]; ok {
-						user, err := context.GetMetadataBackend(ctx).GetUser(ctx, userID.(string), "")
-						if err != nil {
-							log.Warningf("Unable to get user from session : %s", err)
-							common.Logout(resp)
-							context.Fail(ctx, req, resp, "Unable to get user", 500)
-							return
-						}
-						if user == nil {
-							log.Warningf("Invalid session : user does not exists")
-							common.Logout(resp)
-							context.Fail(ctx, req, resp, "Invalid session : User does not exists", 403)
-							return
-						}
+					user, err := context.GetMetadataBackend(ctx).GetUser(ctx, uid, "")
+					if err != nil {
+						log.Warningf("Unable to get user from session : %s", err)
+						common.Logout(resp)
+						context.Fail(ctx, req, resp, "Unable to get user", 500)
+						return
+					}
+					if user == nil {
+						log.Warningf("Invalid session : user does not exists")
+						common.Logout(resp)
+						context.Fail(ctx, req, resp, "Invalid session : User does not exists", 403)
+						return
+					}
 
-						// Save user in the request context
-						ctx.Set("user", user)
+					// Save user in the request context
+					ctx.Set("user", user)
+
+					// Authenticate admin users
+					if config.IsUserAdmin(user) {
+						ctx.Set("is_admin", true)
 					}
 				}
 			}

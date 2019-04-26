@@ -393,7 +393,7 @@ var plik = angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'conten
     .config(['$httpProvider', function ($httpProvider) {
         $httpProvider.defaults.headers.common['X-ClientApp'] = 'web_client';
         $httpProvider.defaults.xsrfCookieName = 'plik-xsrf';
-        $httpProvider.defaults.xsrfHeaderName = 'X-XRSFToken';
+        $httpProvider.defaults.xsrfHeaderName = 'X-XSRFToken';
 
         // Mangle "Connection failed" result for alert modal
         $httpProvider.interceptors.push(function ($q) {

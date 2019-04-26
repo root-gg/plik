@@ -31,6 +31,7 @@ package weedfs
 
 import (
 	"encoding/json"
+	"github.com/root-gg/utils"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -42,27 +43,47 @@ import (
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
+	"github.com/root-gg/plik/server/data"
 )
 
 var (
 	client = http.Client{}
 )
 
-// Backend object
-type Backend struct {
-	Config *BackendConfig
+// Ensure WeedFS Data Backend implements data.Backend interface
+var _ data.Backend = (*Backend)(nil)
+
+// Config describes configuration for WeedFS data backend
+type Config struct {
+	MasterURL          string
+	ReplicationPattern string
 }
 
-// NewWeedFsBackend instantiate a new WeedFS Data Backend
+// NewConfig instantiate a new default configuration
+// and override it with configuration passed as argument
+func NewConfig(params map[string]interface{}) (config *Config) {
+	config = new(Config)
+	config.MasterURL = "http://127.0.0.1:9333"
+	config.ReplicationPattern = "000"
+	utils.Assign(config, params)
+	return
+}
+
+// Backend object
+type Backend struct {
+	Config *Config
+}
+
+// NewBackend instantiate a new WeedFS Data Backend
 // from configuration passed as argument
-func NewWeedFsBackend(config *BackendConfig) (weedFs *Backend) {
-	weedFs = new(Backend)
-	weedFs.Config = config
+func NewBackend(config *Config) (b *Backend) {
+	b = new(Backend)
+	b.Config = config
 	return
 }
 
 // GetFile implementation for WeedFS Data Backend
-func (weedFs *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id string) (reader io.ReadCloser, err error) {
+func (b *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id string) (reader io.ReadCloser, err error) {
 	log := context.GetLogger(ctx)
 
 	file := upload.Files[id]
@@ -82,7 +103,7 @@ func (weedFs *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id st
 	WeedFsFileID := file.BackendDetails["WeedFsFileID"].(string)
 
 	// Get WeedFS volume url
-	volumeURL, err := weedFs.getvolumeURL(ctx, weedFsVolume)
+	volumeURL, err := b.getvolumeURL(ctx, weedFsVolume)
 	if err != nil {
 		err = log.EWarningf("Unable to get WeedFS volume url %s", weedFsVolume)
 		return
@@ -102,13 +123,13 @@ func (weedFs *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id st
 }
 
 // AddFile implementation for WeedFS Data Backend
-func (weedFs *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
+func (b *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
 	log := context.GetLogger(ctx)
 
 	backendDetails = make(map[string]interface{})
 
 	// Request a volume and a new file id from a WeedFS master
-	assignURL := weedFs.Config.MasterURL + "/dir/assign?replication=" + weedFs.Config.ReplicationPattern
+	assignURL := b.Config.MasterURL + "/dir/assign?replication=" + b.Config.ReplicationPattern
 	log.Debugf("Getting volume and file id from WeedFS master at %s", assignURL)
 
 	resp, err := client.Post(assignURL, "", nil)
@@ -206,7 +227,7 @@ func (weedFs *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file 
 }
 
 // RemoveFile implementation for WeedFS Data Backend
-func (weedFs *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, id string) (err error) {
+func (b *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, id string) (err error) {
 	log := context.GetLogger(ctx)
 
 	// Get file metadata
@@ -226,7 +247,7 @@ func (weedFs *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, id
 	WeedFsFileID := file.BackendDetails["WeedFsFileID"].(string)
 
 	// Get the WeedFS volume url
-	volumeURL, err := weedFs.getvolumeURL(ctx, weedFsVolume)
+	volumeURL, err := b.getvolumeURL(ctx, weedFsVolume)
 	if err != nil {
 		return
 	}
@@ -259,10 +280,10 @@ func (weedFs *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, id
 }
 
 // RemoveUpload implementation for WeedFS Data Backend
-// Iterates on every file and call RemoveFile
-func (weedFs *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
+// Iterates on every file and call removeFile
+func (b *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
 	for fileID := range upload.Files {
-		err = weedFs.RemoveFile(ctx, upload, fileID)
+		err = b.RemoveFile(ctx, upload, fileID)
 		if err != nil {
 			return
 		}
@@ -271,11 +292,11 @@ func (weedFs *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) 
 	return nil
 }
 
-func (weedFs *Backend) getvolumeURL(ctx *juliet.Context, volumeID string) (URL string, err error) {
+func (b *Backend) getvolumeURL(ctx *juliet.Context, volumeID string) (URL string, err error) {
 	log := context.GetLogger(ctx)
 
 	// Ask a WeedFS master the volume urls
-	URL = weedFs.Config.MasterURL + "/dir/lookup?volumeId=" + volumeID
+	URL = b.Config.MasterURL + "/dir/lookup?volumeId=" + volumeID
 	resp, err := client.Post(URL, "", nil)
 	if err != nil {
 		err = log.EWarningf("Unable to get volume %s url from WeedFS master at %s : %s", volumeID, URL, err)

@@ -30,41 +30,60 @@ THE SOFTWARE.
 package swift
 
 import (
+	"github.com/root-gg/utils"
 	"io"
 
 	"github.com/ncw/swift"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
+	"github.com/root-gg/plik/server/data"
 )
+
+// Ensure Swift Data Backend implements data.Backend interface
+var _ data.Backend = (*Backend)(nil)
+
+// Config describes configuration for Swift data backend
+type Config struct {
+	Username, Password, Host, ProjectName, Container string
+}
+
+// NewConfig instantiate a new default configuration
+// and override it with configuration passed as argument
+func NewConfig(params map[string]interface{}) (config *Config) {
+	config = new(Config)
+	config.Container = "plik"
+	utils.Assign(config, params)
+	return
+}
 
 // Backend object
 type Backend struct {
-	config     *BackendConfig
+	config     *Config
 	connection *swift.Connection
 }
 
-// NewSwiftBackend instantiate a new OpenSwift Data Backend
+// NewBackend instantiate a new OpenSwift Data Backend
 // from configuration passed as argument
-func NewSwiftBackend(config *BackendConfig) (sb *Backend) {
-	sb = new(Backend)
-	sb.config = config
-	return sb
+func NewBackend(config *Config) (b *Backend) {
+	b = new(Backend)
+	b.config = config
+	return b
 }
 
 // GetFile implementation for Swift Data Backend
-func (sb *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, fileID string) (reader io.ReadCloser, err error) {
+func (b *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, fileID string) (reader io.ReadCloser, err error) {
 	log := context.GetLogger(ctx)
 
-	err = sb.auth(ctx)
+	err = b.auth(ctx)
 	if err != nil {
 		return
 	}
 
 	reader, pipeWriter := io.Pipe()
-	uuid := sb.getFileID(upload, fileID)
+	uuid := b.getFileID(upload, fileID)
 	go func() {
-		_, err = sb.connection.ObjectGet(sb.config.Container, uuid, pipeWriter, true, nil)
+		_, err = b.connection.ObjectGet(b.config.Container, uuid, pipeWriter, true, nil)
 		defer pipeWriter.Close()
 		if err != nil {
 			err = log.EWarningf("Unable to get object %s : %s", uuid, err)
@@ -76,16 +95,16 @@ func (sb *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, fileID st
 }
 
 // AddFile implementation for Swift Data Backend
-func (sb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
+func (b *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
 	log := context.GetLogger(ctx)
 
-	err = sb.auth(ctx)
+	err = b.auth(ctx)
 	if err != nil {
 		return
 	}
 
-	uuid := sb.getFileID(upload, file.ID)
-	object, err := sb.connection.ObjectCreate(sb.config.Container, uuid, true, "", "", nil)
+	uuid := b.getFileID(upload, file.ID)
+	object, err := b.connection.ObjectCreate(b.config.Container, uuid, true, "", "", nil)
 
 	_, err = io.Copy(object, fileReader)
 	if err != nil {
@@ -99,16 +118,16 @@ func (sb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *com
 }
 
 // RemoveFile implementation for Swift Data Backend
-func (sb *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, fileID string) (err error) {
+func (b *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, fileID string) (err error) {
 	log := context.GetLogger(ctx)
 
-	err = sb.auth(ctx)
+	err = b.auth(ctx)
 	if err != nil {
 		return
 	}
 
-	uuid := sb.getFileID(upload, fileID)
-	err = sb.connection.ObjectDelete(sb.config.Container, uuid)
+	uuid := b.getFileID(upload, fileID)
+	err = b.connection.ObjectDelete(b.config.Container, uuid)
 	if err != nil {
 		err = log.EWarningf("Unable to remove object %s : %s", uuid, err)
 		return
@@ -118,18 +137,18 @@ func (sb *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, fileID
 }
 
 // RemoveUpload implementation for Swift Data Backend
-// Iterates on each upload file and call RemoveFile
-func (sb *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
+// Iterates on each upload file and call removeFile
+func (b *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
 	log := context.GetLogger(ctx)
 
-	err = sb.auth(ctx)
+	err = b.auth(ctx)
 	if err != nil {
 		return
 	}
 
 	for fileID := range upload.Files {
-		uuid := sb.getFileID(upload, fileID)
-		err = sb.connection.ObjectDelete(sb.config.Container, uuid)
+		uuid := b.getFileID(upload, fileID)
+		err = b.connection.ObjectDelete(b.config.Container, uuid)
 		if err != nil {
 			err = log.EWarningf("Unable to remove object %s : %s", uuid, err)
 		}
@@ -138,22 +157,22 @@ func (sb *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err
 	return
 }
 
-func (sb *Backend) getFileID(upload *common.Upload, fileID string) string {
+func (b *Backend) getFileID(upload *common.Upload, fileID string) string {
 	return upload.ID + "." + fileID
 }
 
-func (sb *Backend) auth(ctx *juliet.Context) (err error) {
+func (b *Backend) auth(ctx *juliet.Context) (err error) {
 	log := context.GetLogger(ctx)
 
-	if sb.connection != nil && sb.connection.Authenticated() {
+	if b.connection != nil && b.connection.Authenticated() {
 		return
 	}
 
 	connection := &swift.Connection{
-		UserName: sb.config.Username,
-		ApiKey:   sb.config.Password,
-		AuthUrl:  sb.config.Host,
-		Tenant:   sb.config.ProjectName,
+		UserName: b.config.Username,
+		ApiKey:   b.config.Password,
+		AuthUrl:  b.config.Host,
+		Tenant:   b.config.ProjectName,
 	}
 
 	// Authenticate
@@ -162,10 +181,10 @@ func (sb *Backend) auth(ctx *juliet.Context) (err error) {
 		err = log.EWarningf("Unable to autenticate : %s", err)
 		return err
 	}
-	sb.connection = connection
+	b.connection = connection
 
 	// Create container
-	sb.connection.ContainerCreate(sb.config.Container, nil)
+	b.connection.ContainerCreate(b.config.Container, nil)
 
 	return
 }

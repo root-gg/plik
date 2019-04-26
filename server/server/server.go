@@ -28,6 +28,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -43,11 +44,13 @@ import (
 	"github.com/root-gg/plik/server/data/file"
 	"github.com/root-gg/plik/server/data/stream"
 	"github.com/root-gg/plik/server/data/swift"
+	data_test "github.com/root-gg/plik/server/data/testing"
 	"github.com/root-gg/plik/server/data/weedfs"
 	"github.com/root-gg/plik/server/handlers"
 	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/plik/server/metadata/bolt"
 	"github.com/root-gg/plik/server/metadata/mongo"
+	metadata_test "github.com/root-gg/plik/server/metadata/testing"
 	"github.com/root-gg/plik/server/middleware"
 )
 
@@ -62,11 +65,12 @@ type PlikServer struct {
 
 	httpServer *http.Server
 
-	// TODO find a better solution maybe ?
-	startOnce    sync.Once
-	shutdownOnce sync.Once
+	mu      sync.Mutex
+	started bool
+	done    bool
 
-	done chan struct{}
+	cleaningRandomDelay int
+	cleaningMinOffset   int
 }
 
 // NewPlikServer create a new Plik Server instance
@@ -74,23 +78,36 @@ func NewPlikServer(config *common.Configuration) (ps *PlikServer) {
 	ps = new(PlikServer)
 	ps.config = config
 
-	ps.logger = logger.NewLogger().SetMinLevel(logger.INFO).SetMinLevelFromString(config.LogLevel)
-	if config.LogLevel == "DEBUG" {
+	ps.logger = logger.NewLogger().SetMinLevelFromString(config.LogLevel)
+	if ps.logger.MinLevel == logger.DEBUG {
 		ps.logger.SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel | logger.FshortFile | logger.FshortFunction)
 	} else {
 		ps.logger.SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel)
 	}
 
-	ps.done = make(chan struct{})
+	ps.cleaningRandomDelay = 3600
+	ps.cleaningMinOffset = 7200
+
 	return ps
 }
 
 // Start a Plik Server instance
 func (ps *PlikServer) Start() (err error) {
-	ps.startOnce.Do(func() {
-		err = ps.start()
-	})
-	return
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	if ps.done {
+		return errors.New("can't start a shutdown Plik server")
+	}
+
+	if ps.started {
+		return errors.New("can't start a Plik server twice")
+	}
+
+	// You get only one try
+	ps.started = true
+
+	return ps.start()
 }
 
 func (ps *PlikServer) start() (err error) {
@@ -116,7 +133,9 @@ func (ps *PlikServer) start() (err error) {
 		return fmt.Errorf("Unable to initialize stream backend : %s", err)
 	}
 
-	go ps.uploadsCleaningRoutine()
+	if ps.config.IsAutoClean() {
+		go ps.uploadsCleaningRoutine()
+	}
 
 	handler := ps.getHTTPHandler()
 
@@ -138,46 +157,73 @@ func (ps *PlikServer) start() (err error) {
 		ps.httpServer = &http.Server{Addr: address, Handler: handler}
 	}
 
-	log.Infof("Starting http server at %s://%s", proto, address)
+	log.Infof("Starting server at %s://%s", proto, address)
 
+	// Start HTTP Server
 	go func() {
-		// Todo find error handling ?
-		err = ps.httpServer.ListenAndServe()
+		err := ps.httpServer.ListenAndServe()
 		if err != nil {
-			log.Fatalf("Unable to start HTTP server : %s", err)
+			ps.mu.Lock()
+			defer ps.mu.Unlock()
+			if !ps.done {
+				log.Fatalf("Unable to start HTTP server : %s", err)
+			}
 		}
 	}()
+
+	err = common.CheckHTTPServer(ps.GetConfig().ListenPort)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-// Shutdown a Plik Server instance
-func (ps *PlikServer) Shutdown() (err error) {
-	ps.shutdownOnce.Do(func() {
-		err = ps.shutdown()
-	})
-	return
+// Shutdown gracefully shutdown a Plik Server instance with a timeout grace period for connexions to close
+func (ps *PlikServer) Shutdown(timeout time.Duration) (err error) {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	if !ps.started {
+		return nil
+	}
+
+	if ps.done {
+		return errors.New("can't shutdown a Plik server twice")
+	}
+
+	return ps.shutdown(timeout)
 }
 
-func (ps *PlikServer) shutdown() (err error) {
-	close(ps.done)
+// ShutdownNow a Plik Server instance abruptly closing all connection immediately
+func (ps *PlikServer) ShutdownNow() (err error) {
+	return ps.Shutdown(0)
+}
+
+func (ps *PlikServer) shutdown(timeout time.Duration) (err error) {
+	ps.logger.Info("Shutdown server at " + ps.GetConfig().GetServerURL().String())
+	ps.done = true
+
 	if ps.httpServer == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
 
-	err = ps.httpServer.Shutdown(ctx)
-	if err != nil {
-		err = ps.httpServer.Close()
+	if timeout > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+
+		err = ps.httpServer.Shutdown(ctx)
+		if err == nil {
+			return
+		}
 	}
 
-	return err
+	return ps.httpServer.Close()
 }
 
 func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	// Initialize middleware chain
-	stdChain := juliet.NewChainWithContextBuilder(ps.newContext, middleware.SourceIP, middleware.Log)
+	stdChain := juliet.NewChainWithContextBuilder(ps.NewContext, middleware.SourceIP, middleware.Log)
 
 	// Get user from session cookie
 	authChain := stdChain.Append(middleware.Authenticate(false), middleware.Impersonate)
@@ -187,7 +233,7 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 
 	// Redirect on error for webapp
 	stdChainWithRedirect := juliet.NewChain(middleware.RedirectOnFailure).AppendChain(stdChain)
-	authChainWithRedirect := juliet.NewChain(middleware.RedirectOnFailure).AppendChain(authChain)
+	authChainWithRedirect := juliet.NewChain(middleware.RedirectOnFailure).AppendChain(tokenChain)
 
 	getFileChain := juliet.NewChain(middleware.Upload, middleware.Yubikey, middleware.File)
 
@@ -197,14 +243,13 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	router.Handle("/version", stdChain.Then(handlers.GetVersion)).Methods("GET")
 	router.Handle("/upload", tokenChain.Then(handlers.CreateUpload)).Methods("POST")
 	router.Handle("/upload/{uploadID}", authChain.Append(middleware.Upload).Then(handlers.GetUpload)).Methods("GET")
-	router.Handle("/upload/{uploadID}", authChain.Append(middleware.Upload).Then(handlers.RemoveUpload)).Methods("DELETE")
+	router.Handle("/upload/{uploadID}", tokenChain.Append(middleware.Upload).Then(handlers.RemoveUpload)).Methods("DELETE")
 	router.Handle("/file/{uploadID}", tokenChain.Append(middleware.Upload).Then(handlers.AddFile)).Methods("POST")
 	router.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
-	router.Handle("/file/{uploadID}/{fileID}/{filename}", authChain.Append(middleware.Upload, middleware.File).Then(handlers.RemoveFile)).Methods("DELETE")
+	router.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.RemoveFile)).Methods("DELETE")
 	router.Handle("/file/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
 	router.Handle("/file/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
 	router.Handle("/stream/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
-	router.Handle("/stream/{uploadID}/{fileID}/{filename}", authChain.Append(middleware.Upload, middleware.File).Then(handlers.RemoveFile)).Methods("DELETE")
 	router.Handle("/stream/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
 	router.Handle("/stream/{uploadID}/{fileID}/{filename}/yubikey/{yubikey}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
 	router.Handle("/archive/{uploadID}/{filename}", authChainWithRedirect.Append(middleware.Upload, middleware.Yubikey).Then(handlers.GetArchive)).Methods("HEAD", "GET")
@@ -245,17 +290,19 @@ func (ps *PlikServer) initializeMetadataBackend() (err error) {
 	if ps.metadataBackend == nil {
 		switch ps.config.MetadataBackend {
 		case "mongo":
-			config := mongo.NewMongoMetadataBackendConfig(ps.config.MetadataBackendConfig)
-			ps.metadataBackend, err = mongo.NewMongoMetadataBackend(config)
+			config := mongo.NewConfig(ps.config.MetadataBackendConfig)
+			ps.metadataBackend, err = mongo.NewBackend(config)
 			if err != nil {
 				return err
 			}
 		case "bolt":
-			config := bolt.NewBoltMetadataBackendConfig(ps.config.MetadataBackendConfig)
-			ps.metadataBackend, err = bolt.NewBoltMetadataBackend(config)
+			config := bolt.NewConfig(ps.config.MetadataBackendConfig)
+			ps.metadataBackend, err = bolt.NewBackend(config)
 			if err != nil {
 				return err
 			}
+		case "testing":
+			ps.metadataBackend = metadata_test.NewBackend()
 		default:
 			return fmt.Errorf("Invalid metadata backend %s", ps.config.MetadataBackend)
 		}
@@ -277,14 +324,16 @@ func (ps *PlikServer) initializeDataBackend() (err error) {
 	if ps.dataBackend == nil {
 		switch ps.config.DataBackend {
 		case "file":
-			config := file.NewFileBackendConfig(ps.config.DataBackendConfig)
-			ps.dataBackend = file.NewFileBackend(config)
+			config := file.NewConfig(ps.config.DataBackendConfig)
+			ps.dataBackend = file.NewBackend(config)
 		case "swift":
-			config := swift.NewSwitftBackendConfig(ps.config.DataBackendConfig)
-			ps.dataBackend = swift.NewSwiftBackend(config)
+			config := swift.NewConfig(ps.config.DataBackendConfig)
+			ps.dataBackend = swift.NewBackend(config)
 		case "weedfs":
-			config := weedfs.NewWeedFsBackendConfig(ps.config.DataBackendConfig)
-			ps.dataBackend = weedfs.NewWeedFsBackend(config)
+			config := weedfs.NewConfig(ps.config.DataBackendConfig)
+			ps.dataBackend = weedfs.NewBackend(config)
+		case "testing":
+			ps.dataBackend = data_test.NewBackend()
 		default:
 			return fmt.Errorf("Invalid data backend %s", ps.config.DataBackend)
 		}
@@ -304,8 +353,8 @@ func (ps *PlikServer) WithStreamBackend(backend data.Backend) *PlikServer {
 // Initialize data backend from type found in configuration
 func (ps *PlikServer) initializeStreamBackend() (err error) {
 	if ps.streamBackend == nil && ps.config.StreamMode {
-		config := stream.NewStreamBackendConfig(ps.config.StreamBackendConfig)
-		ps.streamBackend = stream.NewStreamBackend(config)
+		config := stream.NewConfig(ps.config.StreamBackendConfig)
+		ps.streamBackend = stream.NewBackend(config)
 	}
 
 	return nil
@@ -314,55 +363,80 @@ func (ps *PlikServer) initializeStreamBackend() (err error) {
 // UploadsCleaningRoutine periodicaly remove expired uploads
 func (ps *PlikServer) uploadsCleaningRoutine() {
 	log := ps.logger
-	ctx := ps.newContext()
 	for {
-		select {
-		case <-ps.done:
-			return
-		default:
-			// Sleep between 2 hours and 3 hours
-			// This is a dirty trick to avoid frontends doing this at the same time
-			r, _ := rand.Int(rand.Reader, big.NewInt(3600))
-			randomSleep := r.Int64() + 7200
+		if ps.done {
+			break
+		}
+		// Sleep between 2 hours and 3 hours
+		// This is a dirty trick to avoid frontends doing this at the same time
+		r, _ := rand.Int(rand.Reader, big.NewInt(int64(ps.cleaningRandomDelay)))
+		randomSleep := r.Int64() + int64(ps.cleaningMinOffset)
 
-			log.Infof("Will clean old uploads in %d seconds.", randomSleep)
-			time.Sleep(time.Duration(randomSleep) * time.Second)
-			log.Infof("Cleaning expired uploads...")
+		log.Infof("Will clean old uploads in %d seconds.", randomSleep)
+		time.Sleep(time.Duration(randomSleep) * time.Second)
+		log.Infof("Cleaning expired uploads...")
+		ps.Clean()
+	}
+}
 
-			// Get uploads that needs to be removed
-			uploadIds, err := ps.metadataBackend.GetUploadsToRemove(ctx)
+// Clean removes expired uploads from the servers
+func (ps *PlikServer) Clean() {
+	log := ps.logger
+	ctx := ps.NewContext()
+
+	// Get uploads that needs to be removed
+	uploadIds, err := ps.metadataBackend.GetUploadsToRemove(ctx)
+	if err != nil {
+		log.Warningf("Failed to get expired uploads : %s", err)
+	} else {
+		// Remove them
+		for _, uploadID := range uploadIds {
+			log.Infof("Removing expired upload %s", uploadID)
+			// Get upload metadata
+			upload, err := ps.metadataBackend.Get(ctx, uploadID)
 			if err != nil {
-				log.Warningf("Failed to get expired uploads : %s", err)
-			} else {
-				// Remove them
-				for _, uploadID := range uploadIds {
-					log.Infof("Removing expired upload %s", uploadID)
-					// Get upload metadata
-					upload, err := ps.metadataBackend.Get(ctx, uploadID)
-					if err != nil {
-						log.Warningf("Unable to get infos for upload: %s", err)
-						continue
-					}
+				log.Warningf("Unable to get infos for upload: %s", err)
+				continue
+			}
 
-					// Remove from data backend
-					err = ps.dataBackend.RemoveUpload(ctx, upload)
-					if err != nil {
-						log.Warningf("Unable to remove upload data : %s", err)
-						continue
-					}
+			// Remove from data backend
+			err = ps.dataBackend.RemoveUpload(ctx, upload)
+			if err != nil {
+				log.Warningf("Unable to remove upload data : %s", err)
+				continue
+			}
 
-					// Remove from metadata backend
-					err = ps.metadataBackend.Remove(ctx, upload)
-					if err != nil {
-						log.Warningf("Unable to remove upload metadata : %s", err)
-					}
-				}
+			// Remove from metadata backend
+			err = ps.metadataBackend.Remove(ctx, upload)
+			if err != nil {
+				log.Warningf("Unable to remove upload metadata : %s", err)
 			}
 		}
 	}
 }
 
-func (ps *PlikServer) newContext() *juliet.Context {
+// GetConfig return the server configuration
+func (ps *PlikServer) GetConfig() *common.Configuration {
+	return ps.config
+}
+
+// GetMetadataBackend return the configured Backend
+func (ps *PlikServer) GetMetadataBackend() metadata.Backend {
+	return ps.metadataBackend
+}
+
+// GetDataBackend return the configured DataBackend
+func (ps *PlikServer) GetDataBackend() data.Backend {
+	return ps.dataBackend
+}
+
+// GetStreamBackend return the configured StreamBackend
+func (ps *PlikServer) GetStreamBackend() data.Backend {
+	return ps.streamBackend
+}
+
+// NewContext return a new scoped context to pass along
+func (ps *PlikServer) NewContext() *juliet.Context {
 	ctx := juliet.NewContext()
 	ctx.Set("config", ps.config)
 	ctx.Set("logger", ps.logger.Copy())

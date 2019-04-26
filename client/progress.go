@@ -33,6 +33,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"strconv"
 	"strings"
 	"sync"
@@ -70,7 +71,7 @@ func (p *Progress) register(file *plik.File) {
 	// Upload progress ( Size, Progressbar, Transfer Speed, Elapsed Time,... )
 	linePrefix := fmt.Sprintf("%-"+strconv.Itoa(p.prefixLength)+"s : ", file.Name)
 
-	bar := pb.New64(file.CurrentSize).SetUnits(pb.U_BYTES).Prefix(linePrefix)
+	bar := pb.New64(file.Size).SetUnits(pb.U_BYTES).Prefix(linePrefix)
 	bar.Prefix(linePrefix)
 	bar.ShowSpeed = true
 	bar.ShowFinalTime = true
@@ -82,17 +83,19 @@ func (p *Progress) register(file *plik.File) {
 	p.bars = append(p.bars, bar)
 	p.mu.Unlock()
 
-	file.Reader = io.TeeReader(file.Reader, bar)
+	file.WrapReader(func(fileReader io.ReadCloser) io.ReadCloser {
+		return ioutil.NopCloser(io.TeeReader(fileReader, bar))
+	})
 
-	file.Done = func() {
-		if file.Error != nil {
+	file.RegisterDoneCallback(func() {
+		if file.Error() != nil {
 			// Keep only the first line of the error
-			str := strings.TrimSuffix(strings.SplitAfterN(file.Error.Error(), "\n", 2)[0], "\n")
+			str := strings.TrimSuffix(strings.SplitAfterN(file.Error().Error(), "\n", 2)[0], "\n")
 			bar.FinishError(errors.New(str))
 		} else {
 			bar.Finish()
 		}
-	}
+	})
 }
 
 // Start the progress bar pool

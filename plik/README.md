@@ -14,10 +14,10 @@ go get -v github.com/root-gg/plik/plik
 plik.NewClient("https://plik.server.url")
 
 // To upload regular files
-upload, err := client.UploadFiles("/home/file1", "/home/file2", ...)
+upload, file, err := client.UploadFile("/home/file1")
 
 // To upload a byte stream
-upload, err := client.UploadReader("filename", ioReader)
+upload, file, err := client.UploadReader("filename", ioReader)
 ```
 
 #### 2 Full mode
@@ -43,28 +43,51 @@ upload := client.NewUpload()
 upload.OneShot = false
 
 // Create file from path
-file1, err = plik.NewFileFromPath(path)
+file1, err = upload.AddFileFromPath(path)
 
 // Create file from reader
-file2, err = plik.NewFileFromReader("filename", ioReader)
+file2, err = upload.AddFileFromReader("filename", ioReader)
 
-// Add files to the upload
-upload.AddFiles(file1, file2)
-
-// Create upload server side ( optional step that is called by upload.Upload() if omitted )
+// Create upload server side ( optional step that is called by upload.Upload() / file.Upload() if omitted )
 err = upload.Create()
 
 // Upload all added files in parallel
 err = upload.Upload()
 
 // Upload a single file
-err = upload.UploadFile(file1)
+err = file.Upload()
 
 // Get upload URL
-uploadURL := upload.GetUploadUrl()
+uploadURL, err := upload.GetURL()
 
 // Get file URL
 for _, file := range upload.Files() {
-    fileURL := upload.GetFileUrl(file)
+    fileURL, err := file.GetURL()
 }
+```
+
+#### 3 Bonus
+
+```go
+// Get Upload
+upload = client.GetUpload(id)
+
+// Download file
+reader, err = upload.Files()[0].Download()
+
+// Download archive
+reader, err = upload.DownloadZipArchive()
+
+// Remove File ( need to be authenticated )
+err = upload.Files()[0].Delete()
+
+// Remove Upload ( need to be authenticated )
+err = upload.Delete()
+
+// Add file still works ( need to be authenticated )
+err = upload.AddFileFromPath(path)
+err = upload.Upload()
+
+// Get remote server version
+buildInfo, err = client.GetServerVersion()
 ```

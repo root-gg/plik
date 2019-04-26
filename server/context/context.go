@@ -25,16 +25,23 @@ THE SOFTWARE. */
 package context
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"strings"
+	"testing"
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data"
+	datatest "github.com/root-gg/plik/server/data/testing"
 	"github.com/root-gg/plik/server/metadata"
+	metadatatest "github.com/root-gg/plik/server/metadata/testing"
+	"github.com/stretchr/testify/require"
 )
 
 // TODO Error Management
@@ -146,7 +153,23 @@ func GetUpload(ctx *juliet.Context) *common.Upload {
 	return nil
 }
 
-// IsRedirectOnFailure return true if the http responde should return
+// IsUploadAdmin returns true if the context has verified that current request can modify the upload
+func IsUploadAdmin(ctx *juliet.Context) bool {
+	if admin, ok := ctx.Get("is_upload_admin"); ok {
+		return admin.(bool)
+	}
+	return false
+}
+
+// IsAdmin check if the user is a Plik server administrator
+func IsAdmin(ctx *juliet.Context) bool {
+	if admin, ok := ctx.Get("is_admin"); ok {
+		return admin.(bool)
+	}
+	return false
+}
+
+// IsRedirectOnFailure return true if the http response should return
 // a http redirect instead of an error string.
 func IsRedirectOnFailure(ctx *juliet.Context) bool {
 	if redirect, ok := ctx.Get("redirect"); ok {
@@ -155,7 +178,7 @@ func IsRedirectOnFailure(ctx *juliet.Context) bool {
 	return false
 }
 
-var userAgents = []string{"wget", "curl", "python-urllib", "libwwww-perl", "php", "pycurl"}
+var userAgents = []string{"wget", "curl", "python-urllib", "libwwww-perl", "php", "pycurl", "Go-http-client"}
 
 // Fail return write an error to the http response body.
 // If IsRedirectOnFailure is true it write a http redirect that can be handled by the web client instead.
@@ -179,4 +202,32 @@ func Fail(ctx *juliet.Context, req *http.Request, resp http.ResponseWriter, mess
 	}
 
 	http.Error(resp, common.NewResult(message, nil).ToJSONString(), status)
+}
+
+// TestFail is a helper to test a httptest.ResponseRecoreder status
+func TestFail(t *testing.T, resp *httptest.ResponseRecorder, status int, message string) {
+	require.Equal(t, status, resp.Code, "handler returned wrong status code")
+
+	respBody, err := ioutil.ReadAll(resp.Body)
+	require.NoError(t, err, "unable to read response body")
+	require.NotEqual(t, err, 0, len(respBody), "empty response body")
+
+	var result = &common.Result{}
+	err = json.Unmarshal(respBody, result)
+	require.NoError(t, err, "unable to unmarshal error")
+
+	if message != "" {
+		require.Contains(t, result.Message, message, "invalid response error message")
+	}
+}
+
+// NewTestingContext is a helper to create a context to test handlers and middlewares
+func NewTestingContext(config *common.Configuration) (ctx *juliet.Context) {
+	ctx = juliet.NewContext()
+	ctx.Set("config", config)
+	ctx.Set("logger", logger.NewLogger())
+	ctx.Set("metadata_backend", metadatatest.NewBackend())
+	ctx.Set("data_backend", datatest.NewBackend())
+	ctx.Set("stream_backend", datatest.NewBackend())
+	return ctx
 }

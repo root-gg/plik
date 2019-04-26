@@ -164,10 +164,19 @@ Options:
 		}
 	}
 
-	var files []*plik.File
+	upload := client.NewUpload()
+	upload.Token = config.Token
+	upload.TTL = config.TTL
+	upload.Stream = config.Stream
+	upload.OneShot = config.OneShot
+	upload.Removable = config.Removable
+	upload.Comments = config.Comments
+	upload.Login = config.Login
+	upload.Password = config.Password
+	upload.Yubikey = config.yubikeyToken
+
 	if len(config.filePaths) == 0 {
-		file := plik.NewFileFromReader("STDIN", bufio.NewReader(os.Stdin))
-		files = append(files, file)
+		upload.AddFileFromReader("STDIN", bufio.NewReader(os.Stdin))
 	} else {
 		if config.Archive {
 			archiveBackend, err = archive.NewArchiveBackend(config.ArchiveMethod, config.ArchiveOptions)
@@ -189,26 +198,24 @@ Options:
 			}
 
 			filename := archiveBackend.GetFileName(config.filePaths)
-			file := plik.NewFileFromReader(filename, reader)
-			files = append(files, file)
+			upload.AddFileFromReader(filename, reader)
 		} else {
 			for _, path := range config.filePaths {
-				file, err := plik.NewFileFromPath(path)
+				_, err := upload.AddFileFromPath(path)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "%s : %s\n", path, err)
 					os.Exit(1)
 				}
-				files = append(files, file)
 			}
 		}
 	}
 
 	if config.filenameOverride != "" {
-		if len(files) != 1 {
+		if len(upload.Files()) != 1 {
 			fmt.Fprintf(os.Stderr, "Can't override filename if more than one file to upload\n")
 			os.Exit(1)
 		}
-		files[0].Name = config.filenameOverride
+		upload.Files()[0].Name = config.filenameOverride
 	}
 
 	// Initialize crypto backend
@@ -228,36 +235,25 @@ Options:
 	// Initialize progress bar display
 	var progress *Progress
 	if !config.Quiet && !config.Debug {
-		progress = NewProgress(files)
+		progress = NewProgress(upload.Files())
 	}
 
-	upload := client.NewUpload()
-	upload.Token = config.Token
-	upload.TTL = config.TTL
-	upload.Stream = config.Stream
-	upload.OneShot = config.OneShot
-	upload.Removable = config.Removable
-	upload.Comments = config.Comments
-	upload.Login = config.Login
-	upload.Password = config.Password
-	upload.Yubikey = config.yubikeyToken
-
 	// Add files to upload
-	for _, file := range files {
+	for _, file := range upload.Files() {
 		if config.Secure {
-			reader, err := cryptoBackend.Encrypt(file.Reader)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Unable to encrypt file :%s", err)
-				os.Exit(1)
-			}
-			file.Reader = reader
+			file.WrapReader(func(fileReader io.ReadCloser) io.ReadCloser {
+				reader, err := cryptoBackend.Encrypt(fileReader)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Unable to encrypt file :%s", err)
+					os.Exit(1)
+				}
+				return ioutil.NopCloser(reader)
+			})
 		}
 
 		if !config.Quiet && !config.Debug {
 			progress.register(file)
 		}
-
-		upload.AddFiles(file)
 	}
 
 	// Create upload on server
@@ -268,15 +264,22 @@ Options:
 	}
 
 	// Mon, 02 Jan 2006 15:04:05 MST
-	creationDate := time.Unix(upload.Info().Creation, 0).Format(time.RFC1123)
+	creationDate := time.Unix(upload.Details().Creation, 0).Format(time.RFC1123)
 
 	// Display upload url
 	printf("Upload successfully created at %s : \n", creationDate)
-	printf("    %s/#/?id=%s\n\n", config.URL, upload.Info().ID)
+
+	uploadURL, err := upload.GetURL()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to get upload url %s\n", err)
+		os.Exit(1)
+	} else {
+		printf("    %s\n\n", uploadURL)
+	}
 
 	if config.Stream && !config.Debug {
-		for _, file := range files {
-			cmd, err := getFileCommand(upload, file)
+		for _, file := range upload.Files() {
+			cmd, err := getFileCommand(file)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Unable to get download command for file %s : %s\n", file.Name, err)
 			}
@@ -301,19 +304,19 @@ Options:
 	// Display download commands
 	if !config.Stream {
 		printf("\nCommands : \n")
-		for _, file := range files {
+		for _, file := range upload.Files() {
 			// Print file information (only url if quiet mode is enabled)
-			if file.Error != nil {
+			if file.Error() != nil {
 				continue
 			}
 			if config.Quiet {
-				URL, err := upload.GetFileURL(file)
+				URL, err := file.GetURL()
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Unable to get download command for file %s : %s\n", file.Name, err)
 				}
 				fmt.Println(URL)
 			} else {
-				cmd, err := getFileCommand(upload, file)
+				cmd, err := getFileCommand(file)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Unable to get download command for file %s : %s\n", file.Name, err)
 				}
@@ -325,7 +328,7 @@ Options:
 	}
 }
 
-func getFileCommand(upload *plik.Upload, file *plik.File) (command string, err error) {
+func getFileCommand(file *plik.File) (command string, err error) {
 	// Step one - Downloading file
 	switch config.DownloadBinary {
 	case "wget":
@@ -336,7 +339,7 @@ func getFileCommand(upload *plik.Upload, file *plik.File) (command string, err e
 		command += config.DownloadBinary
 	}
 
-	URL, err := upload.GetFileURL(file)
+	URL, err := file.GetURL()
 	if err != nil {
 		return "", err
 	}

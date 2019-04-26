@@ -31,13 +31,13 @@ package middleware
 
 import (
 	"fmt"
-	"github.com/root-gg/plik/server/context"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/root-gg/juliet"
+	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
 
@@ -45,7 +45,6 @@ import (
 func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		log := context.GetLogger(ctx)
-		config := context.GetConfig(ctx)
 
 		// Get the upload id from the url params
 		vars := mux.Vars(req)
@@ -90,19 +89,27 @@ func Upload(ctx *juliet.Context, next http.Handler) http.Handler {
 		// Check upload token
 		uploadToken := req.Header.Get("X-UploadToken")
 		if uploadToken != "" && uploadToken == upload.UploadToken {
-			upload.IsAdmin = true
+			ctx.Set("is_upload_admin", true)
 		} else {
-			// Check if upload belongs to user or if user is admin
-			if config.Authentication && upload.User != "" {
+			token := context.GetToken(ctx)
+			if token != nil {
+				// A user authenticated with a token can manage uploads created with such token
+				if upload.Token == token.Token {
+					ctx.Set("is_upload_admin", true)
+				}
+			} else {
+				// Check if upload belongs to user or if user is admin
 				user := context.GetUser(ctx)
-				if user != nil && (user.ID == upload.User || config.IsAdmin(user)) {
-					upload.IsAdmin = true
+				if context.IsAdmin(ctx) {
+					ctx.Set("is_upload_admin", true)
+				} else if user != nil && upload.User == user.ID {
+					ctx.Set("is_upload_admin", true)
 				}
 			}
 		}
 
 		// Handle basic auth if upload is password protected
-		if upload.ProtectedByPassword && !upload.IsAdmin {
+		if upload.ProtectedByPassword && !context.IsUploadAdmin(ctx) {
 			if req.Header.Get("Authorization") == "" {
 				log.Warning("Missing Authorization header")
 				forbidden()

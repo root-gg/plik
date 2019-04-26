@@ -30,7 +30,6 @@ THE SOFTWARE.
 package handlers
 
 import (
-	"github.com/root-gg/plik/server/context"
 	"image/png"
 	"net/http"
 	"strconv"
@@ -39,6 +38,7 @@ import (
 	"github.com/boombuler/barcode/qr"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
 
@@ -93,6 +93,11 @@ func GetQrCode(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request)
 	if sizeInt > 1000 {
 		log.Warning("QRCode size must be lower than 1000")
 		context.Fail(ctx, req, resp, "QRCode size must be lower than 1000", 400)
+		return
+	}
+	if sizeInt <= 0 {
+		log.Warning("QRCode size must be positive")
+		context.Fail(ctx, req, resp, "QRCode size must be positive", 400)
 		return
 	}
 

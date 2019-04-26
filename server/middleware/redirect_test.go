@@ -1,6 +1,6 @@
 /**
 
-    Plik upload client
+    Plik upload server
 
 The MIT License (MIT)
 
@@ -26,25 +26,28 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
-
-package weedfs
+package middleware
 
 import (
-	"github.com/root-gg/utils"
+	"bytes"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
+	"github.com/stretchr/testify/require"
 )
 
-// BackendConfig describes configuration for WeedFS data backend
-type BackendConfig struct {
-	MasterURL          string
-	ReplicationPattern string
-}
+func TestRedirect(t *testing.T) {
+	ctx := context.NewTestingContext(common.NewConfiguration())
 
-// NewWeedFsBackendConfig instantiate a new default configuration
-// and override it with configuration passed as argument
-func NewWeedFsBackendConfig(config map[string]interface{}) (bc *BackendConfig) {
-	bc = new(BackendConfig)
-	bc.MasterURL = "http://127.0.0.1:9333"
-	bc.ReplicationPattern = "000"
-	utils.Assign(bc, config)
-	return
+	req, err := http.NewRequest("GET", "url", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	rr := httptest.NewRecorder()
+	RedirectOnFailure(ctx, common.DummyHandler).ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
+	require.True(t, context.IsRedirectOnFailure(ctx), "invalid redirect status from context")
 }

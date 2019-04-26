@@ -4,7 +4,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) <2015>
+Copyright (c) <2015> Copyright holders list can be found in AUTHORS file
 	- Mathieu Bodjikian <mathieu@bodjikian.fr>
 	- Charles-Antoine Mathieu <skatkatt@root.gg>
 
@@ -27,20 +27,23 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package stream
+package common
 
 import (
-	"github.com/root-gg/utils"
+	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-// BackendConfig describes configuration for stream data backend
-type BackendConfig struct {
+func TestNewToken(t *testing.T) {
+	token := NewToken()
+	require.NotNil(t, token, "invalid token")
 }
 
-// NewStreamBackendConfig instantiate a new default configuration
-// and override it with configuration passed as argument
-func NewStreamBackendConfig(config map[string]interface{}) (bc *BackendConfig) {
-	bc = new(BackendConfig)
-	utils.Assign(bc, config)
-	return
+func TestTokenCreate(t *testing.T) {
+	token := NewToken()
+	err := token.Create()
+	require.NoError(t, err, "unable to create token")
+	require.NotZero(t, token.Token, "missing token")
+	require.NotZero(t, token.CreationDate, "missing creation date")
 }

@@ -17,7 +17,6 @@ import (
 // GetUsers return users information ( name / email / tokens / ... )
 func GetUsers(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := context.GetLogger(ctx)
-	config := context.GetConfig(ctx)
 
 	// Get user from context
 	user := context.GetUser(ctx)
@@ -26,8 +25,8 @@ func GetUsers(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	if !config.IsAdmin(user) {
-		context.Fail(ctx, req, resp, "You need administrator privileges ", 403)
+	if !context.IsAdmin(ctx) {
+		context.Fail(ctx, req, resp, "You need administrator privileges", 403)
 		return
 	}
 
@@ -100,7 +99,6 @@ func GetUsers(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 // GetServerStatistics return the server statistics
 func GetServerStatistics(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := context.GetLogger(ctx)
-	config := context.GetConfig(ctx)
 
 	// Get user from context
 	user := context.GetUser(ctx)
@@ -109,8 +107,8 @@ func GetServerStatistics(ctx *juliet.Context, resp http.ResponseWriter, req *htt
 		return
 	}
 
-	if !config.IsAdmin(user) {
-		context.Fail(ctx, req, resp, "You need administrator privileges ", 403)
+	if !context.IsAdmin(ctx) {
+		context.Fail(ctx, req, resp, "You need administrator privileges", 403)
 		return
 	}
 

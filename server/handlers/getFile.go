@@ -31,14 +31,13 @@ package handlers
 
 import (
 	"fmt"
+	"github.com/root-gg/juliet"
+	"github.com/root-gg/plik/server/context"
+	"github.com/root-gg/plik/server/data"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/context"
-	"github.com/root-gg/plik/server/data"
 )
 
 // GetFile download a file
@@ -47,13 +46,13 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	config := context.GetConfig(ctx)
 
 	// If a download domain is specified verify that the request comes from this specific domain
-	if config.DownloadDomainURL != nil {
-		if req.Host != config.DownloadDomainURL.Host {
+	if config.GetDownloadDomain() != nil {
+		if req.Host != config.GetDownloadDomain().Host {
 			downloadURL := fmt.Sprintf("%s://%s%s",
-				config.DownloadDomainURL.Scheme,
-				config.DownloadDomainURL.Host,
+				config.GetDownloadDomain().Scheme,
+				config.GetDownloadDomain().Host,
 				req.RequestURI)
-			log.Warningf("Invalid download domain %s, expected %s", req.Host, config.DownloadDomainURL.Host)
+			log.Warningf("Invalid download domain %s, expected %s", req.Host, config.GetDownloadDomain().Host)
 			http.Redirect(resp, req, downloadURL, 301)
 			return
 		}
@@ -87,7 +86,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	// If the file is marked as deleted by a previous call, we abort request
 	if file.Status == "removed" {
 		log.Warningf("File %s has been removed", file.Name)
-		context.Fail(ctx, req, resp, "File %s has been removed", 404)
+		context.Fail(ctx, req, resp, fmt.Sprintf("File %s has been removed", file.Name), 404)
 		return
 	}
 
@@ -156,7 +155,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		// and ensure proper locking ( which is the case of bolt and looks doable with mongodb but would break the interface ).
 		if upload.OneShot {
 			file.Status = "downloaded"
-			err = context.GetMetadataBackend(ctx).AddOrUpdateFile(ctx, upload, file)
+			err = context.GetMetadataBackend(ctx).Upsert(ctx, upload)
 			if err != nil {
 				log.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.ID, err)
 			}
@@ -169,7 +168,7 @@ func GetFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		}
 
 		// Remove file from data backend if oneShot option is set
-		if upload.OneShot {
+		if upload.OneShot && !upload.Stream {
 			err = backend.RemoveFile(ctx, upload, file.ID)
 			if err != nil {
 				log.Warningf("Error while deleting file %s from upload %s : %s", file.Name, upload.ID, err)

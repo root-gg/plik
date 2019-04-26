@@ -4,7 +4,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) <2015>
+Copyright (c) <2015> Copyright holders list can be found in AUTHORS file
 	- Mathieu Bodjikian <mathieu@bodjikian.fr>
 	- Charles-Antoine Mathieu <skatkatt@root.gg>
 
@@ -27,22 +27,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package file
+package common
 
 import (
-	"github.com/root-gg/utils"
+	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-// BackendConfig describes configuration for File Databackend
-type BackendConfig struct {
-	Directory string
+func TestNewResult(t *testing.T) {
+	result := NewResult("message", "value")
+	require.NotNil(t, result, "invalid result")
 }
 
-// NewFileBackendConfig instantiate a new default configuration
-// and override it with configuration passed as argument
-func NewFileBackendConfig(config map[string]interface{}) (fb *BackendConfig) {
-	fb = new(BackendConfig)
-	fb.Directory = "files" // Default upload directory is ./files
-	utils.Assign(fb, config)
-	return
+func TestResultToJSON(t *testing.T) {
+	result := NewResult("foo", "bar")
+
+	str := result.ToJSONString()
+
+	require.Contains(t, str, "foo", "invalid result json string")
+	require.Contains(t, str, "bar", "missing result json string")
 }

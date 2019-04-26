@@ -31,10 +31,10 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/root-gg/plik/server/context"
 	"net/http"
 
 	"github.com/root-gg/juliet"
+	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
 	"github.com/root-gg/utils"
 )
@@ -53,7 +53,7 @@ func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 	}
 
 	// Check authorization
-	if !upload.Removable && !upload.IsAdmin {
+	if !upload.Removable && !context.IsUploadAdmin(ctx) {
 		log.Warningf("Unable to remove file : unauthorized")
 		context.Fail(ctx, req, resp, "You are not allowed to remove file from this upload", 403)
 		return
@@ -77,7 +77,7 @@ func RemoveFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 
 	// Set status to removed, and save metadatas
 	file.Status = "removed"
-	if err := context.GetMetadataBackend(ctx).AddOrUpdateFile(ctx, upload, file); err != nil {
+	if err := context.GetMetadataBackend(ctx).Upsert(ctx, upload); err != nil {
 		log.Warningf("Unable to update metadata : %s", err)
 		context.Fail(ctx, req, resp, "Unable to update upload metadata", 500)
 		return

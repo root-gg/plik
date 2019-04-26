@@ -33,6 +33,7 @@ import (
 	"os/signal"
 	"runtime"
 	"syscall"
+	"time"
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/server"
@@ -77,7 +78,7 @@ func main() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
-		_ = plik.Shutdown()
+		_ = plik.Shutdown(time.Minute)
 		os.Exit(0)
 	}()
 

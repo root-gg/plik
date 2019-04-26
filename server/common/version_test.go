@@ -4,7 +4,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) <2015>
+Copyright (c) <2015> Copyright holders list can be found in AUTHORS file
 	- Mathieu Bodjikian <mathieu@bodjikian.fr>
 	- Charles-Antoine Mathieu <skatkatt@root.gg>
 
@@ -27,31 +27,22 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 **/
 
-package mongo
+package common
 
 import (
-	"github.com/root-gg/utils"
+	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-// MetadataBackendConfig object
-type MetadataBackendConfig struct {
-	URL            string
-	Database       string
-	Collection     string
-	UserCollection string
-	Username       string
-	Password       string
-	Ssl            bool
+func TestGetBuildInfo(t *testing.T) {
+	buildInfo := GetBuildInfo()
+	require.NotNil(t, buildInfo, "missing build info")
+	require.NotZero(t, buildInfo.Version, "missing build info version")
 }
 
-// NewMongoMetadataBackendConfig configures the backend
-// from config passed as argument
-func NewMongoMetadataBackendConfig(config map[string]interface{}) (mbc *MetadataBackendConfig) {
-	mbc = new(MetadataBackendConfig)
-	mbc.URL = "127.0.0.1:27017"
-	mbc.Database = "plik"
-	mbc.Collection = "meta"
-	mbc.UserCollection = "tokens"
-	utils.Assign(mbc, config)
-	return
+func TestGetBuildInfoString(t *testing.T) {
+	buildInfo := GetBuildInfo()
+	version := buildInfo.String()
+	require.NotZero(t, version, "invalid build string")
 }

@@ -31,34 +31,53 @@ package file
 
 import (
 	"fmt"
-	"github.com/root-gg/plik/server/context"
+	"github.com/root-gg/utils"
 	"io"
 	"os"
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
+	"github.com/root-gg/plik/server/data"
 )
+
+// Ensure File Data Backend implements data.Backend interface
+var _ data.Backend = (*Backend)(nil)
+
+// Config describes configuration for File Databackend
+type Config struct {
+	Directory string
+}
+
+// NewConfig instantiate a new default configuration
+// and override it with configuration passed as argument
+func NewConfig(params map[string]interface{}) (config *Config) {
+	config = new(Config)
+	config.Directory = "files" // Default upload directory is ./files
+	utils.Assign(config, params)
+	return
+}
 
 // Backend object
 type Backend struct {
-	Config *BackendConfig
+	Config *Config
 }
 
-// NewFileBackend instantiate a new File Data Backend
+// NewBackend instantiate a new File Data Backend
 // from configuration passed as argument
-func NewFileBackend(config *BackendConfig) (fb *Backend) {
-	fb = new(Backend)
-	fb.Config = config
+func NewBackend(config *Config) (b *Backend) {
+	b = new(Backend)
+	b.Config = config
 	return
 }
 
 // GetFile implementation for file data backend will search
 // on filesystem the asked file and return its reading filehandle
-func (fb *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id string) (file io.ReadCloser, err error) {
+func (b *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id string) (file io.ReadCloser, err error) {
 	log := context.GetLogger(ctx)
 
 	// Get upload directory
-	directory, err := fb.getDirectoryFromUploadID(upload.ID)
+	directory, err := b.getDirectoryFromUploadID(upload.ID)
 	if err != nil {
 		log.Warningf("Unable to get upload directory : %s", err)
 		return
@@ -80,14 +99,14 @@ func (fb *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, id string
 
 // AddFile implementation for file data backend will creates a new file for the given upload
 // and save it on filesystem with the given file reader
-func (fb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
+func (b *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
 	log := context.GetLogger(ctx)
 
 	// Get upload directory
-	directory, err := fb.getDirectoryFromUploadID(upload.ID)
+	directory, err := b.getDirectoryFromUploadID(upload.ID)
 	if err != nil {
 		log.Warningf("Unable to get upload directory : %s", err)
-		return
+		return nil, err
 	}
 
 	// Get file path
@@ -99,7 +118,7 @@ func (fb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *com
 		err = os.MkdirAll(directory, 0777)
 		if err != nil {
 			err = log.EWarningf("Unable to create upload directory %s : %s", directory, err)
-			return
+			return nil, err
 		}
 		log.Infof("Folder %s successfully created", directory)
 	}
@@ -108,7 +127,7 @@ func (fb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *com
 	out, err := os.Create(fullPath)
 	if err != nil {
 		err = log.EWarningf("Unable to create file %s : %s", fullPath, err)
-		return
+		return nil, err
 	}
 
 	// Copy file data from the client request body
@@ -116,20 +135,22 @@ func (fb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *com
 	_, err = io.Copy(out, fileReader)
 	if err != nil {
 		err = log.EWarningf("Unable to save file %s : %s", fullPath, err)
-		return
+		return nil, err
 	}
 	log.Infof("File %s successfully saved", fullPath)
 
-	return
+	backendDetails = make(map[string]interface{})
+	backendDetails["path"] = fullPath
+	return backendDetails, nil
 }
 
 // RemoveFile implementation for file data backend will delete the given
 // file from filesystem
-func (fb *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, id string) (err error) {
+func (b *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, id string) (err error) {
 	log := context.GetLogger(ctx)
 
 	// Get upload directory
-	directory, err := fb.getDirectoryFromUploadID(upload.ID)
+	directory, err := b.getDirectoryFromUploadID(upload.ID)
 	if err != nil {
 		log.Warningf("Unable to get upload directory : %s", err)
 		return
@@ -153,11 +174,11 @@ func (fb *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, id str
 // RemoveUpload implementation for file data backend will
 // delete the whole upload. Given that an upload is a directory,
 // we remove the whole directory at once.
-func (fb *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
+func (b *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
 	log := context.GetLogger(ctx)
 
 	// Get upload directory
-	fullPath, err := fb.getDirectoryFromUploadID(upload.ID)
+	fullPath, err := b.getDirectoryFromUploadID(upload.ID)
 	if err != nil {
 		log.Warningf("Unable to get upload directory : %s", err)
 		return
@@ -175,7 +196,7 @@ func (fb *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err
 	return
 }
 
-func (fb *Backend) getDirectoryFromUploadID(uploadID string) (string, error) {
+func (b *Backend) getDirectoryFromUploadID(uploadID string) (string, error) {
 	// To avoid too many files in the same directory
 	// data directory is splitted in two levels the
 	// first level is the 2 first chars from the upload id
@@ -183,7 +204,7 @@ func (fb *Backend) getDirectoryFromUploadID(uploadID string) (string, error) {
 	// directory at ~250.000.000 files uploaded.
 
 	if len(uploadID) < 3 {
-		return "", fmt.Errorf("Invalid uploadid %s", uploadID)
+		return "", fmt.Errorf("Invalid upload ID %s", uploadID)
 	}
-	return fb.Config.Directory + "/" + uploadID[:2] + "/" + uploadID, nil
+	return b.Config.Directory + "/" + uploadID[:2] + "/" + uploadID, nil
 }

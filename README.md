@@ -326,5 +326,10 @@ The screenshot is then removed of your home directory to avoid garbage.
 * How to contribute to the project ?
 
 Contributions are welcome, feel free to open issues and/or submit pull requests.
-Please run/update the test suite using the makefile test target.
+Please be sure to also run/update the test suite :
 
+```
+    make lint
+    make test
+    make test-backends
+```

@@ -31,11 +31,11 @@ package middleware
 
 import (
 	"fmt"
-	"github.com/root-gg/plik/server/context"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/root-gg/juliet"
+	"github.com/root-gg/plik/server/context"
 )
 
 // File retrieve the requested file metadata from the metadataBackend and save it in the request context.
@@ -47,7 +47,7 @@ func File(ctx *juliet.Context, next http.Handler) http.Handler {
 		upload := context.GetUpload(ctx)
 		if upload == nil {
 			// This should never append
-			log.Critical("Missing upload in file handler")
+			log.Critical("Missing upload in file middleware")
 			context.Fail(ctx, req, resp, "Internal error", 500)
 			return
 		}

@@ -58,7 +58,8 @@ do
 
     export PLIKD_CONFIG=$(realpath $BACKEND/plikd.cfg)
 
-    ../client/test.sh
+    GORACE="halt_on_error=1" go test -v -count=1 -race ../plik/...
+    #../client/test.sh
 
     $BACKEND/run.sh stop
 done

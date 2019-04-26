@@ -1,8 +1,4 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
+/* The MIT License (MIT)
 
 Copyright (c) <2015>
 	- Mathieu Bodjikian <mathieu@bodjikian.fr>
@@ -24,23 +20,41 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
+THE SOFTWARE. */
 
-package swift
+package version
 
-import "github.com/root-gg/utils"
+import (
+	"regexp"
+	"testing"
 
-// BackendConfig describes configuration for Swift data backend
-type BackendConfig struct {
-	Username, Password, Host, ProjectName, Container string
+	"github.com/stretchr/testify/require"
+)
+
+func getVersionRegex() string {
+	return `^\d+\.\d+((\.\d+)|(\-RC\d+))$`
 }
 
-// NewSwitftBackendConfig instantiate a new default configuration
-// and override it with configuration passed as argument
-func NewSwitftBackendConfig(config map[string]interface{}) (bc *BackendConfig) {
-	bc = new(BackendConfig)
-	bc.Container = "plik"
-	utils.Assign(bc, config)
-	return
+func validateVersion(t *testing.T, version string, ok bool) {
+	matched, err := regexp.Match(getVersionRegex(), []byte(version))
+	require.NoError(t, err, "invalid version regex")
+
+	if ok {
+		require.True(t, matched, "invalid version regex match")
+	} else {
+		require.False(t, matched, "invalid version regex match")
+	}
+}
+
+func TestValidateVersionRegex(t *testing.T) {
+	validateVersion(t, "1.1.1", true)
+	validateVersion(t, "1.1-RC1", true)
+	validateVersion(t, "1.1.1-RC1", false)
+	validateVersion(t, "1.1-rc1", false)
+}
+
+func TestGet(t *testing.T) {
+	version := Get()
+	require.NotZero(t, version, "missing version")
+	validateVersion(t, version, true)
 }

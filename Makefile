@@ -225,39 +225,31 @@ build-info:
 	@server/gen_build_info.sh $(RELEASE_VERSION)
 
 ###
-# Run tests and sanity checks
+# Run linters
+###
+lint:
+	@FAIL=0 ;echo -n " - go fmt :" ; OUT=`gofmt -l . | grep -v ^vendor` ; \
+	if [[ -z "$$OUT" ]]; then echo " OK" ; else echo " FAIL"; echo "$$OUT"; FAIL=1 ; fi ;\
+	echo -n " - go vet :" ; OUT=`go vet ./...` ; \
+	if [[ -z "$$OUT" ]]; then echo " OK" ; else echo " FAIL"; echo "$$OUT"; FAIL=1 ; fi ;\
+	echo -n " - go lint :" ; OUT=`golint ./... | grep -v ^vendor` ; \
+	if [[ -z "$$OUT" ]]; then echo " OK" ; else echo " FAIL"; echo "$$OUT"; FAIL=1 ; fi ;\
+	test $$FAIL -eq 0
+
+###
+# Run tests
 ###
 test:
 	@if curl -s 127.0.0.1:8080 > /dev/null ; then echo "Plik server probably already running" && exit 1 ; fi
 	@server/gen_build_info.sh $(RELEASE_VERSION)
-	@ERR="" ; for directory in server client ; do \
-		cd $$directory; \
-		echo -n "go test $$directory : "; \
-		TEST=`go test -race ./... 2>&1`; \
-		if [ $$? = 0 ] ; then echo "OK" ; else echo "$$TEST" | grep -v "no test files" | grep -v "^\[" && ERR="1"; fi ; \
-		echo "go fmt $$directory : "; \
-		for file in $$(find -name "*.go" | grep -v vendor ); do \
-			echo -n " - file $$file : " ; \
-			FMT=`gofmt -l $$file 2>&1` ; \
-			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
-		done; \
-		echo -n "go vet $$directory : "; \
-		#for file in $$(find -name "*.go" | grep -v vendor ); do \
-		#	echo -n " - file $$file : " ; \
-		#	FMT=`go vet $$file 2>&1` ; \
-		#	if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
-		#done; \
-		VET=`go vet ./...` ; \
-		if [ "$$VET" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
-		echo "golint $$directory : "; \
-		for file in $$(find -name "*.go" | grep -v vendor ); do \
-			echo -n " - file $$file : " ; \
-			FMT=`golint $$file 2>&1` ; \
-			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
-		done; \
-		cd - 2>&1 > /dev/null; \
-	done ; if [ "$$ERR" = "1" ] ; then exit 1 ; fi
+	@GORACE="halt_on_error=1" go test -race -cover -p 1 -count=1 ./... 2>&1 | grep -v "no test files"; test $${PIPESTATUS[0]} -eq 0
 	@echo "cli client integration tests :" && cd client && ./test.sh
+
+###
+# Run integration tests for all available backends
+###
+test-backends:
+	@testing/test_backends.sh
 
 ###
 # Remove server build files

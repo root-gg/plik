@@ -31,12 +31,12 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/root-gg/plik/server/context"
 	"net/http"
 	"strconv"
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
 
@@ -51,6 +51,8 @@ func UserInfo(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 		return
 	}
 
+	user.IsAdmin = context.IsAdmin(ctx)
+
 	// Serialize user to JSON
 	// Print token in the json response.
 	json, err := utils.ToJson(user)
@@ -59,6 +61,7 @@ func UserInfo(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) 
 		context.Fail(ctx, req, resp, "Unable to serialize json response", 500)
 		return
 	}
+
 	resp.Write(json)
 }
 
@@ -165,7 +168,7 @@ func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			token := upload.Token
 			upload.Sanitize()
 			upload.Token = token
-			upload.IsAdmin = true
+			upload.Admin = true
 			uploads = append(uploads, upload)
 		}
 	}
@@ -200,6 +203,11 @@ func RemoveUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 				token = t
 			}
 		}
+		if token == nil {
+			log.Warningf("Unable to remove uploads for token %s : Invalid token", tokenStr)
+			context.Fail(ctx, req, resp, "Unable to remove uploads : Invalid token", 400)
+			return
+		}
 	}
 
 	// Get uploads
@@ -229,7 +237,7 @@ func RemoveUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 	resp.Write(common.NewResult(fmt.Sprintf("%d uploads removed", removed), nil).ToJSON())
 }
 
-// GetUserStatistics return the server statistics
+// GetUserStatistics return the user statistics
 func GetUserStatistics(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	log := context.GetLogger(ctx)
 
@@ -262,7 +270,7 @@ func GetUserStatistics(ctx *juliet.Context, resp http.ResponseWriter, req *http.
 	stats, err := context.GetMetadataBackend(ctx).GetUserStatistics(ctx, user, token)
 	if err != nil {
 		log.Warningf("Unable to get server statistics : %s", err)
-		context.Fail(ctx, req, resp, "Unable to get server statistics", 500)
+		context.Fail(ctx, req, resp, "Unable to get user statistics", 500)
 		return
 	}
 

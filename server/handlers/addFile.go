@@ -32,7 +32,6 @@ package handlers
 import (
 	"crypto/md5"
 	"fmt"
-	"github.com/root-gg/plik/server/context"
 	"io"
 	"net/http"
 	"time"
@@ -40,6 +39,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
 	"github.com/root-gg/utils"
 )
@@ -76,7 +76,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	}
 
 	// Check authorization
-	if !upload.IsAdmin {
+	if !context.IsUploadAdmin(ctx) {
 		log.Warningf("Unable to add file : unauthorized")
 		context.Fail(ctx, req, resp, "You are not allowed to add file to this upload", 403)
 		return
@@ -88,16 +88,12 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 
 	var newFile *common.File
 	if fileID == "" {
-		// Limit number of files per upload
-		if len(upload.Files) >= config.MaxFilePerUpload {
-			err := log.EWarningf("Unable to add file : Maximum number file per upload reached (%d)", config.MaxFilePerUpload)
-			context.Fail(ctx, req, resp, err.Error(), 403)
-			return
-		}
-
 		// Create a new file object
 		newFile = common.NewFile()
 		newFile.Type = "application/octet-stream"
+
+		// Add file to upload
+		upload.Files[newFile.ID] = newFile
 	} else {
 		// Get file object from upload
 		if _, ok := upload.Files[fileID]; ok {
@@ -107,6 +103,19 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 			context.Fail(ctx, req, resp, "Invalid file id", 404)
 			return
 		}
+
+		if !(newFile.Status == "" || newFile.Status == "missing") {
+			log.Warningf("File %s has already been uploaded", fileID)
+			context.Fail(ctx, req, resp, "File has already been uploaded", 403)
+			return
+		}
+	}
+
+	// Limit number of files per upload
+	if len(upload.Files) > config.MaxFilePerUpload {
+		err := log.EWarningf("Unable to add file : Maximum number file per upload reached (%d)", config.MaxFilePerUpload)
+		context.Fail(ctx, req, resp, err.Error(), 403)
+		return
 	}
 
 	// Update request logger prefix
@@ -130,6 +139,11 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 		part, errPart := multiPartReader.NextPart()
 		if errPart == io.EOF {
 			break
+		}
+		if errPart != nil {
+			log.Warningf("multipart reader error : %v", errPart)
+			context.Fail(ctx, req, resp, "Unable to read file", 400)
+			return
 		}
 		if part.FormName() == "file" {
 			file = part
@@ -175,6 +189,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	} else {
 		backend = context.GetDataBackend(ctx)
 	}
+
 	backendDetails, err := backend.AddFile(ctx, upload, newFile, preprocessReader)
 	if err != nil {
 		log.Warningf("Unable to save file : %s", err)
@@ -185,7 +200,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	// Get preprocessor goroutine output
 	preprocessOutput := <-preprocessOutputCh
 	if preprocessOutput.err != nil {
-		log.Warningf("Unable to execute preprocessor : %s", err)
+		log.Warningf("Unable to execute preprocessor : %s", preprocessOutput.err)
 		context.Fail(ctx, req, resp, "Unable to save file", 500)
 		return
 	}
@@ -204,8 +219,7 @@ func AddFile(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
 	newFile.BackendDetails = backendDetails
 
 	// Update upload metadata
-	upload.Files[newFile.ID] = newFile
-	err = context.GetMetadataBackend(ctx).AddOrUpdateFile(ctx, upload, newFile)
+	err = context.GetMetadataBackend(ctx).Upsert(ctx, upload)
 	if err != nil {
 		log.Warningf("Unable to update metadata : %s", err)
 		context.Fail(ctx, req, resp, "Unable to update upload metadata", 500)
@@ -244,9 +258,11 @@ func preprocessor(ctx *juliet.Context, file io.Reader, preprocessWriter io.Write
 
 	eof := false
 	for !eof {
-		bytesRead, err := file.Read(buf)
+		bytesRead := 0
+		bytesRead, err = file.Read(buf)
 		if err == io.EOF {
 			eof = true
+			err = nil
 			if bytesRead <= 0 {
 				break
 			}
@@ -270,12 +286,16 @@ func preprocessor(ctx *juliet.Context, file io.Reader, preprocessWriter io.Write
 		}
 
 		// Compute md5sum
-		md5Hash.Write(buf[:bytesRead])
+		_, err = md5Hash.Write(buf[:bytesRead])
+		if err != nil {
+			err = log.EWarningf(err.Error())
+			break
+		}
 
 		// Forward data to the data backend
 		bytesWritten, err := preprocessWriter.Write(buf[:bytesRead])
 		if err != nil {
-			log.Warning(err.Error())
+			err = log.EWarningf(err.Error())
 			break
 		}
 		if bytesWritten != bytesRead {

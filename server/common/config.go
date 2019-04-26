@@ -57,13 +57,11 @@ type Configuration struct {
 	SslCert    string `json:"-"`
 	SslKey     string `json:"-"`
 
-	DownloadDomain    string   `json:"downloadDomain"`
-	DownloadDomainURL *url.URL `json:"-"`
+	DownloadDomain string `json:"downloadDomain"`
 
-	YubikeyEnabled   bool             `json:"yubikeyEnabled"`
-	YubikeyAPIKey    string           `json:"-"`
-	YubikeyAPISecret string           `json:"-"`
-	YubiAuth         *yubigo.YubiAuth `json:"-"`
+	YubikeyEnabled   bool   `json:"yubikeyEnabled"`
+	YubikeyAPIKey    string `json:"-"`
+	YubikeyAPISecret string `json:"-"`
 
 	SourceIPHeader  string   `json:"-"`
 	UploadWhitelist []string `json:"-"`
@@ -71,6 +69,7 @@ type Configuration struct {
 	Authentication       bool     `json:"authentication"`
 	NoAnonymousUploads   bool     `json:"-"`
 	OneShot              bool     `json:"oneShot"`
+	Removable            bool     `json:"removable"`
 	ProtectedByPassword  bool     `json:"protectedByPassword"`
 	GoogleAuthentication bool     `json:"googleAuthentication"`
 	GoogleAPISecret      string   `json:"-"`
@@ -91,7 +90,10 @@ type Configuration struct {
 	StreamMode          bool                   `json:"streamMode"`
 	StreamBackendConfig map[string]interface{} `json:"-"`
 
-	uploadWhitelist []*net.IPNet
+	clean             bool
+	yubiAuth          *yubigo.YubiAuth
+	downloadDomainURL *url.URL
+	uploadWhitelist   []*net.IPNet
 }
 
 // NewConfiguration creates a new configuration
@@ -102,7 +104,7 @@ func NewConfiguration() (config *Configuration) {
 	config.ListenAddress = "0.0.0.0"
 	config.ListenPort = 8080
 	config.DataBackend = "file"
-	config.MetadataBackend = "file"
+	config.MetadataBackend = "bolt"
 	config.MaxFileSize = 10737418240 // 10GB
 	config.MaxFilePerUpload = 1000
 	config.DefaultTTL = 2592000 // 30 days
@@ -110,8 +112,10 @@ func NewConfiguration() (config *Configuration) {
 	config.SslEnabled = false
 	config.StreamMode = true
 	config.OneShot = true
+	config.Removable = true
 	config.ProtectedByPassword = true
 	config.OvhAPIEndpoint = "https://eu.api.ovh.com/1.0"
+	config.clean = true
 	return
 }
 
@@ -125,15 +129,25 @@ func LoadConfiguration(file string) (config *Configuration, err error) {
 		return nil, fmt.Errorf("Unable to load config file %s : %s", file, err)
 	}
 
+	err = config.Initialize()
+	if err != nil {
+		return nil, err
+	}
+
+	return config, nil
+}
+
+// Initialize config internal parameters
+func (config *Configuration) Initialize() (err error) {
 	config.Path = strings.TrimSuffix(config.Path, "/")
 
 	// Do user specified a ApiKey and ApiSecret for Yubikey
 	if config.YubikeyEnabled {
 		yubiAuth, err := yubigo.NewYubiAuth(config.YubikeyAPIKey, config.YubikeyAPISecret)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to load yubikey backend : %s", err)
+			return fmt.Errorf("Failed to load yubikey backend : %s", err)
 		}
-		config.YubiAuth = yubiAuth
+		config.yubiAuth = yubiAuth
 	}
 
 	// UploadWhitelist is only parsed once at startup time
@@ -144,7 +158,7 @@ func LoadConfiguration(file string) (config *Configuration, err error) {
 		if _, cidr, err := net.ParseCIDR(cidr); err == nil {
 			config.uploadWhitelist = append(config.uploadWhitelist, cidr)
 		} else {
-			return nil, fmt.Errorf("Failed to parse upload whitelist : %s", cidr)
+			return fmt.Errorf("Failed to parse upload whitelist : %s", cidr)
 		}
 	}
 
@@ -165,40 +179,73 @@ func LoadConfiguration(file string) (config *Configuration, err error) {
 		config.NoAnonymousUploads = false
 	}
 
-	if config.MetadataBackend == "file" {
-		config.Authentication = false
-		config.NoAnonymousUploads = false
-	}
-
 	if config.DownloadDomain != "" {
 		strings.Trim(config.DownloadDomain, "/ ")
 		var err error
-		if config.DownloadDomainURL, err = url.Parse(config.DownloadDomain); err != nil {
-			return nil, fmt.Errorf("Invalid download domain URL %s : %s", config.DownloadDomain, err)
+		if config.downloadDomainURL, err = url.Parse(config.DownloadDomain); err != nil {
+			return fmt.Errorf("Invalid download domain URL %s : %s", config.DownloadDomain, err)
 		}
 	}
 
-	return config, nil
+	return nil
 }
 
-// GetUploadWhitelist return the IP upload whitelist
+// GetUploadWhitelist return the parsed IP upload whitelist
 func (config *Configuration) GetUploadWhitelist() []*net.IPNet {
 	return config.uploadWhitelist
 }
 
-// IsAdmin check if the user is a Plik server administrator
-func (config *Configuration) IsAdmin(user *User) bool {
-	if user.Admin == true {
-		return true
-	}
+// GetDownloadDomain return the parsed download domain URL
+func (config *Configuration) GetDownloadDomain() *url.URL {
+	return config.downloadDomainURL
+}
 
-	// Check if user is admin
+// GetYubiAuth return the Yubikey authenticator
+func (config *Configuration) GetYubiAuth() *yubigo.YubiAuth {
+	return config.yubiAuth
+}
+
+// AutoClean enable or disables the periodical upload cleaning goroutine.
+// This needs to be called before Plik server starts to have effect
+func (config *Configuration) AutoClean(value bool) {
+	config.clean = value
+}
+
+// IsAutoClean return weather or not to start the cleaning goroutine
+func (config *Configuration) IsAutoClean() bool {
+	return config.clean
+}
+
+// IsUserAdmin check if the user is a Plik server administrator
+func (config *Configuration) IsUserAdmin(user *User) bool {
 	for _, id := range config.Admins {
 		if user.ID == id {
-			user.Admin = true
 			return true
 		}
 	}
 
 	return false
+}
+
+// GetServerURL is a helper to get the server HTP URL
+func (config *Configuration) GetServerURL() *url.URL {
+	URL := &url.URL{}
+
+	if config.SslEnabled {
+		URL.Scheme = "https"
+	} else {
+		URL.Scheme = "http"
+	}
+
+	var addr string
+	if config.ListenAddress == "0.0.0.0" {
+		addr = "127.0.0.1"
+	} else {
+		addr = config.ListenAddress
+	}
+
+	URL.Host = fmt.Sprintf("%s:%d", addr, config.ListenPort)
+	URL.Path = config.Path
+
+	return URL
 }

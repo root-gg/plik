@@ -47,7 +47,7 @@ func Yubikey(ctx *juliet.Context, next http.Handler) http.Handler {
 		upload := context.GetUpload(ctx)
 		if upload == nil {
 			// This should never append
-			log.Critical("Missing upload in file handler")
+			log.Critical("Missing upload in yubikey middleware")
 			context.Fail(ctx, req, resp, "Internal error", 500)
 			return
 		}
@@ -80,7 +80,7 @@ func Yubikey(ctx *juliet.Context, next http.Handler) http.Handler {
 				return
 			}
 
-			_, isValid, err := config.YubiAuth.Verify(token)
+			_, isValid, err := config.GetYubiAuth().Verify(token)
 			if err != nil {
 				log.Warningf("Failed to validate yubikey token : %s", err)
 				context.Fail(ctx, req, resp, "Invalid yubikey token", 500)

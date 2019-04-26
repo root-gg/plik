@@ -50,7 +50,7 @@ func RemoveUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	// Check authorization
-	if !upload.Removable && !upload.IsAdmin {
+	if !upload.Removable && !context.IsUploadAdmin(ctx) {
 		log.Warningf("Unable to remove upload : unauthorized")
 		context.Fail(ctx, req, resp, "You are not allowed to remove this upload", 403)
 		return

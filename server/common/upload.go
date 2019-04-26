@@ -54,7 +54,7 @@ type Upload struct {
 	UploadToken string `json:"uploadToken,omitempty" bson:"uploadToken"`
 	User        string `json:"user,omitempty" bson:"user"`
 	Token       string `json:"token,omitempty" bson:"token"`
-	IsAdmin     bool   `json:"admin"`
+	Admin       bool   `json:"admin"`
 
 	Stream    bool `json:"stream" bson:"stream"`
 	OneShot   bool `json:"oneShot" bson:"oneShot"`
@@ -89,15 +89,23 @@ func (upload *Upload) Create() {
 	upload.UploadToken = GenerateRandomID(32)
 }
 
+// NewFile creates a new file and add it to the current upload
+func (upload *Upload) NewFile() (file *File) {
+	file = NewFile()
+	upload.Files[file.ID] = file
+	return file
+}
+
 // Sanitize removes sensible information from
 // object. Used to hide information in API.
 func (upload *Upload) Sanitize() {
 	upload.RemoteIP = ""
+	upload.Login = ""
 	upload.Password = ""
-	upload.Yubikey = ""
 	upload.UploadToken = ""
 	upload.User = ""
 	upload.Token = ""
+	upload.Yubikey = ""
 	for _, file := range upload.Files {
 		file.Sanitize()
 	}

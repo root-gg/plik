@@ -30,10 +30,10 @@ THE SOFTWARE.
 package handlers
 
 import (
-	"github.com/root-gg/plik/server/context"
 	"net/http"
 
 	"github.com/root-gg/juliet"
+	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
 
@@ -55,6 +55,10 @@ func GetUpload(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request)
 	// sending metadata back to the client
 	upload.Sanitize()
 	upload.DownloadDomain = config.DownloadDomain
+
+	if context.IsUploadAdmin(ctx) {
+		upload.Admin = true
+	}
 
 	// Print upload metadata in the json response.
 	json, err := utils.ToJson(upload)

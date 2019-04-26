@@ -32,7 +32,6 @@ package handlers
 import (
 	"archive/zip"
 	"fmt"
-	"github.com/root-gg/plik/server/context"
 	"io"
 	"net/http"
 	"strings"
@@ -40,6 +39,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 )
 
 // GetArchive download all file of the upload in a zip archive
@@ -48,13 +48,13 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 	config := context.GetConfig(ctx)
 
 	// If a download domain is specified verify that the request comes from this specific domain
-	if config.DownloadDomainURL != nil {
-		if req.Host != config.DownloadDomainURL.Host {
+	if config.GetDownloadDomain() != nil {
+		if req.Host != config.GetDownloadDomain().Host {
 			downloadURL := fmt.Sprintf("%s://%s%s",
-				config.DownloadDomainURL.Scheme,
-				config.DownloadDomainURL.Host,
+				config.GetDownloadDomain().Scheme,
+				config.GetDownloadDomain().Host,
 				req.RequestURI)
-			log.Warningf("Invalid download domain %s, expected %s", req.Host, config.DownloadDomainURL.Host)
+			log.Warningf("Invalid download domain %s, expected %s", req.Host, config.GetDownloadDomain().Host)
 			http.Redirect(resp, req, downloadURL, 301)
 			return
 		}
@@ -83,7 +83,7 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 		// and ensure proper locking ( which is the case of bolt and looks doable with mongodb but would break the interface ).
 		if upload.OneShot {
 			file.Status = "downloaded"
-			err := context.GetMetadataBackend(ctx).AddOrUpdateFile(ctx, upload, file)
+			err := context.GetMetadataBackend(ctx).Upsert(ctx, upload)
 			if err != nil {
 				log.Warningf("Error while deleting file %s from upload %s metadata : %s", file.Name, upload.ID, err)
 				continue
@@ -123,7 +123,7 @@ func GetArchive(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request
 		return
 	}
 
-	if strings.HasSuffix(".zip", fileName) {
+	if !strings.HasSuffix(fileName, ".zip") {
 		log.Warningf("Invalid file name %s. Missing .zip extension", fileName)
 		context.Fail(ctx, req, resp, fmt.Sprintf("Invalid file name %s. Missing .zip extension", fileName), 400)
 		return

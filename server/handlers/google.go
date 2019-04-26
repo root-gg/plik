@@ -36,7 +36,6 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/nu7hatch/gouuid"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
@@ -154,7 +153,19 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		return []byte(config.GoogleAPISecret), nil
 	})
 	if err != nil {
-		log.Warning("Invalid oauth2 state : %s")
+		log.Warningf("Invalid oauth2 state : %s", err)
+		context.Fail(ctx, req, resp, "Invalid oauth2 state", 400)
+		return
+	}
+
+	if _, ok := state.Claims.(jwt.MapClaims)["origin"]; !ok {
+		log.Warning("Invalid oauth2 state : missing origin")
+		context.Fail(ctx, req, resp, "Invalid oauth2 state", 400)
+		return
+	}
+
+	if _, ok := state.Claims.(jwt.MapClaims)["origin"].(string); !ok {
+		log.Warning("Invalid oauth2 state : invalid origin")
 		context.Fail(ctx, req, resp, "Invalid oauth2 state", 400)
 		return
 	}
@@ -172,6 +183,10 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		Endpoint: google.Endpoint,
 	}
 
+	if customEndpoint, ok := ctx.Get("google_endpoint"); ok {
+		conf.Endpoint = customEndpoint.(oauth2.Endpoint)
+	}
+
 	token, err := conf.Exchange(oauth2.NoContext, code)
 	if err != nil {
 		log.Warningf("Unable to create google API token : %s", err)
@@ -184,6 +199,10 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		log.Warningf("Unable to create google API client : %s", err)
 		context.Fail(ctx, req, resp, "Unable to get user info from google API", 500)
 		return
+	}
+
+	if customEndpoint, ok := ctx.Get("google_endpoint"); ok {
+		client.BasePath = customEndpoint.(oauth2.Endpoint).AuthURL
 	}
 
 	userInfo, err := client.Userinfo.Get().Do()
@@ -227,7 +246,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			if !goodDomain {
 				// User not from accepted google domains list
 				log.Warningf("Unacceptable user domain : %s", components[1])
-				context.Fail(ctx, req, resp, fmt.Sprintf("Authentification error : Unauthorized domain %s", components[1]), 403)
+				context.Fail(ctx, req, resp, fmt.Sprintf("Authentication error : Unauthorized domain %s", components[1]), 403)
 				return
 			}
 
@@ -235,7 +254,7 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 			err = context.GetMetadataBackend(ctx).SaveUser(ctx, user)
 			if err != nil {
 				log.Warningf("Unable to save user to metadata backend : %s", err)
-				context.Fail(ctx, req, resp, "Authentification error", 403)
+				context.Fail(ctx, req, resp, "Authentication error", 403)
 				return
 			}
 		} else {
@@ -245,45 +264,13 @@ func GoogleCallback(ctx *juliet.Context, resp http.ResponseWriter, req *http.Req
 		}
 	}
 
-	// Generate session jwt
-	session := jwt.New(jwt.SigningMethodHS256)
-	session.Claims.(jwt.MapClaims)["uid"] = user.ID
-	session.Claims.(jwt.MapClaims)["provider"] = "google"
-
-	// Generate xsrf token
-	xsrfToken, err := uuid.NewV4()
+	// Set Plik session cookie and xsrf cookie
+	sessionCookie, xsrfCookie, err := common.GenAuthCookies(user, context.GetConfig(ctx))
 	if err != nil {
-		log.Warning("Unable to generate xsrf token")
-		context.Fail(ctx, req, resp, "Unable to generate xsrf token", 500)
-		return
+		log.Warningf("Unable to generate session cookies : %s", err)
+		context.Fail(ctx, req, resp, "Authentication error", 403)
 	}
-	session.Claims.(jwt.MapClaims)["xsrf"] = xsrfToken.String()
-
-	sessionString, err := session.SignedString([]byte(config.GoogleAPISecret))
-	if err != nil {
-		log.Warningf("Unable to sign session cookie : %s", err)
-		context.Fail(ctx, req, resp, "Authentification error", 403)
-		return
-	}
-
-	// Store session jwt in secure cookie
-	sessionCookie := &http.Cookie{}
-	sessionCookie.HttpOnly = true
-	sessionCookie.Secure = true
-	sessionCookie.Name = "plik-session"
-	sessionCookie.Value = sessionString
-	sessionCookie.MaxAge = int(time.Now().Add(10 * 365 * 24 * time.Hour).Unix())
-	sessionCookie.Path = "/"
 	http.SetCookie(resp, sessionCookie)
-
-	// Store xsrf token cookie
-	xsrfCookie := &http.Cookie{}
-	xsrfCookie.HttpOnly = false
-	xsrfCookie.Secure = true
-	xsrfCookie.Name = "plik-xsrf"
-	xsrfCookie.Value = xsrfToken.String()
-	xsrfCookie.MaxAge = int(time.Now().Add(10 * 365 * 24 * time.Hour).Unix())
-	xsrfCookie.Path = "/"
 	http.SetCookie(resp, xsrfCookie)
 
 	http.Redirect(resp, req, config.Path+"/#/login", 301)

@@ -39,6 +39,8 @@ import (
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
+	"github.com/root-gg/plik/server/metadata"
+	"github.com/root-gg/utils"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -48,53 +50,79 @@ import (
  * Keys with ( '.', '$', ... ) may be interpreted
  */
 
+// Ensure Mongo Metadata Backend implements metadata.Backend interface
+var _ metadata.Backend = (*MetadataBackend)(nil)
+
+// Config object
+type Config struct {
+	URL            string
+	Database       string
+	Collection     string
+	UserCollection string
+	Username       string
+	Password       string
+	Ssl            bool
+}
+
+// NewConfig configures the backend
+// from config passed as argument
+func NewConfig(params map[string]interface{}) (c *Config) {
+	c = new(Config)
+	c.URL = "127.0.0.1:27017"
+	c.Database = "plik"
+	c.Collection = "meta"
+	c.UserCollection = "tokens"
+	utils.Assign(c, params)
+	return
+}
+
 // MetadataBackend object
 type MetadataBackend struct {
-	config  *MetadataBackendConfig
+	config  *Config
 	session *mgo.Session
 }
 
-// NewMongoMetadataBackend instantiate a new MongoDB Metadata Backend
+// NewBackend instantiate a new MongoDB Metadata Backend
 // from configuration passed as argument
-func NewMongoMetadataBackend(config *MetadataBackendConfig) (mmb *MetadataBackend, err error) {
-	mmb = new(MetadataBackend)
-	mmb.config = config
+func NewBackend(config *Config) (b *MetadataBackend, err error) {
+	b = new(MetadataBackend)
+	b.config = config
 
 	// Open connection
 	dialInfo := &mgo.DialInfo{}
-	dialInfo.Addrs = []string{mmb.config.URL}
-	dialInfo.Database = mmb.config.Database
+	dialInfo.Addrs = []string{b.config.URL}
+	dialInfo.Database = b.config.Database
 	dialInfo.Timeout = 5 * time.Second
-	if mmb.config.Username != "" && mmb.config.Password != "" {
-		dialInfo.Username = mmb.config.Username
-		dialInfo.Password = mmb.config.Password
+	if b.config.Username != "" && b.config.Password != "" {
+		dialInfo.Username = b.config.Username
+		dialInfo.Password = b.config.Password
 	}
-	if mmb.config.Ssl {
+	if b.config.Ssl {
 		dialInfo.DialServer = func(addr *mgo.ServerAddr) (net.Conn, error) {
 			return tls.Dial("tcp", addr.String(), &tls.Config{InsecureSkipVerify: true})
 		}
 	}
 
 	// TODO use logger or move
-	fmt.Printf("Connecting to mongodb @ %s/%s", mmb.config.URL, mmb.config.Database)
+	fmt.Printf("Connecting to mongodb @ %s/%s", b.config.URL, b.config.Database)
 
-	mmb.session, err = mgo.DialWithInfo(dialInfo)
+	b.session, err = mgo.DialWithInfo(dialInfo)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to contact mongodb at %s : %s", mmb.config.URL, err.Error())
+		return nil, fmt.Errorf("Unable to contact mongodb at %s : %s", b.config.URL, err.Error())
 	}
 
 	// TODO use logger or move
-	fmt.Printf("Connected to mongodb @ %s/%s", mmb.config.URL, mmb.config.Database)
+	fmt.Printf("Connected to mongodb @ %s/%s", b.config.URL, b.config.Database)
 
 	// Ensure log.Infof(everything is persisted and replicated
-	mmb.session.SetMode(mgo.Strong, false)
-	mmb.session.SetSafe(&mgo.Safe{})
+	b.session.SetMode(mgo.Strong, false)
+	b.session.SetSafe(&mgo.Safe{})
 
-	return mmb, nil
+	return b, nil
 }
 
-// Create implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (err error) {
+// Upsert implementation from MongoDB Metadata Backend
+func (mmb *MetadataBackend) Upsert(ctx *juliet.Context, upload *common.Upload) (err error) {
 	log := context.GetLogger(ctx)
 
 	if upload == nil {
@@ -105,7 +133,7 @@ func (mmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (
 	session := mmb.session.Copy()
 	defer session.Close()
 	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
-	err = collection.Insert(&upload)
+	_, err = collection.Upsert(bson.M{"id": upload.ID}, &upload)
 	if err != nil {
 		err = log.EWarningf("Unable to append metadata to mongodb : %s", err)
 	}
@@ -128,54 +156,6 @@ func (mmb *MetadataBackend) Get(ctx *juliet.Context, id string) (u *common.Uploa
 	err = collection.Find(bson.M{"id": id}).One(u)
 	if err != nil {
 		err = log.EWarningf("Unable to get metadata from mongodb : %s", err)
-	}
-	return
-}
-
-// AddOrUpdateFile implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
-	log := context.GetLogger(ctx)
-
-	if upload == nil {
-		err = log.EWarning("Unable to add file : Missing upload")
-		return
-	}
-
-	if file == nil {
-		err = log.EWarning("Unable to add file : Missing file")
-		return
-	}
-
-	session := mmb.session.Copy()
-	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
-	err = collection.Update(bson.M{"id": upload.ID}, bson.M{"$set": bson.M{"files." + file.ID: file}})
-	if err != nil {
-		err = log.EWarningf("Unable to get metadata from mongodb : %s", err)
-	}
-	return
-}
-
-// RemoveFile implementation from MongoDB Metadata Backend
-func (mmb *MetadataBackend) RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error) {
-	log := context.GetLogger(ctx)
-
-	if upload == nil {
-		err = log.EWarning("Unable to remove file : Missing upload")
-		return
-	}
-
-	if file == nil {
-		err = log.EWarning("Unable to remove file : Missing file")
-		return
-	}
-
-	session := mmb.session.Copy()
-	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
-	err = collection.Update(bson.M{"id": upload.ID}, bson.M{"$unset": bson.M{"files." + file.Name: ""}})
-	if err != nil {
-		err = log.EWarningf("Unable to remove file from mongodb : %s", err)
 	}
 	return
 }
@@ -250,9 +230,6 @@ func (mmb *MetadataBackend) GetUser(ctx *juliet.Context, id string, token string
 	} else {
 		err = log.EWarning("Unable to get user from mongodb : Missing user id or token")
 	}
-
-	// TODO Bad design here
-	context.GetConfig(ctx).IsAdmin(user)
 
 	return
 }

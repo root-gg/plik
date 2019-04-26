@@ -30,13 +30,13 @@ THE SOFTWARE.
 package middleware
 
 import (
-	"github.com/root-gg/plik/server/context"
 	"net/http"
 	"net/http/httputil"
 	"strings"
 
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/logger"
+	"github.com/root-gg/plik/server/context"
 )
 
 // Log the http request

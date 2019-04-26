@@ -31,13 +31,13 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/root-gg/plik/server/context"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/utils"
 )
 
@@ -127,7 +127,7 @@ func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	}
 	if index < 0 {
 		log.Warningf("Unable to get token %s from user %s", tokenStr, user.ID)
-		context.Fail(ctx, req, resp, "Invalid token", 403)
+		context.Fail(ctx, req, resp, "Invalid token", 404)
 		return
 	}
 
@@ -140,7 +140,7 @@ func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	err := context.GetMetadataBackend(ctx).SaveUser(ctx, user)
 	if err != nil {
 		log.Warningf("Unable to save user to metadata backend : %s", err)
-		context.Fail(ctx, req, resp, "Unable to create token", 500)
+		context.Fail(ctx, req, resp, "Unable to revoke token", 500)
 		return
 	}
 }
