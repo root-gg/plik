@@ -1,0 +1,20 @@
+[Unit]
+Description=Plik File Sharing Service
+After=syslog.target network.target remote-fs.target nss-lookup.target systemd-journald-dev-log.socket
+
+
+
+[Service]
+Type=simple
+User=plik
+Group=plik
+WorkingDirectory=/opt/plik/server
+ExecStart=/opt/plik/server/plikd
+#ExecStop=/path/to/solr/bin/solr stop
+Restart=on-failure
+
+
+
+[Install]
+
+WantedBy=multi-user.target
