@@ -1,229 +1,167 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015> Copyright holders list can be found in AUTHORS file
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package handlers
 
 import (
 	"fmt"
-	"github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadata"
-	"github.com/root-gg/utils"
 	"net/http"
-	"strconv"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 )
 
-// UserInfo return user information ( name / email / tokens / ... )
-func UserInfo(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+// UserInfo return user information ( name / email / ... )
+func UserInfo(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 
 	// Get user from context
-	user := common.GetUser(ctx)
+	user := ctx.GetUser()
 	if user == nil {
-		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+		ctx.Unauthorized("missing user, please login first")
 		return
 	}
 
-	// Serialize user to JSON
-	// Print token in the json response.
-	json, err := utils.ToJson(user)
-	if err != nil {
-		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
-		return
-	}
-	resp.Write(json)
+	common.WriteJSONResponse(resp, user)
 }
 
-// DeleteAccount remove a user account
-func DeleteAccount(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+// GetUserTokens return user tokens
+func GetUserTokens(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 
 	// Get user from context
-	user := common.GetUser(ctx)
+	user := ctx.GetUser()
 	if user == nil {
-		// This should never append
-		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+		ctx.Unauthorized("missing user, please login first")
 		return
 	}
 
-	err := metadata.GetMetaDataBackend().RemoveUser(ctx, user)
+	pagingQuery := ctx.GetPagingQuery()
+
+	// Get user tokens
+	tokens, cursor, err := ctx.GetMetadataBackend().GetTokens(user.ID, pagingQuery)
 	if err != nil {
-		log.Warningf("Unable to remove user %s : %s", user.ID, err)
-		common.Fail(ctx, req, resp, "Unable to remove user", 500)
+		ctx.InternalServerError("unable to get user tokens", err)
 		return
 	}
+
+	pagingResponse := common.NewPagingResponse(tokens, cursor)
+	common.WriteJSONResponse(resp, pagingResponse)
 }
 
 // GetUserUploads get user uploads
-func GetUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
-
-	// Get user from context
-	user := common.GetUser(ctx)
-	if user == nil {
-		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+func GetUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	user, token, err := getUserAndToken(ctx, req)
+	if err != nil {
+		handleHTTPError(ctx, err)
 		return
 	}
 
-	// Get token from URL query parameter
-	var token *common.Token
-	tokenStr := req.URL.Query().Get("token")
+	pagingQuery := ctx.GetPagingQuery()
 
-	if tokenStr != "" {
-		for _, t := range user.Tokens {
-			if t.Token == tokenStr {
-				token = t
-				break
-			}
-		}
-		if token == nil {
-			log.Warningf("Unable to get uploads for token %s : Invalid token", tokenStr)
-			common.Fail(ctx, req, resp, "Unable to get uploads : Invalid token", 400)
-			return
-		}
+	var userID, tokenStr string
+	if user != nil {
+		userID = user.ID
+	}
+	if token != nil {
+		tokenStr = token.Token
 	}
 
 	// Get uploads
-	ids, err := metadata.GetMetaDataBackend().GetUserUploads(ctx, user, token)
+	uploads, cursor, err := ctx.GetMetadataBackend().GetUploads(userID, tokenStr, true, pagingQuery)
 	if err != nil {
-		log.Warningf("Unable to get uploads for user %s : %s", user.ID, err)
-		common.Fail(ctx, req, resp, "Unable to get uploads", 500)
+		ctx.InternalServerError("unable to get user uploads : %s", err)
 		return
 	}
 
-	// Get size from URL query parameter
-	size := 100
-	sizeStr := req.URL.Query().Get("size")
-	if sizeStr != "" {
-		size, err = strconv.Atoi(sizeStr)
-		if err != nil || size <= 0 || size > 100 {
-			log.Warningf("Invalid size parameter : %s", sizeStr)
-			common.Fail(ctx, req, resp, "Invalid size parameter", 400)
-			return
-		}
-	}
-
-	// Get offset from URL query parameter
-	offset := 0
-	offsetStr := req.URL.Query().Get("offset")
-	if offsetStr != "" {
-		offset, err = strconv.Atoi(offsetStr)
-		if err != nil || offset < 0 {
-			log.Warningf("Invalid offset parameter : %s", offsetStr)
-			common.Fail(ctx, req, resp, "Invalid offset parameter", 400)
-			return
-		}
-	}
-
-	// Adjust offset
-	if offset > len(ids) {
-		offset = len(ids)
-	}
-
-	// Adjust size
-	if offset+size > len(ids) {
-		size = len(ids) - offset
-	}
-
-	uploads := []*common.Upload{}
-	for _, id := range ids[offset : offset+size] {
-		upload, err := metadata.GetMetaDataBackend().Get(ctx, id)
-		if err != nil {
-			log.Warningf("Unable to get upload %s : %s", id, err)
-			continue
-		}
-
-		if !upload.IsExpired() {
-			token := upload.Token
-			upload.Sanitize()
-			upload.Token = token
-			upload.IsAdmin = true
-			uploads = append(uploads, upload)
-		}
-	}
-
-	// Print uploads in the json response.
-	var json []byte
-	if json, err = utils.ToJson(uploads); err != nil {
-		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
-		return
-	}
-	resp.Write(json)
+	pagingResponse := common.NewPagingResponse(uploads, cursor)
+	common.WriteJSONResponse(resp, pagingResponse)
 }
 
 // RemoveUserUploads delete all user uploads
-func RemoveUserUploads(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
-
-	// Get user from context
-	user := common.GetUser(ctx)
-	if user == nil {
-		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+func RemoveUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	user, token, err := getUserAndToken(ctx, req)
+	if err != nil {
+		handleHTTPError(ctx, err)
 		return
+	}
+
+	var userID string
+	if user != nil {
+		userID = user.ID
+	}
+	var tokenStr string
+	if token != nil {
+		tokenStr = token.Token
+	}
+
+	deleted, err := ctx.GetMetadataBackend().DeleteUserUploads(userID, tokenStr)
+	if err != nil {
+		ctx.InternalServerError("unable to delete user uploads", err)
+		return
+	}
+
+	_, _ = resp.Write([]byte(fmt.Sprintf("%d uploads removed", deleted)))
+}
+
+// GetUserStatistics return the user statistics
+func GetUserStatistics(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	user, token, err := getUserAndToken(ctx, req)
+	if err != nil {
+		handleHTTPError(ctx, err)
+		return
+	}
+
+	var tokenStr *string
+	if token != nil {
+		tokenStr = &token.Token
+	}
+
+	// Get user statistics
+	stats, err := ctx.GetMetadataBackend().GetUserStatistics(user.ID, tokenStr)
+	if err != nil {
+		ctx.InternalServerError("unable to get user statistics", err)
+		return
+	}
+
+	common.WriteJSONResponse(resp, stats)
+}
+
+// DeleteAccount remove a user account
+func DeleteAccount(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	// Get user from context
+	user := ctx.GetUser()
+	if user == nil {
+		ctx.Unauthorized("missing user, please login first")
+		return
+	}
+
+	_, err := ctx.GetMetadataBackend().DeleteUser(user.ID)
+	if err != nil {
+		ctx.InternalServerError("unable to delete user account", err)
+		return
+	}
+
+	_, _ = resp.Write([]byte("ok"))
+}
+
+func getUserAndToken(ctx *context.Context, req *http.Request) (user *common.User, token *common.Token, err error) {
+	// Get user from context
+	user = ctx.GetUser()
+	if user == nil {
+		return nil, nil, common.NewHTTPError("missing user, please login first", nil, http.StatusUnauthorized)
 	}
 
 	// Get token from URL query parameter
-	var token *common.Token
 	tokenStr := req.URL.Query().Get("token")
 	if tokenStr != "" {
-		for _, t := range user.Tokens {
-			if t.Token == tokenStr {
-				token = t
-			}
-		}
-	}
-
-	// Get uploads
-	ids, err := metadata.GetMetaDataBackend().GetUserUploads(ctx, user, token)
-	if err != nil {
-		log.Warningf("Unable to get uploads for user %s : %s", user.ID, err)
-		common.Fail(ctx, req, resp, "Unable to get uploads", 500)
-		return
-	}
-
-	removed := 0
-	for _, id := range ids {
-		upload, err := metadata.GetMetaDataBackend().Get(ctx, id)
+		token, err = ctx.GetMetadataBackend().GetToken(tokenStr)
 		if err != nil {
-			log.Warningf("Unable to get upload %s : %s", id, err)
-			continue
+			ctx.InternalServerError("unable to get token", err)
+			return nil, nil, common.NewHTTPError("unable to get token", err, http.StatusInternalServerError)
 		}
-
-		err = metadata.GetMetaDataBackend().Remove(ctx, upload)
-		if err != nil {
-			log.Warningf("Unable to remove upload %s : %s", id, err)
-		} else {
-			removed++
+		if token == nil {
+			return nil, nil, common.NewHTTPError("token not found", nil, http.StatusNotFound)
+		}
+		if token.UserID != user.ID {
+			return nil, nil, common.NewHTTPError("token not found", nil, http.StatusNotFound)
 		}
 	}
 
-	resp.Write(common.NewResult(fmt.Sprintf("%d uploads removed", removed), nil).ToJSON())
+	return user, token, nil
 }

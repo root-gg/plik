@@ -1,112 +1,78 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/root-gg/juliet"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadata"
+
 	"github.com/root-gg/utils"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/context"
 )
 
 // CreateToken create a new token
-func CreateToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 
 	// Get user from context
-	user := common.GetUser(ctx)
+	user := ctx.GetUser()
 	if user == nil {
-		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+		ctx.Unauthorized("missing user, please login first")
+		return
+	}
+
+	// Read request body
+	defer func() { _ = req.Body.Close() }()
+
+	req.Body = http.MaxBytesReader(resp, req.Body, 1048576)
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		ctx.BadRequest(fmt.Sprintf("unable to read request body : %s", err))
 		return
 	}
 
 	// Create token
 	token := common.NewToken()
 
-	// Read request body
-	defer req.Body.Close()
-	req.Body = http.MaxBytesReader(resp, req.Body, 1048576)
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		log.Warningf("Unable to read request body : %s", err)
-		common.Fail(ctx, req, resp, "Unable to read request body", 403)
-		return
-	}
-
 	// Deserialize json body
 	if len(body) > 0 {
 		err = json.Unmarshal(body, token)
 		if err != nil {
-			log.Warningf("Unable to deserialize json request body : %s", err)
-			common.Fail(ctx, req, resp, "Unable to deserialize json request body", 400)
+			ctx.BadRequest(fmt.Sprintf("unable to deserialize request body : %s", err))
 			return
 		}
 	}
 
-	// Initialize token
-	token.Create()
-
-	// Add token to user
-	user.Tokens = append(user.Tokens, token)
+	// Generate token uuid and set creation date
+	token.Initialize()
+	token.UserID = user.ID
 
 	// Save token
-	err = metadata.GetMetaDataBackend().SaveUser(ctx, user)
+	err = ctx.GetMetadataBackend().CreateToken(token)
 	if err != nil {
-		log.Warningf("Unable to save user to metadata backend : %s", err)
-		common.Fail(ctx, req, resp, "Unable to create token", 500)
+		ctx.InternalServerError("unable to create token : %s", err)
 		return
 	}
 
 	// Print token in the json response.
-	var json []byte
-	if json, err = utils.ToJson(token); err != nil {
-		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
-		return
+	var bytes []byte
+	if bytes, err = utils.ToJson(token); err != nil {
+		panic(fmt.Errorf("unable to serialize json response : %s", err))
 	}
-	resp.Write(json)
+
+	_, _ = resp.Write(bytes)
 }
 
 // RevokeToken remove a token
-func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
+func RevokeToken(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 
 	// Get user from context
-	user := common.GetUser(ctx)
+	user := ctx.GetUser()
 	if user == nil {
-		common.Fail(ctx, req, resp, "Missing user, Please login first", 401)
+		ctx.Unauthorized("missing user, please login first")
 		return
 	}
 
@@ -114,33 +80,26 @@ func RevokeToken(ctx *juliet.Context, resp http.ResponseWriter, req *http.Reques
 	vars := mux.Vars(req)
 	tokenStr, ok := vars["token"]
 	if !ok || tokenStr == "" {
-		common.Fail(ctx, req, resp, "Missing token", 400)
-	}
-
-	// Get token from user
-	index := -1
-	for i, t := range user.Tokens {
-		if t.Token == tokenStr {
-			index = i
-			break
-		}
-	}
-	if index < 0 {
-		log.Warningf("Unable to get token %s from user %s", tokenStr, user.ID)
-		common.Fail(ctx, req, resp, "Invalid token", 403)
+		ctx.MissingParameter("token")
 		return
 	}
 
-	// TODO RACE CONDITION if simultaneous delete occur
-
-	// Delete token
-	user.Tokens = append(user.Tokens[:index], user.Tokens[index+1:]...)
-
-	// Save user to metadata backend
-	err := metadata.GetMetaDataBackend().SaveUser(ctx, user)
+	token, err := ctx.GetMetadataBackend().GetToken(tokenStr)
 	if err != nil {
-		log.Warningf("Unable to save user to metadata backend : %s", err)
-		common.Fail(ctx, req, resp, "Unable to create token", 500)
+		ctx.InternalServerError("unable to get token : %s", err)
 		return
 	}
+
+	if token == nil || token.UserID != user.ID {
+		ctx.NotFound("token not found")
+		return
+	}
+
+	_, err = ctx.GetMetadataBackend().DeleteToken(token.Token)
+	if err != nil {
+		ctx.InternalServerError("unable to delete token : %s", err)
+		return
+	}
+
+	_, _ = resp.Write([]byte("ok"))
 }

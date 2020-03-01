@@ -1,0 +1,10 @@
+
+<div class="modal-header qrcode-header">
+    <h6><a href="{{args.url}}">{{args.title}}</a></h6>
+</div>
+<div class="modal-body">
+    <img class="center-block" ng-src="{{args.qrcode}}" alt="QR Code"/>
+</div>
+<div class="modal-footer">
+    <button ng-click="$close()" class="btn btn-primary">Close</button>
+</div>

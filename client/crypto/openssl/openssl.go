@@ -1,32 +1,3 @@
-/**
-
-    Plik upload client
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package openssl
 
 import (
@@ -41,7 +12,7 @@ import (
 
 // Backend object
 type Backend struct {
-	Config *BackendConfig
+	Config *Config
 }
 
 // NewOpenSSLBackend instantiate a new PGP Crypto Backend
@@ -81,7 +52,7 @@ func (ob *Backend) Configure(arguments map[string]interface{}) (err error) {
 }
 
 // Encrypt implementation for OpenSSL Crypto Backend
-func (ob *Backend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
+func (ob *Backend) Encrypt(in io.Reader) (out io.Reader, err error) {
 	passReader, passWriter, err := os.Pipe()
 	if err != nil {
 		fmt.Printf("Unable to make pipe : %s\n", err)
@@ -101,29 +72,36 @@ func (ob *Backend) Encrypt(reader io.Reader, writer io.Writer) (err error) {
 		return
 	}
 
+	out, writer := io.Pipe()
+
 	var args []string
 	args = append(args, ob.Config.Cipher)
 	args = append(args, "-pass", fmt.Sprintf("fd:3"))
 	args = append(args, strings.Fields(ob.Config.Options)...)
 
-	cmd := exec.Command(ob.Config.Openssl, args...)
-	cmd.Stdin = reader                                  // fd:0
-	cmd.Stdout = writer                                 // fd:1
-	cmd.Stderr = os.Stderr                              // fd:2
-	cmd.ExtraFiles = append(cmd.ExtraFiles, passReader) // fd:3
-	err = cmd.Start()
-	if err != nil {
-		fmt.Printf("Unable to run openssl cmd : %s\n", err)
-		os.Exit(1)
-		return
-	}
-	err = cmd.Wait()
-	if err != nil {
-		fmt.Printf("Unable to run openssl cmd : %s\n", err)
-		os.Exit(1)
-		return
-	}
-	return
+	go func() {
+		cmd := exec.Command(ob.Config.Openssl, args...)
+		cmd.Stdin = in                                      // fd:0
+		cmd.Stdout = writer                                 // fd:1
+		cmd.Stderr = os.Stderr                              // fd:2
+		cmd.ExtraFiles = append(cmd.ExtraFiles, passReader) // fd:3
+		err := cmd.Start()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to run openssl cmd : %s\n", err)
+			writer.CloseWithError(err)
+			return
+		}
+		err = cmd.Wait()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to run openssl cmd : %s\n", err)
+			writer.CloseWithError(err)
+			return
+		}
+
+		writer.Close()
+	}()
+
+	return out, nil
 }
 
 // Comments implementation for OpenSSL Crypto Backend

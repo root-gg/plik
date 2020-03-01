@@ -1,32 +1,3 @@
-/**
-
-    Plik upload client
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package pgp
 
 import (
@@ -36,8 +7,8 @@ import (
 	"golang.org/x/crypto/openpgp"
 )
 
-// BackendConfig object
-type BackendConfig struct {
+// Config object
+type Config struct {
 	Gpg       string
 	Keyring   string
 	Recipient string
@@ -47,10 +18,10 @@ type BackendConfig struct {
 
 // NewPgpBackendConfig instantiate a new Backend Configuration
 // from config map passed as argument
-func NewPgpBackendConfig(config map[string]interface{}) (pbc *BackendConfig) {
-	pbc = new(BackendConfig)
-	pbc.Gpg = "/usr/bin/gpg"
-	pbc.Keyring = os.Getenv("HOME") + "/.gnupg/pubring.gpg"
-	utils.Assign(pbc, config)
+func NewPgpBackendConfig(params map[string]interface{}) (config *Config) {
+	config = new(Config)
+	config.Gpg = "/usr/bin/gpg"
+	config.Keyring = os.Getenv("HOME") + "/.gnupg/pubring.gpg"
+	utils.Assign(config, params)
 	return
 }

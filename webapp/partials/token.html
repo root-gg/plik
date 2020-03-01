@@ -1,0 +1,105 @@
+
+<div class="row">
+    <div class="col-xs-12 col-sm-8 col-md-8 col-lg-8 col-centered">
+        <div class="tile panel panel-body main">
+            <div class="row">
+                <div class="row center-block">
+                    <div class="col-xs-10 col-xs-offset-1">
+                        <p>
+                            Plik tokens allow you to upload files without source IP restriction.
+                        <ul>
+                            <li>
+                                Tokens can only be generated from a valid source IP.
+                            </li>
+                            <li>
+                                You can save a token to the local storage of your web browser
+                                by clicking the remember button.
+                            </li>
+                            <li>
+                                If you are using the command line client
+                                you can use a token by adding a Token = "xxxx" line to your ~/.plikrc file.
+                            </li>
+                            <li>
+                                You can list all uploads owned by a token with the browse button.
+                            </li>
+                        </ul>
+                        </p>
+                    </div>
+                </div>
+                <div class="col-xs-10 col-sm-8 col-md-6 col-xs-offset-1 col-sm-offset-2 col-md-offset-3">
+                    <div class="row">
+                        <div class="input-group">
+                            <input id="login" type="text" ng-model="token" class="form-control" placeholder="Token">
+                            <!-- BROWSE BUTTON -->
+                            <div class="input-group-btn">
+                                <button title="Browse" type="button" class="btn btn-default" ng-click="browse()">
+                                    <i class="glyphicon glyphicon-search"></i>
+                                    <span class="hidden-xs hidden-sm hidden-md"> Browse</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <p></p>
+
+                    <div class="row">
+                        <!-- GENERATE BUTTON -->
+                        <div class="col-xs-4 text-center">
+                            <button title="Generate" type="button" class="btn btn-success" ng-click="generate()">
+                                <span class="glyphicon glyphicon-refresh"></span>
+                                <span class="hidden-xs hidden-sm hidden-md"> Generate</span>
+                            </button>
+                        </div>
+                        <!-- SAVE BUTTON -->
+                        <div class="col-xs-4 text-center">
+                            <button title="Save" type="button" class="btn btn-primary" ng-click="save()">
+                                <span class="glyphicon glyphicon-save"></span>
+                                <span class="hidden-xs hidden-sm hidden-md"> Remember</span>
+                            </button>
+                        </div>
+                        <!-- REVOKE BUTTON -->
+                        <div class="col-xs-4 text-center">
+                            <button title="Revoke" type="button" class="btn btn-danger" ng-click="revoke()">
+                                <span class="glyphicon glyphicon-remove"></span>
+                                <span class="hidden-xs hidden-sm hidden-md"> Revoke</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- UPLOAD LIST -->
+<div class="row">
+    <div class="col-xs-12 col-sm-8 col-md-8 col-lg-8 col-centered">
+        <div class="tile panel panel-body main" ng-repeat="upload in uploads">
+            <div class="row">
+                <div class="col-xs-12 col-sm-4 small file-name">
+                    <!-- UPLOAD ID / LINK -->
+                    <a href="{{getUploadUrl(upload)}}">{{ upload.id }}</a>
+                    <br/>
+                    <!-- UPLOAD DATE -->
+                    uploaded : {{ upload.uploadDate * 1000 | date:'medium' }}
+                    <br/>
+                    <!-- EXPIRE DATE -->
+                    expire : {{ upload.ttl == -1 ? 'never expire' : (upload.uploadDate + upload.ttl) * 1000
+                    | date:'medium' }}
+                </div>
+                <div class="col-xs-12 col-sm-6 small file-name">
+                    <div ng-repeat="file in upload.files">
+                        <a href="{{getFileUrl(upload,file)}}">{{ file.fileName }}</a>
+                        <span class="pull-right">
+                            {{ humanReadableSize(file.fileSize) }}
+                        </span>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-2 text-center">
+                    <!-- REMOVE -->
+                    <button class="btn btn-danger btn-sm" ng-click="remove(upload)">
+                        <span class="glyphicon glyphicon-remove"></span><span class="hidden-xs hidden-sm hidden-md"> Remove</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

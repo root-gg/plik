@@ -17,7 +17,7 @@ function jsonValue() {
 }
 
 function qecho(){ 
-    if [ "$QUIET" == false ]; then echo $@; fi
+    if [ "$QUIET" == false ]; then echo "$@"; fi
 }
 function generatePassphrase() {
     < /dev/urandom tr -dc A-Za-z0-9 | head -c${1:-32};echo;

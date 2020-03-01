@@ -1,45 +1,41 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015> Copyright holders list can be found in AUTHORS file
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package common
+
+import (
+	"fmt"
+	"time"
+)
+
+// FileMissing when a file is waiting to be uploaded
+const FileMissing = "missing"
+
+// FileUploading when a file is being uploaded
+const FileUploading = "uploading"
+
+// FileUploaded when a file has been uploaded and is ready to be downloaded
+const FileUploaded = "uploaded"
+
+// FileRemoved when a file has been removed and can't be downloaded anymore but has not yet been deleted
+const FileRemoved = "removed"
+
+// FileDeleted when a file has been deleted from the data backend
+const FileDeleted = "deleted"
 
 // File object
 type File struct {
-	ID             string                 `json:"id" bson:"fileId"`
-	Name           string                 `json:"fileName" bson:"fileName"`
-	Md5            string                 `json:"fileMd5" bson:"fileMd5"`
-	Status         string                 `json:"status" bson:"status"`
-	Type           string                 `json:"fileType" bson:"fileType"`
-	UploadDate     int64                  `json:"fileUploadDate" bson:"fileUploadDate"`
-	CurrentSize    int64                  `json:"fileSize" bson:"fileSize"`
-	BackendDetails map[string]interface{} `json:"backendDetails,omitempty" bson:"backendDetails"`
-	Reference      string                 `json:"reference" bson:"reference"`
+	ID       string `json:"id"`
+	UploadID string `json:"-"  gorm:"type:varchar(255) REFERENCES uploads(id) ON UPDATE RESTRICT ON DELETE RESTRICT"`
+	Name     string `json:"fileName"`
+
+	Status string `json:"status"`
+
+	Md5       string `json:"fileMd5"`
+	Type      string `json:"fileType"`
+	Size      int64  `json:"fileSize"`
+	Reference string `json:"reference"`
+
+	BackendDetails string `json:"-"`
+
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 // NewFile instantiate a new object
@@ -58,5 +54,32 @@ func (file *File) GenerateID() {
 // Sanitize removes sensible information from
 // object. Used to hide information in API.
 func (file *File) Sanitize() {
-	file.BackendDetails = nil
+	file.BackendDetails = ""
+}
+
+// PrepareInsert prepares a new file object to be persisted in DB ( create file ID, link upload ID, check name, ... )
+func (file *File) PrepareInsert(upload *Upload) (err error) {
+	if upload == nil {
+		return fmt.Errorf("missing upload")
+	}
+
+	if upload.ID == "" {
+		return fmt.Errorf("upload not initialized")
+	}
+
+	file.UploadID = upload.ID
+
+	if file.Name == "" {
+		return fmt.Errorf("missing file name")
+	}
+
+	// Check file name length
+	if len(file.Name) > 1024 {
+		return fmt.Errorf("file name %s... is too long, maximum length is 1024 characters", file.Name[:20])
+	}
+
+	file.GenerateID()
+	file.Status = FileMissing
+
+	return nil
 }
