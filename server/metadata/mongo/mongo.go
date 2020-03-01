@@ -344,10 +344,9 @@ func (mmb *MetadataBackend) Export(ctx *juliet.Context, path string) (err error)
 
 	session := mmb.session.Copy()
 	defer session.Close()
-	collection := session.DB(mmb.config.Database).C(mmb.config.Collection)
 
 	upload := &common.Upload{}
-	cursor := collection.Find(bson.M{}).Iter()
+	cursor := session.DB(mmb.config.Database).C(mmb.config.Collection).Find(bson.M{}).Iter()
 	for cursor.Next(upload) {
 		err = e.AddUpload(upload)
 		if err != nil {
@@ -356,7 +355,7 @@ func (mmb *MetadataBackend) Export(ctx *juliet.Context, path string) (err error)
 	}
 
 	user := &common.User{}
-	cursor = collection.Find(bson.M{}).Iter()
+	cursor = session.DB(mmb.config.Database).C(mmb.config.UserCollection).Find(bson.M{}).Iter()
 	for cursor.Next(user) {
 		err = e.AddUser(user)
 		if err != nil {

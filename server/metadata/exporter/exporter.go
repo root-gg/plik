@@ -57,7 +57,7 @@ func NewExporter(path string) (e *Exporter, err error) {
 	return e, nil
 }
 
-// AddUpload add an upload and it's files to the export
+// AddUpload add an upload and its files to the export
 func (e *Exporter) AddUpload(upload *common.Upload) (err error) {
 	u, err := AdaptUpload(upload)
 	if err != nil {
@@ -86,7 +86,7 @@ func (e *Exporter) AddUpload(upload *common.Upload) (err error) {
 	return nil
 }
 
-// AddUser add a user and it's token to the export
+// AddUser add a user and its token to the export
 func (e *Exporter) AddUser(user *common.User) (err error) {
 	u, err := AdaptUser(user)
 	if err != nil {

@@ -72,6 +72,7 @@ EOF
 # Run server
 ###
 
+
 echo -n "Start Plik server : "
 
 PLIKD_CONFIG=${PLIKD_CONFIG-../server/plikd.cfg}
@@ -604,13 +605,13 @@ echo "OK"
 
 #---------------------------------------------
 
-echo -n " - openssl custom options : "
-before
-cp $SPECIMEN $TMPDIR/upload/FILE1
-upload -s --secure-options '-a' && download && check
-curl $(cat $CLIENT_LOG | grep "curl" | sed -n 's/^.*"\(.*\)".*$/\1/p') >$TMPDIR/download/ARMORED 2>/dev/null
-file $TMPDIR/download/ARMORED | grep "ASCII text" >/dev/null 2>/dev/null
-echo "OK"
+#echo -n " - openssl custom options : "
+#before
+#cp $SPECIMEN $TMPDIR/upload/FILE1
+#upload -s --secure-options '-a' && download && check
+#curl $(cat $CLIENT_LOG | grep "curl" | sed -n 's/^.*"\(.*\)".*$/\1/p') >$TMPDIR/download/ARMORED 2>/dev/null
+#file $TMPDIR/download/ARMORED | grep "ASCII text" >/dev/null 2>/dev/null
+#echo "OK"
 
 ###
 # PGP
