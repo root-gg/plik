@@ -57,6 +57,7 @@ func main() {
 	var configFile = flag.String("config", "plikd.cfg", "Configuration file (default: plikd.cfg")
 	var version = flag.Bool("version", false, "Show version of plikd")
 	var port = flag.Int("port", 0, "Overrides plik listen port")
+	var export = flag.String("export", "", "Export plik metadata in 1.3 format")
 	flag.Parse()
 	if *version {
 		fmt.Printf("Plik server %s\n", common.GetBuildInfo())
@@ -64,6 +65,13 @@ func main() {
 	}
 
 	common.LoadConfiguration(*configFile)
+
+	// Export metadata
+	if *export != "" {
+		exportMetadata(*export)
+		os.Exit(1)
+	}
+
 	log.Infof("Starting plikd server v" + common.GetBuildInfo().Version)
 
 	// Overrides port if provided in command line
@@ -216,4 +224,13 @@ func UploadsCleaningRoutine() {
 			}
 		}
 	}
+}
+
+func exportMetadata(path string) {
+	metadata.Initialize()
+	err := metadata.GetMetaDataBackend().Export(juliet.NewContext(), path)
+	if err != nil {
+		log.Fatalf("An error occured : %s", err)
+	}
+	os.Exit(0)
 }

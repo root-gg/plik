@@ -3,7 +3,9 @@ language: go
 sudo: required
 
 go:
-  - 1.11.1
+  - 1.11.13
+
+go_import_path: github.com/root-gg/plik
 
 before_install:
   # Update node_js version : https://github.com/travis-ci/travis-ci/issues/7108

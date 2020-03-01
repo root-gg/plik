@@ -24,7 +24,7 @@
 # THE SOFTWARE.
 ###
 
-RELEASE_VERSION="1.2.3"
+RELEASE_VERSION="1.2.4"
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 RELEASE_TARGETS=darwin-386 darwin-amd64 freebsd-386 \
 freebsd-amd64 linux-386 linux-amd64 linux-arm openbsd-386 \
@@ -241,7 +241,7 @@ test:
 			FMT=`gofmt -l $$file` ; \
 			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
 		done; \
-		echo -n "go vet $$directory : "; \
+		echo -n "go tool vet $$directory : "; \
 		for file in $$(find -name "*.go" | grep -v vendor ); do \
 			echo -n " - file $$file : " ; \
 			FMT=`go tool vet $$file` ; \

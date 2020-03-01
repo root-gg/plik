@@ -23,7 +23,7 @@ var (
 //  - Add/Remove files to the upload
 //  - Get plik server configuration
 type Client struct {
-	HttpClient *http.Client
+	HTTPClient *http.Client
 	BaseURL    *url.URL
 	serverConf *common.Configuration
 	once       *sync.Once
@@ -33,7 +33,7 @@ type Client struct {
 func NewClient(baseURL string) (c *Client, err error) {
 
 	c = new(Client)
-	c.HttpClient = new(http.Client)
+	c.HTTPClient = new(http.Client)
 	c.BaseURL, err = url.Parse(baseURL)
 	c.once = new(sync.Once)
 	if err != nil {
@@ -74,9 +74,9 @@ func (c *Client) NewUploadWithOptions(opts *UploadOptions) (upload *Upload) {
 }
 
 // GetUpload will get upload from Plik
-func (c *Client) GetUpload(uploadId string) (upload *common.Upload, err error) {
+func (c *Client) GetUpload(uploadID string) (upload *common.Upload, err error) {
 
-	path := fmt.Sprintf("/upload/%s", uploadId)
+	path := fmt.Sprintf("/upload/%s", uploadID)
 	req, err := c.newRequest("GET", path, nil)
 	if err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func (c *Client) newFileRequest(method, path string, fileName string, file io.Re
 }
 func (c *Client) do(req *http.Request, v interface{}) (*http.Response, error) {
 
-	resp, err := c.HttpClient.Do(req)
+	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

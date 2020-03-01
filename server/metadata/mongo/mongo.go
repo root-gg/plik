@@ -31,6 +31,8 @@ package mongo
 
 import (
 	"crypto/tls"
+	"fmt"
+	"github.com/root-gg/plik/server/metadata/exporter"
 	"net"
 	"strconv"
 	"time"
@@ -328,4 +330,38 @@ func (mmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []strin
 	}
 
 	return
+}
+
+// Export implementation for mongo metadata backend
+func (mmb *MetadataBackend) Export(ctx *juliet.Context, path string) (err error) {
+	fmt.Printf("Exporting metadata from %s to %s\n", mmb.config.URL, path)
+
+	e, err := exporter.NewExporter(path)
+	if err != nil {
+		return err
+	}
+	defer e.Close()
+
+	session := mmb.session.Copy()
+	defer session.Close()
+
+	upload := &common.Upload{}
+	cursor := session.DB(mmb.config.Database).C(mmb.config.Collection).Find(bson.M{}).Iter()
+	for cursor.Next(upload) {
+		err = e.AddUpload(upload)
+		if err != nil {
+			return err
+		}
+	}
+
+	user := &common.User{}
+	cursor = session.DB(mmb.config.Database).C(mmb.config.UserCollection).Find(bson.M{}).Iter()
+	for cursor.Next(user) {
+		err = e.AddUser(user)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

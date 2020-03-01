@@ -11,6 +11,7 @@ import (
 	"github.com/root-gg/plik/server/common"
 )
 
+// PlikUpload is an alias for common.Upload
 type PlikUpload = common.Upload
 
 // Upload override from a Plik common.Upload
@@ -21,7 +22,7 @@ type Upload struct {
 	client *Client
 }
 
-// UploadStatus
+// UploadStatus represents the status of a file upload
 type UploadStatus struct {
 	Error error
 	File  *File
@@ -44,6 +45,7 @@ type UploadOptions struct {
 	Yubikey             string
 }
 
+// URL of the upload
 func (u *Upload) URL() string {
 
 	if u.client == nil {
