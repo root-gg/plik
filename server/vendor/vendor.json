@@ -63,6 +63,12 @@
 			"revisionTime": "2015-06-12T18:29:15Z"
 		},
 		{
+			"checksumSHA1": "4gKrTOaoNvbAgDCVfSLd6J77oPw=",
+			"path": "github.com/golang/snappy",
+			"revision": "ff6b7dc882cf4cfba7ee0b9f7dcc1ac096c554aa",
+			"revisionTime": "2019-09-04T06:34:54Z"
+		},
+		{
 			"checksumSHA1": "iIUYZyoanCQQTUaWsu8b+iOSPt4=",
 			"path": "github.com/gorilla/context",
 			"revision": "215affda49addc4c8ef7e2534915df2c8c35c6cd",
@@ -145,6 +151,12 @@
 			"path": "golang.org/x/oauth2/jwt",
 			"revision": "2baa8a1b9338cf13d9eeb27696d761155fa480be",
 			"revisionTime": "2015-12-03T21:21:41Z"
+		},
+		{
+			"checksumSHA1": "bWM+dkEINuGiOIIU4bggjHwiYUU=",
+			"path": "golang.org/x/sys/unix",
+			"revision": "12a6c2dcc1e4cb348b57847c73987099e261714b",
+			"revisionTime": "2020-02-12T08:54:49Z"
 		},
 		{
 			"checksumSHA1": "scspxSS3sSzzG18ebpz1po9d07Y=",

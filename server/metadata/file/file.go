@@ -438,3 +438,10 @@ func (fmb *MetadataBackend) GetUserUploads(ctx *juliet.Context, user *common.Use
 	err = log.EWarningf("Unable to get user uploads : Not implemented")
 	return
 }
+
+// Export implementation for file metadata backend
+func (fmb *MetadataBackend) Export(ctx *juliet.Context, path string) (err error) {
+	log := common.GetLogger(ctx)
+	err = log.EWarningf("Unable export metadata : Not implemented")
+	return
+}

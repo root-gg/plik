@@ -33,6 +33,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/root-gg/plik/server/metadata/exporter"
 	"log"
 	"time"
 
@@ -136,7 +137,7 @@ func (bmb *MetadataBackend) Create(ctx *juliet.Context, upload *common.Upload) (
 		// Expire date index
 		if upload.TTL > 0 {
 			// Expire index is build as follow :
-			//  - Expire index prefix 2 byte ( "_e" )
+			//  - Expire index pplik.dbrefix 2 byte ( "_e" )
 			//  - The expire timestamp ( 8 bytes )
 			//  - The upload id ( 16 bytes )
 			// Upload id is stored in the key to ensure uniqueness
@@ -620,4 +621,79 @@ func (bmb *MetadataBackend) GetUploadsToRemove(ctx *juliet.Context) (ids []strin
 	}
 
 	return
+}
+
+// Export implementation for bolt metadata backend
+func (bmb *MetadataBackend) Export(ctx *juliet.Context, path string) (err error) {
+	fmt.Printf("Exporting metadata from %s to %s\n", bmb.Config.Path, path)
+
+	e, err := exporter.NewExporter(path)
+	if err != nil {
+		return err
+	}
+	defer e.Close()
+
+	err = bmb.db.View(func(tx *bolt.Tx) error {
+		c := tx.Bucket([]byte("uploads")).Cursor()
+		c.Seek([]byte{})
+		for {
+			// Scan the bucket
+			k, v := c.Next()
+			if k == nil {
+				break
+			}
+			if bytes.HasPrefix(k, []byte("_")) {
+				// Skip index entries
+				continue
+			}
+
+			// Unserialize metadata from json
+			upload := new(common.Upload)
+			if err = json.Unmarshal(v, upload); err != nil {
+				return fmt.Errorf("Unable to unserialize upload metadata from json \"%s\" : %s", string(v), err)
+			}
+
+			err = e.AddUpload(upload)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	err = bmb.db.View(func(tx *bolt.Tx) error {
+		c := tx.Bucket([]byte("users")).Cursor()
+		c.Seek([]byte{})
+		for {
+			// Scan the bucket
+			k, v := c.Next()
+			if k == nil {
+				break
+			}
+			if !(bytes.HasPrefix(k, []byte("google")) || bytes.HasPrefix(k, []byte("ovh"))) {
+				// Skip index entries
+				continue
+			}
+
+			// Unserialize metadata from json
+			user := new(common.User)
+			if err = json.Unmarshal(v, user); err != nil {
+				return fmt.Errorf("Unable to unserialize user metadata from json \"%s\" : %s", string(v), err)
+			}
+
+			err = e.AddUser(user)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

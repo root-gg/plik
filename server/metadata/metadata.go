@@ -54,6 +54,8 @@ type Backend interface {
 
 	GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error)
 	GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error)
+
+	Export(ctx *juliet.Context, path string) (err error)
 }
 
 // GetMetaDataBackend is a singleton pattern.
