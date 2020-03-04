@@ -1,0 +1,63 @@
+
+<!DOCTYPE html>
+<html ng-app="plik">
+<head>
+    <!-- META -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="root.gg temporary file upload service">
+    <meta name="author" content="Mathieu Bodjikian, Charles-Antoine Mathieu">
+
+    <title>Plik</title>
+
+    <!-- CSS -->
+    <link href="css/vendor.css" rel="stylesheet" type="text/css">
+    <link href="css/app.css" rel="stylesheet" type="text/css">
+
+    <!-- FAVICON -->
+    <link rel="shortcut icon" href="favicon.ico">
+</head>
+
+<body>
+<div id="view">
+    <!-- HEADER -->
+    <header ng-controller="MenuCtrl">
+        <div class="container-fluid">
+            <div class="row">
+                <!-- PLIK LOGO -->
+                <div class="col-sm-3 text-center">
+                    <h1><a href="#/_">Plik</a></h1>
+                </div>
+                <!-- TOP MENU -->
+                <div class="col-sm-9 text-right hidden-xs">
+                    <a href="#/login" ng-if="config.authentication && !user"><i class="fa fa-lock"></i> Authentication</a>
+                    <a href="#/login" ng-if="config.authentication && user">{{user.login}}</a>
+                    &nbsp;
+                    <a href="#/admin" ng-if="config.authentication && user && user.admin"><i class="fa fa-wrench"></i> Admin&nbsp;</a>
+
+                    <a href="#/clients"><i class="fa fa-keyboard-o"></i> Command line client</a>
+                    &nbsp;
+                    <a href="https://github.com/root-gg/plik/tree/master"><i class="fa fa-github"></i> Source code</a>
+                </div>
+                <!-- TOP MENU ( mobile ) -->
+                <div class="col-sm-9 text-center hidden-sm hidden-md hidden-lg">
+                    <a href="#/login" ng-if="config.authentication && !user"><i class="fa fa-lock"></i> Authentication</a>
+                    <a href="#/login" ng-if="config.authentication && user">{{user.login}}</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ANGULARJS VIEW -->
+    <div ng-view class="container-fluid"></div>
+</div>
+</div>
+
+<!-- framework, modules and libraries -->
+<script src="js/vendor.js" type="text/javascript"></script>
+
+<!-- application -->
+<script src="js/app.js" type="text/javascript"></script>
+
+</body>
+</html>

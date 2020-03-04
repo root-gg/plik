@@ -1,31 +1,5 @@
 #!/bin/bash
 
-###
-# The MIT License (MIT)
-#
-# Copyright (c) <2015>
-# - Mathieu Bodjikian <mathieu@bodjikian.fr>
-# - Charles-Antoine Mathieu <skatkatt@root.gg>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
-###
-
 set -e
 export SHELLOPTS
 export ENABLE_RACE_DETECTOR=1
@@ -38,7 +12,7 @@ cd "$ORIGIN/.."
 ###
 
 URL="http://127.0.0.1:8080"
-if curl $URL 2>/dev/null | grep plik >/dev/null 2>&1 ; then
+if curl "$URL/version" 2>/dev/null | grep version >/dev/null 2>&1 ; then
     echo "A plik instance is running @ $URL"
     exit 1
 fi
@@ -64,7 +38,7 @@ SPECIMEN="$TMPDIR/SPECIMEN"
 Lorem ipsum dolor sit amet, eu munere invenire est, in vel liber salutatus, id eum atqui iisque. Ut eam semper possim ullamcorper. Quodsi complectitur an mea. Oratio pertinacia ius ea, duo quem dolorum omittam at. Vix eu idque admodum, quem animal eam et.
 Cu eum ullum constituto theophrastus, te eam nihil ignota iudicabit. Pri cu minim voluptatum inciderint. Ne nec inani latine. Ei voluptua splendide sit.
 At vix clita aliquam docendi. Ex eum utroque dignissim theophrastus, nullam facete vituperatoribus his ne, mei ad delectus constituto. Qui ne euripidis liberavisse, te per labores lucilius, eu ferri convenire mea. Ius dico ceteros feugait eu, cu nisl magna option pro, cu agam veritus aliquando has. At pro mandamus qualisque, eu vis nostro aeterno.
-Erat vulputate intellegebat an nam, te reque atomorum molestiae eos. Illud corpora incorrupte est cu, nullam audiam id per, mel et dicta legimus suscipiantur. Ad simul perfecto per, his veri legimus te. Cum aeque dissentiet et, atomorum aliquando efficiendi ex vix, his ei soleat omnium impetus.
+Erat vulputate intellegebat an nam, te reque atomorum molestiae eos. Illud corpora incorrupte est cu, nullam audiam id per, mel et dicta legimus suscipiantur. Ad simul perfecto per, his veri legimus te. Cum aeque dissentiet et, atomorum aliquando effctx := newTestingContext(config)endi ex vix, his ei soleat omnium impetus.
 Sed electram dignissim reformidans ut. In vim graeco torquatos pertinacia, duis tamquam duo id. Et viderer debitis vocibus quo, ea vero movet atomorum pri. Atqui delicatissimi an vis, amet deseruisse ius et. Eos rationibus scriptorem ex, vim meis eirmod consequuntur in.
 EOF
 
@@ -72,20 +46,19 @@ EOF
 # Run server
 ###
 
-
 echo -n "Start Plik server : "
 
 PLIKD_CONFIG=${PLIKD_CONFIG-../server/plikd.cfg}
-echo "PLIKD_CONFIG = $PLIKD_CONFIG"
+echo "PLIKD_CONFIG=$PLIKD_CONFIG"
 
-(cd server && ./plikd -config $PLIKD_CONFIG > $SERVER_LOG 2>&1) >/dev/null 2>&1 &
+(cd server && ./plikd --config $PLIKD_CONFIG > $SERVER_LOG 2>&1) >/dev/null 2>&1 &
 
 # Verify that server is running
 sleep 1
-if curl $URL 2>/dev/null | grep plik >/dev/null 2>&1 ; then
-    echo "OK"
+if curl "$URL/version" 2>/dev/null | grep version >/dev/null 2>&1 ; then
+    echo "Plik server is running"
 else
-    echo "UNABLE TO START PLIK SERVER"
+    echo "Plik server is not running"
     cat $SERVER_LOG
     exit 1
 fi
@@ -220,12 +193,12 @@ echo "OK"
 echo -n " - debug : "
 
 before
-$CLIENT -d >$CLIENT_LOG 2>&1
+$CLIENT -d $SPECIMEN >$CLIENT_LOG 2>&1
 grep "Arguments" $CLIENT_LOG >/dev/null 2>/dev/null
 grep "Configuration" $CLIENT_LOG >/dev/null 2>/dev/null
 
 before
-$CLIENT --debug >$CLIENT_LOG 2>&1
+$CLIENT --debug $SPECIMEN >$CLIENT_LOG 2>&1
 grep "Arguments" $CLIENT_LOG >/dev/null 2>/dev/null
 grep "Configuration" $CLIENT_LOG >/dev/null 2>/dev/null
 
@@ -304,12 +277,13 @@ echo "OK"
 echo -n " - streaming : "
 
 before
-cp $SPECIMEN $TMPDIR/upload/FILE1
+FILE="FILE_$RANDOM"
+cp $SPECIMEN $TMPDIR/upload/$FILE
 # Start upload cmd in background to create upload then kill it
 (
     set -e
     upload -S &
-    child=$!
+    child=$(ps x | grep "plik \-S $FILE" | awk '{print $1}')
     sleep 1
     (
         kill -0 $child && kill $child
@@ -317,16 +291,18 @@ cp $SPECIMEN $TMPDIR/upload/FILE1
         kill -0 $child && kill -9 $child
     ) >/dev/null 2>&1 &
 )
+sleep 3
 uploadOpts
 echo "$UPLOAD_OPTS" | grep '"stream": true' >/dev/null 2>/dev/null
 
 before
-cp $SPECIMEN $TMPDIR/upload/FILE1
+FILE="FILE_$RANDOM"
+cp $SPECIMEN $TMPDIR/upload/$FILE
 # Start upload cmd in background to create upload then kill it
 (
     set -e
     upload --stream &
-    child=$!
+    child=$(ps x | grep "plik \--stream $FILE" | awk '{print $1}')
     sleep 1
     (
         kill -0 $child && kill $child
@@ -334,6 +310,7 @@ cp $SPECIMEN $TMPDIR/upload/FILE1
         kill -0 $child && kill -9 $child
     ) >/dev/null 2>&1 &
 )
+sleep 3
 uploadOpts
 echo "$UPLOAD_OPTS" | grep '"stream": true' >/dev/null 2>/dev/null
 
@@ -605,13 +582,13 @@ echo "OK"
 
 #---------------------------------------------
 
-#echo -n " - openssl custom options : "
-#before
-#cp $SPECIMEN $TMPDIR/upload/FILE1
-#upload -s --secure-options '-a' && download && check
-#curl $(cat $CLIENT_LOG | grep "curl" | sed -n 's/^.*"\(.*\)".*$/\1/p') >$TMPDIR/download/ARMORED 2>/dev/null
-#file $TMPDIR/download/ARMORED | grep "ASCII text" >/dev/null 2>/dev/null
-#echo "OK"
+echo -n " - openssl custom options : "
+before
+cp $SPECIMEN $TMPDIR/upload/FILE1
+upload -s --secure-options '-a' && download && check
+curl $(cat $CLIENT_LOG | grep "curl" | sed -n 's/^.*"\(.*\)".*$/\1/p') >$TMPDIR/download/ARMORED 2>/dev/null
+file $TMPDIR/download/ARMORED | grep "ASCII text\|base64" >/dev/null 2>/dev/null
+echo "OK"
 
 ###
 # PGP

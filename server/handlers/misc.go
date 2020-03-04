@@ -1,86 +1,35 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package handlers
 
 import (
+	"fmt"
 	"image/png"
 	"net/http"
 	"strconv"
 
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/qr"
-	"github.com/root-gg/juliet"
+
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/data"
-	"github.com/root-gg/plik/server/metadata"
-	"github.com/root-gg/utils"
+	"github.com/root-gg/plik/server/context"
 )
 
 // GetVersion return the build information.
-func GetVersion(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
-
-	// Print version and build information in the json response.
-	json, err := utils.ToJson(common.GetBuildInfo())
-	if err != nil {
-		log.Warningf("Unable to serialize json response : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize json response", 500)
-		return
-	}
-
-	resp.Write(json)
+func GetVersion(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	common.WriteJSONResponse(resp, common.GetBuildInfo())
 }
 
 // GetConfiguration return the server configuration
-func GetConfiguration(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
-
-	// Print configuration in the json response.
-	json, err := utils.ToJson(common.Config)
-	if err != nil {
-		log.Warningf("Unable to serialize response body : %s", err)
-		common.Fail(ctx, req, resp, "Unable to serialize response body", 500)
-		return
-	}
-	resp.Write(json)
+func GetConfiguration(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	common.WriteJSONResponse(resp, ctx.GetConfig())
 }
 
 // Logout return the server configuration
-func Logout(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
+func Logout(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 	common.Logout(resp)
 }
 
 // GetQrCode return a QRCode for the requested URL
-func GetQrCode(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request) {
-	log := common.GetLogger(ctx)
-
+func GetQrCode(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 	// Check params
 	urlParam := req.FormValue("url")
 	sizeParam := req.FormValue("size")
@@ -90,67 +39,63 @@ func GetQrCode(ctx *juliet.Context, resp http.ResponseWriter, req *http.Request)
 	if err != nil {
 		sizeInt = 250
 	}
+	if sizeInt <= 0 {
+		ctx.BadRequest("QRCode size must be positive")
+		return
+	}
 	if sizeInt > 1000 {
-		log.Warning("QRCode size must be lower than 1000")
-		common.Fail(ctx, req, resp, "QRCode size must be lower than 1000", 400)
+		ctx.BadRequest("QRCode size must be lower than 1000")
 		return
 	}
 
 	// Generate QRCode png from url
 	qrcode, err := qr.Encode(urlParam, qr.H, qr.Auto)
 	if err != nil {
-		log.Warningf("Unable to generate QRCode : %s", err)
-		common.Fail(ctx, req, resp, "Unable to generate QRCode", 500)
+		ctx.InternalServerError("unable to generate QRCode", err)
 		return
 	}
 
 	// Scale QRCode png size
 	qrcode, err = barcode.Scale(qrcode, sizeInt, sizeInt)
 	if err != nil {
-		log.Warningf("Unable to scale QRCode : %s", err)
-		common.Fail(ctx, req, resp, "Unable to generate QRCode", 500)
+		ctx.InternalServerError("unable to scale QRCode : %s", err)
 		return
 	}
 
 	resp.Header().Add("Content-Type", "image/png")
 	err = png.Encode(resp, qrcode)
 	if err != nil {
-		log.Warningf("Unable to encode png : %s", err)
+		ctx.InternalServerError("unable to encore png : %s", err)
+		return
 	}
 }
 
-// RemoveUploadIfNoFileAvailable iterates on upload files and remove upload files
-// and metadata if all the files have been downloaded (useful for OneShot uploads)
-func RemoveUploadIfNoFileAvailable(ctx *juliet.Context, upload *common.Upload) {
-	log := common.GetLogger(ctx)
+// If a download domain is specified verify that the request comes from this specific domain
+func checkDownloadDomain(ctx *context.Context) bool {
+	log := ctx.GetLogger()
+	config := ctx.GetConfig()
+	req := ctx.GetReq()
+	resp := ctx.GetResp()
 
-	// Test if there are remaining files
-	filesInUpload := len(upload.Files)
-	for _, f := range upload.Files {
-		if upload.Stream && f.Status != "missing" {
-			filesInUpload--
-		}
-		if !upload.Stream && f.Status != "uploaded" {
-			filesInUpload--
-		}
-	}
-
-	if filesInUpload == 0 {
-		log.Debugf("No more files in upload. Removing.")
-
-		if !upload.Stream {
-			err := data.GetDataBackend().RemoveUpload(ctx, upload)
-			if err != nil {
-				log.Warningf("Unable to remove upload : %s", err)
-				return
-			}
-		}
-		err := metadata.GetMetaDataBackend().Remove(ctx, upload)
-		if err != nil {
-			log.Warningf("Unable to remove upload : %s", err)
-			return
+	if config.GetDownloadDomain() != nil {
+		if req.Host != config.GetDownloadDomain().Host {
+			downloadURL := fmt.Sprintf("%s://%s%s",
+				config.GetDownloadDomain().Scheme,
+				config.GetDownloadDomain().Host,
+				req.RequestURI)
+			log.Warningf("invalid download domain %s, expected %s", req.Host, config.GetDownloadDomain().Host)
+			http.Redirect(resp, req, downloadURL, http.StatusMovedPermanently)
+			return false
 		}
 	}
 
-	return
+	return true
+}
+
+func handleHTTPError(ctx *context.Context, err error) {
+	if httpError, ok := err.(common.HTTPError); ok {
+		ctx.Fail(httpError.Message, httpError.Err, httpError.StatusCode)
+	} else {
+		ctx.InternalServerError("unexpected error", err)
+	}
 }

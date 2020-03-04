@@ -1,0 +1,45 @@
+Plik 1.3-RC1
+
+    Hi, today we're releasing the first release candidate of the next plik major version 1.3 !
+
+    Here is the changelog :
+
+    /!\ Breaking /!\
+        - API changes :
+          - Upload files is now an array instead of a map
+          - Upload Create int64 is now CreatedAt time.Time
+          - Cursor based pagination
+          - Errors are not anymore encapsulated in a common.Result
+        - Files are now stored in a different folder without the upload id in the path ( implementation is backward compatible )
+
+    Removed
+        - Mongodb and Bolt metadata backends ( replaced by Sqlite/Postgres using gorm ) to migrate :
+          -> ugrade to 1.2.4 then run "./plikd --export plikd.dump"
+          -> upgrade to 1.3-RC1 then run "./plikd import plikd.dump"
+        - Weedfs data backed
+        - Yubikey support
+
+    New
+        - New metadata backend : Gorm sqlite/postgres
+        - New data backend : S3
+        - New authentication mechanism : local users
+        - Plik client library
+        - Quick mode to upload a file in a single curl
+        - User upload statistics
+        - Admin dashboard : server upload statistics, list of users, ...
+        - Admin command line : manage users / tokens / uploads / files
+        - Metadata export / import
+        - Config parameter to disable some HTTP security headers
+        - Docker tooling to test backends
+
+    Fixed
+        - Issue with multiple CLI progress bars
+
+    Misc
+        - Unit and Functional tests with good coverage
+        - Plik client rewrite using the Go library
+        - Vendoring with GO modules
+        - New make targets : fmt, lint, test-backends, build-info,...
+
+Faithfully,
+The plik team

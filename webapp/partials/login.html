@@ -1,0 +1,63 @@
+
+
+<!-- LOGIN -->
+<div class="row" ng-if="!user">
+    <div class="col-xs-12 col-sm-4 col-md-4 col-lg-4 col-centered">
+        <div class="tile panel panel-body main">
+            <div class="row">
+                <div class="col-sm-12 text-center">
+                    <div class="row">
+                        <div class="col-sm-11 col-sm-offset-1">
+                            <form class="form-horizontal">
+                                <!-- LOGIN INPUT -->
+                                <div class="form-group">
+                                    <label for="login" class="col-sm-2 control-label">Login</label>
+                                    <div class="col-sm-8">
+                                        <input id="login" type="text" ng-model="$parent.username" class="form-control" placeholder="Login">
+                                    </div>
+                                </div>
+                                <!-- PASSWORD INPUT -->
+                                <div class="form-group">
+                                    <label for="password" class="col-sm-2 control-label">Password</label>
+                                    <div class="col-sm-8">
+                                        <input id="password" type="password" ng-model="$parent.password" class="form-control"
+                                               placeholder="Password">
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-12 text-center">
+                            <!-- LOGIN BUTTON -->
+                            <div class="text-center auth-btn">
+                                <button title="Login" type="button" class="btn btn-primary" ng-click="login()">
+                                    <span class="fa fa-login"></span>
+                                    Login
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-sm-12 text-center">
+                    <!-- GOOGLE BUTTON -->
+                    <div class="text-center auth-btn" ng-show="config.googleAuthentication">
+                        <button title="Google" type="button" class="btn btn-primary" ng-click="google()">
+                            <span class="fa fa-google"></span>
+                            Login with Google
+                        </button>
+                    </div>
+                    <!-- OVH BUTTON -->
+                    <div class="text-center auth-btn" ng-show="config.ovhAuthentication">
+                        <button title="OVH" type="button" class="btn btn-primary" ng-click="ovh()">
+                            <span class="fa fa-circle-o"></span>
+                            Login with OVH
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

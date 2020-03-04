@@ -1,32 +1,3 @@
-/**
-
-    Plik upload client
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package tar
 
 import (
@@ -69,7 +40,7 @@ func (tb *Backend) Configure(arguments map[string]interface{}) (err error) {
 }
 
 // Archive implementation for TAR Archive Backend
-func (tb *Backend) Archive(files []string, writer io.WriteCloser) (err error) {
+func (tb *Backend) Archive(files []string) (reader io.Reader, err error) {
 	if len(files) == 0 {
 		fmt.Println("Unable to make a tar archive from STDIN")
 		os.Exit(1)
@@ -84,9 +55,12 @@ func (tb *Backend) Archive(files []string, writer io.WriteCloser) (err error) {
 	args = append(args, strings.Fields(tb.Config.Options)...)
 	args = append(args, files...)
 
+	reader, writer := io.Pipe()
+
 	cmd := exec.Command(tb.Config.Tar, args...)
 	cmd.Stdout = writer
 	cmd.Stderr = os.Stderr
+
 	go func() {
 		err := cmd.Start()
 		if err != nil {
@@ -103,10 +77,12 @@ func (tb *Backend) Archive(files []string, writer io.WriteCloser) (err error) {
 		err = writer.Close()
 		if err != nil {
 			fmt.Printf("Unable to run tar cmd : %s\n", err)
+			os.Exit(1)
 			return
 		}
 	}()
-	return
+
+	return reader, nil
 }
 
 // Comments implementation for TAR Archive Backend

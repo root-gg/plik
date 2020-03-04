@@ -3,7 +3,7 @@ language: go
 sudo: required
 
 go:
-  - 1.11.13
+  - 1.14
 
 go_import_path: github.com/root-gg/plik
 
@@ -13,7 +13,7 @@ before_install:
   - npm install -g bower
 
 before_script:
-  - go get -u github.com/golang/lint/golint
+  - go get -u golang.org/x/lint/golint
 
 script:
-  - make test && make
+  - make && make lint && make test && make test-backends && make docker

@@ -1,170 +1,133 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package swift
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/ncw/swift"
-	"github.com/root-gg/juliet"
+	"github.com/root-gg/utils"
+
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/data"
 )
+
+// Ensure Swift Data Backend implements data.Backend interface
+var _ data.Backend = (*Backend)(nil)
+
+// Config describes configuration for Swift data backend
+type Config struct {
+	Username, Password, Host, ProjectName, Container string
+}
+
+// NewConfig instantiate a new default configuration
+// and override it with configuration passed as argument
+func NewConfig(params map[string]interface{}) (config *Config) {
+	config = new(Config)
+	config.Container = "plik"
+	utils.Assign(config, params)
+	return
+}
 
 // Backend object
 type Backend struct {
-	config     *BackendConfig
+	config     *Config
 	connection *swift.Connection
 }
 
-// NewSwiftBackend instantiate a new OpenSwift Data Backend
+// NewBackend instantiate a new OpenSwift Data Backend
 // from configuration passed as argument
-func NewSwiftBackend(config map[string]interface{}) (sb *Backend) {
-	sb = new(Backend)
-	sb.config = NewSwitftBackendConfig(config)
-	return sb
+func NewBackend(config *Config) (b *Backend) {
+	b = new(Backend)
+	b.config = config
+	return b
 }
 
 // GetFile implementation for Swift Data Backend
-func (sb *Backend) GetFile(ctx *juliet.Context, upload *common.Upload, fileID string) (reader io.ReadCloser, err error) {
-	log := common.GetLogger(ctx)
-
-	err = sb.auth(ctx)
+func (b *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) {
+	err = b.auth()
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	reader, pipeWriter := io.Pipe()
-	uuid := sb.getFileID(upload, fileID)
+	objectID := objectID(file)
 	go func() {
-		_, err = sb.connection.ObjectGet(sb.config.Container, uuid, pipeWriter, true, nil)
-		defer pipeWriter.Close()
+		_, err = b.connection.ObjectGet(b.config.Container, objectID, pipeWriter, true, nil)
+		defer func() { _ = pipeWriter.Close() }()
 		if err != nil {
-			err = log.EWarningf("Unable to get object %s : %s", uuid, err)
 			return
 		}
 	}()
 
-	return
+	return reader, nil
 }
 
 // AddFile implementation for Swift Data Backend
-func (sb *Backend) AddFile(ctx *juliet.Context, upload *common.Upload, file *common.File, fileReader io.Reader) (backendDetails map[string]interface{}, err error) {
-	log := common.GetLogger(ctx)
-
-	err = sb.auth(ctx)
+func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (backendDetails string, err error) {
+	err = b.auth()
 	if err != nil {
-		return
+		return "", err
 	}
 
-	uuid := sb.getFileID(upload, file.ID)
-	object, err := sb.connection.ObjectCreate(sb.config.Container, uuid, true, "", "", nil)
+	objectID := objectID(file)
+	object, err := b.connection.ObjectCreate(b.config.Container, objectID, true, "", "", nil)
 
 	_, err = io.Copy(object, fileReader)
 	if err != nil {
-		err = log.EWarningf("Unable to save object %s : %s", uuid, err)
-		return
+		return "", err
 	}
-	object.Close()
-	log.Infof("Object %s successfully saved", uuid)
+	err = object.Close()
+	if err != nil {
+		return "", err
+	}
 
-	return
+	return backendDetails, nil
 }
 
 // RemoveFile implementation for Swift Data Backend
-func (sb *Backend) RemoveFile(ctx *juliet.Context, upload *common.Upload, fileID string) (err error) {
-	log := common.GetLogger(ctx)
-
-	err = sb.auth(ctx)
+func (b *Backend) RemoveFile(file *common.File) (err error) {
+	err = b.auth()
 	if err != nil {
-		return
+		return err
 	}
 
-	uuid := sb.getFileID(upload, fileID)
-	err = sb.connection.ObjectDelete(sb.config.Container, uuid)
+	objectID := objectID(file)
+	err = b.connection.ObjectDelete(b.config.Container, objectID)
 	if err != nil {
-		err = log.EWarningf("Unable to remove object %s : %s", uuid, err)
-		return
+		return err
 	}
 
 	return
 }
 
-// RemoveUpload implementation for Swift Data Backend
-// Iterates on each upload file and call RemoveFile
-func (sb *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
-	log := common.GetLogger(ctx)
-
-	err = sb.auth(ctx)
-	if err != nil {
-		return
-	}
-
-	for fileID := range upload.Files {
-		uuid := sb.getFileID(upload, fileID)
-		err = sb.connection.ObjectDelete(sb.config.Container, uuid)
-		if err != nil {
-			err = log.EWarningf("Unable to remove object %s : %s", uuid, err)
-		}
-	}
-
-	return
+func objectID(file *common.File) string {
+	return file.UploadID + "." + file.ID
 }
 
-func (sb *Backend) getFileID(upload *common.Upload, fileID string) string {
-	return upload.ID + "." + fileID
-}
-
-func (sb *Backend) auth(ctx *juliet.Context) (err error) {
-	log := common.GetLogger(ctx)
-
-	if sb.connection != nil && sb.connection.Authenticated() {
+func (b *Backend) auth() (err error) {
+	if b.connection != nil && b.connection.Authenticated() {
 		return
 	}
 
 	connection := &swift.Connection{
-		UserName: sb.config.Username,
-		ApiKey:   sb.config.Password,
-		AuthUrl:  sb.config.Host,
-		Tenant:   sb.config.ProjectName,
+		UserName: b.config.Username,
+		ApiKey:   b.config.Password,
+		AuthUrl:  b.config.Host,
+		Tenant:   b.config.ProjectName,
 	}
 
 	// Authenticate
 	err = connection.Authenticate()
 	if err != nil {
-		err = log.EWarningf("Unable to autenticate : %s", err)
-		return err
+		return fmt.Errorf("unable to autenticate : %s", err)
 	}
-	sb.connection = connection
+	b.connection = connection
 
 	// Create container
-	sb.connection.ContainerCreate(sb.config.Container, nil)
+	err = b.connection.ContainerCreate(b.config.Container, nil)
+	if err != nil {
+		return err
+	}
 
-	return
+	return nil
 }

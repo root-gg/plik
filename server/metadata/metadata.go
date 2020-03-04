@@ -1,84 +1,138 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package metadata
 
 import (
-	"github.com/root-gg/juliet"
+	"fmt"
+
+	"github.com/jinzhu/gorm"
+	"github.com/root-gg/utils"
+	"gopkg.in/gormigrate.v1"
+
+	// load drivers
+	// Still some issues to workaround for mysql
+	//  - innodb deadlocks on create
+	//  - createdAt => datetime(6)
+	//_ "github.com/jinzhu/gorm/dialects/mysql"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
+	_ "github.com/jinzhu/gorm/dialects/sqlite"
+
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/server/metadata/bolt"
-	"github.com/root-gg/plik/server/metadata/file"
-	"github.com/root-gg/plik/server/metadata/mongo"
 )
 
-var metadataBackend Backend
-
-// Backend interface describes methods that metadata backends
-// must implements to be compatible with plik.
-type Backend interface {
-	Create(ctx *juliet.Context, upload *common.Upload) (err error)
-	Get(ctx *juliet.Context, id string) (upload *common.Upload, err error)
-	AddOrUpdateFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error)
-	RemoveFile(ctx *juliet.Context, upload *common.Upload, file *common.File) (err error)
-	Remove(ctx *juliet.Context, upload *common.Upload) (err error)
-
-	SaveUser(ctx *juliet.Context, user *common.User) (err error)
-	GetUser(ctx *juliet.Context, id string, token string) (user *common.User, err error)
-	RemoveUser(ctx *juliet.Context, user *common.User) (err error)
-
-	GetUserUploads(ctx *juliet.Context, user *common.User, token *common.Token) (ids []string, err error)
-	GetUploadsToRemove(ctx *juliet.Context) (ids []string, err error)
-
-	Export(ctx *juliet.Context, path string) (err error)
+// Config metadata backend configuration
+type Config struct {
+	Driver           string
+	ConnectionString string
+	EraseFirst       bool
+	Debug            bool
 }
 
-// GetMetaDataBackend is a singleton pattern.
-// Init static backend if not already and return it
-func GetMetaDataBackend() Backend {
-	if metadataBackend == nil {
-		Initialize()
+// NewConfig instantiate a new default configuration
+// and override it with configuration passed as argument
+func NewConfig(params map[string]interface{}) (config *Config) {
+	config = new(Config)
+	config.Driver = "sqlite3"
+	config.ConnectionString = "plik.db"
+	utils.Assign(config, params)
+	return
+}
+
+// Backend object
+type Backend struct {
+	Config *Config
+
+	db *gorm.DB
+}
+
+// NewBackend instantiate a new File Data Backend
+// from configuration passed as argument
+func NewBackend(config *Config) (b *Backend, err error) {
+	b = new(Backend)
+	b.Config = config
+
+	b.db, err = gorm.Open(b.Config.Driver, b.Config.ConnectionString)
+	if err != nil {
+		return nil, fmt.Errorf("unable to open database : %s", err)
 	}
-	return metadataBackend
-}
 
-// Initialize backend from type found in configuration
-func Initialize() {
-	if metadataBackend == nil {
-		switch common.Config.MetadataBackend {
-		case "file":
-			metadataBackend = file.NewFileMetadataBackend(common.Config.MetadataBackendConfig)
-		case "mongo":
-			metadataBackend = mongo.NewMongoMetadataBackend(common.Config.MetadataBackendConfig)
-		case "bolt":
-			metadataBackend = bolt.NewBoltMetadataBackend(common.Config.MetadataBackendConfig)
-		default:
-			common.Logger().Fatalf("Invalid metadata backend %s", common.Config.DataBackend)
+	if config.Driver == "sqlite3" {
+		err = b.db.Exec("PRAGMA journal_mode=WAL;").Error
+		if err != nil {
+			_ = b.db.Close()
+			return nil, fmt.Errorf("unable to set wal mode : %s", err)
+		}
+
+		err = b.db.Exec("PRAGMA foreign_keys = ON").Error
+		if err != nil {
+			_ = b.db.Close()
+			return nil, fmt.Errorf("unable to enable foreign keys : %s", err)
 		}
 	}
+
+	if config.EraseFirst {
+		err = b.db.DropTableIfExists("files", "uploads", "tokens", "users", "settings", "migrations").Error
+		if err != nil {
+			return nil, fmt.Errorf("unable to drop tables : %s", err)
+		}
+	}
+
+	if config.Debug {
+		b.db.LogMode(true)
+	}
+
+	err = b.initializeDB()
+	if err != nil {
+		return nil, fmt.Errorf("unable to initialize DB : %s", err)
+	}
+
+	return b, err
+}
+
+func (b *Backend) initializeDB() (err error) {
+	m := gormigrate.New(b.db, gormigrate.DefaultOptions, []*gormigrate.Migration{
+		// you migrations here
+	})
+
+	m.InitSchema(func(tx *gorm.DB) error {
+
+		//if b.Config.Driver == "mysql" {
+		//	// Enable foreign keys
+		//	tx = tx.Set("gorm:table_options", "ENGINE=InnoDB")
+		//}
+
+		err := tx.AutoMigrate(
+			&common.Upload{},
+			&common.File{},
+			&common.User{},
+			&common.Token{},
+			&common.Setting{},
+		).Error
+		if err != nil {
+			return err
+		}
+
+		//if b.Config.Driver == "mysql" {
+		//	err = tx.Model(&common.File{}).AddForeignKey("upload_id", "uploads(id)", "RESTRICT", "RESTRICT").Error
+		//	if err != nil {
+		//		return err
+		//	}
+		//	err = tx.Model(&common.Token{}).AddForeignKey("user_id", "users(id)", "RESTRICT", "RESTRICT").Error
+		//	if err != nil {
+		//		return err
+		//	}
+		//}
+
+		// all other foreign keys...
+		return nil
+	})
+
+	if err = m.Migrate(); err != nil {
+		return fmt.Errorf("could not migrate: %v", err)
+	}
+
+	return nil
+}
+
+// Shutdown close the metadata backend
+func (b *Backend) Shutdown() (err error) {
+	return b.db.Close()
 }

@@ -9,35 +9,37 @@
 Plik is a scalable & friendly temporary file upload system ( wetransfer like ) in golang.
 
 ### Main features
-   - Multiple data backends : File, OpenStack Swift, WeedFS
-   - Multiple metadata backends : File, MongoDB, Bolt
+   - Powerful command line client
+   - Easy to use web UI
+   - Multiple data backend : File, OpenStack Swift, S3
+   - Multiple metadata backend : Sqlite3, postgresql
    - OneShot : Files are destructed after the first download
    - Stream : Files are streamed from the uploader to the downloader (nothing stored server side)  
    - Removable : Give the ability to the uploader to remove files at any time
    - TTL : Custom expiration date
-   - Password : Protect upload with login/password (Auth Basic)
-   - Yubikey : Protect upload with your yubikey. (One Time Password)
+   - Password : Protect upload with login/pasgisword (Auth Basic)
    - Comments : Add custom message (in Markdown format)
-   - User authentication : Google / OVH
+   - User authentication : Local / Google / OVH
    - Upload restriction : Source IP / Token
+   - Administrator dashboard
    - [ShareX](https://getsharex.com/) Uploader : Directly integrated into ShareX
    - [plikSharp](https://github.com/iss0/plikSharp) : A .NET API client for Plik
 
 ### Version
-1.2.4
+1.3-RC1
 
 ### Installation
 
 ##### From release
 To run plik, it's very simple :
 ```sh
-$ wget https://github.com/root-gg/plik/releases/download/1.2.4/plik-1.2.4-linux-64bits.tar.gz
-$ tar xzvf plik-1.2.4-linux-64bits.tar.gz
-$ cd plik-1.2.4/server
+$ wget https://github.com/root-gg/plik/releases/download/1.3-RC1/plik-1.3-RC1-linux-64bits.tar.gz
+$ tar xzvf plik-1.3-RC1-linux-64bits.tar.gz
+$ cd plik-1.3-RC1/server
 $ ./plikd
 ```
-Et voilà ! You now have a fully functional instance of plik running on http://127.0.0.1:8080.  
-You can edit server/plikd.cfg to adapt the configuration to your needs (ports, ssl, ttl, backends params,...)
+Et voilà ! You now have a fully functional instance of Plik running on http://127.0.0.1:8080.  
+You can edit server/plikd.cfg to adapt the configuration to your needs (ports, ssl, ttl, backend params,...)
 
 ##### From root.gg Debian repository
 
@@ -64,20 +66,10 @@ go/src/github.com/root-gg/plik/server/handlers/misc.go:51: undefined: common.Get
 $ cd $GOPATH/src/github.com/root-gg/plik/
 ```
 
-To build everything and run it :
+Build everything and run it :
 ```sh
 $ make
 $ cd server && ./plikd
-```
-
-To make debian packages :
-```
-$ make debs-server debs-client
-```
-
-To make release archives :
-```
-$ make releases
 ```
 
 ### Cli client
@@ -101,7 +93,6 @@ Options:
   --comments COMMENT        Set comments of the upload ( MarkDown compatible )
   -p                        Protect the upload with login and password
   --password PASSWD         Protect the upload with login:password ( if omitted default login is "plik" )
-  -y, --yubikey             Protect the upload with a Yubikey OTP
   -a                        Archive upload using default archive params ( see ~/.plikrc )
   --archive MODE            Archive upload using specified archive backend : tar|zip
   --compress MODE           [tar] Compression codec : gzip|bzip2|xz|lzip|lzma|lzop|compress|no
@@ -118,7 +109,7 @@ Options:
 ```
 
 For example to create directory tar.gz archive and encrypt it with openssl :
-```
+```bash
 $ plik -a -s mydirectory/
 Passphrase : 30ICoKdFeoKaKNdnFf36n0kMH
 Upload successfully created : 
@@ -132,59 +123,55 @@ curl -s 'https://127.0.0.1:8080/file/0KfNj6eMb93ilCrl/q73tEBEqM04b22GP/mydirecto
 
 Client configuration and preferences are stored at ~/.plikrc or /etc/plik/plikrc ( overridable with PLIKRC environement variable )
 
+### Quick upload using curl only
+
+```bash
+curl --form 'file=@/path/to/file' http://127.0.0.1:8080
+```
+
+DownloadDomain configuration option must be set for this to properly work.
+
 ### Available data backends
 
 Plik is shipped with multiple data backend for uploaded files and metadata backend for the upload metadata.
 
  - File databackend :
 
-Store uploaded files in a local or mounted file system directory. This is suitable for multiple instance deployment if all instances can share the directory.
+Store uploaded files in a local or mounted file system directory.
 
  - Openstack Swift databackend : http://docs.openstack.org/developer/swift/
 
 Openstack Swift is a highly available, distributed, eventually consistent object/blob store.
 
- - SeaweedFS databackend : https://github.com/chrislusf/seaweedfs
-
-SeaweedFS is a simple and highly scalable distributed file system.
-
 ### Available metadata backends
 
- - File metadata backend : (DEPRECATED)
+ - Sqlite3
 
-This backend has been deprecated in Plik 1.2 in favor of BoltDB backend.
-The authentication mechanisms ( User / Tokens ) are NOT implemented in this backend.
-Migration from file backend to BoltDB backend can be done using the migrate_from_file_to_bolt script.
+Suitable for standalone deployment.
 
-```
-server/utils/file2bolt --directory server/files --db server/plik.db
-```
+ - PostgreSQL
 
-This backend save upload metadata as JSON in a .config file in the upload directory.
-This is only suitable for a single instance deployment as locking append at the process level. 
-Using multiple plik instance with this backend will result in corrupted metadata JSON files. Use mongodb backend instead.
-
- - Bolt metadata backend : https://github.com/boltdb/bolt
-
-This is the successor of the file metadata backend, it store all the metadata in a single bolt.db file. 
-Performance is improved by keeping all metadata in memory to avoid costly filesystem stat operations.  
-Boltdb also support of atomic transactions that ensure the metadata consistency over time.
-
-Only suitable for a single instance deployment as the Bolt database can only be opened by a single process at a time.
-
- - Mongodb metadata backend : https://www.mongodb.org
-
-Suitable for distributed / High Availability deployment. 
+Suitable for distributed / High Availability deployment.
 
 ### Authentication
 
-Plik can authenticate users using Google and/or OVH API. 
-Once authenticated the only call Plik will ever make to those API is to get the user ID, name and email. 
-Plik will never forward any upload data or metadata to any third party.   
-If source IP address restriction is enabled, user accounts can only be created from trusted IPs. But then 
-authenticated users can upload files without source IP restriction.
-It is also possible to deny unauthenticated uploads totally.
+Plik can authenticate users using Local accounts or using Google or OVH APIs.
 
+If source IP address restriction is enabled, user accounts can only be created from trusted IPs and then 
+authenticated users can upload files without source IP restriction.
+
+It possible to deny unauthenticated uploads totally ( NoAnonymousUploads ).  
+
+Admin users can access the admin dashboard and manipulate every uploads.
+
+   - **Local** :
+      - You can manipulate local users with the server command line
+      
+      ```sh
+      $ ./plikd --config ./plikd.cfg user create --login root --name Admin --admin    
+      Generated password for user root is 08ybEyh2KkiMho8dzpdQaJZm78HmvWGC
+      ```
+      
    - **Google** :
       - You'll need to create a new application in the [Google Developper Console](https://console.developers.google.com)
       - You'll be handed a Google API ClientID and a Google API ClientSecret that you'll need to put in the plikd.cfg file.
@@ -204,23 +191,43 @@ Token = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 ### Security
 Plik allow users to upload and serve any content as-is, but hosting untrusted HTML raises some well known security concerns.
+
 Plik will try to avoid HTML rendering by overriding Content-Type to "text-plain" instead of "text/html".
-Also the [Content-Security-Policy](https://content-security-policy.com/) HTTP header should disable sensible features of most recent browsers like resource loading, xhr requests, iframes,...
-Along with that it is still strongly advised to serve uploaded files on a separate (sub-)domain to fight against phishing links and to protect Plik's session cookie with the DownloadDomain configuration parameter.
+  
+By default Plik sets a couple of security HTTP headers like **X-Content-Type-Options, X-XSS-Protection, X-Frame-Options, Content-Security-Policy** to disable sensible features of most recent browsers like resource loading, xhr requests, iframes,...
+This will however break features like audio/video playback, pdf rendering so it's possible to disable this behavior by setting the EnhancedWebSecurity configuration parameter to false
+  
+Along with that it is also strongly advised to serve uploaded files on a separate (sub-)domain to fight against phishing links and to protect Plik's session cookie with the DownloadDomain configuration parameter.  
 
 ### API
 Plik server expose a HTTP API to manage uploads and get files :
 
 See the [Plik API reference](documentation/api.md)
 
+### Admin CLI
+
+Using the ./plikd server binary it's possible to :
+  - create/list/delete local accounts
+  - create/list/delete user CLI tokens
+  - create/list/delete files and uploads
+  - import / export metadata
+
+See help for more details
+
 ### Docker
 Plik comes with a simple Dockerfile that allows you to run it in a container :
 
 See the [Plik Docker reference](documentation/docker.md)
 
-Plik also comes with some useful scripts to test backends in standalone docker instances :
+Plik also comes with some useful scripts to test backend in standalone docker instances :
 
 See the [Plik Docker backend testing](testing)
+
+### Go client
+
+Plik now comes with a golang library above which the cli client is built
+
+See the [Plik library reference](plik/README.md)
 
 ### FAQ
 
@@ -334,5 +341,11 @@ The screenshot is then removed of your home directory to avoid garbage.
 * How to contribute to the project ?
 
 Contributions are welcome, feel free to open issues and/or submit pull requests.
-Please run/update the test suite using the makefile test target.
+Please be sure to also run/update the test suite :
 
+```
+    make fmt
+    make lint
+    make test
+    make test-backends
+```

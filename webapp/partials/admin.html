@@ -1,0 +1,175 @@
+
+
+<!-- ADMIN HOME -->
+<div class="row" ng-if="original_user && original_user.admin">
+    <div class="col-sm-3 center-block">
+        <!-- SERVER INFO -->
+        <div class="tile menu">
+            <div class="menu-item text-center">
+                <p>Plik Version : {{version.version}}</p>
+                <p>{{version.goVersion}}</p>
+
+                <p>
+                    <span ng-class="'label label-' + (version.release ? 'success' : 'danger')">release</span>
+                    &nbsp;
+                    <span ng-class="'label label-' + (version.mint ? 'success' : 'danger')">mint</span>
+                </p>
+            </div>
+        </div>
+        <!-- STATS BUTTON -->
+        <div class="tile menu">
+            <div class="menu-item">
+                <button type="button" class="btn btn-lg btn-primary btn-block" ng-click="displayStats()">
+                    <i class="fa fa-line-chart"></i> Stats
+                </button>
+            </div>
+        </div>
+        <!-- USERS BUTTON -->
+        <div class="tile menu">
+            <div class="menu-item">
+                <button type="button" class="btn btn-lg btn-primary btn-block" ng-click="displayUsers()">
+                    <i class="fa fa-users"></i> Users
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- MAIN -->
+    <div class="col-sm-9">
+        <!-- STATS -->
+        <div ng-if="display=='stats' && stats">
+            <div class="row">
+                <div class="col-sm-12 col-centered">
+                    <div class="tile panel panel-body main">
+                        <div class="row center-block text-center">
+                            <p>
+                                Users : {{stats.users}}
+                            </p>
+                            <p>
+                                Uploads : {{stats.uploads}}
+                            </p>
+                            <p>
+                                Anonymous Uploads : {{stats.anonymousUploads}}
+                            </p>
+                            <p>
+                                Files : {{stats.files}}
+                            </p>
+                            <p>
+                                Total Size : {{ humanReadableSize(stats.totalSize) }}
+                            </p>
+                            <p>
+                                Anonymous Total Size : {{ humanReadableSize(stats.anonymousTotalSize) }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!--<div class="row">
+                <div class="col-sm-6">
+                    <div class="tile panel panel-body main">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">File type</th>
+                                    <th scope="col">Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="stat in stats.fileTypeByCount">
+                                    <td>
+                                        {{stat.type}}
+                                    </td>
+                                    <td>
+                                        {{stat.total}}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="tile panel panel-body main">
+                        <table class="table">
+                            <thead>
+                            <tr>
+                                <th scope="col">File type</th>
+                                <th scope="col">Size</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr ng-repeat="stat in stats.fileTypeBySize">
+                                <td>
+                                {{stat.type}}
+                                </td>
+                                <td>
+                                {{humanReadableSize(stat.total)}}
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>-->
+        </div>
+        <!-- USERS -->
+        <div class="row" ng-if="display=='users'">
+            <div class="col-sm-12 col-centered">
+                <div class="tile panel panel-body main">
+                    <div class="row center-block text-center" ng-if="fake_user">
+                        <div class="tile panel panel-body main text-center">
+                            <p>
+                                Hello {{original_user.name}}. You are currently impersonating {{fake_user.name}}.
+                            </p>
+
+                            <div class="col-xs-10 col-sm-8 col-md-6 col-xs-offset-1 col-sm-offset-2 col-md-offset-3 text-center">
+                                <div class="input-group">
+                                    <!-- CREATE TOKEN BUTTON -->
+                                    <div class="input-group-btn">
+                                        <button title="Browse" type="button" class="btn btn-danger"
+                                                ng-click="impersonate()">
+                                            <i class="glyphicon glyphicon-remove"></i>
+                                            <span class="hidden-xs hidden-sm hidden-md"> Cancel</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row center-block text-center">
+                        <div class="tile panel panel-body main text-center" ng-repeat="user in users">
+                            <div class="row">
+                                <div class="col-sm-3">
+                                    {{::user.login}}
+                                </div>
+                                <div class="col-sm-3 hidden-md hidden-sm hidden-xs">
+                                    {{::user.name}}
+                                </div>
+                                <div class="col-sm-3 file-name">
+                                    {{::user.email}}
+                                </div>
+                                <div class="col-sm-3">
+                                    <button title="Impersonate" type="button" class="btn btn-success"
+                                            ng-click="impersonate(user)">
+                                        <i class="glyphicon glyphicon-ok"></i>
+                                        <span class="hidden-xs hidden-sm hidden-md"> Impersonate</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- LOAD MORE UPLOADS -->
+                    <div class="row" ng-if="display=='users' && cursor">
+                        <div class="col-sm-12">
+                            <div class="tile panel panel-body main" ng-click="displayUsers(true)">
+                                <div class="row">
+                                    <div class="col-xs-12 text-center">
+                                        Load more users
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -26,14 +26,14 @@ Get and create upload :
    Fill the reference field with an arbitrary string to avoid matching file ids using the fileName field.
    This is also used to notify of MISSING files when file upload is not yet finished or has failed.
   ```
-  "files" : {
-    "0" : {
+  "files" : [
+    {
       "fileName": "file.txt",
       "fileSize": 12345,
       "fileType": "text/plain",
       "reference": "0"
     },...
-  }
+  ]
   ```
   
    - **GET** /upload/:uploadid:
@@ -46,6 +46,9 @@ Upload file :
 
    - **POST** /file/:uploadid:
      - Same as above without passing file id, won't work for stream mode.
+     
+   - **POST** /:
+     - Quick mode, automatically create an upload with default parameters and add the file to it.
 
 Get file :
 
@@ -54,9 +57,6 @@ Get file :
 
   - **GET**  /$mode/:uploadid:/:fileid:/:filename:
     - Download file. Filename **MUST** match. A browser, might try to display the file if it's a jpeg for example. You may try to force download with ?dl=1 in url.
-
-  - **GET**  /$mode/:uploadid:/:fileid:/:filename:/yubikey/:yubikeyOtp:
-    - Same as previous call, except that you can specify a Yubikey OTP in the URL if the upload is Yubikey restricted.
 
   - **GET**  /archive/:uploadid:/:filename:
     - Download uploaded files in a zip archive. :filename: must end with .zip
@@ -74,6 +74,10 @@ Show server details :
    - **GET** /config
      - Show plik server configuration (ttl values, max file size, ...)
 
+   - **GET** /stats
+     - Get server statistics ( upload/file count, user count, total size used )
+     - Admin only
+
 User authentication :
 
    - 
@@ -86,58 +90,76 @@ User authentication :
    Once authenticated a user can generate upload tokens. Those tokens can be used in the X-PlikToken HTTP header used to link
    an upload to the user account. It can be put in the ~/.plikrc file of the Plik command line client.   
    
+   - **Local** :
+      - You'll need to create users using the server command line
    
    - **Google** :
       - You'll need to create a new application in the [Google Developper Console](https://console.developers.google.com)
-      - You'll be handed a Google API ClientID and a Google API ClientSecret that you'll need to put in the plikd.cfg file.
-      - Do not forget to whitelist valid origin and redirect url ( https://yourdomain/auth/google/callback ) for your domain.
+      - You'll be handed a Google API ClientID and a Google API ClientSecret that you'll need to put in the plikd.cfg file
+      - Do not forget to whitelist valid origin and redirect url ( https://yourdomain/auth/google/callback ) for your domain
    
    - **OVH** :
       - You'll need to create a new application in the OVH API : https://eu.api.ovh.com/createApp/
-      - You'll be handed an OVH application key and an OVH application secret key that you'll need to put in the plikd.cfg file.
+      - You'll be handed an OVH application key and an OVH application secret key that you'll need to put in the plikd.cfg file
 
    - **GET** /auth/google/login
-      - Get Google user consent URL. User have to visit this URL to authenticate.
+      - Get Google user consent URL. User have to visit this URL to authenticate
 
    - **GET** /auth/google/callback
-     - Callback of the user consent dialog.
-     - The user will be redirected back to the web application with a Plik session cookie at the end of this call.
+     - Callback of the user consent dialog
+     - The user will be redirected back to the web application with a Plik session cookie at the end of this call
 
    - **GET** /auth/ovh/login
-     - Get OVH user consent URL. User have to visit this URL to authenticate. 
-     - The response will contain a temporary session cookie to forward the API endpoint and OVH consumer key to the callback.
+     - Get OVH user consent URL. User have to visit this URL to authenticate
+     - The response will contain a temporary session cookie to forward the API endpoint and OVH consumer key to the callback
 
    - **GET** /auth/ovh/callback
      - Callback of the user consent dialog. 
-     - The user will be redirected back to the web application with a Plik session cookie at the end of this call.
+     - The user will be redirected back to the web application with a Plik session cookie at the end of this call
+
+   - **POST** /auth/local/login
+     - Params :
+       - login : user login
+       - password : user password
 
    - **GET** /auth/logout
-     - Invalidate Plik session cookies.
+     - Invalidate Plik session cookies
 
    - **GET** /me
-     - Return basic user info ( ID, name, email ) and tokens.
+     - Return basic user info ( ID, name, email ) and tokens
 
    - **DELETE** /me
      - Remove user account.
 
+   - **GET** /me/token
+     - List user tokens
+      - This call use pagination
+
    - **POST** /me/token
-     - Create a new upload token.
-     - A comment can be passed in the json body.
+     - Create a new upload token
+     - A comment can be passed in the json body
 
    - **DELETE** /me/token/{token}
-     - Revoke an upload token.
+     - Revoke an upload token
 
    - **GET** /me/uploads
-     - Return all uploads linked to a user account.
+     - List user uploads
      - Params :
         - token : filter by token
-        - size : maximum uploads to return ( max : 100 )
-        - offset : number of uploads to skip
+      - This call use pagination
 
    - **DELETE** /me/uploads
-     - Remove all uploads linked to a user account.
+     - Remove all uploads linked to a user account
      - Params :
         - token : filter by token
+
+   - **GET** /me/stats
+     - Get user statistics ( upload/file count, total size used )
+
+   - **GET** /users
+     - List all users
+     - This call use pagination
+     - Admin only 
 
 QRCode :
 

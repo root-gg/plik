@@ -1,36 +1,8 @@
-/**
-
-    Plik upload server
-
-The MIT License (MIT)
-
-Copyright (c) <2015>
-	- Mathieu Bodjikian <mathieu@bodjikian.fr>
-	- Charles-Antoine Mathieu <skatkatt@root.gg>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-**/
-
 package common
 
 import (
 	"crypto/rand"
+	"fmt"
 	"math/big"
 	"time"
 )
@@ -41,67 +13,75 @@ var (
 
 // Upload object
 type Upload struct {
-	ID       string `json:"id" bson:"id"`
-	Creation int64  `json:"uploadDate" bson:"uploadDate"`
-	TTL      int    `json:"ttl" bson:"ttl"`
+	ID  string `json:"id"`
+	TTL int    `json:"ttl"`
 
-	DownloadDomain string `json:"downloadDomain" bson:"-"`
-	RemoteIP       string `json:"uploadIp,omitempty" bson:"uploadIp"`
-	Comments       string `json:"comments" bson:"comments"`
+	DownloadDomain string `json:"downloadDomain"`
+	RemoteIP       string `json:"uploadIp,omitempty"`
+	Comments       string `json:"comments"`
 
-	Files map[string]*File `json:"files" bson:"files"`
+	Files []*File `json:"files"`
 
-	UploadToken string `json:"uploadToken,omitempty" bson:"uploadToken"`
-	User        string `json:"user,omitempty" bson:"user"`
-	Token       string `json:"token,omitempty" bson:"token"`
+	UploadToken string `json:"uploadToken,omitempty"`
+	User        string `json:"user,omitempty" gorm:"index:idx_upload_user"`
+	Token       string `json:"token,omitempty" gorm:"index:idx_upload_user_token"`
 	IsAdmin     bool   `json:"admin"`
 
-	Stream    bool `json:"stream" bson:"stream"`
-	OneShot   bool `json:"oneShot" bson:"oneShot"`
-	Removable bool `json:"removable" bson:"removable"`
+	Stream    bool `json:"stream"`
+	OneShot   bool `json:"oneShot"`
+	Removable bool `json:"removable"`
 
-	ProtectedByPassword bool   `json:"protectedByPassword" bson:"protectedByPassword"`
-	Login               string `json:"login,omitempty" bson:"login"`
-	Password            string `json:"password,omitempty" bson:"password"`
+	ProtectedByPassword bool   `json:"protectedByPassword"`
+	Login               string `json:"login,omitempty"`
+	Password            string `json:"password,omitempty"`
 
-	ProtectedByYubikey bool   `json:"protectedByYubikey" bson:"protectedByYubikey"`
-	Yubikey            string `json:"yubikey,omitempty" bson:"yubikey"`
-
-	//ShortURL       string `json:"shortUrl" bson:"shortUrl"` removed v1.2.1
+	CreatedAt time.Time  `json:"createdAt"`
+	DeletedAt *time.Time `json:"-" gorm:"index:idx_upload_deleted_at"`
+	ExpireAt  *time.Time `json:"expireAt" gorm:"index:idx_upload_expire_at"`
 }
 
-// NewUpload instantiate a new upload object
-func NewUpload() (upload *Upload) {
-	upload = new(Upload)
-	upload.Files = make(map[string]*File)
-	return
+// NewFile creates a new file and add it to the current upload
+func (upload *Upload) NewFile() (file *File) {
+	file = NewFile()
+	upload.Files = append(upload.Files, file)
+	file.UploadID = upload.ID
+	return file
 }
 
-// Create fills token, id, date
-// We have split in two functions because, the unmarshalling made
-// in http handlers would erase the fields
-func (upload *Upload) Create() {
-	upload.ID = GenerateRandomID(16)
-	upload.Creation = time.Now().Unix()
-	if upload.Files == nil {
-		upload.Files = make(map[string]*File)
+// GetFile get file with ID from upload files. Return nil if not found
+func (upload *Upload) GetFile(ID string) (file *File) {
+	for _, file := range upload.Files {
+		if file.ID == ID {
+			return file
+		}
 	}
-	upload.UploadToken = GenerateRandomID(32)
+
+	return nil
+}
+
+// GetFileByReference get file with Reference from upload files. Return nil if not found
+func (upload *Upload) GetFileByReference(ref string) (file *File) {
+	for _, file := range upload.Files {
+		if file.Reference == ref {
+			return file
+		}
+	}
+
+	return nil
 }
 
 // Sanitize removes sensible information from
 // object. Used to hide information in API.
 func (upload *Upload) Sanitize() {
 	upload.RemoteIP = ""
+	upload.Login = ""
 	upload.Password = ""
-	upload.Yubikey = ""
 	upload.UploadToken = ""
 	upload.User = ""
 	upload.Token = ""
 	for _, file := range upload.Files {
 		file.Sanitize()
 	}
-	upload.DownloadDomain = Config.DownloadDomain
 }
 
 // GenerateRandomID generates a random string with specified length.
@@ -119,10 +99,102 @@ func GenerateRandomID(length int) string {
 
 // IsExpired check if the upload is expired
 func (upload *Upload) IsExpired() bool {
-	if upload.TTL > 0 {
-		if time.Now().Unix() >= (upload.Creation + int64(upload.TTL)) {
+	if upload.ExpireAt != nil {
+		if time.Now().After(*upload.ExpireAt) {
 			return true
 		}
 	}
 	return false
+}
+
+// PrepareInsert upload for database insert ( check configuration and default values, generate upload and file IDs, ... )
+func (upload *Upload) PrepareInsert(config *Configuration) (err error) {
+	upload.ID = GenerateRandomID(16)
+	upload.UploadToken = GenerateRandomID(32)
+
+	// Limit number of files per upload
+	if len(upload.Files) > config.MaxFilePerUpload {
+		return fmt.Errorf("too many files. maximum is %d", config.MaxFilePerUpload)
+	}
+
+	if config.NoAnonymousUploads && upload.User == "" {
+		return fmt.Errorf("anonymous uploads are disabled")
+	}
+
+	if !config.Authentication && (upload.User != "" || upload.Token != "") {
+		return fmt.Errorf("authentication is disabled")
+	}
+
+	if upload.OneShot && !config.OneShot {
+		return fmt.Errorf("one shot uploads are not enabled")
+	}
+
+	if upload.Removable && !config.Removable {
+		return fmt.Errorf("removable uploads are not enabled")
+	}
+
+	if upload.Stream && !config.Stream {
+		upload.OneShot = false
+		return fmt.Errorf("stream mode is not enabled")
+	}
+
+	if !config.ProtectedByPassword && (upload.Login != "" || upload.Password != "") {
+		upload.ProtectedByPassword = true
+		return fmt.Errorf("password protection is not enabled")
+	}
+
+	// TTL = Time in second before the upload expiration
+	// 0 	-> No ttl specified : default value from configuration
+	// -1	-> No expiration : checking with configuration if that's ok
+	switch upload.TTL {
+	case 0:
+		upload.TTL = config.DefaultTTL
+	case -1:
+		if config.MaxTTL != -1 {
+			return fmt.Errorf("cannot set infinite ttl (maximum allowed is : %d)", config.MaxTTL)
+		}
+	default:
+		if upload.TTL <= 0 {
+			return fmt.Errorf("invalid ttl")
+		}
+		if config.MaxTTL > 0 && upload.TTL > config.MaxTTL {
+			return fmt.Errorf("invalid ttl. (maximum allowed is : %d)", config.MaxTTL)
+		}
+	}
+
+	if upload.TTL > 0 {
+		deadline := time.Now().Add(time.Duration(upload.TTL) * time.Second)
+		upload.ExpireAt = &deadline
+	}
+
+	for _, file := range upload.Files {
+		err = file.PrepareInsert(upload)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// PrepareInsertForTests upload for database insert without config checks and override for testing purpose
+func (upload *Upload) PrepareInsertForTests() {
+	if upload.ID == "" {
+		upload.ID = GenerateRandomID(16)
+	}
+
+	if upload.ExpireAt == nil && upload.TTL > 0 {
+		deadline := time.Now().Add(time.Duration(upload.TTL) * time.Second)
+		upload.ExpireAt = &deadline
+	}
+
+	for _, file := range upload.Files {
+		if file.ID == "" {
+			file.GenerateID()
+		}
+		file.UploadID = upload.ID
+		if file.Status == "" {
+			file.Status = FileMissing
+		}
+	}
 }

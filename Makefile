@@ -1,37 +1,13 @@
-###
-# The MIT License (MIT)
-#
-# Copyright (c) <2015>
-# - Mathieu Bodjikian <mathieu@bodjikian.fr>
-# - Charles-Antoine Mathieu <skatkatt@root.gg>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
-###
+SHELL = /bin/bash
 
-RELEASE_VERSION="1.2.4"
+RELEASE_VERSION=$(shell version/version.sh)
 RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
 RELEASE_TARGETS=darwin-386 darwin-amd64 freebsd-386 \
 freebsd-amd64 linux-386 linux-amd64 linux-arm openbsd-386 \
 openbsd-amd64 windows-amd64 windows-386
 
-GOHOSTOS=`go env GOHOSTOS`
-GOHOSTARCH=`go env GOHOSTARCH`
+GOHOSTOS=$(shell go env GOHOSTOS)
+GOHOSTARCH=$(shell go env GOHOSTARCH)
 
 DEBROOT_SERVER=debs/server
 DEBROOT_CLIENT=debs/client
@@ -50,16 +26,16 @@ all: clean clean-frontend frontend clients server
 # Build frontend ressources
 ###
 frontend:
-	@if [ ! -d server/public/node_modules ]; then cd server/public && npm install ; fi
-	@if [ ! -d server/public/bower_components ]; then cd server/public && node_modules/bower/bin/bower install --allow-root ; fi
-	@if [ ! -d server/public/public ]; then cd server/public && node_modules/grunt-cli/bin/grunt ; fi
+	@if [ ! -d webapp/node_modules ]; then cd webapp && npm install ; fi
+	@if [ ! -d webapp/bower_components ]; then cd webapp && node_modules/bower/bin/bower install --allow-root ; fi
+	@cd webapp && node_modules/grunt-cli/bin/grunt
 
 ###
 # Build plik server for the current architecture
 ###
 server:
 	@server/gen_build_info.sh $(RELEASE_VERSION)
-	@echo "Compiling Plik server"
+	@echo "Building Plik server"
 	@cd server && $(build) -o plikd ./
 
 ###
@@ -75,7 +51,7 @@ servers: frontend
 		mkdir -p ../servers/$$target; \
 		if [ $$GOOS = "windows" ] ; then SERVER_PATH=$$SERVER_DIR/plikd.exe ; fi ; \
 		if [ -e $$SERVER_PATH ] ; then continue ; fi ; \
-		echo "Compiling Plik server for $$target to $$SERVER_PATH"; \
+		echo "Building Plik server for $$target to $$SERVER_PATH"; \
 		$(build) -o $$SERVER_PATH ;	\
 	done
 
@@ -86,6 +62,7 @@ client:
 	@server/gen_build_info.sh $(RELEASE_VERSION)
 	@echo "Building Plik client"
 	@cd client && $(build) -o plik ./
+
 
 ###
 # Build plik client for all architectures
@@ -101,18 +78,11 @@ clients:
 		mkdir -p $$CLIENT_DIR; \
 		if [ $$GOOS = "windows" ] ; then CLIENT_PATH=$$CLIENT_DIR/plik.exe ; fi ; \
 		if [ -e $$CLIENT_PATH ] ; then continue ; fi ; \
-		echo "Compiling Plik client for $$target to $$CLIENT_PATH"; \
+		echo "Building Plik client for $$target to $$CLIENT_PATH"; \
 		$(build) -o $$CLIENT_PATH ; \
 		md5sum $$CLIENT_PATH | awk '{print $$1}' > $$CLIENT_MD5; \
 	done
 	@mkdir -p clients/bash && cp client/plik.sh clients/bash
-
-###
-# Build docker
-###
-docker: release
-	@cp Dockerfile $(RELEASE_DIR)
-	@cd $(RELEASE_DIR) && docker build -t rootgg/plik .
 
 ###
 # Make server and clients Debian packages
@@ -168,25 +138,18 @@ debs-client: clients
 # Prepare the release base (css, js, ...)
 ###
 release-template: clean frontend clients
-	@mkdir -p $(RELEASE_DIR)/server/public
-
-	@cp -R clients $(RELEASE_DIR)
-	@cp -R changelog $(RELEASE_DIR)
-	@cp -R server/plikd.cfg $(RELEASE_DIR)/server
-	@cp -R server/public/css $(RELEASE_DIR)/server/public
-	@cp -R server/public/fonts $(RELEASE_DIR)/server/public
-	@cp -R server/public/img $(RELEASE_DIR)/server/public
-	@cp -R server/public/js $(RELEASE_DIR)/server/public
-	@cp -R server/public/partials $(RELEASE_DIR)/server/public
-	@cp -R server/public/public $(RELEASE_DIR)/server/public
-	@cp -R server/public/index.html $(RELEASE_DIR)/server/public
-	@cp -R server/public/favicon.ico $(RELEASE_DIR)/server/public
+	@mkdir -p $(RELEASE_DIR)/webapp
+	@mkdir -p $(RELEASE_DIR)/server
+	@cp -r clients $(RELEASE_DIR)
+	@cp -r changelog $(RELEASE_DIR)
+	@cp -r webapp/dist $(RELEASE_DIR)/webapp/dist
+	@cp -r server/plikd.cfg $(RELEASE_DIR)/server
 
 ###
 # Build release archive
 ###
 release: release-template server
-	@cp -R server/plikd $(RELEASE_DIR)/server
+	@cp -R server/plikd $(RELEASE_DIR)/server/plikd
 	@cd release && tar czvf plik-$(RELEASE_VERSION)-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz plik-$(RELEASE_VERSION)
 
 ###
@@ -225,37 +188,44 @@ build-info:
 	@server/gen_build_info.sh $(RELEASE_VERSION)
 
 ###
-# Run tests and sanity checks
+# Run linters
+###
+lint:
+	@FAIL=0 ;echo -n " - go fmt :" ; OUT=`gofmt -l . | grep -v ^vendor` ; \
+	if [[ -z "$$OUT" ]]; then echo " OK" ; else echo " FAIL"; echo "$$OUT"; FAIL=1 ; fi ;\
+	echo -n " - go vet :" ; OUT=`go vet ./...` ; \
+	if [[ -z "$$OUT" ]]; then echo " OK" ; else echo " FAIL"; echo "$$OUT"; FAIL=1 ; fi ;\
+	echo -n " - go lint :" ; OUT=`golint ./... | grep -v ^vendor` ; \
+	if [[ -z "$$OUT" ]]; then echo " OK" ; else echo " FAIL"; echo "$$OUT"; FAIL=1 ; fi ;\
+	test $$FAIL -eq 0
+
+###
+# Run fmt
+###
+fmt:
+	@goimports -w -l -local "github.com/root-gg/plik" $(shell find . -type f -name '*.go' -not -path "./vendor/*")
+
+###
+# Run tests
 ###
 test:
 	@if curl -s 127.0.0.1:8080 > /dev/null ; then echo "Plik server probably already running" && exit 1 ; fi
 	@server/gen_build_info.sh $(RELEASE_VERSION)
-	@ERR="" ; for directory in server client ; do \
-		cd $$directory; \
-		echo -n "go test $$directory : "; \
-		TEST=`go test -race ./... 2>&1`; \
-		if [ $$? = 0 ] ; then echo "OK" ; else echo "$$TEST" | grep -v "no test files" | grep -v "^\[" && ERR="1"; fi ; \
-		echo "go fmt $$directory : "; \
-		for file in $$(find -name "*.go" | grep -v vendor ); do \
-			echo -n " - file $$file : " ; \
-			FMT=`gofmt -l $$file` ; \
-			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
-		done; \
-		echo -n "go tool vet $$directory : "; \
-		for file in $$(find -name "*.go" | grep -v vendor ); do \
-			echo -n " - file $$file : " ; \
-			FMT=`go tool vet $$file` ; \
-			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
-		done; \
-		echo -n "golint $$directory : "; \
-		for file in $$(find -name "*.go" | grep -v vendor ); do \
-			echo -n " - file $$file : " ; \
-			FMT=`golint $$file` ; \
-			if [ "$$FMT" = "" ] ; then echo "OK" ; else echo "FAIL" && ERR="1" ; fi ; \
-		done; \
-		cd - 2>&1 > /dev/null; \
-	done ; if [ "$$ERR" = "1" ] ; then exit 1 ; fi
-	@echo "cli client integration tests :\n" && cd client && ./test.sh
+	@GORACE="halt_on_error=1" go test -race -cover -p 1 ./... 2>&1 | grep -v "no test files"; test $${PIPESTATUS[0]} -eq 0
+	@echo "cli client integration tests :" && cd client && ./test.sh
+
+###
+# Run integration tests for all available backends
+###
+test-backends:
+	@testing/test_backends.sh
+
+###
+# Build docker
+###
+docker: release
+	@cp Dockerfile $(RELEASE_DIR)
+	@cd $(RELEASE_DIR) && docker build -t rootgg/plik .
 
 ###
 # Remove server build files
@@ -274,17 +244,17 @@ clean:
 # Remove frontend build files
 ###
 clean-frontend:
-	@rm -rf server/public/bower_components
-	@rm -rf server/public/public
+	@rm -rf webapp/bower_components
+	@rm -rf webapp/dist
 
 ###
 # Remove all build files and node modules
 ###
 clean-all: clean clean-frontend
-	@rm -rf server/public/node_modules
+	@rm -rf webapp/node_modules
 
 ###
-# Since the client/server directories are not generated
+# Since the client/server/version directories are not generated
 # by make, we must declare these targets as phony to avoid :
 # "make: `client' is up to date" cases at compile time
 ###

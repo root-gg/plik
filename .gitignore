@@ -1,13 +1,14 @@
-plik
+*/plik
 plikd
 clients
-server/plik.db
+*.db
+*.db-wal
+*.db-shm
 server/files
-server/public/public
+webapp/dist
 clients
 client/client
 servers
-server/server
 server/common/version.go
 release
 releases
@@ -21,3 +22,4 @@ plikd_*.cfg
 # IntelliJ IDEA
 .idea
 plik.iml
+coverage.out
