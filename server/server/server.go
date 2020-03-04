@@ -261,7 +261,7 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 		// TODO make this configurable
 		webRoot := "../webapp/dist"
 		clientsRoot := "../clients"
-		changlogRoot := "../changelog"
+		changelogRoot := "../changelog"
 
 		_, err := os.Stat(webRoot)
 		if err != nil {
@@ -269,7 +269,7 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 		}
 
 		router.PathPrefix("/clients/").Handler(http.StripPrefix("/clients/", http.FileServer(http.Dir(clientsRoot))))
-		router.PathPrefix("/changelog/").Handler(http.StripPrefix("/changelog/", http.FileServer(http.Dir(changlogRoot))))
+		router.PathPrefix("/changelog/").Handler(http.StripPrefix("/changelog/", http.FileServer(http.Dir(changelogRoot))))
 		router.PathPrefix("/").Handler(http.FileServer(http.Dir(webRoot)))
 	}
 
