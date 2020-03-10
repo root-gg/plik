@@ -16,7 +16,9 @@ var _ data.Backend = (*Backend)(nil)
 
 // Config describes configuration for Swift data backend
 type Config struct {
-	Username, Password, Host, ProjectName, Container string
+	swift.Connection
+
+	Container string // Swift container name
 }
 
 // NewConfig instantiate a new default configuration
@@ -109,12 +111,7 @@ func (b *Backend) auth() (err error) {
 		return
 	}
 
-	connection := &swift.Connection{
-		UserName: b.config.Username,
-		ApiKey:   b.config.Password,
-		AuthUrl:  b.config.Host,
-		Tenant:   b.config.ProjectName,
-	}
+	connection := &b.config.Connection
 
 	// Authenticate
 	err = connection.Authenticate()

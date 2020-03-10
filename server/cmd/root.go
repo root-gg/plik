@@ -10,7 +10,6 @@ import (
 
 	"github.com/root-gg/plik/server/data"
 
-	"github.com/root-gg/utils"
 	"github.com/spf13/cobra"
 
 	"github.com/root-gg/plik/server/common"
@@ -139,10 +138,6 @@ func startPlikServer(cmd *cobra.Command, args []string) {
 	// Overrides port if provided in command line
 	if port != 0 {
 		config.ListenPort = port
-	}
-
-	if config.Debug {
-		utils.Dump(config)
 	}
 
 	plik := server.NewPlikServer(config)
