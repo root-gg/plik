@@ -10,6 +10,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const sessionCookieName = "plik-session"
+const xsrfCookieName = "plik-xsrf"
+
 // GenerateAuthenticationSignatureKey create an new random key
 func GenerateAuthenticationSignatureKey() (s *Setting) {
 	key := GenerateRandomID(64)
@@ -21,7 +24,8 @@ func GenerateAuthenticationSignatureKey() (s *Setting) {
 
 // SessionAuthenticator to generate and authenticate session cookies
 type SessionAuthenticator struct {
-	SignatureKey string
+	SignatureKey  string
+	SecureCookies bool
 }
 
 // GenAuthCookies generate a sign a jwt session cookie to authenticate a user
@@ -45,8 +49,7 @@ func (sa *SessionAuthenticator) GenAuthCookies(user *User) (sessionCookie *http.
 	// Store session jwt in secure cookie
 	sessionCookie = &http.Cookie{}
 	sessionCookie.HttpOnly = true
-	sessionCookie.Secure = true
-	sessionCookie.Name = "plik-session"
+	sessionCookie.Name = sessionCookieName
 	sessionCookie.Value = sessionString
 	sessionCookie.MaxAge = int(time.Now().Add(10 * 365 * 24 * time.Hour).Unix())
 	sessionCookie.Path = "/"
@@ -54,11 +57,15 @@ func (sa *SessionAuthenticator) GenAuthCookies(user *User) (sessionCookie *http.
 	// Store xsrf token cookie
 	xsrfCookie = &http.Cookie{}
 	xsrfCookie.HttpOnly = false
-	xsrfCookie.Secure = true
-	xsrfCookie.Name = "plik-xsrf"
+	xsrfCookie.Name = xsrfCookieName
 	xsrfCookie.Value = xsrfToken.String()
 	xsrfCookie.MaxAge = int(time.Now().Add(10 * 365 * 24 * time.Hour).Unix())
 	xsrfCookie.Path = "/"
+
+	if sa.SecureCookies {
+		sessionCookie.Secure = true
+		xsrfCookie.Secure = true
+	}
 
 	return sessionCookie, xsrfCookie, nil
 }
@@ -102,27 +109,37 @@ func (sa *SessionAuthenticator) ParseSessionCookie(value string) (uid string, xs
 	return uid, xsrf, nil
 }
 
-// Logout delete plik session cookies
-func Logout(resp http.ResponseWriter) {
+// Logout delete session cookies
+func Logout(resp http.ResponseWriter, sa *SessionAuthenticator) {
+	sessionCookie, xsrfCookie, _ := sa.Logout()
+	http.SetCookie(resp, sessionCookie)
+	http.SetCookie(resp, xsrfCookie)
+}
+
+// Logout generate logout session cookies
+func (sa *SessionAuthenticator) Logout() (sessionCookie *http.Cookie, xsrfCookie *http.Cookie, err error) {
 	// Delete session cookie
-	sessionCookie := &http.Cookie{}
+	sessionCookie = &http.Cookie{}
 	sessionCookie.HttpOnly = true
-	sessionCookie.Secure = true
-	sessionCookie.Name = "plik-session"
+	sessionCookie.Name = sessionCookieName
 	sessionCookie.Value = ""
 	sessionCookie.MaxAge = -1
 	sessionCookie.Path = "/"
-	http.SetCookie(resp, sessionCookie)
 
 	// Store xsrf token cookie
-	xsrfCookie := &http.Cookie{}
+	xsrfCookie = &http.Cookie{}
 	xsrfCookie.HttpOnly = false
-	xsrfCookie.Secure = true
-	xsrfCookie.Name = "plik-xsrf"
+	xsrfCookie.Name = xsrfCookieName
 	xsrfCookie.Value = ""
 	xsrfCookie.MaxAge = -1
 	xsrfCookie.Path = "/"
-	http.SetCookie(resp, xsrfCookie)
+
+	if sa.SecureCookies {
+		sessionCookie.Secure = true
+		xsrfCookie.Secure = true
+	}
+
+	return sessionCookie, xsrfCookie, nil
 }
 
 // HashPassword return bcrypt password hash ( with salt )

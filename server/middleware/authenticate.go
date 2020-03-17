@@ -52,7 +52,7 @@ func Authenticate(allowToken bool) context.Middleware {
 					// Parse session cookie
 					uid, xsrf, err := ctx.GetAuthenticator().ParseSessionCookie(sessionCookie.Value)
 					if err != nil {
-						common.Logout(resp)
+						common.Logout(resp, ctx.GetAuthenticator())
 						ctx.Forbidden("invalid session")
 						return
 					}
@@ -61,12 +61,12 @@ func Authenticate(allowToken bool) context.Middleware {
 					if req.Method != "GET" && req.Method != "HEAD" {
 						xsrfHeader := req.Header.Get("X-XSRFToken")
 						if xsrfHeader == "" {
-							common.Logout(resp)
+							common.Logout(resp, ctx.GetAuthenticator())
 							ctx.Forbidden("missing xsrf header")
 							return
 						}
 						if xsrf != xsrfHeader {
-							common.Logout(resp)
+							common.Logout(resp, ctx.GetAuthenticator())
 							ctx.Forbidden("invalid xsrf header")
 							return
 						}
@@ -75,12 +75,12 @@ func Authenticate(allowToken bool) context.Middleware {
 					// Get user from session
 					user, err := ctx.GetMetadataBackend().GetUser(uid)
 					if err != nil {
-						common.Logout(resp)
+						common.Logout(resp, ctx.GetAuthenticator())
 						ctx.InternalServerError("unable to get user from session", err)
 						return
 					}
 					if user == nil {
-						common.Logout(resp)
+						common.Logout(resp, ctx.GetAuthenticator())
 						ctx.Forbidden("invalid session : user does not exists")
 						return
 					}

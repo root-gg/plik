@@ -25,7 +25,7 @@ func GetConfiguration(ctx *context.Context, resp http.ResponseWriter, req *http.
 
 // Logout return the server configuration
 func Logout(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-	common.Logout(resp)
+	common.Logout(resp, ctx.GetAuthenticator())
 }
 
 // GetQrCode return a QRCode for the requested URL
