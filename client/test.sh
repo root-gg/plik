@@ -131,6 +131,14 @@ function upload {
     eval "$UPLOAD_CMD" >$CLIENT_LOG 2>&1
 }
 
+# Upload files in the upload directory
+function uploadStdin {
+    file=$1
+    shift
+    UPLOAD_CMD="cat $file | $CLIENT $@"
+    eval "$UPLOAD_CMD" >$CLIENT_LOG 2>&1
+}
+
 # Get upload options from server api
 function uploadOpts {
     UPLOAD_ID=$( cat $CLIENT_LOG | sed -n 's/^.*http.*\/\?id=\(.*\)$/\1/p' )
@@ -237,6 +245,35 @@ cp $SPECIMEN $TMPDIR/upload/FILE1
 cp $SPECIMEN $TMPDIR/upload/FILE2
 upload && download && check
 echo "OK"
+
+#---------------------------------------------
+
+echo -n " - stdin : "
+before
+cp $SPECIMEN $TMPDIR/upload/FILE1
+
+uploadStdin "$TMPDIR/upload/FILE1" --name "FILE1" && download && check
+echo "OK"
+
+#---------------------------------------------
+
+echo -n " - disable stdin : "
+before
+cp $SPECIMEN $TMPDIR/upload/FILE1
+
+# Use temporary keyring
+cat >$PLIKRC << EOF
+URL = "$URL"
+DisableStdin = true
+EOF
+
+uploadStdin "$TMPDIR/upload/FILE1" --name "FILE1" || true
+cat $CLIENT_LOG | grep -i "stdin is disabled" >/dev/null 2>&1
+
+uploadStdin "$TMPDIR/upload/FILE1" --stdin --name "FILE1" && download && check
+echo "OK"
+
+#---------------------------------------------
 
 ###
 # Upload options
