@@ -55,7 +55,8 @@ Options:
   -S, --stream              Enable Streaming ( It will block until remote user starts downloading )
   -t, --ttl TTL             Time before expiration (Upload will be removed in m|h|d)
   -n, --name NAME           Set file name when piping from STDIN
-  --server SERVER           Overrides plik url
+  --stdin                   Enable pipe from stdin explicitly when DisableStdin is set in .plikrc
+  --server SERVER           Overrides server url
   --token TOKEN             Specify an upload token
   --comments COMMENT        Set comments of the upload ( MarkDown compatible )
   -p                        Protect the upload with login and password ( be prompted )
@@ -145,24 +146,28 @@ Options:
 	upload.Password = config.Password
 
 	if len(config.filePaths) == 0 {
+		if config.DisableStdin {
+			fmt.Fprintf(os.Stderr, "Stdin is disabled by default. Use the --stdin flag to override\n")
+			os.Exit(1)
+		}
 		upload.AddFileFromReader("STDIN", bufio.NewReader(os.Stdin))
 	} else {
 		if config.Archive {
 			archiveBackend, err = archive.NewArchiveBackend(config.ArchiveMethod, config.ArchiveOptions)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Unable to initialize archive backend : %s", err)
+				fmt.Fprintf(os.Stderr, "Unable to initialize archive backend : %s\n", err)
 				os.Exit(1)
 			}
 
 			err = archiveBackend.Configure(arguments)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Unable to configure archive backend : %s", err)
+				fmt.Fprintf(os.Stderr, "Unable to configure archive backend : %s\n", err)
 				os.Exit(1)
 			}
 
 			reader, err := archiveBackend.Archive(config.filePaths)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Unable to create archive : %s", err)
+				fmt.Fprintf(os.Stderr, "Unable to create archive : %s\n", err)
 				os.Exit(1)
 			}
 

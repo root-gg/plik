@@ -37,6 +37,7 @@ type CliConfig struct {
 	TTL            int
 	AutoUpdate     bool
 	Token          string
+	DisableStdin   bool
 
 	filePaths        []string
 	filenameOverride string
@@ -45,14 +46,7 @@ type CliConfig struct {
 // NewUploadConfig construct a new configuration with default values
 func NewUploadConfig() (config *CliConfig) {
 	config = new(CliConfig)
-	config.Debug = false
-	config.Quiet = false
 	config.URL = "http://127.0.0.1:8080"
-	config.OneShot = false
-	config.Removable = false
-	config.Stream = false
-	config.Secure = false
-	config.Archive = false
 	config.ArchiveMethod = "tar"
 	config.ArchiveOptions = make(map[string]interface{})
 	config.ArchiveOptions["Tar"] = "/bin/tar"
@@ -64,12 +58,6 @@ func NewUploadConfig() (config *CliConfig) {
 	config.SecureOptions["Cipher"] = "aes-256-cbc"
 	config.SecureOptions["Options"] = "-md sha256"
 	config.DownloadBinary = "curl"
-	config.Comments = ""
-	config.Login = ""
-	config.Password = ""
-	config.TTL = 86400 * 30
-	config.AutoUpdate = false
-	config.Token = ""
 	return
 }
 
@@ -332,6 +320,10 @@ func (config *CliConfig) UnmarshalArgs(arguments map[string]interface{}) (err er
 	// Override upload token ?
 	if arguments["--token"] != nil && arguments["--token"].(string) != "" {
 		config.Token = arguments["--token"].(string)
+	}
+
+	if arguments["--stdin"].(bool) {
+		config.DisableStdin = false
 	}
 
 	return
