@@ -314,9 +314,9 @@ proxy_buffers 8 1M;
 client_body_buffer_size 1M;
 ```
 
-* Why authentication does not work with HTTP connections ?
+* Why authentication does not work with HTTP connections when EnhancedWebSecurity is set ?
 
-Plik session cookies have the "secure" flag set, so they can only be transmitted over secure HTTPS connections.
+Plik session cookies have the "secure" flag set when EnhancedWebSecurity is set so they can only be transmitted over secure HTTPS connections.
 
 * Build failure "/usr/bin/env: ‘node’: No such file or directory"
 
