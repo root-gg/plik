@@ -12,7 +12,7 @@ import (
 
 func createUser(t *testing.T, b *Backend, user *common.User) {
 	err := b.CreateUser(user)
-	require.NoError(t, err, "create user error : %s", err)
+	require.NoError(t, err, "create user error", err)
 }
 
 func TestBackend_CreateUser(t *testing.T) {
@@ -22,6 +22,47 @@ func TestBackend_CreateUser(t *testing.T) {
 	createUser(t, b, user)
 	require.NotZero(t, user.ID, "missing user id")
 	require.NotZero(t, user.CreatedAt, "missing creation date")
+}
+
+func TestBackend_CreateUser_Exist(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	user := &common.User{ID: "user"}
+	createUser(t, b, user)
+
+	err := b.CreateUser(user)
+	require.Error(t, err, "create user error")
+}
+
+func TestBackend_UpdateUser(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	user := &common.User{ID: "user", Name: "foo"}
+	createUser(t, b, user)
+	require.NotZero(t, user.ID, "missing user id")
+	require.NotZero(t, user.CreatedAt, "missing creation date")
+
+	user.Name = "bar"
+	err := b.UpdateUser(user)
+	require.NoError(t, err, "update user error")
+
+	result, err := b.GetUser(user.ID)
+	require.NoError(t, err, "get user error")
+	require.Equal(t, user.ID, result.ID, "invalid user id")
+	require.Equal(t, user.Name, result.Name, "invalid user name")
+}
+
+func TestBackend_UpdateUser_NotFound(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	user := &common.User{ID: "user", Name: "foo"}
+	err := b.UpdateUser(user)
+	require.NoError(t, err, "update user error")
+
+	result, err := b.GetUser(user.ID)
+	require.NoError(t, err, "get user error")
+	require.Equal(t, user.ID, result.ID, "invalid user id")
+	require.Equal(t, user.Name, result.Name, "invalid user name")
 }
 
 func TestBackend_GetUser(t *testing.T) {

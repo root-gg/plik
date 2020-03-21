@@ -50,6 +50,13 @@ var showUserCmd = &cobra.Command{
 	Run:   showUser,
 }
 
+// updateUserCmd represents the "user update" command
+var updateUserCmd = &cobra.Command{
+	Use:   "update",
+	Short: "Update user info",
+	Run:   updateUser,
+}
+
 // deleteUserCmd represents the "user delete" command
 var deleteUserCmd = &cobra.Command{
 	Use:   "delete",
@@ -69,6 +76,12 @@ func init() {
 	createUserCmd.Flags().StringVar(&userParams.name, "email", "", "user email")
 	createUserCmd.Flags().StringVar(&userParams.password, "password", "", "user password")
 	createUserCmd.Flags().BoolVar(&userParams.admin, "admin", false, "user admin")
+
+	userCmd.AddCommand(updateUserCmd)
+	updateUserCmd.Flags().StringVar(&userParams.name, "name", "", "user name")
+	updateUserCmd.Flags().StringVar(&userParams.name, "email", "", "user email")
+	updateUserCmd.Flags().StringVar(&userParams.password, "password", "", "user password")
+	updateUserCmd.Flags().BoolVar(&userParams.admin, "admin", false, "user admin")
 
 	userCmd.AddCommand(listUsersCmd)
 	userCmd.AddCommand(showUserCmd)
@@ -157,6 +170,65 @@ func showUser(cmd *cobra.Command, args []string) {
 	}
 	if user == nil {
 		fmt.Printf("User %s not found\n", userID)
+		os.Exit(1)
+	}
+
+	utils.Dump(user)
+}
+
+func updateUser(cmd *cobra.Command, args []string) {
+	if !config.Authentication {
+		fmt.Println("Authentication is disabled !")
+		os.Exit(1)
+	}
+
+	initializeMetadataBackend()
+
+	if userParams.login == "" {
+		fmt.Println("missing login")
+		os.Exit(1)
+	}
+
+	if !common.IsValidProvider(userParams.provider) {
+		fmt.Println("invalid provider")
+		os.Exit(1)
+	}
+
+	userID := common.GetUserID(userParams.provider, userParams.login)
+	user, err := metadataBackend.GetUser(userID)
+	if err != nil {
+		fmt.Printf("Unable to get user : %s\n", err)
+		os.Exit(1)
+	}
+	if user == nil {
+		fmt.Printf("User %s not found\n", userID)
+		os.Exit(1)
+	}
+
+	if userParams.name != "" {
+		user.Name = userParams.name
+	}
+
+	if userParams.email != "" {
+		user.Email = userParams.email
+	}
+
+	if cmd.Flags().Changed("admin") {
+		user.IsAdmin = userParams.admin
+	}
+
+	if userParams.password != "" {
+		hash, err := common.HashPassword(userParams.password)
+		if err != nil {
+			fmt.Printf("Unable to hash password : %s\n", err)
+			os.Exit(1)
+		}
+		user.Password = hash
+	}
+
+	err = metadataBackend.UpdateUser(user)
+	if err != nil {
+		fmt.Printf("Unable to update user : %s\n", err)
 		os.Exit(1)
 	}
 

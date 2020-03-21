@@ -247,9 +247,9 @@ Options:
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to get upload url %s\n", err)
 		os.Exit(1)
-	} else {
-		printf("    %s\n\n", uploadURL)
 	}
+
+	printf("    %s\n\n", uploadURL)
 
 	if config.Stream && !config.Debug {
 		for _, file := range upload.Files() {
