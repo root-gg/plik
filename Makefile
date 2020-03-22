@@ -223,9 +223,8 @@ test-backends:
 ###
 # Build docker
 ###
-docker: release
-	@cp Dockerfile $(RELEASE_DIR)
-	@cd $(RELEASE_DIR) && docker build -t rootgg/plik .
+docker:
+	docker build -t rootgg/plik:$(RELEASE_VERSION) .
 
 ###
 # Remove server build files

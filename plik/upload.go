@@ -302,6 +302,20 @@ func (upload *Upload) GetURL() (u *url.URL, err error) {
 	return url.Parse(fileURL)
 }
 
+// GetAdminURL return the URL page of the upload with upload admin rights
+func (upload *Upload) GetAdminURL() (u *url.URL, err error) {
+	// Get upload metadata
+	uploadMetadata := upload.Metadata()
+	if uploadMetadata == nil || uploadMetadata.ID == "" {
+		return nil, fmt.Errorf("upload has not been created yet")
+	}
+
+	fileURL := fmt.Sprintf("%s/#/?id=%s&uploadToken=%s", upload.client.URL, uploadMetadata.ID, uploadMetadata.UploadToken)
+
+	// Parse to get a nice escaped url
+	return url.Parse(fileURL)
+}
+
 // DownloadZipArchive downloads all the upload files in a zip archive
 func (upload *Upload) DownloadZipArchive() (reader io.ReadCloser, err error) {
 	return upload.client.downloadArchive(upload.getParams())

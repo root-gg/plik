@@ -14,6 +14,19 @@ func (b *Backend) CreateUser(user *common.User) (err error) {
 	return b.db.Create(user).Error
 }
 
+// UpdateUser update user info in DB
+func (b *Backend) UpdateUser(user *common.User) (err error) {
+	result := b.db.Save(user)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != int64(1) {
+		return fmt.Errorf("no user updated")
+	}
+
+	return nil
+}
+
 // GetUser return a user from DB ( return nil and no error if not found )
 func (b *Backend) GetUser(ID string) (user *common.User, err error) {
 	user = &common.User{}
