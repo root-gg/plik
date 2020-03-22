@@ -322,6 +322,16 @@ func (config *CliConfig) UnmarshalArgs(arguments map[string]interface{}) (err er
 		config.Token = arguments["--token"].(string)
 	}
 
+	// Ask for token
+	if config.Token == "-" {
+		fmt.Printf("Token: ")
+		var err error
+		_, err = fmt.Scanln(&config.Token)
+		if err != nil {
+			return fmt.Errorf("Unable to get token : %s", err)
+		}
+	}
+
 	if arguments["--stdin"].(bool) {
 		config.DisableStdin = false
 	}

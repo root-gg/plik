@@ -57,7 +57,7 @@ Options:
   -n, --name NAME           Set file name when piping from STDIN
   --stdin                   Enable pipe from stdin explicitly when DisableStdin is set in .plikrc
   --server SERVER           Overrides server url
-  --token TOKEN             Specify an upload token
+  --token TOKEN             Specify an upload token ( if '-' prompt for value )
   --comments COMMENT        Set comments of the upload ( MarkDown compatible )
   -p                        Protect the upload with login and password ( be prompted )
   --password PASSWD         Protect the upload with "login:password" ( if omitted default login is "plik" )
