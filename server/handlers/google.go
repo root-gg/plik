@@ -178,7 +178,7 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 	}
 
 	// Get user from metadata backend
-	user, err := ctx.GetMetadataBackend().GetUser(common.GetUserID(common.ProviderGoogle, userInfo.Id))
+	user, err := ctx.GetMetadataBackend().GetUser(common.GetUserID(common.ProviderGoogle, userInfo.Email))
 	if err != nil {
 		ctx.InternalServerError("unable to get user from metadata backend", err)
 		return
