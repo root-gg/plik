@@ -9,6 +9,10 @@ on:
 jobs:
   buildx:
     runs-on: ubuntu-latest
+    env:
+      DOCKER_IMAGE: hcc23/plik
+      DOCKER_PLATFORMS: linux/amd64,linux/arm/v7
+      VERSION: edge
     steps:
       -
         name: Checkout
@@ -24,15 +28,31 @@ jobs:
         name: Available platforms
         run: echo ${{ steps.buildx.outputs.platforms }}
       -
+        name: Prepare
+        id: prepare
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          TAGS="--tag ${DOCKER_IMAGE}:${VERSION}"
+          
+          echo ::set-output name=docker_image::${DOCKER_IMAGE}
+          echo ::set-output name=version::${VERSION}
+          echo ::set-output name=buildx_args::--platform ${DOCKER_PLATFORMS} \
+            --build-arg VERSION=${VERSION} \
+            --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+            --build-arg VCS_REF=${GITHUB_SHA::8} \
+            ${TAGS} --file Dockerfile .
+      -
         name: Login to DockerHub
         uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
       -
-        name: Run Buildx
+        name: Run Buildx (build & push)
+        run: docker buildx build --output "type=image,push=true" ${{ steps.prepare.outputs.buildx_args }}
+      -
+        name: Inspect image
         run: |
-          docker buildx build \
-            --platform linux/amd64,linux/arm/v7 \
-            --output "type=image,push=true" \
-            --file Dockerfile .
+          docker buildx imagetools inspect ${{ steps.prepare.outputs.docker_image }}:${{ steps.prepare.outputs.version }}
