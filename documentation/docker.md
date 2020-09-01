@@ -55,7 +55,7 @@ services:
       - files:/home/plik/server/files
 ```
 
-Note, however, that the server is run by a user `plik` with a UID/GUI of 1000:1000 (compare the `Dockerfile`), which leads to problems accessing the volume. This can be easily mitigated by changing the access rights in the volume _after_ it has been created:
+Note, however, that the server is run by a user `plik` with a UID/GUI of 1000:1000 (compare the [Dockerfile](../Dockerfile)), which leads to problems accessing the volume. This can be easily mitigated by changing the access rights in the volume _after_ it has been created:
 
 1. Trigger volume creation by starting the container
 ```sh
