@@ -83,6 +83,9 @@ func AskConfirmation(defaultValue bool) (bool, error) {
 	var input string
 	_, err := fmt.Scanln(&input)
 	if err != nil {
+		if err.Error() == "unexpected newline" {
+			return defaultValue, nil
+		}
 		return false, err
 	}
 

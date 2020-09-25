@@ -114,7 +114,11 @@ func deleteFiles(cmd *cobra.Command, args []string) {
 
 		// Ask confirmation
 		fmt.Printf("Do you really want to remove this file %s %s ? [y/N]\n", file.ID, file.Name)
-		ok, _ := common.AskConfirmation(false)
+		ok, err := common.AskConfirmation(false)
+		if err != nil {
+			fmt.Printf("Unable to ask for confirmation : %s", err)
+			os.Exit(1)
+		}
 		if !ok {
 			os.Exit(0)
 		}
@@ -128,12 +132,16 @@ func deleteFiles(cmd *cobra.Command, args []string) {
 
 		// Ask confirmation
 		fmt.Printf("Do you really want to remove this upload %s ? [y/N]\n", fileParams.uploadID)
-		ok, _ := common.AskConfirmation(false)
+		ok, err := common.AskConfirmation(false)
+		if err != nil {
+			fmt.Printf("Unable to ask for confirmation : %s", err)
+			os.Exit(1)
+		}
 		if !ok {
 			os.Exit(0)
 		}
 
-		err := metadataBackend.DeleteUpload(fileParams.uploadID)
+		err = metadataBackend.DeleteUpload(fileParams.uploadID)
 		if err != nil {
 			fmt.Printf("Unable to get upload files : %s\n", err)
 			os.Exit(1)
@@ -142,7 +150,11 @@ func deleteFiles(cmd *cobra.Command, args []string) {
 
 		// Ask confirmation
 		fmt.Printf("Do you really want to remove ALL uploads ? [y/N]\n")
-		ok, _ := common.AskConfirmation(false)
+		ok, err := common.AskConfirmation(false)
+		if err != nil {
+			fmt.Printf("Unable to ask for confirmation : %s", err)
+			os.Exit(1)
+		}
 		if !ok {
 			os.Exit(0)
 		}
@@ -150,7 +162,7 @@ func deleteFiles(cmd *cobra.Command, args []string) {
 		deleteUpload := func(upload *common.Upload) error {
 			return metadataBackend.DeleteUpload(upload.ID)
 		}
-		err := metadataBackend.ForEachUpload(deleteUpload)
+		err = metadataBackend.ForEachUpload(deleteUpload)
 		if err != nil {
 			fmt.Printf("Unable to delete uploads : %s\n", err)
 			os.Exit(1)

@@ -152,7 +152,10 @@ func LoadConfig() (config *CliConfig, err error) {
 		fmt.Printf("We have been redirected to : %s\n", finalURL)
 		fmt.Printf("Replace current url (%s) with the new one ? [Y/n] ", config.URL)
 
-		ok, _ := common.AskConfirmation(true)
+		ok, err := common.AskConfirmation(true)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to ask for confirmation : %s", err)
+		}
 		if ok {
 			config.URL = strings.TrimSuffix(finalURL, "/")
 		}
@@ -160,7 +163,10 @@ func LoadConfig() (config *CliConfig, err error) {
 
 	// Enable client updates ?
 	fmt.Println("Do you want to enable client auto update ? [Y/n] ")
-	ok, _ := common.AskConfirmation(true)
+	ok, err := common.AskConfirmation(true)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to ask for confirmation : %s", err)
+	}
 	if ok {
 		config.AutoUpdate = true
 	}
