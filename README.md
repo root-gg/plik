@@ -63,7 +63,6 @@ To compile plik from sources, you'll need golang and npm installed on your syste
 First, get the project and libs via go get :
 ```sh
 $ go get github.com/root-gg/plik/server
-go/src/github.com/root-gg/plik/server/handlers/misc.go:51: undefined: common.GetBuildInfo <== ignore this warning
 $ cd $GOPATH/src/github.com/root-gg/plik/
 ```
 

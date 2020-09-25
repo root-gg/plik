@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/docopt/docopt-go"
 	"github.com/mitchellh/go-homedir"
 
 	"github.com/root-gg/plik/server/common"
@@ -73,7 +74,7 @@ func LoadConfigFromFile(path string) (*CliConfig, error) {
 
 // LoadConfig creates a new default configuration and override it with .plikrc fike.
 // If .plikrc does not exist, ask domain, and create a new one in user HOMEDIR
-func LoadConfig() (config *CliConfig, err error) {
+func LoadConfig(opts docopt.Opts) (config *CliConfig, err error) {
 	// Load config file from environment variable
 	path := os.Getenv("PLIKRC")
 	if path != "" {
@@ -115,11 +116,9 @@ func LoadConfig() (config *CliConfig, err error) {
 
 	config = NewUploadConfig()
 
-	// Check if quiet mode ( you'll have to pass --server flag )
-	for _, arg := range os.Args[1:] {
-		if arg == "-q" || arg == "--quiet" {
-			return config, nil
-		}
+	// Bypass ~/.plikrc file creation if quiet mode and/or --server flag
+	if opts["--quiet"].(bool) || opts["--server"].(string) != "" {
+		return config, nil
 	}
 
 	// Config file not found. Create one.
@@ -192,22 +191,22 @@ func LoadConfig() (config *CliConfig, err error) {
 
 // UnmarshalArgs turns command line arguments into upload settings
 // Command line arguments override config file settings
-func (config *CliConfig) UnmarshalArgs(arguments map[string]interface{}) (err error) {
-	if arguments["--debug"].(bool) {
+func (config *CliConfig) UnmarshalArgs(opts docopt.Opts) (err error) {
+	if opts["--debug"].(bool) {
 		config.Debug = true
 	}
-	if arguments["--quiet"].(bool) {
+	if opts["--quiet"].(bool) {
 		config.Quiet = true
 	}
 
 	// Plik server url
-	if arguments["--server"] != nil && arguments["--server"].(string) != "" {
-		config.URL = arguments["--server"].(string)
+	if opts["--server"] != nil && opts["--server"].(string) != "" {
+		config.URL = opts["--server"].(string)
 	}
 
 	// Paths
-	if _, ok := arguments["FILE"].([]string); ok {
-		config.filePaths = arguments["FILE"].([]string)
+	if _, ok := opts["FILE"].([]string); ok {
+		config.filePaths = opts["FILE"].([]string)
 	} else {
 		return fmt.Errorf("No files specified")
 	}
@@ -226,29 +225,29 @@ func (config *CliConfig) UnmarshalArgs(arguments map[string]interface{}) (err er
 	}
 
 	// Override file name if specified
-	if arguments["--name"] != nil && arguments["--name"].(string) != "" {
-		config.filenameOverride = arguments["--name"].(string)
+	if opts["--name"] != nil && opts["--name"].(string) != "" {
+		config.filenameOverride = opts["--name"].(string)
 	}
 
 	// Upload options
-	if arguments["--oneshot"].(bool) {
+	if opts["--oneshot"].(bool) {
 		config.OneShot = true
 	}
-	if arguments["--removable"].(bool) {
+	if opts["--removable"].(bool) {
 		config.Removable = true
 	}
 
-	if arguments["--stream"].(bool) {
+	if opts["--stream"].(bool) {
 		config.Stream = true
 	}
 
-	if arguments["--comments"] != nil && arguments["--comments"].(string) != "" {
-		config.Comments = arguments["--comments"].(string)
+	if opts["--comments"] != nil && opts["--comments"].(string) != "" {
+		config.Comments = opts["--comments"].(string)
 	}
 
 	// Configure upload expire date
-	if arguments["--ttl"] != nil && arguments["--ttl"].(string) != "" {
-		ttlStr := arguments["--ttl"].(string)
+	if opts["--ttl"] != nil && opts["--ttl"].(string) != "" {
+		ttlStr := opts["--ttl"].(string)
 		mul := 1
 		if string(ttlStr[len(ttlStr)-1]) == "m" {
 			mul = 60
@@ -262,32 +261,32 @@ func (config *CliConfig) UnmarshalArgs(arguments map[string]interface{}) (err er
 		}
 		ttl, err := strconv.Atoi(ttlStr)
 		if err != nil {
-			return fmt.Errorf("Invalid TTL %s", arguments["--ttl"].(string))
+			return fmt.Errorf("Invalid TTL %s", opts["--ttl"].(string))
 		}
 		config.TTL = ttl * mul
 	}
 
 	// Enable archive mode ?
-	if arguments["-a"].(bool) || arguments["--archive"] != nil || config.Archive {
+	if opts["-a"].(bool) || opts["--archive"] != nil || config.Archive {
 		config.Archive = true
 
-		if arguments["--archive"] != nil && arguments["--archive"] != "" {
-			config.ArchiveMethod = arguments["--archive"].(string)
+		if opts["--archive"] != nil && opts["--archive"] != "" {
+			config.ArchiveMethod = opts["--archive"].(string)
 		}
 	}
 
 	// Enable secure mode ?
-	if arguments["--not-secure"].(bool) {
+	if opts["--not-secure"].(bool) {
 		config.Secure = false
-	} else if arguments["-s"].(bool) || arguments["--secure"] != nil || config.Secure {
+	} else if opts["-s"].(bool) || opts["--secure"] != nil || config.Secure {
 		config.Secure = true
-		if arguments["--secure"] != nil && arguments["--secure"].(string) != "" {
-			config.SecureMethod = arguments["--secure"].(string)
+		if opts["--secure"] != nil && opts["--secure"].(string) != "" {
+			config.SecureMethod = opts["--secure"].(string)
 		}
 	}
 
 	// Enable password protection ?
-	if arguments["-p"].(bool) {
+	if opts["-p"].(bool) {
 		fmt.Printf("Login [plik]: ")
 		var err error
 		_, err = fmt.Scanln(&config.Login)
@@ -302,8 +301,8 @@ func (config *CliConfig) UnmarshalArgs(arguments map[string]interface{}) (err er
 		if err != nil {
 			return fmt.Errorf("Unable to get password : %s", err)
 		}
-	} else if arguments["--password"] != nil && arguments["--password"].(string) != "" {
-		credentials := arguments["--password"].(string)
+	} else if opts["--password"] != nil && opts["--password"].(string) != "" {
+		credentials := opts["--password"].(string)
 		sepIndex := strings.Index(credentials, ":")
 		var login, password string
 		if sepIndex > 0 {
@@ -318,8 +317,8 @@ func (config *CliConfig) UnmarshalArgs(arguments map[string]interface{}) (err er
 	}
 
 	// Override upload token ?
-	if arguments["--token"] != nil && arguments["--token"].(string) != "" {
-		config.Token = arguments["--token"].(string)
+	if opts["--token"] != nil && opts["--token"].(string) != "" {
+		config.Token = opts["--token"].(string)
 	}
 
 	// Ask for token
@@ -332,7 +331,7 @@ func (config *CliConfig) UnmarshalArgs(arguments map[string]interface{}) (err er
 		}
 	}
 
-	if arguments["--stdin"].(bool) {
+	if opts["--stdin"].(bool) {
 		config.DisableStdin = false
 	}
 

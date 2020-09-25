@@ -16,6 +16,7 @@ require (
 	github.com/gorilla/mux v1.7.1
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334 // indirect
+	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a
 	github.com/jinzhu/gorm v1.9.13-0.20200126152832-7180bd0f27d1
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/lib/pq v1.3.1-0.20200116171513-9eb3fc897d6f // indirect

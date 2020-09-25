@@ -12,13 +12,15 @@ GOHOSTARCH=$(shell go env GOHOSTARCH)
 DEBROOT_SERVER=debs/server
 DEBROOT_CLIENT=debs/client
 
-race_detector = GORACE="halt_on_error=1" go build -race
+BUILD_INFO=$(shell server/gen_build_info.sh $(RELEASE_VERSION) base64)
+BUILD_FLAG=-ldflags="-X github.com/root-gg/plik/server/common.buildInfoString=$(BUILD_INFO)"
+
+GO_BUILD=go build $(BUILD_FLAG)
+GO_TEST=GORACE="halt_on_error=1" go test $(BUILD_FLAG) -race -cover -p 1
+
 ifdef ENABLE_RACE_DETECTOR
-	build = $(race_detector)
-else
-	build = go build
+	GO_BUILD:=GORACE="halt_on_error=1" $(GO_BUILD) -race
 endif
-test: build = $(race_detector)
 
 all: clean clean-frontend frontend clients server
 
@@ -34,15 +36,15 @@ frontend:
 # Build plik server for the current architecture
 ###
 server:
-	@server/gen_build_info.sh $(RELEASE_VERSION)
+	@server/gen_build_info.sh $(RELEASE_VERSION) info
 	@echo "Building Plik server"
-	@cd server && $(build) -o plikd ./
+	@cd server && $(GO_BUILD) -o plikd
 
 ###
 # Build plik server for all architectures
 ###
 servers: frontend
-	@server/gen_build_info.sh $(RELEASE_VERSION)
+	@server/gen_build_info.sh $(RELEASE_VERSION) info
 	@cd server && for target in $(RELEASE_TARGETS) ; do \
 		SERVER_DIR=../servers/$$target; \
 		SERVER_PATH=$$SERVER_DIR/plikd;  \
@@ -52,23 +54,23 @@ servers: frontend
 		if [ $$GOOS = "windows" ] ; then SERVER_PATH=$$SERVER_DIR/plikd.exe ; fi ; \
 		if [ -e $$SERVER_PATH ] ; then continue ; fi ; \
 		echo "Building Plik server for $$target to $$SERVER_PATH"; \
-		$(build) -o $$SERVER_PATH ;	\
+		$(GO_BUILD) -o $$SERVER_PATH ;	\
 	done
 
 ###
 # Build plik client for the current architecture
 ###
 client:
-	@server/gen_build_info.sh $(RELEASE_VERSION)
+	@server/gen_build_info.sh $(RELEASE_VERSION) info
 	@echo "Building Plik client"
-	@cd client && $(build) -o plik ./
+	@cd client && $(GO_BUILD) -o plik ./
 
 
 ###
 # Build plik client for all architectures
 ###
 clients:
-	@server/gen_build_info.sh $(RELEASE_VERSION)
+	@server/gen_build_info.sh $(RELEASE_VERSION) info
 	@cd client && for target in $(RELEASE_TARGETS) ; do	\
 		CLIENT_DIR=../clients/$$target;	\
 		CLIENT_PATH=$$CLIENT_DIR/plik;	\
@@ -79,7 +81,7 @@ clients:
 		if [ $$GOOS = "windows" ] ; then CLIENT_PATH=$$CLIENT_DIR/plik.exe ; fi ; \
 		if [ -e $$CLIENT_PATH ] ; then continue ; fi ; \
 		echo "Building Plik client for $$target to $$CLIENT_PATH"; \
-		$(build) -o $$CLIENT_PATH ; \
+		$(GO_BUILD) -o $$CLIENT_PATH ; \
 		md5sum $$CLIENT_PATH | awk '{print $$1}' > $$CLIENT_MD5; \
 	done
 	@mkdir -p clients/bash && cp client/plik.sh clients/bash
@@ -185,7 +187,7 @@ releases: release-template servers
 # Generate build info
 ###
 build-info:
-	@server/gen_build_info.sh $(RELEASE_VERSION)
+	@server/gen_build_info.sh $(RELEASE_VERSION) info
 
 ###
 # Run linters
@@ -210,8 +212,7 @@ fmt:
 ###
 test:
 	@if curl -s 127.0.0.1:8080 > /dev/null ; then echo "Plik server probably already running" && exit 1 ; fi
-	@server/gen_build_info.sh $(RELEASE_VERSION)
-	@GORACE="halt_on_error=1" go test -race -cover -p 1 ./... 2>&1 | grep -v "no test files"; test $${PIPESTATUS[0]} -eq 0
+	@$(GO_TEST) ./... 2>&1 | grep -v "no test files"; test $${PIPESTATUS[0]} -eq 0
 	@echo "cli client integration tests :" && cd client && ./test.sh
 
 ###
@@ -230,7 +231,6 @@ docker:
 # Remove server build files
 ###
 clean:
-	@rm -rf server/common/version.go
 	@rm -rf server/plikd
 	@rm -rf client/plik
 	@rm -rf clients

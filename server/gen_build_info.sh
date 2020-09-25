@@ -2,8 +2,11 @@
 
 set -e
 
-# some variables
+# arguments
 version=$1
+output=$2
+
+# some variables
 user=$(whoami)
 host=$(hostname)
 repo=$(pwd)
@@ -33,11 +36,17 @@ if is_mint_repo; then
     isMint=true
 fi
 
-echo "Plik $version with go $goVersion"
-echo "Commit $full_rev mint=$isMint release=$isRelease"
+if [[ "$output" == "info" ]]; then
+  echo "Plik $version with go $goVersion"
+  echo "Commit $full_rev mint=$isMint release=$isRelease"
+  exit 0
+fi
+
+# join strings from array
+function join_by { local IFS="$1"; shift; echo "$*"; }
 
 # compute clients code
-clients=""
+declare -a clients
 clientList=$(find clients -name "plik*" 2> /dev/null | sort -n)
 for client in $clientList ; do
 	folder=$(echo $client | cut -d "/" -f2)
@@ -65,120 +74,47 @@ for client in $clientList ; do
 	esac
 
 	fullName="$prettyOs $prettyArch"
-	clientCode="&Client{Name: \"$fullName\", Md5: \"$md5\", Path: \"$client\", OS: \"$os\", ARCH: \"$arch\"}"
-	clients+=$'\t\t'"buildInfo.Clients = append(buildInfo.Clients, $clientCode)"$'\n'
+	client_json="{\"name\": \"$fullName\", \"md5\": \"$md5\", \"path\": \"$client\", \"os\": \"$os\", \"arch\": \"$arch\"}"
+	clients+=("$client_json")
 done
+clients_json="[$(join_by , "${clients[@]}")]"
 
 # get releases
-releases=""
+declare -a releases
 git config versionsort.prereleaseSuffix -RC
 for gitTag in $(git tag --sort version:refname)
 do
 	if [ -f "changelog/$gitTag" ]; then
 		# '%at': author date, UNIX timestamp
-		releaseDate=$(git show -s --pretty="format:%at" "refs/tags/$gitTag")
-		releaseCode="&Release{Name: \"$gitTag\", Date: $releaseDate}"
-		releases+=$'\t\t'"buildInfo.Releases = append(buildInfo.Releases, $releaseCode)"$'\n'
+		release_date=$(git show -s --pretty="format:%at" "refs/tags/$gitTag")
+		release_json="{\"name\": \"$gitTag\", \"date\": $release_date}"
+		releases+=("$release_json")
 	fi
 done
+releases_json="[$(join_by , "${releases[@]}")]"
 
-cat > "server/common/version.go" <<EOF 
-package common
+json=$(cat << EOF
+{
+  "version" : "$version",
+  "date" : $date,
 
-//
-// This file is generated automatically by gen_build_info.sh
-//
+  "user" : "$user",
+  "host" : "$host",
+  "goVersion" : "$goVersion",
 
-import (
-	"fmt"
-	"strings"
-	"time"
-)
+  "gitShortRevision" : "$short_rev",
+  "gitFullRevision" : "$full_rev",
+  "isRelease" : $isRelease,
+  "isMint" : $isMint,
 
-var buildInfo *BuildInfo
-
-// BuildInfo export build related variables
-type BuildInfo struct {
-	Version string \`json:"version"\`
-	Date    int64  \`json:"date"\`
-
-	User string \`json:"user"\`
-	Host string \`json:"host"\`
-
-	GitShortRevision string \`json:"gitShortRevision"\`
-	GitFullRevision  string \`json:"gitFullRevision"\`
-
-	IsRelease bool \`json:"isRelease"\`
-	IsMint    bool \`json:"isMint"\`
-
-	GoVersion string \`json:"goVersion"\`
-
-	Clients  []*Client  \`json:"clients"\`
-	Releases []*Release \`json:"releases"\`
-}
-
-// Client export client build related variables
-type Client struct {
-	Name string \`json:"name"\`
-	Md5  string \`json:"md5"\`
-	Path string \`json:"path"\`
-	OS   string \`json:"os"\`
-	ARCH string \`json:"arch"\`
-}
-
-// Release export releases related variables
-type Release struct {
-	Name string \`json:"name"\`
-	Date int64  \`json:"date"\`
-}
-
-// GetBuildInfo get or instanciate BuildInfo structure
-func GetBuildInfo() *BuildInfo {
-	if buildInfo == nil {
-		buildInfo = new(BuildInfo)
-		buildInfo.Clients = make([]*Client, 0)
-
-		buildInfo.Version = "$version"
-		buildInfo.Date = $date
-
-		buildInfo.User = "$user"
-		buildInfo.Host = "$host"
-		buildInfo.GoVersion = "$goVersion"
-
-		buildInfo.GitShortRevision = "$short_rev"
-		buildInfo.GitFullRevision = "$full_rev"
-
-		buildInfo.IsRelease = $isRelease
-		buildInfo.IsMint = $isMint
-
-		// Clients
-$clients
-		// Releases
-$releases
-	}
-
-	return buildInfo
-}
-
-func (bi *BuildInfo) String() string {
-
-	v := fmt.Sprintf("v%s (built from git rev %s", bi.Version, bi.GitShortRevision)
-
-	// Compute flags
-	var flags []string
-	if buildInfo.IsMint {
-		flags = append(flags, "mint")
-	}
-	if buildInfo.IsRelease {
-		flags = append(flags, "release")
-	}
-
-	if len(flags) > 0 {
-		v += fmt.Sprintf(" [%s]", strings.Join(flags, ","))
-	}
-
-	v += fmt.Sprintf(" at %s with %s)", time.Unix(bi.Date, 0), bi.GoVersion)
-
-	return v
+  "clients" : $clients_json,
+  "releases" : $releases_json
 }
 EOF
+)
+
+if [[ "$output" == "base64" ]]; then
+  echo $json | base64 -w 0
+else
+  echo $json
+fi

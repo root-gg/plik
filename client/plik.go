@@ -79,7 +79,7 @@ Options:
 	}
 
 	// Load config
-	config, err = LoadConfig()
+	config, err = LoadConfig(arguments)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to load configuration : %s\n", err)
 		os.Exit(1)
@@ -105,7 +105,12 @@ Options:
 
 	// Display info
 	if arguments["--info"].(bool) {
-		info(client)
+		err = info(client)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		os.Exit(0)
 	}
 
 	// Update
@@ -307,29 +312,27 @@ Options:
 	}
 }
 
-func info(client *plik.Client) {
+func info(client *plik.Client) (err error) {
 	fmt.Printf("Plik client version : %s\n\n", common.GetBuildInfo())
 
 	fmt.Printf("Plik server url : %s\n", config.URL)
 
 	serverBuildInfo, err := client.GetServerVersion()
 	if err != nil {
-		fmt.Printf("Plik server unreachable %s\n", err)
-		return
+		return fmt.Errorf("Plik server unreachable : %s", err)
 	}
 
 	fmt.Printf("Plik server version : %s\n", serverBuildInfo)
 
 	serverConfig, err := client.GetServerConfig()
 	if err != nil {
-		fmt.Printf("Plik server unreachable %s\n", err)
-		return
+		return fmt.Errorf("Plik server unreachable : %s", err)
 	}
 
 	fmt.Printf("\nPlik server configuration :\n")
 	fmt.Printf(serverConfig.String())
 
-	os.Exit(0)
+	return nil
 }
 
 func getFileCommand(file *plik.File) (command string, err error) {

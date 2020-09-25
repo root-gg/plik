@@ -72,7 +72,7 @@ func NewConfiguration() (config *Configuration) {
 
 	config.ListenAddress = "0.0.0.0"
 	config.ListenPort = 8080
-	config.EnhancedWebSecurity = true
+	config.EnhancedWebSecurity = false
 
 	config.MaxFileSize = 10000000000 // 10GB
 	config.MaxFilePerUpload = 1000

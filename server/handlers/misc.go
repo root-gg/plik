@@ -15,7 +15,12 @@ import (
 
 // GetVersion return the build information.
 func GetVersion(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-	common.WriteJSONResponse(resp, common.GetBuildInfo())
+	bi := common.GetBuildInfo()
+	if ctx.GetConfig().EnhancedWebSecurity {
+		// Remove sensible info from BuildInfo
+		bi.Sanitize()
+	}
+	common.WriteJSONResponse(resp, bi)
 }
 
 // GetConfiguration return the server configuration

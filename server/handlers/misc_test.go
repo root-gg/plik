@@ -60,6 +60,37 @@ func TestGetVersion(t *testing.T) {
 	require.EqualValues(t, common.GetBuildInfo(), result, "invalid build info")
 }
 
+func TestGetVersionEnhancedWebSecurity(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	ctx.GetConfig().EnhancedWebSecurity = true
+
+	req, err := http.NewRequest("GET", "/version", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	GetVersion(ctx, rr, req)
+
+	// Check the status code is what we expect.
+	context.TestOK(t, rr)
+
+	respBody, err := ioutil.ReadAll(rr.Body)
+	require.NoError(t, err, "unable to read response body")
+
+	var result *common.BuildInfo
+	err = json.Unmarshal(respBody, &result)
+	require.NoError(t, err, "unable to unmarshal response body")
+
+	require.NotEmpty(t, result.Version, "invalid build info")
+	require.Empty(t, result.GoVersion, result, "invalid build info")
+	require.Empty(t, result.GitFullRevision, result, "invalid build info")
+	require.Empty(t, result.GitShortRevision, result, "invalid build info")
+	require.Zero(t, result.Date, result, "invalid build info")
+	require.False(t, result.IsMint, result, "invalid build info")
+	require.False(t, result.IsRelease, result, "invalid build info")
+	require.Empty(t, result.Host, result, "invalid build info")
+	require.Empty(t, result.User, result, "invalid build info")
+}
+
 func TestGetConfiguration(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
