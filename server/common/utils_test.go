@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -95,4 +96,26 @@ func TestWriteJSONResponse(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, obj.Foo, obj2.Foo)
+}
+
+func TestHumanDuration(t *testing.T) {
+	require.Equal(t, "0s", HumanDuration(time.Duration(0)))
+	require.Equal(t, "10ms", HumanDuration(10*time.Millisecond))
+	require.Equal(t, "1s10ms", HumanDuration(time.Second+10*time.Millisecond))
+	require.Equal(t, "30s", HumanDuration(30*time.Second))
+	require.Equal(t, "30m", HumanDuration(30*time.Minute))
+	require.Equal(t, "30m3s", HumanDuration(30*time.Minute+3*time.Second))
+	require.Equal(t, "1h", HumanDuration(time.Hour))
+	require.Equal(t, "1h1s", HumanDuration(time.Hour+time.Second))
+	require.Equal(t, "1h1m", HumanDuration(time.Hour+time.Minute))
+	require.Equal(t, "1h1m1s", HumanDuration(time.Hour+time.Minute+time.Second))
+	require.Equal(t, "1d", HumanDuration(24*time.Hour))
+	require.Equal(t, "1d1m1s", HumanDuration(24*time.Hour+time.Minute+time.Second))
+	require.Equal(t, "1d1h1m1s", HumanDuration(24*time.Hour+time.Hour+time.Minute+time.Second))
+	require.Equal(t, "30d", HumanDuration(30*24*time.Hour))
+	require.Equal(t, "1y", HumanDuration(365*24*time.Hour))
+	require.Equal(t, "1y1d", HumanDuration(366*24*time.Hour))
+	require.Equal(t, "1y1d1s", HumanDuration(366*24*time.Hour+time.Second))
+	require.Equal(t, "1y1d1h1m1s", HumanDuration(366*24*time.Hour+3661*time.Second))
+	require.Equal(t, "-10s", HumanDuration(-10*time.Second))
 }

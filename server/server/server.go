@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -81,6 +82,13 @@ func (ps *PlikServer) start() (err error) {
 	log := ps.config.NewLogger()
 
 	log.Infof("Starting plikd server v" + common.GetBuildInfo().Version)
+
+	log.Debug("Configuration :")
+	for _, line := range strings.Split(ps.config.String(), "\n") {
+		if line != "" {
+			log.Debug(line)
+		}
+	}
 
 	// Initialize backends
 	err = ps.initializeMetadataBackend()

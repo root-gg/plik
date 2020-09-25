@@ -187,12 +187,6 @@ func LoadConfig() (config *CliConfig, err error) {
 // UnmarshalArgs turns command line arguments into upload settings
 // Command line arguments override config file settings
 func (config *CliConfig) UnmarshalArgs(arguments map[string]interface{}) (err error) {
-
-	// Handle flags
-	if arguments["--version"].(bool) {
-		fmt.Printf("Plik client %s\n", common.GetBuildInfo())
-		os.Exit(0)
-	}
 	if arguments["--debug"].(bool) {
 		config.Debug = true
 	}

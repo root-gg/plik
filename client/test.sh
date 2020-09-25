@@ -198,6 +198,28 @@ echo "OK"
 
 #---------------------------------------------
 
+#---------------------------------------------
+
+echo -n " - info : "
+
+before
+$CLIENT --info >$CLIENT_LOG 2>&1
+grep "Plik client version :" $CLIENT_LOG >/dev/null 2>/dev/null
+grep "Plik server url :" $CLIENT_LOG >/dev/null 2>/dev/null
+grep "Plik server version :" $CLIENT_LOG >/dev/null 2>/dev/null
+grep "Plik server configuration :" $CLIENT_LOG >/dev/null 2>/dev/null
+
+before
+$CLIENT -i >$CLIENT_LOG 2>&1
+grep "Plik client version :" $CLIENT_LOG >/dev/null 2>/dev/null
+grep "Plik server url :" $CLIENT_LOG >/dev/null 2>/dev/null
+grep "Plik server version :" $CLIENT_LOG >/dev/null 2>/dev/null
+grep "Plik server configuration :" $CLIENT_LOG >/dev/null 2>/dev/null
+
+echo "OK"
+
+#---------------------------------------------
+
 echo -n " - debug : "
 
 before

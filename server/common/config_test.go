@@ -85,6 +85,15 @@ func TestInitializeConfigInvalidDownloadDomain(t *testing.T) {
 	require.Error(t, err, "able to initialize invalid config")
 }
 
+func TestInitializeInvalidDefaultTTL(t *testing.T) {
+	config := NewConfiguration()
+	config.DefaultTTL = 10 * 86400
+	config.MaxTTL = 1 * 86400
+
+	err := config.Initialize()
+	require.Error(t, err, "able to initialize invalid config")
+}
+
 func TestDisableAutoClean(t *testing.T) {
 	config := NewConfiguration()
 	require.True(t, config.IsAutoClean(), "invalid auto clean status")
@@ -101,4 +110,9 @@ func TestGetServerUrl(t *testing.T) {
 	require.Equal(t, "https://1.1.1.1:8080", config.GetServerURL().String(), "invalid server url")
 	config.Path = "/root"
 	require.Equal(t, "https://1.1.1.1:8080/root", config.GetServerURL().String(), "invalid server url")
+}
+
+func TestString(t *testing.T) {
+	config := NewConfiguration()
+	require.NotEmpty(t, config.String())
 }

@@ -5,8 +5,11 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/dustin/go-humanize"
+
 	"github.com/root-gg/logger"
 )
 
@@ -71,7 +74,7 @@ func NewConfiguration() (config *Configuration) {
 	config.ListenPort = 8080
 	config.EnhancedWebSecurity = true
 
-	config.MaxFileSize = 10737418240 // 10GB
+	config.MaxFileSize = 10000000000 // 10GB
 	config.MaxFilePerUpload = 1000
 
 	config.DefaultTTL = 2592000 // 30 days
@@ -157,6 +160,10 @@ func (config *Configuration) Initialize() (err error) {
 		}
 	}
 
+	if config.DefaultTTL > config.MaxTTL {
+		return fmt.Errorf("DefaultTTL should not be more than MaxTTL")
+	}
+
 	return nil
 }
 
@@ -228,4 +235,73 @@ func (config *Configuration) GetServerURL() *url.URL {
 	URL.Path = config.Path
 
 	return URL
+}
+
+func (config *Configuration) String() string {
+	str := ""
+	if config.DownloadDomain != "" {
+		str += fmt.Sprintf("Download domain : %s\n", config.DownloadDomain)
+	}
+
+	str += fmt.Sprintf("Maximum file size : %s\n", humanize.Bytes(uint64(config.MaxFileSize)))
+	str += fmt.Sprintf("Maximum files per upload : %d\n", config.MaxFilePerUpload)
+
+	if config.DefaultTTL > 0 {
+		str += fmt.Sprintf("Default upload TTL : %s\n", HumanDuration(time.Duration(config.DefaultTTL)*time.Second))
+	} else {
+		str += fmt.Sprintf("Default upload TTL : unlimited\n")
+	}
+
+	if config.MaxTTL > 0 {
+		str += fmt.Sprintf("Maximum upload TTL : %s\n", HumanDuration(time.Duration(config.MaxTTL)*time.Second))
+	} else {
+		str += fmt.Sprintf("Maximum upload TTL : unlimited\n")
+	}
+
+	if config.OneShot {
+		str += fmt.Sprintf("One shot upload : enabled\n")
+	} else {
+		str += fmt.Sprintf("One shot upload : disabled\n")
+	}
+
+	if config.Removable {
+		str += fmt.Sprintf("Removable upload : enabled\n")
+	} else {
+		str += fmt.Sprintf("Removable upload : disabled\n")
+	}
+
+	if config.Stream {
+		str += fmt.Sprintf("Streaming upload : enabled\n")
+	} else {
+		str += fmt.Sprintf("Streaming upload : disabled\n")
+	}
+
+	if config.ProtectedByPassword {
+		str += fmt.Sprintf("Upload password : enabled\n")
+	} else {
+		str += fmt.Sprintf("Upload password : disabled\n")
+	}
+
+	if config.Authentication {
+		str += fmt.Sprintf("Authentication : enabled\n")
+
+		if config.GoogleAuthentication {
+			str += fmt.Sprintf("Google authentication : enabled\n")
+		} else {
+			str += fmt.Sprintf("Google authentication : disabled\n")
+		}
+
+		if config.OvhAuthentication {
+			str += fmt.Sprintf("OVH authentication : enabled\n")
+			if config.OvhAPIEndpoint != "" {
+				str += fmt.Sprintf("OVH API endpoint : %s\n", config.OvhAPIEndpoint)
+			}
+		} else {
+			str += fmt.Sprintf("OVH authentication : disabled\n")
+		}
+	} else {
+		str += fmt.Sprintf("Authentication : disabled\n")
+	}
+
+	return str
 }
