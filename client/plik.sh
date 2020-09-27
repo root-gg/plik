@@ -37,7 +37,6 @@ function setTtl() {
 #
 ## Vars
 #
-PLIK_URL=${PLIK_URL-"http://127.0.0.1:8080"}
 PLIK_TOKEN=${PLIK_TOKEN-""}
 QUIET=false
 SECURE=false
@@ -57,15 +56,21 @@ if [ ! -f "$PLIKRC" ]; then
 fi
 
 if [ -f "$PLIKRC" ]; then
-    URL=$(grep URL $PLIKRC | grep -Po '(http[^\"]*)')
-    if [ "$URL" != "" ]; then
-        PLIK_URL=$URL
+    # Evironment variable takes precedence over plikrc file
+    if [ "$PLIK_URL" == "" ]; then
+      URL=$(grep URL $PLIKRC | grep -Po '(http[^\"]*)')
+      if [ "$URL" != "" ]; then
+          PLIK_URL=$URL
+      fi
     fi
     TOKEN=$(grep Token $PLIKRC | sed -n 's/^.*"\(.*\)".*$/\1/p' )
     if [ "$TOKEN" != "" ]; then
         PLIK_TOKEN=$TOKEN
     fi
 fi
+
+# Default URL to local instance
+PLIK_URL=${PLIK_URL-"http://127.0.0.1:8080"}
 
 #
 ## Parse arguments
@@ -108,7 +113,11 @@ qecho -e "Create new upload on $PLIK_URL...\n"
 CREATE_UPLOAD_CMD="curl -s -X POST $AUTH_TOKEN_HEADER -d '$OPTIONS' ${PLIK_URL}/upload"
 NEW_UPLOAD_RESP=$(eval $CREATE_UPLOAD_CMD)
 UPLOAD_ID=$(echo $NEW_UPLOAD_RESP | jsonValue id)
+
 DOWNLOAD_DOMAIN=$(echo $NEW_UPLOAD_RESP | jsonValue downloadDomain)
+if [ "$DOWNLOAD_DOMAIN" == "" ]; then
+  DOWNLOAD_DOMAIN=$PLIK_URL
+fi
 
 # Handle error
 if [ "$UPLOAD_ID" == "" ]; then
