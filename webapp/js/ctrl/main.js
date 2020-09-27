@@ -495,7 +495,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             } else if (ttl < 86400) {
                 value = Math.round(ttl / 3600);
                 unit = "hours"
-            } else if (ttl > 86400) {
+            } else if (ttl >= 86400) {
                 value = Math.round(ttl / 86400);
                 unit = "days"
             } else {
