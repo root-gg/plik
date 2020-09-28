@@ -1,0 +1,29 @@
+Plik 1.3
+
+    Hi, today we're releasing Plik 1.3 !
+
+    Here is the changelog :
+
+    New
+        - Add --info to cli client to display server configuration
+
+    Fixed
+        - Fix common.AskConfirmation handling of no input
+        - Fix missing unit in frontend menu when default TTL equals 86400s
+        - Fix missing downloadDomain in bash script if not given in plikd.cfg
+        - Fix missing focus and submit in login form
+        - Fix bypass ~/.plikrc creation if --server cli param is provided
+
+    Removed
+        - darwin-386 target ( https://github.com/golang/go/issues/37610 )
+
+    Misc
+        - Improved cross-compilation in Makefile
+        - Cross-compiled docker images
+        - Pass build info using ldflags
+        - EnhancedWebSecurity configuration parameter removes sensible information form /version API endpoint
+
+    Binaries are compiled using Go v1.15.2
+
+Faithfully,
+The Plik team

@@ -27,16 +27,16 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
    - [Filelink for Plik](https://gitlab.com/joendres/filelink-plik) : Thunderbird Addon to upload attachments to Plik
 
 ### Version
-1.3-RC1
+1.3
 
 ### Installation
 
 ##### From release
 To run plik, it's very simple :
 ```sh
-$ wget https://github.com/root-gg/plik/releases/download/1.3-RC1/plik-1.3-RC1-linux-64bits.tar.gz
-$ tar xzvf plik-1.3-RC1-linux-64bits.tar.gz
-$ cd plik-1.3-RC1/server
+$ wget https://github.com/root-gg/plik/releases/download/1.3/plik-1.3-linux-64bits.tar.gz
+$ tar xzvf plik-1.3-linux-64bits.tar.gz
+$ cd plik-1.3/server
 $ ./plikd
 ```
 Et voilà ! You now have a fully functional instance of Plik running on http://127.0.0.1:8080.  

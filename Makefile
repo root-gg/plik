@@ -2,7 +2,7 @@ SHELL = /bin/bash
 
 RELEASE_VERSION = $(shell version/version.sh)
 RELEASE_DIR = "release/plik-$(RELEASE_VERSION)"
-RELEASE_TARGETS = darwin-386 darwin-amd64 freebsd-386 \
+RELEASE_TARGETS = darwin-amd64 freebsd-386 \
 freebsd-amd64 linux-386 linux-amd64 linux-arm openbsd-386 \
 openbsd-amd64 windows-amd64 windows-386
 

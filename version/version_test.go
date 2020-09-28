@@ -8,7 +8,7 @@ import (
 )
 
 func getVersionRegex() string {
-	return `^\d+\.\d+((\.\d+)|(\-RC\d+))$`
+	return `^\d+\.\d+((\.\d+)?|(\-RC\d+))$`
 }
 
 func validateVersion(t *testing.T, version string, ok bool) {
@@ -23,6 +23,7 @@ func validateVersion(t *testing.T, version string, ok bool) {
 }
 
 func TestValidateVersionRegex(t *testing.T) {
+	validateVersion(t, "1.1", true)
 	validateVersion(t, "1.1.1", true)
 	validateVersion(t, "1.1-RC1", true)
 	validateVersion(t, "1.1.1-RC1", false)
