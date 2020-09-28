@@ -25,8 +25,16 @@ WORKDIR /go/src/github.com/root-gg/plik
 # Add the source code ( see .dockerignore )
 ADD . .
 
-# Build everything
+# Build clients ( all arch )
 RUN make clients
+
+# Set server target arch
+ARG GOOS=""
+ARG GOARCH=""
+ENV GOOS=${GOOS}
+ENV GOARCH=${GOARCH}
+
+# Build server
 RUN make server
 
 ##################################################################################

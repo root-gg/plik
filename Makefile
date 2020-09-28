@@ -1,25 +1,25 @@
 SHELL = /bin/bash
 
-RELEASE_VERSION=$(shell version/version.sh)
-RELEASE_DIR="release/plik-$(RELEASE_VERSION)"
-RELEASE_TARGETS=darwin-386 darwin-amd64 freebsd-386 \
+RELEASE_VERSION = $(shell version/version.sh)
+RELEASE_DIR = "release/plik-$(RELEASE_VERSION)"
+RELEASE_TARGETS = darwin-386 darwin-amd64 freebsd-386 \
 freebsd-amd64 linux-386 linux-amd64 linux-arm openbsd-386 \
 openbsd-amd64 windows-amd64 windows-386
 
-GOHOSTOS=$(shell go env GOHOSTOS)
-GOHOSTARCH=$(shell go env GOHOSTARCH)
+GOHOSTOS = $(if $(GOOS),$(GOOS),$(shell go env GOHOSTOS))
+GOHOSTARCH = $(if $(GOARCH),$(GOARCH),$(shell go env GOHOSTARCH))
 
-DEBROOT_SERVER=debs/server
-DEBROOT_CLIENT=debs/client
+DEBROOT_SERVER = debs/server
+DEBROOT_CLIENT = debs/client
 
-BUILD_INFO=$(shell server/gen_build_info.sh $(RELEASE_VERSION) base64)
-BUILD_FLAG=-ldflags="-X github.com/root-gg/plik/server/common.buildInfoString=$(BUILD_INFO)"
+BUILD_INFO = $(shell server/gen_build_info.sh $(RELEASE_VERSION) base64)
+BUILD_FLAG = -ldflags="-X github.com/root-gg/plik/server/common.buildInfoString=$(BUILD_INFO)"
 
-GO_BUILD=go build $(BUILD_FLAG)
-GO_TEST=GORACE="halt_on_error=1" go test $(BUILD_FLAG) -race -cover -p 1
+GO_BUILD = go build $(BUILD_FLAG)
+GO_TEST = GORACE="halt_on_error=1" go test $(BUILD_FLAG) -race -cover -p 1
 
 ifdef ENABLE_RACE_DETECTOR
-	GO_BUILD:=GORACE="halt_on_error=1" $(GO_BUILD) -race
+	GO_BUILD := GORACE="halt_on_error=1" $(GO_BUILD) -race
 endif
 
 all: clean clean-frontend frontend clients server
@@ -225,7 +225,18 @@ test-backends:
 # Build docker
 ###
 docker:
-	docker build -t rootgg/plik:$(RELEASE_VERSION) .
+	docker build --build-arg "GOOS=$$GOOS" --build-arg "GOARCH=$$GOARCH" -t rootgg/plik-$(GOHOSTOS)-$(GOHOSTARCH):$(RELEASE_VERSION) .
+
+###
+# Build dockers
+###
+dockers:
+	@for target in $(RELEASE_TARGETS) ; do \
+		GOOS=`echo $$target | cut -d "-" -f 1`; \
+		GOARCH=`echo $$target | cut -d "-" -f 2`; \
+		docker build --build-arg "GOOS=$$GOOS" --build-arg "GOARCH=$$GOARCH" -t rootgg/plik-$$target:$(RELEASE_VERSION) . ; \
+	done
+
 
 ###
 # Remove server build files

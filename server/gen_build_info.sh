@@ -37,7 +37,7 @@ if is_mint_repo; then
 fi
 
 if [[ "$output" == "info" ]]; then
-  echo "Plik $version with go $goVersion"
+  echo "Plik $version built with $goVersion"
   echo "Commit $full_rev mint=$isMint release=$isRelease"
   exit 0
 fi
@@ -114,7 +114,7 @@ EOF
 )
 
 if [[ "$output" == "base64" ]]; then
-  echo $json | base64 -w 0
+  echo $json | base64 | tr -d '\n'
 else
   echo $json
 fi

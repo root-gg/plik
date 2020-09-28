@@ -349,3 +349,17 @@ Please be sure to also run/update the test suite :
     make test
     make test-backends
 ```
+
+* Cross compilation
+
+To target a specific architecture :
+```
+    GOOS=linux GOARCH=arm make server
+    GOOS=linux GOARCH=arm make client
+    GOOS=linux GOARCH=arm make docker
+```
+
+The `make releases` target build a release package for each architecture specified in Makefile  
+The `make dockers` target build a docker image for each architecture specified in Makefile  
+The `make clients` target build the plik clients for each architecture specified in Makefile  
+The `make servers` target build the plik servers for each architecture specified in Makefile  
