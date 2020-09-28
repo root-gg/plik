@@ -21,6 +21,7 @@ type Config struct {
 	SecretAccessKey string
 	Bucket          string
 	Location        string
+	Prefix          string
 	PartSize        uint64
 	UseSSL          bool
 }
@@ -31,7 +32,7 @@ func NewConfig(params map[string]interface{}) (config *Config) {
 	config = new(Config)
 	config.Bucket = "plik"
 	config.Location = "us-east-1"
-	config.PartSize = 32 * 1024 * 1024 // 32MB
+	config.PartSize = 16 * 1000 * 1000 // 16MB
 	utils.Assign(config, params)
 	return
 }
@@ -53,7 +54,7 @@ func (config *Config) Validate() error {
 	if config.Location == "" {
 		return fmt.Errorf("missing location")
 	}
-	if config.PartSize < 5*1024*1024 {
+	if config.PartSize < 5*1000*1000 {
 		return fmt.Errorf("invalid part size")
 	}
 	return nil
@@ -100,24 +101,31 @@ func NewBackend(config *Config) (b *Backend, err error) {
 
 // GetFile implementation for S3 Data Backend
 func (b *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) {
-	return b.client.GetObject(b.config.Bucket, file.ID, minio.GetObjectOptions{})
+	return b.client.GetObject(b.config.Bucket, b.getObjectName(file.ID), minio.GetObjectOptions{})
 }
 
 // AddFile implementation for S3 Data Backend
 func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (backendDetails string, err error) {
 	if file.Size > 0 {
-		_, err = b.client.PutObject(b.config.Bucket, file.ID, fileReader, file.Size, minio.PutObjectOptions{ContentType: file.Type})
+		_, err = b.client.PutObject(b.config.Bucket, b.getObjectName(file.ID), fileReader, file.Size, minio.PutObjectOptions{ContentType: file.Type})
 	} else {
 		// https://github.com/minio/minio-go/issues/989
 		// Minio defaults to 128MB chunks and has to actually allocate a buffer of this size before uploading the chunk
 		// This can lead to very high memory usage when uploading a lot of small files in parallel
-		// We default to 32MB which allow to store files up to 320GB ( 10000 chunks of 32MB ), feel free to adjust this parameter to your needs.
-		_, err = b.client.PutObject(b.config.Bucket, file.ID, fileReader, -1, minio.PutObjectOptions{ContentType: file.Type, PartSize: b.config.PartSize})
+		// We default to 16MB which allow to store files up to 160GB ( 10000 chunks of 16MB ), feel free to adjust this parameter to your needs.
+		_, err = b.client.PutObject(b.config.Bucket, b.getObjectName(file.ID), fileReader, -1, minio.PutObjectOptions{ContentType: file.Type, PartSize: b.config.PartSize})
 	}
 	return "", err
 }
 
 // RemoveFile implementation for S3 Data Backend
 func (b *Backend) RemoveFile(file *common.File) (err error) {
-	return b.client.RemoveObject(b.config.Bucket, file.ID)
+	return b.client.RemoveObject(b.config.Bucket, b.getObjectName(file.ID))
+}
+
+func (b *Backend) getObjectName(name string) string {
+	if b.config.Prefix != "" {
+		return fmt.Sprintf("%s/%s", b.config.Prefix, name)
+	}
+	return name
 }
