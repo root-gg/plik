@@ -4,6 +4,8 @@
 [![GoDoc](https://godoc.org/github.com/root-gg/plik?status.svg)](https://godoc.org/github.com/root-gg/plik)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](http://opensource.org/licenses/MIT)
 
+Want to chat with us ? Telegram channel : https://t.me/plik_root_gg
+
 # Plik
 
 Plik is a scalable & friendly temporary file upload system ( wetransfer like ) in golang.
