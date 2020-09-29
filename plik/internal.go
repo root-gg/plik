@@ -315,7 +315,7 @@ func (c *Client) MakeRequest(req *http.Request) (resp *http.Response, err error)
 	// Make request
 	resp, err = c.HTTPClient.Do(req)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	if resp.StatusCode != 200 {

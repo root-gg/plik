@@ -9,7 +9,6 @@ webapp/dist
 clients
 client/client
 servers
-server/common/version.go
 release
 releases
 debs

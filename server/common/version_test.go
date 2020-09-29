@@ -1,6 +1,9 @@
 package common
 
 import (
+	"fmt"
+	"github.com/root-gg/plik/version"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -14,6 +17,15 @@ func TestGetBuildInfo(t *testing.T) {
 
 func TestGetBuildInfoString(t *testing.T) {
 	buildInfo := GetBuildInfo()
-	version := buildInfo.String()
-	require.NotZero(t, version, "invalid build string")
+	buildInfo.GitShortRevision = "foobar"
+	v := buildInfo.String()
+	require.NotZero(t, v, "empty build string")
+	require.True(t, strings.Contains(v, "foobar"), "invalid version string")
+}
+
+func TestGetBuildInfoStringSanitize(t *testing.T) {
+	buildInfo := GetBuildInfo()
+	buildInfo.Sanitize()
+	v := buildInfo.String()
+	require.Equal(t, fmt.Sprintf("v%s", version.Get()), v, "invalid build string")
 }

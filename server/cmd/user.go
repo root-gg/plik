@@ -279,7 +279,11 @@ func deleteUser(cmd *cobra.Command, args []string) {
 
 	// Ask confirmation
 	fmt.Printf("Do you really want to delete this user %s and all its uploads ? [y/N]\n", userID)
-	ok, _ := common.AskConfirmation(false)
+	ok, err := common.AskConfirmation(false)
+	if err != nil {
+		fmt.Printf("Unable to ask for confirmation : %s", err)
+		os.Exit(1)
+	}
 	if !ok {
 		os.Exit(0)
 	}

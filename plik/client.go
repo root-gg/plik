@@ -116,6 +116,35 @@ func (c *Client) GetServerVersion() (bi *common.BuildInfo, err error) {
 	return bi, nil
 }
 
+// GetServerConfig return the remote server configuration
+func (c *Client) GetServerConfig() (config *common.Configuration, err error) {
+	var req *http.Request
+	req, err = http.NewRequest("GET", c.URL+"/config", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.MakeRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = resp.Body.Close() }()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse json response
+	config = &common.Configuration{}
+	err = json.Unmarshal(body, config)
+	if err != nil {
+		return nil, err
+	}
+
+	return config, nil
+}
+
 // GetUpload fetch upload metadata from the server
 func (c *Client) GetUpload(id string) (upload *Upload, err error) {
 	return c.GetUploadProtectedByPassword(id, c.Login, c.Password)

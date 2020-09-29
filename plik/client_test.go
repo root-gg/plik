@@ -21,7 +21,21 @@ func TestGetServerVersion(t *testing.T) {
 
 	bi, err := pc.GetServerVersion()
 	require.NoError(t, err, "unable to get plik server version")
-	require.Equal(t, common.GetBuildInfo().Version, bi.Version, "unable to get plik server version")
+	require.Equal(t, common.GetBuildInfo().Version, bi.Version, "invalid plik server version")
+}
+
+func TestGetServerConfig(t *testing.T) {
+	ps, pc := newPlikServerAndClient()
+	defer shutdown(ps)
+
+	ps.GetConfig().DownloadDomain = "test test test"
+	err := start(ps)
+	require.NoError(t, err, "unable to start plik server")
+
+	config, err := pc.GetServerConfig()
+	require.NoError(t, err, "unable to get plik server config")
+	require.NotNil(t, config, "unable to get plik server config")
+	require.Equal(t, ps.GetConfig().DownloadDomain, config.DownloadDomain, "invalid config value")
 }
 
 func TestDefaultUploadParams(t *testing.T) {

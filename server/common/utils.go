@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/root-gg/utils"
 )
@@ -82,6 +83,9 @@ func AskConfirmation(defaultValue bool) (bool, error) {
 	var input string
 	_, err := fmt.Scanln(&input)
 	if err != nil {
+		if err.Error() == "unexpected newline" {
+			return defaultValue, nil
+		}
 		return false, err
 	}
 
@@ -92,4 +96,56 @@ func AskConfirmation(defaultValue bool) (bool, error) {
 	} else {
 		return defaultValue, nil
 	}
+}
+
+// HumanDuration displays duration with days and years
+func HumanDuration(d time.Duration) string {
+	var minus bool
+	if d < 0 {
+		minus = true
+		d = -d
+	}
+
+	years := d / (365 * 24 * time.Hour)
+	d = d % (365 * 24 * time.Hour)
+	days := d / (24 * time.Hour)
+	d = d % (24 * time.Hour)
+	hours := d / (time.Hour)
+	d = d % (time.Hour)
+	minutes := d / (time.Minute)
+	d = d % (time.Minute)
+	seconds := d / (time.Second)
+	d = d % (time.Second)
+
+	str := ""
+
+	if minus {
+		str += "-"
+	}
+
+	if years > 0 {
+		str += fmt.Sprintf("%dy", years)
+	}
+
+	if days > 0 {
+		str += fmt.Sprintf("%dd", days)
+	}
+
+	if hours > 0 {
+		str += fmt.Sprintf("%dh", hours)
+	}
+
+	if minutes > 0 {
+		str += fmt.Sprintf("%dm", minutes)
+	}
+
+	if seconds > 0 {
+		str += fmt.Sprintf("%ds", seconds)
+	}
+
+	if str == "" || d > 0 {
+		str += fmt.Sprintf("%s", d)
+	}
+
+	return str
 }

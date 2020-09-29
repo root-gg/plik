@@ -4,7 +4,6 @@ documentation
 release
 releases
 server/plikd
-server/common/version.go
 testing
 webapp/node_modules
 webapp/bower_components

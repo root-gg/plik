@@ -27,16 +27,16 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
    - [Filelink for Plik](https://gitlab.com/joendres/filelink-plik) : Thunderbird Addon to upload attachments to Plik
 
 ### Version
-1.3-RC1
+1.3
 
 ### Installation
 
 ##### From release
 To run plik, it's very simple :
 ```sh
-$ wget https://github.com/root-gg/plik/releases/download/1.3-RC1/plik-1.3-RC1-linux-64bits.tar.gz
-$ tar xzvf plik-1.3-RC1-linux-64bits.tar.gz
-$ cd plik-1.3-RC1/server
+$ wget https://github.com/root-gg/plik/releases/download/1.3/plik-1.3-linux-64bits.tar.gz
+$ tar xzvf plik-1.3-linux-64bits.tar.gz
+$ cd plik-1.3/server
 $ ./plikd
 ```
 Et voilà ! You now have a fully functional instance of Plik running on http://127.0.0.1:8080.  
@@ -63,7 +63,6 @@ To compile plik from sources, you'll need golang and npm installed on your syste
 First, get the project and libs via go get :
 ```sh
 $ go get github.com/root-gg/plik/server
-go/src/github.com/root-gg/plik/server/handlers/misc.go:51: undefined: common.GetBuildInfo <== ignore this warning
 $ cd $GOPATH/src/github.com/root-gg/plik/
 ```
 
@@ -350,3 +349,17 @@ Please be sure to also run/update the test suite :
     make test
     make test-backends
 ```
+
+* Cross compilation
+
+To target a specific architecture :
+```
+    GOOS=linux GOARCH=arm make server
+    GOOS=linux GOARCH=arm make client
+    GOOS=linux GOARCH=arm make docker
+```
+
+The `make releases` target build a release package for each architecture specified in Makefile  
+The `make dockers` target build a docker image for each architecture specified in Makefile  
+The `make clients` target build the plik clients for each architecture specified in Makefile  
+The `make servers` target build the plik servers for each architecture specified in Makefile  

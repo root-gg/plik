@@ -2,6 +2,11 @@
 plik.controller('LoginCtrl', ['$scope', '$api', '$config', '$location', '$dialog',
     function ($scope, $api, $config, $location, $dialog) {
 
+        // Ugly but it works
+        setTimeout(function () {
+            $("#login").focus();
+        }, 100);
+
         // Get server config
         $config.getConfig()
             .then(function (config) {

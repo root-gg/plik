@@ -1,7 +1,5 @@
 #!/bin/bash
 
-
-
 set -e
 
 FILE=$(dirname $0)/version.go
