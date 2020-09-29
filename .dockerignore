@@ -1,10 +1,8 @@
 client/plik
 clients
-documentation
 release
 releases
 server/plikd
-testing
 webapp/node_modules
 webapp/bower_components
 webapp/dist
@@ -12,5 +10,4 @@ webapp/dist
 **/plik.crt
 **/plik.key
 **/files
-**/*.md
 .idea

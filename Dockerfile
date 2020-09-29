@@ -13,7 +13,7 @@ RUN make frontend
 
 ##################################################################################
 # Builder 2: make server and clients
-FROM golang:1.14-alpine AS builder-go
+FROM golang:1.15.2-alpine AS builder-go
 
 # Install needed binaries
 RUN apk add --no-cache git make bash gcc g++
