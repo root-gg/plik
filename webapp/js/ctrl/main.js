@@ -269,7 +269,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         };
 
         // Remove the whole upload
-        // Remove a file from the server
+        // Remove a file from the servers
         $scope.removeUpload = function () {
             if (!$scope.upload.removable && !$scope.upload.admin) return;
 
@@ -294,18 +294,28 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Remove a file from the servers
         $scope.deleteFile = function (file) {
             if (!$scope.upload.removable && !$scope.upload.admin) return;
-            $api.removeFile($scope.upload, file)
-                .then(function () {
-                    $scope.files = _.reject($scope.files, function (f) {
-                        return f.metadata.id === file.metadata.id;
-                    });
-                    // Redirect to main page if no more files
-                    if (!$scope.files.length) {
-                        $scope.mainpage();
-                    }
-                })
-                .then(null, function (error) {
-                    $dialog.alert(error);
+
+            $dialog.alert({
+                title: "Really ?",
+                message: "This will remove 1 file from the server",
+                confirm: true
+            }).result.then(
+                function () {
+                    $api.removeFile($scope.upload, file)
+                        .then(function () {
+                            $scope.files = _.reject($scope.files, function (f) {
+                                return f.metadata.id === file.metadata.id;
+                            });
+                            // Redirect to main page if no more files
+                            if (!$scope.files.length) {
+                                $scope.mainpage();
+                            }
+                        })
+                        .then(null, function (error) {
+                            $dialog.alert(error);
+                        })
+                }, function () {
+                    // Avoid "Possibly unhandled rejection"
                 });
         };
 
