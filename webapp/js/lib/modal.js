@@ -31,6 +31,9 @@ angular.module('dialog', ['ui.bootstrap']).factory('$dialog', function ($uibModa
             controller: 'AlertDialogController',
             resolve: {
                 args: function () {
+                    if (!_.isObject(data)) {
+                        data = {message: data}
+                    }
                     return {
                         data: angular.copy(data)
                     };
