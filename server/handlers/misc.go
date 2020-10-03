@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/png"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/boombuler/barcode"
@@ -95,6 +96,28 @@ func checkDownloadDomain(ctx *context.Context) bool {
 	}
 
 	return true
+}
+
+func getRedirectURL(ctx *context.Context, callbackPath string) (redirectURL string, err error) {
+	req := ctx.GetReq()
+
+	referer := req.Header.Get("referer")
+	if referer == "" {
+		return "", common.NewHTTPError("missing referer header", nil, http.StatusBadRequest)
+	}
+
+	originURL, err := url.Parse(referer)
+	if err != nil {
+		return "", common.NewHTTPError("invalid referer header", nil, http.StatusBadRequest)
+	}
+
+	redirectURL = fmt.Sprintf("%s://%s", originURL.Scheme, originURL.Host)
+	if ctx.GetConfig().Path != "" {
+		redirectURL += ctx.GetConfig().Path
+	}
+	redirectURL += callbackPath
+
+	return redirectURL, nil
 }
 
 func handleHTTPError(ctx *context.Context, err error) {

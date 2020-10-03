@@ -181,3 +181,56 @@ func TestLogout(t *testing.T) {
 	Logout(ctx, rr, req)
 	context.TestOK(t, rr)
 }
+
+func TestGetRedirectionURL(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	req, err := http.NewRequest("GET", "/auth", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	ctx.SetReq(req)
+
+	// Without referer
+	redirectURL, err := getRedirectURL(ctx, "/callback")
+	require.Error(t, err, "missing no referrer error")
+
+	// With invalid referer
+	req.Header.Set("referer", ":::foo:::")
+	redirectURL, err = getRedirectURL(ctx, "/callback")
+	require.Error(t, err, "missing invalid referrer error")
+
+	// With trailing slash
+	req.Header.Set("referer", "https://plik.root.gg/")
+	redirectURL, err = getRedirectURL(ctx, "/callback")
+	require.NoError(t, err)
+	require.Equal(t, "https://plik.root.gg/callback", redirectURL)
+
+	// Without trailing slash
+	req.Header.Set("referer", "https://plik.root.gg")
+	redirectURL, err = getRedirectURL(ctx, "/callback")
+	require.NoError(t, err)
+	require.Equal(t, "https://plik.root.gg/callback", redirectURL)
+}
+
+func TestGetRedirectionURLWithPath(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	ctx.GetConfig().Path = "/path"
+
+	req, err := http.NewRequest("GET", "/logout", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	ctx.SetReq(req)
+
+	// With trailing slash
+	req.Header.Set("referer", "https://plik.root.gg/")
+	redirectURL, err := getRedirectURL(ctx, "/callback")
+	require.NoError(t, err)
+	require.Equal(t, "https://plik.root.gg/path/callback", redirectURL)
+
+	// Without trailing slash
+	req.Header.Set("referer", "https://plik.root.gg")
+	redirectURL, err = getRedirectURL(ctx, "/callback")
+	require.NoError(t, err)
+	require.Equal(t, "https://plik.root.gg/path/callback", redirectURL)
+}

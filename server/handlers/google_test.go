@@ -75,8 +75,7 @@ func TestGoogleLogin(t *testing.T) {
 	})
 	require.NoError(t, err, "invalid oauth2 state")
 
-	require.Equal(t, origin, state.Claims.(jwt.MapClaims)["origin"].(string), "invalid state origin")
-
+	require.Equal(t, origin+"/auth/google/callback", state.Claims.(jwt.MapClaims)["redirectURL"].(string), "invalid state origin")
 }
 
 func TestGoogleLoginAuthDisabled(t *testing.T) {
@@ -136,7 +135,7 @@ func TestGoogleCallback(t *testing.T) {
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
-	state.Claims.(jwt.MapClaims)["origin"] = "origin"
+	state.Claims.(jwt.MapClaims)["redirectURL"] = "https://plik.root.gg/auth/google/callback"
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
 
 	oauthToken := struct {
@@ -404,7 +403,7 @@ func TestGoogleCallbackMissingOrigin(t *testing.T) {
 	context.TestBadRequest(t, rr, "invalid oauth2 state")
 }
 
-func TestGoogleCallbackInvalidOrigin(t *testing.T) {
+func TestGoogleCallbackInvalidRedirectURL(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
 	ctx.GetConfig().Authentication = true
@@ -414,7 +413,7 @@ func TestGoogleCallbackInvalidOrigin(t *testing.T) {
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
-	state.Claims.(jwt.MapClaims)["origin"] = -1
+	state.Claims.(jwt.MapClaims)["redirectURL"] = -1
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
 
 	/* Sign state */
@@ -440,7 +439,7 @@ func TestGoogleCallbackNoApi(t *testing.T) {
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
-	state.Claims.(jwt.MapClaims)["origin"] = "origin"
+	state.Claims.(jwt.MapClaims)["redirectURL"] = "https://plik.root.gg/auth/google/callback"
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
 
 	/* Sign state */
@@ -467,7 +466,7 @@ func TestGoogleCallbackCreateUser(t *testing.T) {
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
-	state.Claims.(jwt.MapClaims)["origin"] = "origin"
+	state.Claims.(jwt.MapClaims)["redirectURL"] = "https://plik.root.gg/auth/google/callback"
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
 
 	oauthToken := struct {
@@ -561,7 +560,7 @@ func TestGoogleCallbackCreateUserNotWhitelisted(t *testing.T) {
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
-	state.Claims.(jwt.MapClaims)["origin"] = "origin"
+	state.Claims.(jwt.MapClaims)["redirectURL"] = "https://plik.root.gg/auth/google/callback"
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
 
 	oauthToken := struct {

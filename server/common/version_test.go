@@ -2,9 +2,10 @@ package common
 
 import (
 	"fmt"
-	"github.com/root-gg/plik/version"
 	"strings"
 	"testing"
+
+	"github.com/root-gg/plik/version"
 
 	"github.com/stretchr/testify/require"
 )
