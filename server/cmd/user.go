@@ -244,7 +244,7 @@ func listUsers(cmd *cobra.Command, args []string) {
 	initializeMetadataBackend()
 
 	f := func(user *common.User) error {
-		if userParams.provider == "" || user.Provider == userParams.provider {
+		if !cmd.Flag("provider").Changed || user.Provider == userParams.provider {
 			fmt.Println(user.String())
 		}
 		return nil
