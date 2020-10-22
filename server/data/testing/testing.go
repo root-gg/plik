@@ -48,26 +48,26 @@ func (b *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) {
 
 // AddFile implementation for testing data backend will creates a new file for the given upload
 // and save it on filesystem with the given file reader
-func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (backendDetails string, err error) {
+func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	if b.err != nil {
-		return "", b.err
+		return b.err
 	}
 
 	if _, ok := b.files[file.ID]; ok {
-		return "", errors.New("file exists")
+		return errors.New("file exists")
 	}
 
 	content, err := ioutil.ReadAll(fileReader)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	b.files[file.ID] = content
 
-	return "", nil
+	return nil
 }
 
 // RemoveFile implementation for testing data backend will delete the given

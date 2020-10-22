@@ -20,7 +20,7 @@ import (
 
 func createTestFile(ctx *context.Context, file *common.File, reader io.Reader) (err error) {
 	dataBackend := ctx.GetDataBackend()
-	_, err = dataBackend.AddFile(file, reader)
+	err = dataBackend.AddFile(file, reader)
 	return err
 }
 

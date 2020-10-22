@@ -24,6 +24,7 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
    - User authentication : Local / Google / OVH
    - Upload restriction : Source IP / Token
    - Administrator dashboard
+   - Server side encryption ( with S3 data backend )
    - [ShareX](https://getsharex.com/) Uploader : Directly integrated into ShareX
    - [plikSharp](https://github.com/iss0/plikSharp) : A .NET API client for Plik
    - [Filelink for Plik](https://gitlab.com/joendres/filelink-plik) : Thunderbird Addon to upload attachments to Plik
@@ -143,7 +144,7 @@ Store uploaded files in a local or mounted file system directory.
 
  - Openstack Swift databackend : http://docs.openstack.org/developer/swift/
 
-Openstack Swift is a highly available, distributed, eventually consistent object/blob store.
+Openstack Swift is a highly available, distributed, eventually consistent object/blob store which supports Server Side Encryption  
 
 ### Available metadata backends
 

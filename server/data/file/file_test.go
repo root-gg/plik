@@ -41,7 +41,7 @@ func TestAddFileInvalidUploadId(t *testing.T) {
 	upload := &common.Upload{}
 	file := upload.NewFile()
 
-	_, err := backend.AddFile(file, &bytes.Buffer{})
+	err := backend.AddFile(file, &bytes.Buffer{})
 	require.Error(t, err, "no error with invalid upload id")
 }
 
@@ -56,7 +56,7 @@ func TestAddFileImpossibleToCreateDirectory(t *testing.T) {
 	file := upload.NewFile()
 	upload.PrepareInsertForTests()
 
-	_, err := backend.AddFile(file, &bytes.Buffer{})
+	err := backend.AddFile(file, &bytes.Buffer{})
 	require.Error(t, err, "unable to create directory")
 }
 
@@ -69,7 +69,7 @@ func TestAddFileInvalidReader(t *testing.T) {
 	upload.PrepareInsertForTests()
 
 	reader := common.NewErrorReader(errors.New("io error"))
-	_, err := backend.AddFile(file, reader)
+	err := backend.AddFile(file, reader)
 	require.Error(t, err, "unable to create directory")
 	require.Contains(t, err.Error(), "io error", "invalid error")
 }
@@ -83,7 +83,7 @@ func TestAddFile(t *testing.T) {
 	upload.PrepareInsertForTests()
 
 	reader := bytes.NewBufferString("data")
-	_, err := backend.AddFile(file, reader)
+	err := backend.AddFile(file, reader)
 	require.NoError(t, err, "unable to add file")
 
 	_, path, err := backend.getPathCompat(file)
@@ -135,7 +135,7 @@ func TestGetFile(t *testing.T) {
 	upload.PrepareInsertForTests()
 
 	reader := bytes.NewBufferString("data")
-	_, err := backend.AddFile(file, reader)
+	err := backend.AddFile(file, reader)
 	require.NoError(t, err, "unable to add file")
 
 	fileReader, err := backend.GetFile(file)
@@ -215,7 +215,7 @@ func TestRemoveFile(t *testing.T) {
 	upload.PrepareInsertForTests()
 
 	reader := bytes.NewBufferString("data")
-	_, err := backend.AddFile(file, reader)
+	err := backend.AddFile(file, reader)
 	require.NoError(t, err, "unable to add file")
 
 	_, path, err := backend.getPathCompat(file)

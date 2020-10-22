@@ -21,6 +21,7 @@ function start {
         pull_docker_image
 
         echo -e "\n - Starting $DOCKER_NAME\n"
+
         docker run -d -p "$DOCKER_PORT:9000" \
             -e MINIO_ACCESS_KEY="access_key" \
             -e MINIO_SECRET_KEY="access_key_secret" \

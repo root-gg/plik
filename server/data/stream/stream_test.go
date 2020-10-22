@@ -23,9 +23,9 @@ func TestAddGetFile(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		details, err := backend.AddFile(file, bytes.NewBufferString("data"))
+		err := backend.AddFile(file, bytes.NewBufferString("data"))
 		require.NoError(t, err, "unable to add file")
-		require.NotNil(t, details, "invalid nil details")
+		require.NotNil(t, file.BackendDetails, "invalid nil details")
 		wg.Done()
 	}()
 

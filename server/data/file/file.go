@@ -61,32 +61,32 @@ func (b *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) {
 
 // AddFile implementation for file data backend will creates a new file for the given upload
 // and save it on filesystem with the given file reader
-func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (backendDetails string, err error) {
+func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (err error) {
 	dir, path, err := b.getPath(file)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	// Create directory
 	err = os.MkdirAll(dir, 0777)
 	if err != nil {
-		return "", fmt.Errorf("unable to create upload directory")
+		return fmt.Errorf("unable to create upload directory")
 	}
 
 	// Create file
 	out, err := os.Create(path)
 	if err != nil {
-		return "", fmt.Errorf("unable to create file %s : %s", path, err)
+		return fmt.Errorf("unable to create file %s : %s", path, err)
 	}
 
 	// Copy file data from the client request body
 	// to the file system
 	_, err = io.Copy(out, fileReader)
 	if err != nil {
-		return "", fmt.Errorf("unable to save file %s : %s", path, err)
+		return fmt.Errorf("unable to save file %s : %s", path, err)
 	}
 
-	return "", nil
+	return nil
 }
 
 // RemoveFile implementation for file data backend will delete the given

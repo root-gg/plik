@@ -45,7 +45,7 @@ func (b *Backend) GetFile(file *common.File) (stream io.ReadCloser, err error) {
 
 // AddFile implementation for steam data backend will creates a new steam for the given upload
 // and save it on filesystem with the given steam reader
-func (b *Backend) AddFile(file *common.File, stream io.Reader) (backendDetails string, err error) {
+func (b *Backend) AddFile(file *common.File, stream io.Reader) (err error) {
 	storeID := file.UploadID + "/" + file.ID
 
 	pipeReader, pipeWriter := io.Pipe()
@@ -61,7 +61,7 @@ func (b *Backend) AddFile(file *common.File, stream io.Reader) (backendDetails s
 	_, err = io.Copy(pipeWriter, stream)
 	_ = pipeWriter.Close()
 
-	return "", nil
+	return nil
 }
 
 // RemoveFile is not implemented

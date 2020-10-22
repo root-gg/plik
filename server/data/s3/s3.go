@@ -1,10 +1,12 @@
 package s3
 
 import (
+	"context"
 	"fmt"
 	"io"
 
-	"github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/root-gg/utils"
 
 	"github.com/root-gg/plik/server/common"
@@ -24,6 +26,7 @@ type Config struct {
 	Prefix          string
 	PartSize        uint64
 	UseSSL          bool
+	SSE             string
 }
 
 // NewConfig instantiate a new default configuration
@@ -60,6 +63,11 @@ func (config *Config) Validate() error {
 	return nil
 }
 
+// BackendDetails additional backend metadata
+type BackendDetails struct {
+	SSEKey string
+}
+
 // Backend object
 type Backend struct {
 	config *Config
@@ -77,20 +85,24 @@ func NewBackend(config *Config) (b *Backend, err error) {
 		return nil, fmt.Errorf("invalid s3 data backend config : %s", err)
 	}
 
-	b.client, err = minio.New(config.Endpoint, config.AccessKeyID, config.SecretAccessKey, config.UseSSL)
+	b.client, err = minio.New(config.Endpoint, &minio.Options{
+		Creds: credentials.NewStaticV4(config.AccessKeyID, config.SecretAccessKey, ""),
+		//Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
+		Secure: config.UseSSL,
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	// Check if bucket exists
-	exists, err := b.client.BucketExists(config.Bucket)
+	exists, err := b.client.BucketExists(context.TODO(), config.Bucket)
 	if err != nil {
 		return nil, fmt.Errorf("unable to check if bucket %s exists : %s", config.Bucket, err)
 	}
 
 	if !exists {
 		// Create bucket
-		err = b.client.MakeBucket(config.Bucket, config.Location)
+		err = b.client.MakeBucket(context.TODO(), config.Bucket, minio.MakeBucketOptions{Region: config.Location})
 		if err != nil {
 			return nil, fmt.Errorf("unable to create bucket %s : %s", config.Bucket, err)
 		}
@@ -101,26 +113,44 @@ func NewBackend(config *Config) (b *Backend, err error) {
 
 // GetFile implementation for S3 Data Backend
 func (b *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) {
-	return b.client.GetObject(b.config.Bucket, b.getObjectName(file.ID), minio.GetObjectOptions{})
+	getOpts := minio.GetObjectOptions{}
+
+	// Configure server side encryption
+	getOpts.ServerSideEncryption, err = b.getServerSideEncryption(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.client.GetObject(context.TODO(), b.config.Bucket, b.getObjectName(file.ID), getOpts)
 }
 
 // AddFile implementation for S3 Data Backend
-func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (backendDetails string, err error) {
+func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (err error) {
+	putOpts := minio.PutObjectOptions{ContentType: file.Type}
+
+	// Configure server side encryption
+	putOpts.ServerSideEncryption, err = b.getServerSideEncryption(file)
+	if err != nil {
+		return err
+	}
+
 	if file.Size > 0 {
-		_, err = b.client.PutObject(b.config.Bucket, b.getObjectName(file.ID), fileReader, file.Size, minio.PutObjectOptions{ContentType: file.Type})
+		_, err = b.client.PutObject(context.TODO(), b.config.Bucket, b.getObjectName(file.ID), fileReader, file.Size, putOpts)
 	} else {
 		// https://github.com/minio/minio-go/issues/989
 		// Minio defaults to 128MB chunks and has to actually allocate a buffer of this size before uploading the chunk
 		// This can lead to very high memory usage when uploading a lot of small files in parallel
 		// We default to 16MB which allow to store files up to 160GB ( 10000 chunks of 16MB ), feel free to adjust this parameter to your needs.
-		_, err = b.client.PutObject(b.config.Bucket, b.getObjectName(file.ID), fileReader, -1, minio.PutObjectOptions{ContentType: file.Type, PartSize: b.config.PartSize})
+		putOpts.PartSize = b.config.PartSize
+
+		_, err = b.client.PutObject(context.TODO(), b.config.Bucket, b.getObjectName(file.ID), fileReader, -1, putOpts)
 	}
-	return "", err
+	return err
 }
 
 // RemoveFile implementation for S3 Data Backend
 func (b *Backend) RemoveFile(file *common.File) (err error) {
-	return b.client.RemoveObject(b.config.Bucket, b.getObjectName(file.ID))
+	return b.client.RemoveObject(context.TODO(), b.config.Bucket, b.getObjectName(file.ID), minio.RemoveObjectOptions{})
 }
 
 func (b *Backend) getObjectName(name string) string {
