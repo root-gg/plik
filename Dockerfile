@@ -1,6 +1,5 @@
 ##################################################################################
-# Builder 1: make frontend
-FROM node:12.15-alpine AS builder-frontend
+FROM node:12.15-alpine AS plik-frontend-builder
 
 # Install needed binaries
 RUN apk add --no-cache git make bash
@@ -9,14 +8,16 @@ RUN apk add --no-cache git make bash
 ADD Makefile .
 ADD webapp /webapp
 
-RUN make frontend
+##################################################################################
+FROM plik-frontend-builder AS plik-frontend
+
+RUN make clean-frontend frontend
 
 ##################################################################################
-# Builder 2: make server and clients
-FROM golang:1.15.2-alpine AS builder-go
+FROM golang:1.15.2-buster AS plik-builder
 
 # Install needed binaries
-RUN apk add --no-cache git make bash gcc g++
+RUN apt-get update && apt-get install -y build-essential crossbuild-essential-armhf crossbuild-essential-armel crossbuild-essential-arm64 crossbuild-essential-i386
 
 # Prepare the source location
 RUN mkdir -p /go/src/github.com/root-gg/plik
@@ -25,23 +26,23 @@ WORKDIR /go/src/github.com/root-gg/plik
 # Add the source code ( see .dockerignore )
 ADD . .
 
-# Build clients ( all arch )
-RUN make clients
-
-# Set server target arch
-ARG GOOS=""
-ARG GOARCH=""
-ENV GOOS=${GOOS}
-ENV GOARCH=${GOARCH}
-
-# Build server
-RUN make server
+# Copy webapp build from previous stage
+COPY --from=plik-frontend /webapp/dist webapp/dist
 
 ##################################################################################
-# Builder 3: we need ca-certificates in the final container
-FROM alpine:3.11 AS builder-env
+FROM plik-builder AS plik-releases
 
-# Install needed binaries
+ARG CLIENT_TARGETS=""
+ENV CLIENT_TARGETS=$CLIENT_TARGETS
+
+ARG TARGETS=""
+ENV TARGETS=$TARGETS
+
+RUN releaser/releaser.sh
+
+##################################################################################
+FROM alpine:3.12 AS plik-base
+
 RUN apk add --no-cache ca-certificates
 
 # Create plik user
@@ -57,14 +58,27 @@ RUN adduser \
     --uid "${UID}" \
     "${USER}"
 
-COPY --from=builder-frontend --chown=1000:1000 /webapp/dist /home/plik/webapp/dist
-
-COPY --from=builder-go --chown=1000:1000 /go/src/github.com/root-gg/plik/server/plikd /home/plik/server/plikd
-COPY --from=builder-go --chown=1000:1000 /go/src/github.com/root-gg/plik/server/plikd.cfg /home/plik/server/plikd.cfg
-COPY --from=builder-go --chown=1000:1000 /go/src/github.com/root-gg/plik/clients /home/plik/clients
-COPY --from=builder-go --chown=1000:1000 /go/src/github.com/root-gg/plik/changelog /home/plik/changelog
-
 EXPOSE 8080
 USER plik
 WORKDIR /home/plik/server
 CMD ./plikd
+
+##################################################################################
+FROM plik-base AS plik-amd64
+
+COPY --from=plik-releases --chown=1000:1000 /go/src/github.com/root-gg/plik/releases/plik-*-linux-amd64 /home/plik/
+
+##################################################################################
+FROM plik-base AS plik-386
+
+COPY --from=plik-releases --chown=1000:1000 /go/src/github.com/root-gg/plik/releases/plik-*-linux-386 /home/plik/
+
+##################################################################################
+FROM plik-base AS plik-arm
+
+COPY --from=plik-releases --chown=1000:1000 /go/src/github.com/root-gg/plik/releases/plik-*-linux-arm /home/plik/
+
+##################################################################################
+FROM plik-base AS plik-arm64
+
+COPY --from=plik-releases --chown=1000:1000 /go/src/github.com/root-gg/plik/releases/plik-*-linux-arm64 /home/plik/

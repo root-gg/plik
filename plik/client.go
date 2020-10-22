@@ -9,7 +9,6 @@ import (
 	"runtime"
 
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/plik/version"
 )
 
 // Client manage the process of communicating with a Plik server via the HTTP API
@@ -35,7 +34,7 @@ func NewClient(url string) (c *Client) {
 
 	// Default values for X-ClientApp and X-ClientVersion HTTP Headers
 	c.ClientName = "plik_client"
-	c.ClientVersion = runtime.GOOS + "-" + runtime.GOARCH + "-" + version.Get()
+	c.ClientVersion = runtime.GOOS + "-" + runtime.GOARCH + "-" + common.GetVersion()
 
 	// Create a new default HTTP client. Override it if may you have more specific requirements
 	transport := &http.Transport{

@@ -3,8 +3,24 @@
 set -e
 
 # arguments
-version=$1
-output=$2
+output=$1
+
+FILE="$(dirname "$0")/common/version.go"
+if [[ ! -f "$FILE" ]]; then
+    echo "$FILE not found"
+    exit 1
+fi
+
+version=$(cat "$FILE" | sed -n 's/^const version = "\(.*\)"/\1/p')
+if [[ -z "$version" ]]; then
+    echo "version not found"
+    exit 1
+fi
+
+if [[ "$output" == "version" ]]; then
+  echo "$version"
+  exit 0
+fi
 
 # some variables
 user=$(whoami)

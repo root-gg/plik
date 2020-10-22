@@ -1,8 +1,0 @@
-Package: plik
-Version: ##VERSION##
-Section: base
-Priority: optional
-Architecture: ##ARCH##
-Homepage: https://github.com/root-gg/plik
-Maintainer: Mathieu Bodjikian <mathieu@bodjikian.fr>, Charles-Antoine Mathieu <skatkatt@root.gg>
-Description: Plik is the cli client for plik project (a multi-backend uploading file system)

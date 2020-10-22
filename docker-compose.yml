@@ -1,0 +1,84 @@
+version: '3.4'
+
+x-plik-frontend-builder:
+  &build-plik-frontend-builder
+  build:
+    context: .
+    target: plik-frontend-builder
+  image: rootgg/plik-frontend-builder:latest
+
+x-plik-builder:
+  &build-plik-builder
+  build:
+    context: .
+    target: plik-builder
+  image: rootgg/plik-builder:latest
+
+x-plik-releases:
+  &build-plik-release
+  build:
+    context: .
+    target: plik-releases
+  image: rootgg/plik-release:latest
+
+x-plik-amd64:
+  &build-plik-amd64
+  build:
+    context: .
+    target: plik-amd64
+  image: rootgg/plik-linux-amd64:latest
+
+x-plik-386:
+  &build-plik-386
+  build:
+    context: .
+    target: plik-386
+  image: rootgg/plik-linux-386:latest
+
+x-plik-arm:
+  &build-plik-arm
+  build:
+    context: .
+    target: plik-arm
+  image: rootgg/plik-linux-arm:latest
+
+x-plik-arm64:
+  &build-plik-arm64
+  build:
+    context: .
+    target: plik-arm64
+  image: rootgg/plik-linux-arm64:latest
+
+services:
+  plik-frontend-builder:
+    *build-plik-frontend-builder
+  plik-builder:
+    *build-plik-builder
+  plik-releases:
+    *build-plik-release
+  plik-linux-amd64-latest:
+    *build-plik-amd64
+  plik-linux-amd64-version:
+    <<: *build-plik-amd64
+    image: rootgg/plik-linux-amd64:${plik_release_version}
+  plik-linux-amd64-latest-short:
+    <<: *build-plik-amd64
+    image: rootgg/plik:latest
+  plik-linux-amd64-latest-short-version:
+    <<: *build-plik-amd64
+    image: rootgg/plik:${plik_release_version}
+  plik-linux-386-latest:
+    *build-plik-386
+  plik-linux-386-version:
+    <<: *build-plik-386
+    image: rootgg/plik-linux-386:${plik_release_version}
+  plik-linux-arm-latest:
+    *build-plik-arm
+  plik-linux-arm-version:
+    <<: *build-plik-arm
+    image: rootgg/plik-linux-arm:${plik_release_version}
+  plik-linux-arm64-latest:
+    *build-plik-arm64
+  plik-linux-arm64-version:
+    <<: *build-plik-arm64
+    image: rootgg/plik-linux-arm64:${plik_release_version}
