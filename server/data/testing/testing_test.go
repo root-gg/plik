@@ -21,7 +21,7 @@ func TestAddFileError(t *testing.T) {
 	upload := &common.Upload{}
 	file := upload.NewFile()
 
-	_, err := backend.AddFile(file, &bytes.Buffer{})
+	err := backend.AddFile(file, &bytes.Buffer{})
 	require.Error(t, err, "missing error")
 	require.Equal(t, "error", err.Error(), "invalid error message")
 }
@@ -33,7 +33,7 @@ func TestAddFileReaderError(t *testing.T) {
 	file := upload.NewFile()
 	reader := common.NewErrorReader(errors.New("io error"))
 
-	_, err := backend.AddFile(file, reader)
+	err := backend.AddFile(file, reader)
 	require.Error(t, err, "missing error")
 	require.Equal(t, "io error", err.Error(), "invalid error message")
 }
@@ -43,7 +43,7 @@ func TestAddFile(t *testing.T) {
 	upload := &common.Upload{}
 	file := upload.NewFile()
 
-	_, err := backend.AddFile(file, &bytes.Buffer{})
+	err := backend.AddFile(file, &bytes.Buffer{})
 	require.NoError(t, err, "unable to add file")
 }
 
@@ -64,7 +64,7 @@ func TestGetFile(t *testing.T) {
 	upload := &common.Upload{}
 	file := upload.NewFile()
 
-	_, err := backend.AddFile(file, &bytes.Buffer{})
+	err := backend.AddFile(file, &bytes.Buffer{})
 	require.NoError(t, err, "unable to add file")
 
 	_, err = backend.GetFile(file)
@@ -89,7 +89,7 @@ func TestRemoveFile(t *testing.T) {
 	upload := &common.Upload{}
 	file := upload.NewFile()
 
-	_, err := backend.AddFile(file, &bytes.Buffer{})
+	err := backend.AddFile(file, &bytes.Buffer{})
 	require.NoError(t, err, "unable to add file")
 
 	_, err = backend.GetFile(file)

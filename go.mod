@@ -13,6 +13,7 @@ require (
 	github.com/fatih/color v1.9.0 // indirect
 	github.com/golang/protobuf v1.3.2-0.20190409050943-e91709a02e0e // indirect
 	github.com/golang/snappy v0.0.2-0.20190904063534-ff6b7dc882cf
+	github.com/google/uuid v1.1.2 // indirect
 	github.com/gorilla/mux v1.7.1
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334 // indirect
@@ -23,7 +24,7 @@ require (
 	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/mattn/go-runewidth v0.0.5-0.20181218000649-703b5e6b11ae // indirect
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
-	github.com/minio/minio-go/v6 v6.0.49
+	github.com/minio/minio-go/v7 v7.0.5
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/ncw/swift v1.0.48-0.20190410202254-753d2090bb62
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
@@ -33,13 +34,15 @@ require (
 	github.com/root-gg/utils v0.0.0-20151025161626-38f45ede2ce2
 	github.com/spf13/cobra v0.0.6-0.20200106181057-89c7ffb5129b
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/testify v1.3.1-0.20190311161405-34c6fa2dc709
+	github.com/stretchr/testify v1.4.0
 	go.opencensus.io v0.20.2 // indirect
-	golang.org/x/crypto v0.0.0-20191205180655-e7c4368fe9dd
+	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
+	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a
-	golang.org/x/text v0.3.1-0.20190410012825-f4905fbd45b6 // indirect
+	golang.org/x/sys v0.0.0-20201020230747-6e5568b54d1a // indirect
 	google.golang.org/api v0.3.3-0.20190418015003-33b7e862cd15
 	google.golang.org/appengine v1.5.0 // indirect
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
 	gopkg.in/gormigrate.v1 v1.6.0
+	gopkg.in/ini.v1 v1.62.0 // indirect
 )

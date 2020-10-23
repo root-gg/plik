@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/kardianos/osext"
+	"github.com/root-gg/utils"
 
 	"github.com/root-gg/plik/plik"
 	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 )
 
 func update(client *plik.Client, updateFlag bool) (err error) {

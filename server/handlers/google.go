@@ -32,16 +32,17 @@ func GoogleLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	origin := req.Header.Get("referer")
-	if origin == "" {
-		ctx.MissingParameter("referer header")
+	// Get redirection URL from the referrer header
+	redirectURL, err := getRedirectURL(ctx, "/auth/google/callback")
+	if err != nil {
+		handleHTTPError(ctx, err)
 		return
 	}
 
 	conf := &oauth2.Config{
 		ClientID:     config.GoogleAPIClientID,
 		ClientSecret: config.GoogleAPISecret,
-		RedirectURL:  origin + "auth/google/callback",
+		RedirectURL:  redirectURL,
 		Scopes: []string{
 			api_oauth2.UserinfoEmailScope,
 			api_oauth2.UserinfoProfileScope,
@@ -51,7 +52,7 @@ func GoogleLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
-	state.Claims.(jwt.MapClaims)["origin"] = origin
+	state.Claims.(jwt.MapClaims)["redirectURL"] = redirectURL
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
 
 	/* Sign state */
@@ -126,22 +127,22 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 		return
 	}
 
-	if _, ok := state.Claims.(jwt.MapClaims)["origin"]; !ok {
-		ctx.InvalidParameter("oauth2 state : missing origin")
+	if _, ok := state.Claims.(jwt.MapClaims)["redirectURL"]; !ok {
+		ctx.InvalidParameter("oauth2 state : missing redirectURL")
 		return
 	}
 
-	if _, ok := state.Claims.(jwt.MapClaims)["origin"].(string); !ok {
-		ctx.InvalidParameter("oauth2 state : invalid origin")
+	if _, ok := state.Claims.(jwt.MapClaims)["redirectURL"].(string); !ok {
+		ctx.InvalidParameter("oauth2 state : invalid redirectURL")
 		return
 	}
 
-	origin := state.Claims.(jwt.MapClaims)["origin"].(string)
+	redirectURL := state.Claims.(jwt.MapClaims)["redirectURL"].(string)
 
 	conf := &oauth2.Config{
 		ClientID:     config.GoogleAPIClientID,
 		ClientSecret: config.GoogleAPISecret,
-		RedirectURL:  origin + "auth/google/callback",
+		RedirectURL:  redirectURL,
 		Scopes: []string{
 			api_oauth2.UserinfoEmailScope,
 			api_oauth2.UserinfoProfileScope,

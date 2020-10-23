@@ -24,6 +24,7 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
    - User authentication : Local / Google / OVH
    - Upload restriction : Source IP / Token
    - Administrator dashboard
+   - Server side encryption ( with S3 data backend )
    - [ShareX](https://getsharex.com/) Uploader : Directly integrated into ShareX
    - [plikSharp](https://github.com/iss0/plikSharp) : A .NET API client for Plik
    - [Filelink for Plik](https://gitlab.com/joendres/filelink-plik) : Thunderbird Addon to upload attachments to Plik
@@ -143,7 +144,7 @@ Store uploaded files in a local or mounted file system directory.
 
  - Openstack Swift databackend : http://docs.openstack.org/developer/swift/
 
-Openstack Swift is a highly available, distributed, eventually consistent object/blob store.
+Openstack Swift is a highly available, distributed, eventually consistent object/blob store which supports Server Side Encryption  
 
 ### Available metadata backends
 
@@ -354,14 +355,25 @@ Please be sure to also run/update the test suite :
 
 * Cross compilation
 
-To target a specific architecture :
+All binary are now statically linked  
+Clients can be safely cross-compiled for all os/architectures as they do not rely on GCO (sqlite)
 ```
-    GOOS=linux GOARCH=arm make server
-    GOOS=linux GOARCH=arm make client
-    GOOS=linux GOARCH=arm make docker
+    GOOS=windows GOARCH=amd64 make client
 ```
 
-The `make releases` target build a release package for each architecture specified in Makefile  
-The `make dockers` target build a docker image for each architecture specified in Makefile  
-The `make clients` target build the plik clients for each architecture specified in Makefile  
-The `make servers` target build the plik servers for each architecture specified in Makefile  
+Servers rely on CGO/sqlite so we cross-compile it for Linux only using Docker.  
+The `make release` target will build a release package and Docker images for `amd64,i386,arm,arm64`
+
+If you want a more specific ARMv7 for hardware floating point build for example
+See : https://github.com/golang/go/wiki/GoArm
+```
+    make release
+    docker run -it rootgg/plik-builder:latest /bin/bash
+
+    GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc make server
+
+    file server/plikd
+    server/plikd: ELF 32-bit LSB executable, ARM, EABI5 version 1 (GNU/Linux), statically linked, for GNU/Linux 3.2.0, Go ...
+
+    Then either copy the binary from the docker or play with releaser/releaser.sh to generate a release archive
+```

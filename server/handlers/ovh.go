@@ -69,21 +69,20 @@ func OvhLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	origin := req.Header.Get("referer")
-	if origin == "" {
-		ctx.MissingParameter("referer header")
+	// Get redirection URL from the referrer header
+	redirectURL, err := getRedirectURL(ctx, "/auth/ovh/callback")
+	if err != nil {
+		handleHTTPError(ctx, err)
 		return
 	}
 
-	// Prepare request
-	redirectionURL := origin + "auth/ovh/callback"
-	ovhReqBody := "{\"accessRules\":[{\"method\":\"GET\",\"path\":\"/me\"}], \"redirection\":\"" + redirectionURL + "\"}"
+	// Prepare auth request
+	ovhReqBody := "{\"accessRules\":[{\"method\":\"GET\",\"path\":\"/me\"}], \"redirection\":\"" + redirectURL + "\"}"
+	u := fmt.Sprintf("%s/auth/credential", config.OvhAPIEndpoint)
 
-	url := fmt.Sprintf("%s/auth/credential", config.OvhAPIEndpoint)
-
-	ovhReq, err := http.NewRequest("POST", url, strings.NewReader(ovhReqBody))
+	ovhReq, err := http.NewRequest("POST", u, strings.NewReader(ovhReqBody))
 	if err != nil {
-		ctx.InvalidParameter("unable to create POST request to %s : %s", url, err)
+		ctx.InvalidParameter("unable to create POST request to %s : %s", u, err)
 	}
 	ovhReq.Header.Add("X-Ovh-Application", config.OvhAPIKey)
 	ovhReq.Header.Add("Content-type", "application/json")
@@ -92,20 +91,20 @@ func OvhLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 	client := &http.Client{}
 	ovhResp, err := client.Do(ovhReq)
 	if err != nil {
-		ctx.InternalServerError(fmt.Sprintf("error with OVH API %s", url), err)
+		ctx.InternalServerError(fmt.Sprintf("error with OVH API %s", u), err)
 		return
 	}
 	defer ovhResp.Body.Close()
 	ovhRespBody, err := decodeOVHResponse(ovhResp)
 	if err != nil {
-		ctx.InternalServerError(fmt.Sprintf("error with OVH API %s", url), err)
+		ctx.InternalServerError(fmt.Sprintf("error with OVH API %s", u), err)
 		return
 	}
 
 	var userConsentResponse ovhUserConsentResponse
 	err = json.Unmarshal(ovhRespBody, &userConsentResponse)
 	if err != nil {
-		ctx.InternalServerError(fmt.Sprintf("error with OVH API %s", url), err)
+		ctx.InternalServerError(fmt.Sprintf("error with OVH API %s", u), err)
 		return
 	}
 

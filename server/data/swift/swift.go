@@ -65,10 +65,10 @@ func (b *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) {
 }
 
 // AddFile implementation for Swift Data Backend
-func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (backendDetails string, err error) {
+func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (err error) {
 	err = b.auth()
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	objectID := objectID(file)
@@ -76,14 +76,14 @@ func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (backendDetai
 
 	_, err = io.Copy(object, fileReader)
 	if err != nil {
-		return "", err
+		return err
 	}
 	err = object.Close()
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	return backendDetails, nil
+	return nil
 }
 
 // RemoveFile implementation for Swift Data Backend

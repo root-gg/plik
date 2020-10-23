@@ -7,13 +7,8 @@ go:
 
 go_import_path: github.com/root-gg/plik
 
-before_install:
-  # Update node_js version : https://github.com/travis-ci/travis-ci/issues/7108
-  - rm -rf ~/.nvm && git clone https://github.com/creationix/nvm.git ~/.nvm && (cd ~/.nvm && git checkout `git describe --abbrev=0 --tags`) && source ~/.nvm/nvm.sh && nvm install stable
-  - npm install -g bower
-
 before_script:
-  - go get -u golang.org/x/lint/golint
+  - GO111MODULE=off go get -u golang.org/x/lint/golint
 
 script:
-  - make && make lint && make test && make test-backends && make docker
+  - make lint && make test && make test-backends && make release

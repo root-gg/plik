@@ -112,7 +112,7 @@ func TestClean(t *testing.T) {
 	err := ps.metadataBackend.CreateUpload(upload)
 	require.NoError(t, err, "unable to save upload")
 
-	_, err = ps.dataBackend.AddFile(file, bytes.NewBufferString("data data data"))
+	err = ps.dataBackend.AddFile(file, bytes.NewBufferString("data data data"))
 	require.NoError(t, err, "unable to save file")
 
 	ps.Clean()

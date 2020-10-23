@@ -117,7 +117,7 @@ func LoadConfig(opts docopt.Opts) (config *CliConfig, err error) {
 	config = NewUploadConfig()
 
 	// Bypass ~/.plikrc file creation if quiet mode and/or --server flag
-	if opts["--quiet"].(bool) || opts["--server"].(string) != "" {
+	if opts["--quiet"].(bool) || (opts["--server"] != nil && opts["--server"].(string) != "") {
 		return config, nil
 	}
 

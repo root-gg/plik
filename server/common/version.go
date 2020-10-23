@@ -8,13 +8,16 @@ import (
 	"time"
 
 	"github.com/jinzhu/copier"
-
-	"github.com/root-gg/plik/version"
 )
 
+const version = "1.3"
+
+// GetVersion return the current package version
+func GetVersion() string {
+	return version
+}
+
 // This variable content is meant to be passed the output of the gen_build_info.sh script at compile time using -ldflags
-// BUILD_INFO=$(shell server/gen_build_info.sh $(RELEASE_VERSION) base64)
-// BUILD_FLAG=-ldflags="-X github.com/root-gg/plik/server/common.buildInfoString=$(BUILD_INFO)"
 var buildInfoString string
 
 var buildInfo *BuildInfo
@@ -34,7 +37,7 @@ func init() {
 		}
 	}
 
-	buildInfo.Version = version.Get()
+	buildInfo.Version = GetVersion()
 }
 
 // BuildInfo export build related variables
