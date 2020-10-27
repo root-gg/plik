@@ -41,7 +41,7 @@ type Configuration struct {
 	UploadWhitelist []string `json:"-"`
 
 	Authentication       bool     `json:"authentication"`
-	NoAnonymousUploads   bool     `json:"-"`
+	NoAnonymousUploads   bool     `json:"noAnonymousUploads"`
 	OneShot              bool     `json:"oneShot"`
 	Removable            bool     `json:"removable"`
 	Stream               bool     `json:"stream"`

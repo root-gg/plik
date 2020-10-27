@@ -14,6 +14,17 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             .then(function (config) {
                 $scope.config = config;
                 $scope.setDefaultTTL();
+                if ( config.noAnonymousUploads ) {
+                    // Redirect to login page if user is not authenticated
+                    $config.getUser()
+                        .then(null, function (error) {
+                            if (error.status === 401 || error.status === 403) {
+                                $location.path('/login');
+                            } else {
+                                $dialog.alert(error);
+                            }
+                        });
+                }
             })
             .then(null, function (error) {
                 $dialog.alert(error);
