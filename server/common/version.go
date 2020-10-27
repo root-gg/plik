@@ -10,7 +10,7 @@ import (
 	"github.com/jinzhu/copier"
 )
 
-const version = "1.3"
+const version = "1.3.1"
 
 // GetVersion return the current package version
 func GetVersion() string {
