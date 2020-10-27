@@ -224,5 +224,12 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
             return filesize(size, {base: 2});
         };
 
+        // Redirect to main page
+        $scope.mainpage = function () {
+            $location.search({});
+            $location.hash("");
+            $location.path('/');
+        };
+
         loadUser($config.getUser());
     }]);
