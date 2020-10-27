@@ -48,7 +48,7 @@ do
 
   echo "################################################"
   echo "Building Plik client for $TARGET to $CLIENT_PATH"
-  make client
+  make --no-print-directory client
 
   mkdir -p "$CLIENT_DIR"
   cp client/plik "$CLIENT_PATH"
@@ -74,7 +74,7 @@ mkdir -p releases/archives
 function build_release {
     echo "#################################"
     echo "Building server for $GOOS $GOARCH"
-    make server
+    make --no-print-directory server
 
     RELEASE="plik-$RELEASE_VERSION-$GOOS-$GOARCH"
     RELEASE_DIR="releases/$RELEASE"
