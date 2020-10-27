@@ -14,6 +14,23 @@ func (b *Backend) CreateUser(user *common.User) (err error) {
 	return b.db.Create(user).Error
 }
 
+// CreateUserWithInvite create a new user in DB only if the invite provided can be found and deleted
+func (b *Backend) CreateUserWithInvite(user *common.User, invite *common.Invite) (err error) {
+	if invite == nil {
+		return b.CreateUser(user)
+	}
+	return b.db.Transaction(func(tx *gorm.DB) (err error) {
+		result := b.db.Delete(invite)
+		if result.Error != nil {
+			return fmt.Errorf("error deleting invite : %s", err)
+		}
+		if result.RowsAffected != 1 {
+			return fmt.Errorf("invite not found")
+		}
+		return b.db.Create(user).Error
+	})
+}
+
 // UpdateUser update user info in DB
 func (b *Backend) UpdateUser(user *common.User) (err error) {
 	result := b.db.Save(user)

@@ -69,6 +69,11 @@ func OvhLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	if config.OvhAPIKey == "" || config.OvhAPISecret == "" || config.OvhAPIEndpoint == "" {
+		ctx.InternalServerError("missing OVH API credentials", nil)
+		return
+	}
+
 	// Get redirection URL from the referrer header
 	redirectURL, err := getRedirectURL(ctx, "/auth/ovh/callback")
 	if err != nil {
@@ -112,6 +117,9 @@ func OvhLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 	session := jwt.New(jwt.SigningMethodHS256)
 	session.Claims.(jwt.MapClaims)["ovh-consumer-key"] = userConsentResponse.ConsumerKey
 	session.Claims.(jwt.MapClaims)["ovh-api-endpoint"] = config.OvhAPIEndpoint
+	if req.URL.Query().Get("invite") != "" {
+		session.Claims.(jwt.MapClaims)["invite"] = req.URL.Query().Get("invite")
+	}
 
 	sessionString, err := session.SignedString([]byte(config.OvhAPISecret))
 	if err != nil {
@@ -156,6 +164,11 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	if !config.OvhAuthentication {
+		ctx.BadRequest("OVH authentication is disabled")
+		return
+	}
+
 	if config.OvhAPIKey == "" || config.OvhAPISecret == "" || config.OvhAPIEndpoint == "" {
 		ctx.InternalServerError("missing OVH API credentials", nil)
 		return
@@ -169,7 +182,7 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	// Parse session cookie
-	ovhAuthCookie, err := jwt.Parse(ovhSessionCookie.Value, func(t *jwt.Token) (interface{}, error) {
+	session, err := jwt.Parse(ovhSessionCookie.Value, func(t *jwt.Token) (interface{}, error) {
 		// Verify signing algorithm
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected siging method : %v", t.Header["alg"])
@@ -182,23 +195,22 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	// Get OVH consumer key from session
-	ovhConsumerKey, ok := ovhAuthCookie.Claims.(jwt.MapClaims)["ovh-consumer-key"]
-	if !ok {
+	// Get OVH consumer key from session cookie
+	ovhConsumerKey := getClaim(session, "ovh-consumer-key")
+	if ovhConsumerKey == "" {
 		ctx.InvalidParameter("OVH session cookie : missing ovh-consumer-key")
-
 		return
 	}
 
-	// Get OVH API endpoint
-	endpoint, ok := ovhAuthCookie.Claims.(jwt.MapClaims)["ovh-api-endpoint"]
-	if !ok {
+	// Get OVH consumer key from session cookie
+	endpoint := getClaim(session, "ovh-api-endpoint")
+	if endpoint == "" {
 		ctx.InvalidParameter("OVH session cookie : missing ovh-api-endpoint")
 		return
 	}
 
 	// Prepare OVH API /me request
-	url := endpoint.(string) + "/me"
+	url := endpoint + "/me"
 	ovhReq, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		ctx.InternalServerError(fmt.Sprintf("error with OVH API %s", url), err)
@@ -208,13 +220,13 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	timestamp := time.Now().Unix()
 	ovhReq.Header.Add("X-Ovh-Application", config.OvhAPIKey)
 	ovhReq.Header.Add("X-Ovh-Timestamp", fmt.Sprintf("%d", timestamp))
-	ovhReq.Header.Add("X-Ovh-Consumer", ovhConsumerKey.(string))
+	ovhReq.Header.Add("X-Ovh-Consumer", ovhConsumerKey)
 
 	// Sign request
 	h := sha1.New()
 	h.Write([]byte(fmt.Sprintf("%s+%s+%s+%s+%s+%d",
 		config.OvhAPISecret,
-		ovhConsumerKey.(string),
+		ovhConsumerKey,
 		"GET",
 		url,
 		"",
@@ -244,40 +256,28 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	// Get user from metadata backend
-	user, err := ctx.GetMetadataBackend().GetUser(common.GetUserID(common.ProviderOVH, userInfo.Nichandle))
-	if err != nil {
-		ctx.InternalServerError("unable to get user from metadata backend", err)
+	// Create new user
+	user := common.NewUser(common.ProviderOVH, userInfo.Nichandle)
+	user.Login = userInfo.Nichandle
+	user.Name = userInfo.FirstName + " " + userInfo.LastName
+	user.Email = userInfo.Email
+
+	// Trust user info
+	user.Verified = true
+
+	// Get or create user
+	err = register(ctx, user, getClaim(session, "invite"))
+	if err != nil && err != errUserExists {
+		handleHTTPError(ctx, err)
 		return
 	}
 
-	if user == nil {
-		if ctx.IsWhitelisted() {
-			// Create new user
-			user = common.NewUser(common.ProviderOVH, userInfo.Nichandle)
-			user.Login = userInfo.Nichandle
-			user.Name = userInfo.FirstName + " " + userInfo.LastName
-			user.Email = userInfo.Email
-
-			// Save user to metadata backend
-			err = ctx.GetMetadataBackend().CreateUser(user)
-			if err != nil {
-				ctx.InternalServerError("unable to create user in metadata backend", err)
-				return
-			}
-		} else {
-			ctx.Forbidden("unable to create user from untrusted source IP address")
-			return
-		}
-	}
-
-	// Set Plik session cookie and xsrf cookie
-	sessionCookie, xsrfCookie, err := ctx.GetAuthenticator().GenAuthCookies(user)
+	// Authenticate the HTTP response with auth cookies
+	err = setCookies(ctx, resp)
 	if err != nil {
-		ctx.InternalServerError("unable to generate session cookies", err)
+		handleHTTPError(ctx, err)
+		return
 	}
-	http.SetCookie(resp, sessionCookie)
-	http.SetCookie(resp, xsrfCookie)
 
 	http.Redirect(resp, req, config.Path+"/#/login", http.StatusMovedPermanently)
 }

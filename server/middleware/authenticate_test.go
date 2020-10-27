@@ -21,7 +21,7 @@ func TestAuthenticateTokenNoUser(t *testing.T) {
 	req.Header.Set("X-PlikToken", "token")
 
 	rr := ctx.NewRecorder(req)
-	Authenticate(true)(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	Authenticate(true, false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	context.TestForbidden(t, rr, "invalid token")
 }
@@ -42,7 +42,7 @@ func TestAuthenticateToken(t *testing.T) {
 	req.Header.Set("X-PlikToken", token.Token)
 
 	rr := ctx.NewRecorder(req)
-	Authenticate(true)(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	Authenticate(true, false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
 
@@ -66,7 +66,7 @@ func TestAuthenticateInvalidSessionCookie(t *testing.T) {
 	req.AddCookie(cookie)
 
 	rr := ctx.NewRecorder(req)
-	Authenticate(false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	Authenticate(false, false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	context.TestForbidden(t, rr, "invalid session")
 }
@@ -87,7 +87,7 @@ func TestAuthenticateMissingXSRFHeader(t *testing.T) {
 	req.AddCookie(sessionCookie)
 
 	rr := ctx.NewRecorder(req)
-	Authenticate(false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	Authenticate(false, false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	context.TestForbidden(t, rr, "missing xsrf header")
 }
@@ -110,7 +110,7 @@ func TestAuthenticateInvalidXSRFHeader(t *testing.T) {
 	req.Header.Set("X-XSRFToken", "invalid_header_value")
 
 	rr := ctx.NewRecorder(req)
-	Authenticate(false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	Authenticate(false, false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	context.TestForbidden(t, rr, "invalid xsrf header")
 }
@@ -131,7 +131,7 @@ func TestAuthenticateNoUser(t *testing.T) {
 	req.AddCookie(sessionCookie)
 
 	rr := ctx.NewRecorder(req)
-	Authenticate(false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	Authenticate(false, false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
 	context.TestForbidden(t, rr, "invalid session : user does not exists")
 
 }
@@ -155,7 +155,7 @@ func TestAuthenticate(t *testing.T) {
 	req.AddCookie(sessionCookie)
 
 	rr := ctx.NewRecorder(req)
-	Authenticate(false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	Authenticate(false, false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
 	require.Equal(t, user.ID, ctx.GetUser().ID, "invalid user from context")
 }
@@ -179,8 +179,75 @@ func TestAuthenticateAdminUser(t *testing.T) {
 	req.AddCookie(sessionCookie)
 
 	rr := ctx.NewRecorder(req)
-	Authenticate(false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	Authenticate(false, false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
 	require.Equal(t, user.ID, ctx.GetUser().ID, "invalid user from context")
 	require.True(t, ctx.IsAdmin(), "context is not admin")
+}
+
+func TestAuthenticateUserVerified(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	ctx.GetConfig().Authentication = true
+	ctx.SetAuthenticator(&common.SessionAuthenticator{SignatureKey: "secret_key"})
+
+	user := common.NewUser(common.ProviderLocal, "user")
+	user.Verified = true
+	err := ctx.GetMetadataBackend().CreateUser(user)
+	require.NoError(t, err, "unable to save user")
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	// Generate session cookie
+	sessionCookie, _, err := ctx.GetAuthenticator().GenAuthCookies(user)
+	require.NoError(t, err, "unable to create new request")
+	req.AddCookie(sessionCookie)
+
+	rr := ctx.NewRecorder(req)
+	Authenticate(false, true)(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
+	require.Equal(t, user.ID, ctx.GetUser().ID, "invalid user from context")
+}
+
+func TestAuthenticateUserNotVerified(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	ctx.GetConfig().Authentication = true
+	ctx.SetAuthenticator(&common.SessionAuthenticator{SignatureKey: "secret_key"})
+
+	user := common.NewUser(common.ProviderLocal, "user")
+	err := ctx.GetMetadataBackend().CreateUser(user)
+	require.NoError(t, err, "unable to save user")
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	// Generate session cookie
+	sessionCookie, _, err := ctx.GetAuthenticator().GenAuthCookies(user)
+	require.NoError(t, err, "unable to create new request")
+	req.AddCookie(sessionCookie)
+
+	rr := ctx.NewRecorder(req)
+	Authenticate(false, true)(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	require.Equal(t, http.StatusForbidden, rr.Code, "invalid handler response status code")
+}
+
+func TestAuthenticateTokenNotVerified(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	ctx.GetConfig().Authentication = true
+
+	user := common.NewUser(common.ProviderLocal, "user")
+	token := user.NewToken()
+
+	err := ctx.GetMetadataBackend().CreateUser(user)
+	require.NoError(t, err, "unable to save user to impersonate : %s", err)
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	req.Header.Set("X-PlikToken", token.Token)
+
+	rr := ctx.NewRecorder(req)
+	Authenticate(true, true)(ctx, common.DummyHandler).ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusForbidden, rr.Code, "invalid handler response status code")
 }

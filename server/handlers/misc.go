@@ -83,13 +83,13 @@ func checkDownloadDomain(ctx *context.Context) bool {
 	req := ctx.GetReq()
 	resp := ctx.GetResp()
 
-	if config.GetDownloadDomain() != nil {
-		if req.Host != config.GetDownloadDomain().Host {
+	if config.HasDownloadURL() {
+		if req.Host != config.GetDownloadURL().Host {
 			downloadURL := fmt.Sprintf("%s://%s%s",
-				config.GetDownloadDomain().Scheme,
-				config.GetDownloadDomain().Host,
+				config.GetDownloadURL().Scheme,
+				config.GetDownloadURL().Host,
 				req.RequestURI)
-			log.Warningf("invalid download domain %s, expected %s", req.Host, config.GetDownloadDomain().Host)
+			log.Warningf("invalid download domain %s, expected %s", req.Host, config.GetDownloadURL().Host)
 			http.Redirect(resp, req, downloadURL, http.StatusMovedPermanently)
 			return false
 		}
@@ -122,7 +122,12 @@ func getRedirectURL(ctx *context.Context, callbackPath string) (redirectURL stri
 
 func handleHTTPError(ctx *context.Context, err error) {
 	if httpError, ok := err.(common.HTTPError); ok {
-		ctx.Fail(httpError.Message, httpError.Err, httpError.StatusCode)
+		if httpError.StatusCode == http.StatusInternalServerError {
+			// InternalServerError is a special case
+			ctx.InternalServerError(httpError.Message, httpError.Err)
+		} else {
+			ctx.Fail(httpError.Message, httpError.Err, httpError.StatusCode)
+		}
 	} else {
 		ctx.InternalServerError("unexpected error", err)
 	}

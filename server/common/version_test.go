@@ -3,8 +3,10 @@ package common
 import (
 	"fmt"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -47,9 +49,16 @@ func TestGetBuildInfo(t *testing.T) {
 func TestGetBuildInfoString(t *testing.T) {
 	buildInfo := GetBuildInfo()
 	buildInfo.GitShortRevision = "foobar"
+	buildInfo.IsRelease = true
+	buildInfo.IsMint = true
+	buildInfo.Date = time.Now().Unix()
+	buildInfo.GoVersion = runtime.Version()
 	v := buildInfo.String()
 	require.NotZero(t, v, "empty build string")
 	require.True(t, strings.Contains(v, "foobar"), "invalid version string")
+	require.True(t, strings.Contains(v, "mint"), "not mint")
+	require.True(t, strings.Contains(v, "release"), "not release")
+	require.True(t, strings.Contains(v, runtime.Version()), "not go version")
 }
 
 func TestGetBuildInfoStringSanitize(t *testing.T) {

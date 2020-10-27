@@ -30,7 +30,7 @@ func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	req.Body = http.MaxBytesReader(resp, req.Body, 1048576)
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		ctx.BadRequest(fmt.Sprintf("unable to read request body : %s", err))
+		ctx.BadRequest("unable to read request body : %s", err)
 		return
 	}
 
@@ -41,7 +41,7 @@ func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	if len(body) > 0 {
 		err = json.Unmarshal(body, token)
 		if err != nil {
-			ctx.BadRequest(fmt.Sprintf("unable to deserialize request body : %s", err))
+			ctx.BadRequest("unable to deserialize request body : %s", err)
 			return
 		}
 	}
@@ -102,4 +102,27 @@ func RevokeToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	}
 
 	_, _ = resp.Write([]byte("ok"))
+}
+
+// GetUserTokens return user tokens
+func GetUserTokens(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+
+	// Get user from context
+	user := ctx.GetUser()
+	if user == nil {
+		ctx.Unauthorized("missing user, please login first")
+		return
+	}
+
+	pagingQuery := ctx.GetPagingQuery()
+
+	// Get user tokens
+	tokens, cursor, err := ctx.GetMetadataBackend().GetTokens(user.ID, pagingQuery)
+	if err != nil {
+		ctx.InternalServerError("unable to get user tokens", err)
+		return
+	}
+
+	pagingResponse := common.NewPagingResponse(tokens, cursor)
+	common.WriteJSONResponse(resp, pagingResponse)
 }

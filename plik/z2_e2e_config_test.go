@@ -95,6 +95,8 @@ func TestAnonymousUploadDisabled(t *testing.T) {
 	require.NoError(t, err, "unable to start plik server")
 
 	user := common.NewUser("ovh", "id")
+	user.Verified = true
+
 	token := user.NewToken()
 	err = ps.GetMetadataBackend().CreateUser(user)
 	require.NoError(t, err, "unable to start plik server")

@@ -34,6 +34,34 @@ func TestBackend_CreateUser_Exist(t *testing.T) {
 	require.Error(t, err, "create user error")
 }
 
+func TestBackend_CreateUserWithInvite(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	err := b.CreateUserWithInvite(&common.User{ID: "user1"}, nil)
+	require.NoError(t, err, "create user error", err)
+	u1, err := b.GetUser("user1")
+	require.NoError(t, err)
+	require.NotNil(t, u1)
+
+	invite, err := common.NewInvite(nil, 0)
+	require.NoError(t, err)
+	err = b.CreateInvite(invite)
+	require.NoError(t, err)
+
+	err = b.CreateUserWithInvite(&common.User{ID: "user2"}, invite)
+	require.NoError(t, err, "create user error", err)
+	u2, err := b.GetUser("user2")
+	require.NoError(t, err)
+	require.NotNil(t, u2)
+
+	invite.ID = "foo"
+	err = b.CreateUserWithInvite(&common.User{ID: "user3"}, invite)
+	require.Error(t, err, "create user error", err)
+	u3, err := b.GetUser("user3")
+	require.NoError(t, err)
+	require.Nil(t, u3)
+}
+
 func TestBackend_UpdateUser(t *testing.T) {
 	b := newTestMetadataBackend()
 

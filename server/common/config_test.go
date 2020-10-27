@@ -4,6 +4,8 @@ import (
 	"net"
 	"testing"
 
+	"github.com/root-gg/logger"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -11,6 +13,19 @@ import (
 func TestNewConfig(t *testing.T) {
 	config := NewConfiguration()
 	require.NotNil(t, config, "invalid config")
+}
+
+// Test new configuration
+func TestNewLogger(t *testing.T) {
+	config := NewConfiguration()
+	log := config.NewLogger()
+	require.NotNil(t, log, "invalid logger")
+	require.Equal(t, logger.INFO, log.MinLevel, "invalid logger level")
+
+	config.Debug = true
+	log = config.NewLogger()
+	require.NotNil(t, log, "invalid logger")
+	require.Equal(t, logger.DEBUG, log.MinLevel, "invalid logger level")
 }
 
 // Test loading the default configuration
@@ -68,13 +83,31 @@ func TestInitializeConfigAuthentication(t *testing.T) {
 	require.NoError(t, err, "unable to initialize config")
 }
 
+func TestInitializeConfigDomain(t *testing.T) {
+	config := NewConfiguration()
+	config.Domain = "https://plik.root.gg"
+
+	err := config.Initialize()
+	require.NoError(t, err, "unable to initialize config")
+	require.Equal(t, config.Domain, config.GetServerURL().String(), "invalid server url")
+}
+
+func TestInitializeConfigInvalidDomain(t *testing.T) {
+	config := NewConfiguration()
+	config.Domain = ":/invalid"
+
+	err := config.Initialize()
+	require.Error(t, err, "able to initialize invalid config")
+}
+
 func TestInitializeConfigDownloadDomain(t *testing.T) {
 	config := NewConfiguration()
 	config.DownloadDomain = "https://dl.plik.root.gg"
 
 	err := config.Initialize()
 	require.NoError(t, err, "unable to initialize config")
-	require.Equal(t, config.DownloadDomain, config.GetDownloadDomain().String(), "invalid download domain")
+	require.True(t, config.HasDownloadURL(), "missing download url")
+	require.Equal(t, config.DownloadDomain, config.GetDownloadURL().String(), "invalid download domain")
 }
 
 func TestInitializeConfigInvalidDownloadDomain(t *testing.T) {
@@ -83,6 +116,36 @@ func TestInitializeConfigInvalidDownloadDomain(t *testing.T) {
 
 	err := config.Initialize()
 	require.Error(t, err, "able to initialize invalid config")
+}
+
+func TestInitializeConfigPathNoDomain(t *testing.T) {
+	config := NewConfiguration()
+	config.Path = "/plik"
+
+	err := config.Initialize()
+	require.NoError(t, err, "unable to initialize config")
+	require.Equal(t, config.Path, config.GetServerURL().Path, "invalid server url path")
+}
+
+func TestInitializeConfigPathWithDomain(t *testing.T) {
+	config := NewConfiguration()
+	config.Domain = "http://plik.root.gg"
+	config.DownloadDomain = "http://dl.plik.root.gg"
+	config.Path = "/plik"
+
+	err := config.Initialize()
+	require.NoError(t, err, "unable to initialize config")
+	require.Equal(t, config.Path, config.GetServerURL().Path, "invalid server url path")
+	require.Equal(t, config.Path, config.GetDownloadURL().Path, "invalid download domain url path")
+}
+
+func TestInitializeConfigPathFromDomain(t *testing.T) {
+	config := NewConfiguration()
+	config.Domain = "http://plik.root.gg/plik"
+
+	err := config.Initialize()
+	require.NoError(t, err, "unable to initialize config")
+	require.Equal(t, config.GetServerURL().Path, config.Path, "invalid path url")
 }
 
 func TestInitializeInvalidDefaultTTL(t *testing.T) {
@@ -114,5 +177,29 @@ func TestGetServerUrl(t *testing.T) {
 
 func TestString(t *testing.T) {
 	config := NewConfiguration()
+	require.NotEmpty(t, config.String())
+
+	config.Domain = "https://plik.root.gg"
+	config.DownloadDomain = "https://dlplik.root.gg"
+	config.DefaultTTL = 24 * 86400
+	config.MaxTTL = 365 * 86400
+	require.NotEmpty(t, config.String())
+
+	config.DefaultTTL = 0
+	config.MaxTTL = 0
+	require.NotEmpty(t, config.String())
+
+	config.OneShot = false
+	config.Removable = false
+	config.Stream = false
+	config.ProtectedByPassword = false
+	require.NotEmpty(t, config.String())
+
+	config.Authentication = true
+	require.NotEmpty(t, config.String())
+
+	config.GoogleAuthentication = true
+	config.OvhAuthentication = true
+	config.OvhAPIEndpoint = "https://api.ovh.com"
 	require.NotEmpty(t, config.String())
 }

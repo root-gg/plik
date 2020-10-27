@@ -64,6 +64,15 @@ func (ps *PlikServer) Clean() {
 	if err != nil {
 		log.Warning(err.Error())
 	}
+
+	// 4 - remove expired invites
+	deleted, err = ps.metadataBackend.DeleteExpiredInvites()
+	if deleted > 0 {
+		log.Infof("purged %d expired invites", deleted)
+	}
+	if err != nil {
+		log.Warning(err.Error())
+	}
 }
 
 // PurgeDeletedFiles delete "removed" files from the data backend

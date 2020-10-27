@@ -78,6 +78,11 @@ func WriteJSONResponse(resp http.ResponseWriter, obj interface{}) {
 	_, _ = resp.Write(json)
 }
 
+// WriteStringResponse write the string to the HTTP response body
+func WriteStringResponse(resp http.ResponseWriter, str string) {
+	_, _ = resp.Write([]byte(str))
+}
+
 // AskConfirmation from process input
 func AskConfirmation(defaultValue bool) (bool, error) {
 	var input string

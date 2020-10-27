@@ -163,7 +163,17 @@ func CheckHTTPServer(port int) (err error) {
 }
 
 // RequireError is a helper to test the error and it's message
-func RequireError(t *testing.T, err error, message string) {
-	require.Error(t, err, "missing error")
-	require.Contains(t, err.Error(), message, "invalid error")
+func RequireError(t *testing.T, err error, message string, details ...string) {
+	require.Error(t, err, details)
+	require.Contains(t, err.Error(), message, details)
+}
+
+// RequireHTTPError is a helper to test the error, and it's message
+func RequireHTTPError(t *testing.T, err error, status int, message string, details ...string) {
+	httpError, ok := err.(HTTPError)
+	require.True(t, ok, details)
+	require.Error(t, err, details)
+	require.Contains(t, err.Error(), message, details)
+	require.Equal(t, status, httpError.StatusCode, details)
+
 }

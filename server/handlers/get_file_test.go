@@ -55,6 +55,55 @@ func TestGetFile(t *testing.T) {
 	require.Equal(t, file.Type, rr.Header().Get("Content-Type"), "invalid response content type")
 	require.Equal(t, strconv.Itoa(int(file.Size)), rr.Header().Get("Content-Length"), "invalid response content length")
 
+	require.Empty(t, rr.Header().Get("X-Content-Type-Options"))
+	require.Empty(t, rr.Header().Get("X-XSS-Protection"))
+	require.Empty(t, rr.Header().Get("X-Frame-Options"))
+	require.Empty(t, rr.Header().Get("Content-Security-Policy"))
+
+	respBody, err := ioutil.ReadAll(rr.Body)
+	require.NoError(t, err, "unable to read response body")
+
+	require.Equal(t, data, string(respBody), "invalid file content")
+}
+
+func TestEnchancedWebSecurity(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	ctx.SetUploadAdmin(true)
+	ctx.GetConfig().EnhancedWebSecurity = true
+
+	data := "data"
+
+	upload := &common.Upload{}
+	file := upload.NewFile()
+	file.Name = "file"
+	file.Status = "uploaded"
+	file.Md5 = "12345"
+	file.Type = "type"
+	file.Size = int64(len(data))
+	createTestUpload(t, ctx, upload)
+
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte(data)))
+	require.NoError(t, err, "unable to create test file")
+
+	ctx.SetUpload(upload)
+	ctx.SetFile(file)
+
+	req, err := http.NewRequest("GET", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name+"?dl=1", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	GetFile(ctx, rr, req)
+	context.TestOK(t, rr)
+
+	require.Equal(t, file.Type, rr.Header().Get("Content-Type"), "invalid response content type")
+	require.Equal(t, strconv.Itoa(int(file.Size)), rr.Header().Get("Content-Length"), "invalid response content length")
+
+	require.NotEmpty(t, rr.Header().Get("X-Content-Type-Options"))
+	require.NotEmpty(t, rr.Header().Get("X-XSS-Protection"))
+	require.NotEmpty(t, rr.Header().Get("X-Frame-Options"))
+	require.NotEmpty(t, rr.Header().Get("Content-Security-Policy"))
+	require.Contains(t, rr.Header().Get("Content-Disposition"), "attachement")
+
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 

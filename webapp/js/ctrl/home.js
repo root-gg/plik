@@ -15,6 +15,19 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
             $scope.refreshUser();
         };
 
+        $scope.displayInvites = function () {
+            $scope.display = 'invites';
+            $scope.refreshUser();
+        };
+
+        $scope.displayInviteLink = function(invite) {
+            var url = window.location.origin + "/#/register?invite=" + invite.id;
+            if (invite.email) {
+                url += "&email=" + invite.email;
+            }
+            $dialog.alert(url);
+        };
+
         // Get server config
         $config.config
             .then(function (config) {
@@ -22,6 +35,7 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
                 if (!config.authentication) {
                     $location.path('/');
                 }
+                $scope.config = config;
             })
             .then(null, function (error) {
                 $dialog.alert(error);
@@ -30,18 +44,23 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
         // Handle user promise
         var loadUser = function (promise) {
             promise.then(function (user) {
+                if (!user.verified) {
+                    $location.path('/confirm');
+                    return;
+                }
                 $scope.user = user;
                 $scope.getUploads();
                 $scope.getTokens();
+                $scope.getInvites();
                 $scope.getUserStats();
             })
-                .then(null, function (error) {
-                    if (error.status === 401 || error.status === 403) {
-                        $location.path('/login');
-                    } else {
-                        $dialog.alert(error);
-                    }
-                });
+            .then(null, function (error) {
+                if (error.status === 401 || error.status === 403) {
+                    $location.path('/login');
+                } else {
+                    $dialog.alert(error);
+                }
+            });
         };
 
         // Refresh user
@@ -56,21 +75,21 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
         $scope.getUploads = function (more) {
             if (!more) {
                 $scope.uploads = [];
-                $scope.upload_cursor = undefined;
+                $scope.uploads_cursor = undefined;
             }
 
             // Get user uploads
-            $api.getUserUploads($scope.token, $scope.limit, $scope.upload_cursor)
+            $api.getUserUploads($scope.token, $scope.limit, $scope.uploads_cursor)
                 .then(function (result) {
                     $scope.uploads = $scope.uploads.concat(result.results);
-                    $scope.upload_cursor = result.after;
+                    $scope.uploads_cursor = result.after;
                 })
                 .then(null, function (error) {
                     $dialog.alert(error);
                 });
         };
 
-        // Get user upload list
+        // Get user tokens
         $scope.getTokens = function (more) {
             if (!more) {
                 $scope.tokens = [];
@@ -82,6 +101,24 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
                 .then(function (result) {
                     $scope.tokens = $scope.tokens.concat(result.results);
                     $scope.tokens_cursor = result.after;
+                })
+                .then(null, function (error) {
+                    $dialog.alert(error);
+                });
+        };
+
+        // Get user invites
+        $scope.getInvites = function (more) {
+            if (!more) {
+                $scope.invites = [];
+                $scope.invites_cursor = undefined;
+            }
+
+            // Get user uploads
+            $api.getUserInvites($scope.limit, $scope.invites_cursor)
+                .then(function (result) {
+                    $scope.invites = $scope.invites.concat(result.results);
+                    $scope.invites_cursor = result.after;
                 })
                 .then(null, function (error) {
                     $dialog.alert(error);
@@ -173,6 +210,38 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
                     // Avoid "Possibly unhandled rejection"
                 });
         };
+
+        // Generate a new invite
+        $scope.createInvite = function (email) {
+            $api.createInvite(email)
+                .then(function () {
+                    $scope.refreshUser();
+                })
+                .then(null, function (error) {
+                    $dialog.alert(error);
+                });
+        };
+
+        // Revoke a invite
+        $scope.revokeInvite = function (invite) {
+            $dialog.alert({
+                title: "Really ?",
+                message: "",
+                confirm: true
+            }).result.then(
+                function () {
+                    $api.revokeInvite(invite.id)
+                        .then(function () {
+                            $scope.refreshUser();
+                        })
+                        .then(null, function (error) {
+                            $dialog.alert(error);
+                        });
+                }, function () {
+                    // Avoid "Possibly unhandled rejection"
+                });
+        };
+
 
         // Log out
         $scope.logout = function () {

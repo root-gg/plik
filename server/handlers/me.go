@@ -21,29 +21,6 @@ func UserInfo(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 	common.WriteJSONResponse(resp, user)
 }
 
-// GetUserTokens return user tokens
-func GetUserTokens(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
-
-	// Get user from context
-	user := ctx.GetUser()
-	if user == nil {
-		ctx.Unauthorized("missing user, please login first")
-		return
-	}
-
-	pagingQuery := ctx.GetPagingQuery()
-
-	// Get user tokens
-	tokens, cursor, err := ctx.GetMetadataBackend().GetTokens(user.ID, pagingQuery)
-	if err != nil {
-		ctx.InternalServerError("unable to get user tokens", err)
-		return
-	}
-
-	pagingResponse := common.NewPagingResponse(tokens, cursor)
-	common.WriteJSONResponse(resp, pagingResponse)
-}
-
 // GetUserUploads get user uploads
 func GetUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 	user, token, err := getUserAndToken(ctx, req)

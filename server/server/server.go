@@ -216,13 +216,14 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	stdChain := context.NewChain(middleware.Context(ps.setupContext), middleware.SourceIP, middleware.Log)
 
 	// Get user from session cookie
-	authChain := stdChain.Append(middleware.Authenticate(false), middleware.Impersonate)
+	authChain := stdChain.Append(middleware.Authenticate(false, true), middleware.Impersonate)
+	weakAuthChain := stdChain.Append(middleware.Authenticate(false, false), middleware.Impersonate)
 
 	// Parse paging queries
 	pagingChain := authChain.Append(middleware.Paginate)
 
 	// Get user from session cookie or X-PlikToken header
-	tokenChain := stdChain.Append(middleware.Authenticate(true), middleware.Impersonate)
+	tokenChain := stdChain.Append(middleware.Authenticate(true, true), middleware.Impersonate)
 
 	// Redirect on error for webapp
 	stdChainWithRedirect := context.NewChain(middleware.RedirectOnFailure).AppendChain(stdChain)
@@ -233,35 +234,50 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	// HTTP Api routes configuration
 	router := mux.NewRouter()
 	router.Handle("/", tokenChain.Append(middleware.CreateUpload).Then(handlers.AddFile)).Methods("POST")
+
 	router.Handle("/config", stdChain.Then(handlers.GetConfiguration)).Methods("GET")
 	router.Handle("/version", stdChain.Then(handlers.GetVersion)).Methods("GET")
+	router.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
+
 	router.Handle("/upload", tokenChain.Then(handlers.CreateUpload)).Methods("POST")
 	router.Handle("/upload/{uploadID}", authChain.Append(middleware.Upload).Then(handlers.GetUpload)).Methods("GET")
 	router.Handle("/upload/{uploadID}", tokenChain.Append(middleware.Upload).Then(handlers.RemoveUpload)).Methods("DELETE")
+
 	router.Handle("/file/{uploadID}", tokenChain.Append(middleware.Upload).Then(handlers.AddFile)).Methods("POST")
 	router.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
 	router.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.RemoveFile)).Methods("DELETE")
 	router.Handle("/file/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
+
 	router.Handle("/stream/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
 	router.Handle("/stream/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
+
 	router.Handle("/archive/{uploadID}/{filename}", authChainWithRedirect.Append(middleware.Upload).Then(handlers.GetArchive)).Methods("HEAD", "GET")
-	router.Handle("/auth/google/login", authChain.Then(handlers.GoogleLogin)).Methods("GET")
+
+	router.Handle("/auth/google/login", stdChain.Then(handlers.GoogleLogin)).Methods("GET")
 	router.Handle("/auth/google/callback", stdChainWithRedirect.Then(handlers.GoogleCallback)).Methods("GET")
-	router.Handle("/auth/ovh/login", authChain.Then(handlers.OvhLogin)).Methods("GET")
+	router.Handle("/auth/ovh/login", stdChain.Then(handlers.OvhLogin)).Methods("GET")
 	router.Handle("/auth/ovh/callback", stdChainWithRedirect.Then(handlers.OvhCallback)).Methods("GET")
-	router.Handle("/auth/local/login", authChain.Then(handlers.LocalLogin)).Methods("POST")
+	router.Handle("/auth/local/login", stdChain.Then(handlers.LocalLogin)).Methods("POST")
+	router.Handle("/auth/local/register", stdChain.Then(handlers.Register)).Methods("POST")
+	router.Handle("/auth/local/confirm", weakAuthChain.Then(handlers.Confirm)).Methods("POST")
+	router.Handle("/auth/local/verify/{userID}/{code}", stdChainWithRedirect.Then(handlers.Verify)).Methods("GET")
 	router.Handle("/auth/logout", authChain.Then(handlers.Logout)).Methods("GET")
-	router.Handle("/me", authChain.Then(handlers.UserInfo)).Methods("GET")
+
+	router.Handle("/me", weakAuthChain.Then(handlers.UserInfo)).Methods("GET")
 	router.Handle("/me", authChain.Then(handlers.DeleteAccount)).Methods("DELETE")
 	router.Handle("/me/token", pagingChain.Then(handlers.GetUserTokens)).Methods("GET")
 	router.Handle("/me/token", authChain.Then(handlers.CreateToken)).Methods("POST")
 	router.Handle("/me/token/{token}", authChain.Then(handlers.RevokeToken)).Methods("DELETE")
+	router.Handle("/me/invite", pagingChain.Then(handlers.GetUserInvites)).Methods("GET")
+	router.Handle("/me/invite", authChain.Then(handlers.CreateInvite)).Methods("POST")
+	router.Handle("/me/invite/{invite}", authChain.Then(handlers.RevokeInvite)).Methods("DELETE")
+	//router.Handle("/me/invite/{invite}/email", authChain.Then(handlers.RevokeInvite)).Methods("POST")
 	router.Handle("/me/uploads", pagingChain.Then(handlers.GetUserUploads)).Methods("GET")
 	router.Handle("/me/uploads", authChain.Then(handlers.RemoveUserUploads)).Methods("DELETE")
 	router.Handle("/me/stats", authChain.Then(handlers.GetUserStatistics)).Methods("GET")
+
 	router.Handle("/stats", authChain.Then(handlers.GetServerStatistics)).Methods("GET")
 	router.Handle("/users", pagingChain.Then(handlers.GetUsers)).Methods("GET")
-	router.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
 
 	if !ps.config.NoWebInterface {
 

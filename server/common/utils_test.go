@@ -98,6 +98,19 @@ func TestWriteJSONResponse(t *testing.T) {
 	require.Equal(t, obj.Foo, obj2.Foo)
 }
 
+func TestWriteStringResponse(t *testing.T) {
+	str := "foo"
+
+	rr := httptest.NewRecorder()
+	WriteStringResponse(rr, str)
+
+	body, err := ioutil.ReadAll(rr.Body)
+	require.NoError(t, err)
+	require.NotNil(t, body)
+
+	require.Equal(t, str, string(body))
+}
+
 func TestHumanDuration(t *testing.T) {
 	require.Equal(t, "0s", HumanDuration(time.Duration(0)))
 	require.Equal(t, "10ms", HumanDuration(10*time.Millisecond))

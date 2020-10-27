@@ -57,13 +57,13 @@ func (ctx *Context) Unauthorized(message string, params ...interface{}) {
 // MissingParameter is a helper to generate http.BadRequest responses
 func (ctx *Context) MissingParameter(message string, params ...interface{}) {
 	message = fmt.Sprintf(message, params...)
-	ctx.BadRequest(fmt.Sprintf("missing %s", message))
+	ctx.BadRequest("missing %s", message)
 }
 
 // InvalidParameter is a helper to generate http.BadRequest responses
 func (ctx *Context) InvalidParameter(message string, params ...interface{}) {
 	message = fmt.Sprintf(message, params...)
-	ctx.BadRequest(fmt.Sprintf("invalid %s", message))
+	ctx.BadRequest("invalid %s", message)
 }
 
 // Recover is a helper to generate http.InternalServerError responses if a panic occurs

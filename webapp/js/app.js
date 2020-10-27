@@ -5,6 +5,8 @@ var plik = angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'conten
             .when('/', {controller: 'MainCtrl', templateUrl: 'partials/main.html', reloadOnSearch: false})
             .when('/clients', {controller: 'ClientListCtrl', templateUrl: 'partials/clients.html'})
             .when('/login', {controller: 'LoginCtrl', templateUrl: 'partials/login.html'})
+            .when('/register', {controller: 'RegisterCtrl', templateUrl: 'partials/register.html'})
+            .when('/confirm', {controller: 'ConfirmCtrl', templateUrl: 'partials/confirm.html'})
             .when('/home', {controller: 'HomeCtrl', templateUrl: 'partials/home.html'})
             .when('/admin', {controller: 'AdminCtrl', templateUrl: 'partials/admin.html'})
             .otherwise({redirectTo: '/'});

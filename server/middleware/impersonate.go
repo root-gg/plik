@@ -12,7 +12,6 @@ func Impersonate(ctx *context.Context, next http.Handler) http.Handler {
 		// Get user to impersonate from header
 		newUserID := req.Header.Get("X-Plik-Impersonate")
 		if newUserID != "" {
-
 			// Check authorization
 			if !ctx.IsAdmin() {
 				ctx.Forbidden("you need administrator privileges")

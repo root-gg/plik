@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -32,6 +31,11 @@ func GoogleLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	if config.GoogleAPIClientID == "" || config.GoogleAPISecret == "" {
+		ctx.InternalServerError("missing Google API credentials", nil)
+		return
+	}
+
 	// Get redirection URL from the referrer header
 	redirectURL, err := getRedirectURL(ctx, "/auth/google/callback")
 	if err != nil {
@@ -54,6 +58,9 @@ func GoogleLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	state := jwt.New(jwt.SigningMethodHS256)
 	state.Claims.(jwt.MapClaims)["redirectURL"] = redirectURL
 	state.Claims.(jwt.MapClaims)["expire"] = time.Now().Add(time.Minute * 5).Unix()
+	if req.URL.Query().Get("invite") != "" {
+		state.Claims.(jwt.MapClaims)["invite"] = req.URL.Query().Get("invite")
+	}
 
 	/* Sign state */
 	b64state, err := state.SignedString([]byte(config.GoogleAPISecret))
@@ -65,8 +72,7 @@ func GoogleLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	// Redirect user to Google's consent page to ask for permission
 	// for the scopes specified above.
 	url := conf.AuthCodeURL(b64state)
-
-	_, _ = resp.Write([]byte(url))
+	common.WriteStringResponse(resp, url)
 }
 
 // GoogleCallback authenticate google user.
@@ -127,17 +133,11 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 		return
 	}
 
-	if _, ok := state.Claims.(jwt.MapClaims)["redirectURL"]; !ok {
-		ctx.InvalidParameter("oauth2 state : missing redirectURL")
+	redirectURL := getClaim(state, "redirectURL")
+	if redirectURL == "" {
+		ctx.MissingParameter("redirectURL")
 		return
 	}
-
-	if _, ok := state.Claims.(jwt.MapClaims)["redirectURL"].(string); !ok {
-		ctx.InvalidParameter("oauth2 state : invalid redirectURL")
-		return
-	}
-
-	redirectURL := state.Claims.(jwt.MapClaims)["redirectURL"].(string)
 
 	conf := &oauth2.Config{
 		ClientID:     config.GoogleAPIClientID,
@@ -178,59 +178,28 @@ func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 		return
 	}
 
-	// Get user from metadata backend
-	user, err := ctx.GetMetadataBackend().GetUser(common.GetUserID(common.ProviderGoogle, userInfo.Email))
-	if err != nil {
-		ctx.InternalServerError("unable to get user from metadata backend", err)
+	// Create new user
+	user := common.NewUser(common.ProviderGoogle, userInfo.Email)
+	user.Login = userInfo.Email
+	user.Name = userInfo.Name
+	user.Email = userInfo.Email
+
+	// Trust user info
+	user.Verified = true
+
+	// Get or create user
+	err = register(ctx, user, getClaim(state, "invite"))
+	if err != nil && err != errUserExists {
+		handleHTTPError(ctx, err)
 		return
 	}
 
-	if user == nil {
-		if ctx.IsWhitelisted() {
-			// Create new user
-			user = common.NewUser(common.ProviderGoogle, userInfo.Email)
-			user.Login = userInfo.Email
-			user.Name = userInfo.Name
-			user.Email = userInfo.Email
-			components := strings.Split(user.Email, "@")
-
-			// Accepted user domain checking
-			goodDomain := false
-			if len(config.GoogleValidDomains) > 0 {
-				for _, validDomain := range config.GoogleValidDomains {
-					if strings.Compare(components[1], validDomain) == 0 {
-						goodDomain = true
-					}
-				}
-			} else {
-				goodDomain = true
-			}
-
-			if !goodDomain {
-				// User not from accepted google domains list
-				ctx.Forbidden("unauthorized domain name")
-				return
-			}
-
-			// Save user to metadata backend
-			err = ctx.GetMetadataBackend().CreateUser(user)
-			if err != nil {
-				ctx.InternalServerError("unable to create user : %s", err)
-				return
-			}
-		} else {
-			ctx.Forbidden("unable to create user from untrusted source IP address")
-			return
-		}
-	}
-
-	// Set Plik session cookie and xsrf cookie
-	sessionCookie, xsrfCookie, err := ctx.GetAuthenticator().GenAuthCookies(user)
+	// Authenticate the HTTP response with auth cookies
+	err = setCookies(ctx, resp)
 	if err != nil {
-		ctx.InternalServerError("unable to generate session cookies", err)
+		handleHTTPError(ctx, err)
+		return
 	}
-	http.SetCookie(resp, sessionCookie)
-	http.SetCookie(resp, xsrfCookie)
 
 	http.Redirect(resp, req, config.Path+"/#/login", http.StatusMovedPermanently)
 }

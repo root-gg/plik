@@ -13,15 +13,26 @@ import (
 	"github.com/root-gg/logger"
 )
 
+// RegistrationOpen user registration enabled
+const RegistrationOpen = "open"
+
+// RegistrationClosed user registration disabled
+const RegistrationClosed = "closed"
+
+// RegistrationInvite user registration requires an invite
+const RegistrationInvite = "invite"
+
 // Configuration object
 type Configuration struct {
 	Debug         bool   `json:"-"`
 	DebugRequests bool   `json:"-"`
 	LogLevel      string `json:"-"` // DEPRECATED since 1.3
 
-	ListenAddress string `json:"-"`
-	ListenPort    int    `json:"-"`
-	Path          string `json:"-"`
+	ListenAddress  string `json:"-"`
+	ListenPort     int    `json:"-"`
+	Domain         string `json:"domain"`
+	DownloadDomain string `json:"downloadDomain"`
+	Path           string `json:"-"`
 
 	MaxFileSize      int64 `json:"maxFileSize"`
 	MaxFilePerUpload int   `json:"maxFilePerUpload"`
@@ -33,23 +44,26 @@ type Configuration struct {
 	SslCert    string `json:"-"`
 	SslKey     string `json:"-"`
 
-	NoWebInterface      bool   `json:"-"`
-	DownloadDomain      string `json:"downloadDomain"`
-	EnhancedWebSecurity bool   `json:"-"`
+	NoWebInterface      bool `json:"-"`
+	EnhancedWebSecurity bool `json:"-"`
 
 	SourceIPHeader  string   `json:"-"`
 	UploadWhitelist []string `json:"-"`
 
+	OneShot             bool `json:"oneShot"`
+	Removable           bool `json:"removable"`
+	Stream              bool `json:"stream"`
+	ProtectedByPassword bool `json:"protectedByPassword"`
+
 	Authentication       bool     `json:"authentication"`
 	NoAnonymousUploads   bool     `json:"noAnonymousUploads"`
-	OneShot              bool     `json:"oneShot"`
-	Removable            bool     `json:"removable"`
-	Stream               bool     `json:"stream"`
-	ProtectedByPassword  bool     `json:"protectedByPassword"`
+	Registration         string   `json:"registration"`
+	EmailVerification    bool     `json:"-"`
+	EmailValidDomains    []string `json:"-"`
 	GoogleAuthentication bool     `json:"googleAuthentication"`
 	GoogleAPISecret      string   `json:"-"`
 	GoogleAPIClientID    string   `json:"-"`
-	GoogleValidDomains   []string `json:"-"`
+	GoogleValidDomains   []string `json:"-"` // Deprecated use email valid domains
 	OvhAuthentication    bool     `json:"ovhAuthentication"`
 	OvhAPIEndpoint       string   `json:"ovhApiEndpoint"`
 	OvhAPIKey            string   `json:"-"`
@@ -60,6 +74,7 @@ type Configuration struct {
 	DataBackend       string                 `json:"-"`
 	DataBackendConfig map[string]interface{} `json:"-"`
 
+	domainURL         *url.URL
 	downloadDomainURL *url.URL
 	uploadWhitelist   []*net.IPNet
 	clean             bool
@@ -85,6 +100,8 @@ func NewConfiguration() (config *Configuration) {
 	config.Removable = true
 	config.ProtectedByPassword = true
 
+	config.Registration = RegistrationClosed
+	config.EmailVerification = false
 	config.OvhAPIEndpoint = "https://eu.api.ovh.com/1.0"
 
 	config.DataBackend = "file"
@@ -120,8 +137,6 @@ func (config *Configuration) Initialize() (err error) {
 		config.DebugRequests = true
 	}
 
-	config.Path = strings.TrimSuffix(config.Path, "/")
-
 	// UploadWhitelist is only parsed once at startup time
 	for _, cidr := range config.UploadWhitelist {
 		if !strings.Contains(cidr, "/") {
@@ -150,6 +165,14 @@ func (config *Configuration) Initialize() (err error) {
 		config.NoAnonymousUploads = false
 		config.GoogleAuthentication = false
 		config.OvhAuthentication = false
+		config.EmailVerification = false
+		config.Registration = RegistrationClosed
+	}
+
+	if config.Domain != "" {
+		if config.domainURL, err = url.Parse(config.Domain); err != nil {
+			return fmt.Errorf("invalid domain URL %s : %s", config.Domain, err)
+		}
 	}
 
 	if config.DownloadDomain != "" {
@@ -158,6 +181,26 @@ func (config *Configuration) Initialize() (err error) {
 		if config.downloadDomainURL, err = url.Parse(config.DownloadDomain); err != nil {
 			return fmt.Errorf("invalid download domain URL %s : %s", config.DownloadDomain, err)
 		}
+	}
+
+	// Todo comment this
+	if config.Path != "" {
+		config.Path = strings.TrimSuffix(config.Path, "/")
+		if config.domainURL != nil {
+			config.domainURL.Path = config.Path
+		}
+		if config.downloadDomainURL != nil {
+			config.downloadDomainURL.Path = config.Path
+
+		}
+	} else {
+		if config.domainURL != nil {
+			config.Path = config.domainURL.Path
+		}
+	}
+
+	if config.Registration != RegistrationOpen && config.Registration != RegistrationInvite {
+		config.Registration = RegistrationClosed
 	}
 
 	if config.DefaultTTL > config.MaxTTL {
@@ -181,9 +224,17 @@ func (config *Configuration) GetUploadWhitelist() []*net.IPNet {
 	return config.uploadWhitelist
 }
 
-// GetDownloadDomain return the parsed download domain URL
-func (config *Configuration) GetDownloadDomain() *url.URL {
-	return config.downloadDomainURL
+// HasDownloadURL return true if a download domain url has been set
+func (config *Configuration) HasDownloadURL() bool {
+	return config.downloadDomainURL != nil
+}
+
+// GetDownloadURL return the parsed download domain URL
+func (config *Configuration) GetDownloadURL() *url.URL {
+	if config.downloadDomainURL != nil {
+		return config.downloadDomainURL
+	}
+	return config.GetServerURL()
 }
 
 // AutoClean enable or disables the periodical upload cleaning goroutine.
@@ -216,6 +267,10 @@ func (config *Configuration) IsWhitelisted(ip net.IP) bool {
 
 // GetServerURL is a helper to get the server HTTP URL
 func (config *Configuration) GetServerURL() *url.URL {
+	if config.domainURL != nil {
+		return config.domainURL
+	}
+
 	URL := &url.URL{}
 
 	if config.SslEnabled {
@@ -239,6 +294,10 @@ func (config *Configuration) GetServerURL() *url.URL {
 
 func (config *Configuration) String() string {
 	str := ""
+
+	if config.Domain != "" {
+		str += fmt.Sprintf("Domain : %s\n", config.DownloadDomain)
+	}
 	if config.DownloadDomain != "" {
 		str += fmt.Sprintf("Download domain : %s\n", config.DownloadDomain)
 	}
@@ -284,6 +343,7 @@ func (config *Configuration) String() string {
 
 	if config.Authentication {
 		str += fmt.Sprintf("Authentication : enabled\n")
+		str += fmt.Sprintf("User registration : %s\n", config.Registration)
 
 		if config.GoogleAuthentication {
 			str += fmt.Sprintf("Google authentication : enabled\n")

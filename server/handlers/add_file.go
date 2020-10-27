@@ -184,16 +184,8 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 
 	if ctx.IsQuick() {
 		// Print the file url in the response.
-		var url string
-		if ctx.GetConfig().GetDownloadDomain() != nil {
-			url = ctx.GetConfig().GetDownloadDomain().String()
-		} else {
-			url = ctx.GetConfig().GetServerURL().String()
-		}
-
-		url += fmt.Sprintf("/file/%s/%s/%s", upload.ID, file.ID, file.Name)
-
-		_, _ = resp.Write([]byte(url + "\n"))
+		url := fmt.Sprintf("%s/file/%s/%s/%s", ctx.GetConfig().GetDownloadURL().String(), upload.ID, file.ID, file.Name)
+		common.WriteStringResponse(resp, url+"\n")
 	} else {
 		common.WriteJSONResponse(resp, file)
 	}

@@ -29,6 +29,7 @@ func TestTokenAuthentication(t *testing.T) {
 	ps.GetConfig().NoAnonymousUploads = true
 
 	user := common.NewUser("ovh", "gg1-ovh")
+	user.Verified = true
 	t1 := user.NewToken()
 
 	err := start(ps)
@@ -64,6 +65,8 @@ func TestTokenMultipleToken(t *testing.T) {
 	require.NoError(t, err, "unable to start Plik server")
 
 	user := common.NewUser("ovh", "gg2-ovh")
+	user.Verified = true
+
 	t1 := user.NewToken()
 	t2 := user.NewToken()
 
@@ -125,6 +128,8 @@ func TestTokenMultipleTokenAdmin(t *testing.T) {
 	user := common.NewUser("ovh", "gg1-ovh")
 	user.ID = uid
 	user.IsAdmin = true
+	user.Verified = true
+
 	t1 := user.NewToken()
 	t2 := user.NewToken()
 

@@ -89,13 +89,25 @@ angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upl
     };
 
     // Log in
-    api.login = function (provider, login, password) {
+    api.login = function (provider, login, password, invite) {
         var url = api.base + '/auth/' + provider + '/login';
         if (provider === "local") {
-            return api.call(url, 'POST', {}, {login: login, password: password})
+            return api.call(url, 'POST', {}, {login: login, password: password});
         } else {
-            return api.call(url, 'GET');
+            return api.call(url, 'GET', {invite: invite});
         }
+    };
+
+    // Register
+    api.register = function (params) {
+        var url = api.base + '/auth/local/register';
+        return api.call(url, 'POST', {}, params);
+    };
+
+    // Resend confirmation email
+    api.resend = function () {
+        var url = api.base + '/auth/local/confirm';
+        return api.call(url, 'POST');
     };
 
     // Log out
@@ -110,13 +122,19 @@ angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upl
         return api.call(url, 'GET');
     };
 
-    // Get user statistics
+    // Get user tokens
     api.getUserTokens = function (limit, cursor) {
         var url = api.base + '/me/token';
         return api.call(url, 'GET', {limit: limit, after: cursor});
     };
 
-    // Get upload metadata
+    // Get user invites
+    api.getUserInvites = function (limit, cursor) {
+        var url = api.base + '/me/invite';
+        return api.call(url, 'GET', {limit: limit, after: cursor});
+    };
+
+    // Get user uploads
     api.getUserUploads = function (token, limit, cursor) {
         var url = api.base + '/me/uploads';
         return api.call(url, 'GET', {token: token, limit: limit, after: cursor});
@@ -149,6 +167,18 @@ angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upl
     // Revoke an upload token
     api.revokeToken = function (token) {
         var url = api.base + '/me/token/' + token;
+        return api.call(url, 'DELETE');
+    };
+
+    // Create a new upload invite
+    api.createInvite = function (email) {
+        var url = api.base + '/me/invite';
+        return api.call(url, 'POST', {}, {email: email});
+    };
+
+    // Revoke an upload invite
+    api.revokeInvite = function (invite) {
+        var url = api.base + '/me/invite/' + invite;
         return api.call(url, 'DELETE');
     };
 

@@ -25,8 +25,10 @@ func TestOVHLogin(t *testing.T) {
 	ctx.GetConfig().Authentication = true
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
+	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
+	ctx.GetConfig().OvhAPISecret = "ovh_api_secret"
 
-	req, err := http.NewRequest("GET", "/auth/ovh/login", bytes.NewBuffer([]byte{}))
+	req, err := http.NewRequest("GET", "/auth/ovh/login?invite=123-456-789", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
 	origin := "https://plik.root.gg"
@@ -93,6 +95,11 @@ func TestOVHLogin(t *testing.T) {
 	ovhAuthEndpoint, ok := ovhAuthCookie.Claims.(jwt.MapClaims)["ovh-api-endpoint"]
 	require.True(t, ok, "missing ovh-api-endpoint")
 	require.NotEqual(t, ovhUserConsentResponse.ValidationURL, ovhAuthEndpoint)
+
+	// Get invite
+	invite, ok := ovhAuthCookie.Claims.(jwt.MapClaims)["invite"]
+	require.True(t, ok, "missing invite")
+	require.Equal(t, "123-456-789", invite)
 }
 
 func TestOVHLoginInvalidOVHResponse(t *testing.T) {
@@ -101,6 +108,8 @@ func TestOVHLoginInvalidOVHResponse(t *testing.T) {
 	ctx.GetConfig().Authentication = true
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
+	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
+	ctx.GetConfig().OvhAPISecret = "ovh_api_secret"
 
 	req, err := http.NewRequest("GET", "/auth/ovh/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -127,6 +136,8 @@ func TestOVHLoginInvalidOVHResponse2(t *testing.T) {
 	ctx.GetConfig().Authentication = true
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
+	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
+	ctx.GetConfig().OvhAPISecret = "ovh_api_secret"
 
 	req, err := http.NewRequest("GET", "/auth/ovh/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -153,6 +164,9 @@ func TestOVHLoginAuthDisabled(t *testing.T) {
 
 	ctx.GetConfig().Authentication = false
 	ctx.GetConfig().OvhAuthentication = false
+	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
+	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
+	ctx.GetConfig().OvhAPISecret = "ovh_api_secret"
 
 	req, err := http.NewRequest("GET", "/auth/ovh/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -169,6 +183,9 @@ func TestOVHLoginOVHAuthDisabled(t *testing.T) {
 
 	ctx.GetConfig().Authentication = true
 	ctx.GetConfig().OvhAuthentication = false
+	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
+	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
+	ctx.GetConfig().OvhAPISecret = "ovh_api_secret"
 
 	req, err := http.NewRequest("GET", "/auth/ovh/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -186,6 +203,9 @@ func TestOVHLoginMissingReferer(t *testing.T) {
 
 	ctx.GetConfig().Authentication = true
 	ctx.GetConfig().OvhAuthentication = true
+	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
+	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
+	ctx.GetConfig().OvhAPISecret = "ovh_api_secret"
 
 	req, err := http.NewRequest("GET", "/auth/ovh/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -294,6 +314,7 @@ func TestOVHCallbackCreateUser(t *testing.T) {
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
 	ctx.GetConfig().OvhAPISecret = "ovh_api_secret"
+	ctx.GetConfig().Registration = common.RegistrationOpen
 
 	req, err := http.NewRequest("GET", "/auth/ovh/callback", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -370,6 +391,8 @@ func TestOVHCallbackCreateUser(t *testing.T) {
 	require.NotNil(t, user, "missing user")
 	require.Equal(t, ovhUserResponse.Email, user.Email, "invalid user email")
 	require.Equal(t, ovhUserResponse.FirstName+" "+ovhUserResponse.LastName, user.Name, "invalid user name")
+	require.True(t, user.Verified, "user not verified")
+
 }
 
 func TestOVHCallbackCreateUserNotWhitelisted(t *testing.T) {
@@ -381,6 +404,7 @@ func TestOVHCallbackCreateUserNotWhitelisted(t *testing.T) {
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
 	ctx.GetConfig().OvhAPISecret = "ovh_api_secret"
+	ctx.GetConfig().Registration = common.RegistrationOpen
 
 	req, err := http.NewRequest("GET", "/auth/ovh/callback", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -446,10 +470,24 @@ func TestOVHCallbackAuthDisabled(t *testing.T) {
 	context.TestBadRequest(t, rr, "authentication is disabled")
 }
 
+func TestOVHCallbackMissingOvhAuthDisabled(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	ctx.GetConfig().Authentication = true
+
+	req, err := http.NewRequest("GET", "/auth/ovh/callback", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	OvhCallback(ctx, rr, req)
+	context.TestBadRequest(t, rr, "OVH authentication is disabled")
+}
+
 func TestOVHCallbackMissingOvhAPIConfigParam(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
 	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().OvhAuthentication = true
 
 	req, err := http.NewRequest("GET", "/auth/ovh/callback", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -467,6 +505,7 @@ func TestOVHCallbackMissingOvhSessionCookie(t *testing.T) {
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
 	ctx.GetConfig().OvhAPISecret = "ovh_api_secret"
+	ctx.GetConfig().Registration = common.RegistrationOpen
 
 	req, err := http.NewRequest("GET", "/auth/ovh/callback", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -518,6 +557,7 @@ func TestOVHCallbackMissingOvhApiEndpoint(t *testing.T) {
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
 	ctx.GetConfig().OvhAPISecret = "ovh_api_secret"
+	ctx.GetConfig().Registration = common.RegistrationOpen
 
 	req, err := http.NewRequest("GET", "/auth/ovh/callback", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")

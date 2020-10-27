@@ -27,7 +27,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	req.Body = http.MaxBytesReader(resp, req.Body, 1048576)
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		ctx.BadRequest("unable to read request body", err)
+		ctx.BadRequest("unable to read request body : %s", err)
 		return
 	}
 
@@ -39,7 +39,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 	if len(body) > 0 {
 		version, err = common.UnmarshalUpload(body, upload)
 		if err != nil {
-			ctx.BadRequest("unable to deserialize request body : %s", err.Error())
+			ctx.BadRequest("unable to deserialize request body : %s", err)
 			return
 		}
 	}
@@ -69,7 +69,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		// Save only the md5sum of this string to authenticate further requests
 		upload.Password, err = utils.Md5sum(header)
 		if err != nil {
-			ctx.BadRequest("unable to generate password hash : %s", err)
+			ctx.InternalServerError("unable to generate password hash : %s", err)
 			return
 		}
 

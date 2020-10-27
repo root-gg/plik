@@ -34,7 +34,7 @@ func TestGoogleLogin(t *testing.T) {
 	ctx.GetConfig().GoogleAPIClientID = "google_app_id"
 	ctx.GetConfig().GoogleAPISecret = "google_app_secret"
 
-	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
+	req, err := http.NewRequest("GET", "/auth/google/login?invite=123-456-789", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
 	origin := "https://plik.root.gg"
@@ -75,7 +75,8 @@ func TestGoogleLogin(t *testing.T) {
 	})
 	require.NoError(t, err, "invalid oauth2 state")
 
-	require.Equal(t, origin+"/auth/google/callback", state.Claims.(jwt.MapClaims)["redirectURL"].(string), "invalid state origin")
+	require.Equal(t, origin+"/auth/google/callback", state.Claims.(jwt.MapClaims)["redirectURL"].(string), "invalid state redirectURL")
+	require.Equal(t, "123-456-789", state.Claims.(jwt.MapClaims)["invite"].(string), "invalid state invite")
 }
 
 func TestGoogleLoginAuthDisabled(t *testing.T) {
@@ -83,6 +84,8 @@ func TestGoogleLoginAuthDisabled(t *testing.T) {
 
 	ctx.GetConfig().Authentication = false
 	ctx.GetConfig().GoogleAuthentication = false
+	ctx.GetConfig().GoogleAPIClientID = "google_app_id"
+	ctx.GetConfig().GoogleAPISecret = "google_app_secret"
 
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -98,6 +101,8 @@ func TestGoogleLoginGoogleAuthDisabled(t *testing.T) {
 
 	ctx.GetConfig().Authentication = true
 	ctx.GetConfig().GoogleAuthentication = false
+	ctx.GetConfig().GoogleAPIClientID = "google_app_id"
+	ctx.GetConfig().GoogleAPISecret = "google_app_secret"
 
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -110,11 +115,30 @@ func TestGoogleLoginGoogleAuthDisabled(t *testing.T) {
 	context.TestBadRequest(t, rr, "Google authentication is disabled")
 }
 
+func TestGoogleLoginGoogleMissingCredentials(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
+
+	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	req.Header.Set("referer", "http://plik.root.gg")
+
+	rr := ctx.NewRecorder(req)
+	GoogleLogin(ctx, rr, req)
+
+	context.TestInternalServerError(t, rr, "missing Google API credentials")
+}
+
 func TestGoogleLoginMissingReferer(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
 	ctx.GetConfig().Authentication = true
 	ctx.GetConfig().GoogleAuthentication = true
+	ctx.GetConfig().GoogleAPIClientID = "google_app_id"
+	ctx.GetConfig().GoogleAPISecret = "google_app_secret"
 
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -132,6 +156,7 @@ func TestGoogleCallback(t *testing.T) {
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
 	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
+	ctx.GetConfig().Registration = common.RegistrationOpen
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
@@ -237,7 +262,7 @@ func TestGoogleCallbackAuthDisabled(t *testing.T) {
 	context.TestBadRequest(t, rr, "authentication is disabled")
 }
 
-func TestGoogleCallbackMissingGoogleAuthParams(t *testing.T) {
+func TestGoogleCallbackGoogleAuthDisabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
 	ctx.GetConfig().Authentication = true
@@ -251,6 +276,23 @@ func TestGoogleCallbackMissingGoogleAuthParams(t *testing.T) {
 	GoogleCallback(ctx, rr, req)
 
 	context.TestBadRequest(t, rr, "Google authentication is disabled")
+}
+
+func TestGoogleCallbackMissingGoogleAuthParams(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().GoogleAuthentication = true
+
+	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	req.Header.Set("referer", "http://plik.root.gg")
+
+	rr := ctx.NewRecorder(req)
+	GoogleCallback(ctx, rr, req)
+
+	context.TestInternalServerError(t, rr, "missing Google API credentials")
 }
 
 func TestGoogleCallbackMissingCode(t *testing.T) {
@@ -378,7 +420,7 @@ func TestGoogleCallbackMissingStateExpirationDate(t *testing.T) {
 	context.TestBadRequest(t, rr, "invalid oauth2 state")
 }
 
-func TestGoogleCallbackMissingOrigin(t *testing.T) {
+func TestGoogleCallbackMissingRedirectURL(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
 	ctx.GetConfig().Authentication = true
@@ -400,7 +442,7 @@ func TestGoogleCallbackMissingOrigin(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
-	context.TestBadRequest(t, rr, "invalid oauth2 state")
+	context.TestBadRequest(t, rr, "missing redirectURL")
 }
 
 func TestGoogleCallbackInvalidRedirectURL(t *testing.T) {
@@ -426,7 +468,7 @@ func TestGoogleCallbackInvalidRedirectURL(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GoogleCallback(ctx, rr, req)
 
-	context.TestBadRequest(t, rr, "invalid oauth2 state")
+	context.TestBadRequest(t, rr, "missing redirectURL")
 }
 
 func TestGoogleCallbackNoApi(t *testing.T) {
@@ -463,6 +505,7 @@ func TestGoogleCallbackCreateUser(t *testing.T) {
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
 	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
+	ctx.GetConfig().Registration = common.RegistrationOpen
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)
@@ -548,7 +591,9 @@ func TestGoogleCallbackCreateUser(t *testing.T) {
 	require.NotNil(t, user, "missing user")
 	require.Equal(t, googleUser.Email, user.Email, "invalid user email")
 	require.Equal(t, googleUser.Name, user.Name, "invalid user name")
+	require.True(t, user.Verified, "user not verified")
 }
+
 func TestGoogleCallbackCreateUserNotWhitelisted(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetWhitelisted(false)
@@ -557,6 +602,7 @@ func TestGoogleCallbackCreateUserNotWhitelisted(t *testing.T) {
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
 	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
+	ctx.GetConfig().Registration = common.RegistrationOpen
 
 	/* Generate state */
 	state := jwt.New(jwt.SigningMethodHS256)

@@ -71,6 +71,7 @@ func LocalLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 	sessionCookie, xsrfCookie, err := ctx.GetAuthenticator().GenAuthCookies(user)
 	if err != nil {
 		ctx.InternalServerError("unable to generate session cookies", err)
+		return
 	}
 	http.SetCookie(resp, sessionCookie)
 	http.SetCookie(resp, xsrfCookie)

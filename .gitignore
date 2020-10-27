@@ -21,4 +21,5 @@ plikd_*.cfg
 # IntelliJ IDEA
 .idea
 plik.iml
-coverage.out
+**cover.out
+

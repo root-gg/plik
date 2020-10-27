@@ -8,7 +8,7 @@ import (
 )
 
 // Authenticate verify that a request has either a whitelisted url or a valid auth token
-func Authenticate(allowToken bool) context.Middleware {
+func Authenticate(allowToken bool, verified bool) context.Middleware {
 	return func(ctx *context.Context, next http.Handler) http.Handler {
 		return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 			config := ctx.GetConfig()
@@ -35,6 +35,11 @@ func Authenticate(allowToken bool) context.Middleware {
 						}
 						if user == nil {
 							ctx.Forbidden("invalid token")
+							return
+						}
+
+						if verified && !user.Verified {
+							ctx.Forbidden("user is not verified")
 							return
 						}
 
@@ -82,6 +87,11 @@ func Authenticate(allowToken bool) context.Middleware {
 					if user == nil {
 						common.Logout(resp, ctx.GetAuthenticator())
 						ctx.Forbidden("invalid session : user does not exists")
+						return
+					}
+
+					if verified && !user.Verified {
+						ctx.Forbidden("user is not verified")
 						return
 					}
 

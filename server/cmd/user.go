@@ -106,20 +106,8 @@ func createUser(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	// Get user
-	user, err := metadataBackend.GetUser(common.GetUserID(userParams.provider, userParams.login))
-	if err != nil {
-		fmt.Printf("Unable to get user : %s\n", err)
-		os.Exit(1)
-	}
-
-	if user != nil {
-		fmt.Println("User already exists")
-		os.Exit(1)
-	}
-
 	// Create user
-	user = common.NewUser(userParams.provider, userParams.login)
+	user := common.NewUser(userParams.provider, userParams.login)
 	user.Login = userParams.login
 	user.Name = userParams.name
 	user.Email = userParams.email
@@ -130,12 +118,25 @@ func createUser(cmd *cobra.Command, args []string) {
 		fmt.Printf("Generated password for user %s is %s\n", userParams.login, userParams.password)
 	}
 
-	hash, err := common.HashPassword(userParams.password)
+	// Prepare user
+	err := user.PrepareInsert(config)
 	if err != nil {
-		fmt.Printf("Unable to hash password : %s\n", err)
+		fmt.Printf("unable to create user : %s\n", err)
+		os.Exit(1)
+		return
+	}
+
+	// Get user
+	user, err = metadataBackend.GetUser(user.ID)
+	if err != nil {
+		fmt.Printf("Unable to get user : %s\n", err)
 		os.Exit(1)
 	}
-	user.Password = hash
+
+	if user != nil {
+		fmt.Println("User already exists")
+		os.Exit(1)
+	}
 
 	err = metadataBackend.CreateUser(user)
 	if err != nil {

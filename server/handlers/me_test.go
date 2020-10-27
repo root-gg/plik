@@ -222,51 +222,6 @@ func TestGetUserUploadsInvalidToken(t *testing.T) {
 	context.TestNotFound(t, rr, "token not found")
 }
 
-func TestGetUserTokens(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-
-	user := common.NewUser(common.ProviderLocal, "user1")
-	user.NewToken()
-	user.NewToken()
-	err := ctx.GetMetadataBackend().CreateUser(user)
-	require.NoError(t, err, "unable to create test user")
-
-	ctx.SetUser(user)
-
-	// Create a request
-	req, err := http.NewRequest("GET", "/me/uploads", bytes.NewBuffer([]byte{}))
-	require.NoError(t, err, "unable to create new request")
-
-	// Create paging query
-	ctx.SetPagingQuery(&common.PagingQuery{})
-
-	rr := ctx.NewRecorder(req)
-	GetUserTokens(ctx, rr, req)
-
-	// Check the status code is what we expect.
-	context.TestOK(t, rr)
-
-	respBody, err := ioutil.ReadAll(rr.Body)
-	require.NoError(t, err, "unable to read response body")
-
-	var response common.PagingResponse
-	err = json.Unmarshal(respBody, &response)
-	require.NoError(t, err, "unable to unmarshal response body %s", respBody)
-	require.Equal(t, 2, len(response.Results), "invalid upload count")
-}
-
-func TestGetUserTokensNoUser(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-
-	req, err := http.NewRequest("GET", "/me/uploads", bytes.NewBuffer([]byte{}))
-	require.NoError(t, err, "unable to create new request")
-
-	rr := ctx.NewRecorder(req)
-	GetUserTokens(ctx, rr, req)
-
-	context.TestUnauthorized(t, rr, "missing user, please login first")
-}
-
 func TestRemoveUserUploads(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 

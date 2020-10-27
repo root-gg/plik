@@ -24,6 +24,8 @@ type Config struct {
 	ConnectionString string
 	EraseFirst       bool
 	Debug            bool
+
+	doNotInitialize bool // for testing purposes
 }
 
 // NewConfig instantiate a new default configuration
@@ -69,7 +71,7 @@ func NewBackend(config *Config) (b *Backend, err error) {
 	}
 
 	if config.EraseFirst {
-		err = b.db.DropTableIfExists("files", "uploads", "tokens", "users", "settings", "migrations").Error
+		err = b.db.DropTableIfExists("files", "uploads", "tokens", "invites", "users", "settings", "migrations").Error
 		if err != nil {
 			return nil, fmt.Errorf("unable to drop tables : %s", err)
 		}
@@ -79,49 +81,31 @@ func NewBackend(config *Config) (b *Backend, err error) {
 		b.db.LogMode(true)
 	}
 
-	err = b.initializeDB()
-	if err != nil {
-		return nil, fmt.Errorf("unable to initialize DB : %s", err)
+	if !config.doNotInitialize {
+		err = b.initializeDB()
+		if err != nil {
+			return nil, fmt.Errorf("unable to initialize DB : %s", err)
+		}
 	}
 
 	return b, err
 }
 
 func (b *Backend) initializeDB() (err error) {
-	m := gormigrate.New(b.db, gormigrate.DefaultOptions, []*gormigrate.Migration{
-		// you migrations here
-	})
+	m := gormigrate.New(b.db, gormigrate.DefaultOptions, migrations)
 
 	m.InitSchema(func(tx *gorm.DB) error {
-
-		//if b.Config.Driver == "mysql" {
-		//	// Enable foreign keys
-		//	tx = tx.Set("gorm:table_options", "ENGINE=InnoDB")
-		//}
-
 		err := tx.AutoMigrate(
 			&common.Upload{},
 			&common.File{},
 			&common.User{},
 			&common.Token{},
+			&common.Invite{},
 			&common.Setting{},
 		).Error
 		if err != nil {
 			return err
 		}
-
-		//if b.Config.Driver == "mysql" {
-		//	err = tx.Model(&common.File{}).AddForeignKey("upload_id", "uploads(id)", "RESTRICT", "RESTRICT").Error
-		//	if err != nil {
-		//		return err
-		//	}
-		//	err = tx.Model(&common.Token{}).AddForeignKey("user_id", "users(id)", "RESTRICT", "RESTRICT").Error
-		//	if err != nil {
-		//		return err
-		//	}
-		//}
-
-		// all other foreign keys...
 		return nil
 	})
 

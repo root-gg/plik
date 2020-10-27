@@ -1,0 +1,41 @@
+
+
+<!-- CONFIRM -->
+<div class="row" ng-if="user">
+    <div class="col-xs-12 col-sm-4 col-md-4 col-lg-4 col-centered">
+        <div class="tile panel panel-body main">
+            <div class="row">
+                <div class="col-sm-12 text-center">
+                    <div class="row">
+                        <div class="col-sm-11 col-sm-offset-1">
+                            <form class="form-horizontal">
+                                <!-- USER INFO -->
+                                <div class="menu-item text-center">
+                                    <p>{{user.login}}</p>
+                                    <p>{{user.name}}</p>
+                                    <p>{{user.email}}</p>
+                                </div>
+
+                                 <!-- MESSAGE -->
+                                <div class="menu-item text-center">
+                                    <p>Please verify your email address to complete your registration</p>
+                                    <p>Be sure to check you spam directory</p>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-12 text-center">
+                            <!-- RESEND BUTTON -->
+                            <div class="text-center auth-btn">
+                                <button title="Resend" type="button" class="btn btn-primary" ng-click="resend()">
+                                    <span class="fa fa-login"></span>
+                                    Resend confirmation email
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>
+</div>
