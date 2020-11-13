@@ -94,13 +94,9 @@ func initConfig() {
 		}
 	}
 
-	if configPath != "" {
-		config, err = common.LoadConfiguration(configPath)
-		if err != nil {
-			fmt.Printf("Unable to read config file : %s\n", err)
-		}
-	} else {
-		config = common.NewConfiguration()
+	config, err = common.LoadConfiguration(configPath)
+	if err != nil {
+		fmt.Printf("Unable to load config : %s\n", err)
 	}
 }
 
