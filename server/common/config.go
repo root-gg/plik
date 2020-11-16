@@ -4,14 +4,20 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/root-gg/utils"
+
 	"github.com/BurntSushi/toml"
 	"github.com/dustin/go-humanize"
+	"github.com/iancoleman/strcase"
 
 	"github.com/root-gg/logger"
 )
+
+const envPrefix = "PLIKD_"
 
 // Configuration object
 type Configuration struct {
@@ -96,11 +102,18 @@ func NewConfiguration() (config *Configuration) {
 // LoadConfiguration creates a new empty configuration
 // and try to load specified file with toml library to
 // override default params
-func LoadConfiguration(file string) (config *Configuration, err error) {
+func LoadConfiguration(path string) (config *Configuration, err error) {
 	config = NewConfiguration()
 
-	if _, err := toml.DecodeFile(file, config); err != nil {
-		return nil, fmt.Errorf("unable to load config file %s : %s", file, err)
+	if path != "" {
+		if _, err := toml.DecodeFile(path, config); err != nil {
+			return nil, fmt.Errorf("unable to load config file %s : %s", path, err)
+		}
+	}
+
+	err = config.EnvironmentOverride()
+	if err != nil {
+		return nil, err
 	}
 
 	err = config.Initialize()
@@ -109,6 +122,15 @@ func LoadConfiguration(file string) (config *Configuration, err error) {
 	}
 
 	return config, nil
+}
+
+// EnvironmentOverride override config from environment variables
+// Environment variables must match config params in screaming snake case ( DebugRequests -> PLIKD_DEBUG_REQUESTS )
+func (config *Configuration) EnvironmentOverride() (err error) {
+	getEnvOverride := func(fieldName string) (string, bool) {
+		return os.LookupEnv(envPrefix + strcase.ToScreamingSnake(fieldName))
+	}
+	return utils.AssignStrings(config, getEnvOverride)
 }
 
 // Initialize config internal parameters

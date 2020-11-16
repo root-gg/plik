@@ -16,7 +16,7 @@ require (
 	github.com/google/uuid v1.1.2 // indirect
 	github.com/gorilla/mux v1.7.1
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
-	github.com/iancoleman/strcase v0.0.0-20191112232945-16388991a334 // indirect
+	github.com/iancoleman/strcase v0.1.2
 	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a
 	github.com/jinzhu/gorm v1.9.13-0.20200126152832-7180bd0f27d1
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
@@ -31,7 +31,7 @@ require (
 	github.com/olekukonko/ts v0.0.0-20171002115256-78ecb04241c0
 	github.com/pilagod/gorm-cursor-paginator v1.2.0
 	github.com/root-gg/logger v0.0.0-20150501173826-5d9a47a35312
-	github.com/root-gg/utils v0.0.0-20151025161626-38f45ede2ce2
+	github.com/root-gg/utils v0.0.0-20201113182430-4cef83d8cdcf
 	github.com/spf13/cobra v0.0.6-0.20200106181057-89c7ffb5129b
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.4.0

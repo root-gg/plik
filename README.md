@@ -55,7 +55,7 @@ apt-get update
 apt-get install plikd plik
 ```
 
-Edit server configuration at /etc/plikd.cfg and start the server 
+Edit server configuration at /etc/plikd.cfg and start the server
 ```
 service plikd start
 ```
@@ -376,4 +376,18 @@ See : https://github.com/golang/go/wiki/GoArm
     server/plikd: ELF 32-bit LSB executable, ARM, EABI5 version 1 (GNU/Linux), statically linked, for GNU/Linux 3.2.0, Go ...
 
     Then either copy the binary from the docker or play with releaser/releaser.sh to generate a release archive
+```
+
+* Defining configuration parameters using environment variables
+
+One can specify configuration parameters using env variable with the configuration parameter in screaming snake case  
+```
+    PLIKD_DEBUG_REQUESTS=true ./plikd
+```
+
+For Arrays and config maps they must be provided in json format.
+Arrays are overriden but maps are merged
+
+```
+    PLIKD_DATA_BACKEND_CONFIG='{"Directory":"/var/files"}' ./plikd
 ```

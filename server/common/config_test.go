@@ -2,10 +2,19 @@ package common
 
 import (
 	"net"
+	"os"
 	"testing"
+
+	"github.com/iancoleman/strcase"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestToScreamingSnakeCase(t *testing.T) {
+	require.Equal(t, "DEBUG_REQUESTS", strcase.ToScreamingSnake("DebugRequests"))
+	require.Equal(t, "DEFAULT_TTL", strcase.ToScreamingSnake("DefaultTTL"))
+	require.Equal(t, "GOOGLE_API_CLIENT_ID", strcase.ToScreamingSnake("GoogleAPIClientID"))
+}
 
 // Test new configuration
 func TestNewConfig(t *testing.T) {
@@ -115,4 +124,39 @@ func TestGetServerUrl(t *testing.T) {
 func TestString(t *testing.T) {
 	config := NewConfiguration()
 	require.NotEmpty(t, config.String())
+}
+
+func TestConfiguration_EnvironmentOverride(t *testing.T) {
+	defer func() {
+		_ = os.Unsetenv(envPrefix + "DEBUG")
+		_ = os.Unsetenv(envPrefix + "LISTEN_ADDRESS")
+		_ = os.Unsetenv(envPrefix + "MAX_FILE_SIZE")
+		_ = os.Unsetenv(envPrefix + "UPLOAD_WHITELIST")
+		_ = os.Unsetenv(envPrefix + "METADATA_BACKEND_CONFIG")
+	}()
+
+	err := os.Setenv(envPrefix+"DEBUG", "true")
+	require.NoError(t, err)
+
+	err = os.Setenv(envPrefix+"LISTEN_ADDRESS", "1.2.3.4")
+	require.NoError(t, err)
+
+	err = os.Setenv(envPrefix+"MAX_FILE_SIZE", "42")
+	require.NoError(t, err)
+
+	err = os.Setenv(envPrefix+"UPLOAD_WHITELIST", "[\"127.0.0.1\"]")
+	require.NoError(t, err)
+
+	err = os.Setenv(envPrefix+"METADATA_BACKEND_CONFIG", "{\"path\": \"files\"}")
+	require.NoError(t, err)
+
+	config := NewConfiguration()
+	err = config.EnvironmentOverride()
+	require.NoError(t, err)
+
+	require.True(t, config.Debug)
+	require.Equal(t, "1.2.3.4", config.ListenAddress)
+	require.Equal(t, int64(42), config.MaxFileSize)
+	require.EqualValues(t, []string{"127.0.0.1"}, config.UploadWhitelist)
+	require.EqualValues(t, map[string]interface{}{"path": "files"}, config.MetadataBackendConfig)
 }
