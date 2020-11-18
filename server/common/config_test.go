@@ -103,6 +103,15 @@ func TestInitializeInvalidDefaultTTL(t *testing.T) {
 	require.Error(t, err, "able to initialize invalid config")
 }
 
+func TestInitializeInfiniteMaxTTL(t *testing.T) {
+	config := NewConfiguration()
+	config.DefaultTTL = 10 * 86400
+	config.MaxTTL = -1
+
+	err := config.Initialize()
+	require.NoError(t, err, "unable to initialize valid config")
+}
+
 func TestDisableAutoClean(t *testing.T) {
 	config := NewConfiguration()
 	require.True(t, config.IsAutoClean(), "invalid auto clean status")

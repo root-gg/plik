@@ -183,7 +183,7 @@ func (config *Configuration) Initialize() (err error) {
 		}
 	}
 
-	if config.DefaultTTL > config.MaxTTL {
+	if config.MaxTTL > 0 && config.DefaultTTL > 0 && config.MaxTTL < config.DefaultTTL {
 		return fmt.Errorf("DefaultTTL should not be more than MaxTTL")
 	}
 

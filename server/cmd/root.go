@@ -97,6 +97,7 @@ func initConfig() {
 	config, err = common.LoadConfiguration(configPath)
 	if err != nil {
 		fmt.Printf("Unable to load config : %s\n", err)
+		os.Exit(1)
 	}
 }
 
