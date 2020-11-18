@@ -42,6 +42,7 @@ type Configuration struct {
 	NoWebInterface      bool   `json:"-"`
 	DownloadDomain      string `json:"downloadDomain"`
 	EnhancedWebSecurity bool   `json:"-"`
+	AbuseContact        string `json:"abuseContact"`
 
 	SourceIPHeader  string   `json:"-"`
 	UploadWhitelist []string `json:"-"`

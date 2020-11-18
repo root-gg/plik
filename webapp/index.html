@@ -50,6 +50,12 @@
 
     <!-- ANGULARJS VIEW -->
     <div ng-view class="container-fluid"></div>
+
+    <footer class="footer" ng-controller="MenuCtrl">
+        <div ng-if="config.abuseContact" class="container text-center">
+            <p>For abuse contact {{config.abuseContact}}</p>
+        </div>
+    </footer>
 </div>
 </div>
 
