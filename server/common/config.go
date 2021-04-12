@@ -42,6 +42,7 @@ type Configuration struct {
 	NoWebInterface      bool   `json:"-"`
 	DownloadDomain      string `json:"downloadDomain"`
 	EnhancedWebSecurity bool   `json:"-"`
+	AbuseContact        string `json:"abuseContact"`
 
 	SourceIPHeader  string   `json:"-"`
 	UploadWhitelist []string `json:"-"`
@@ -182,7 +183,7 @@ func (config *Configuration) Initialize() (err error) {
 		}
 	}
 
-	if config.DefaultTTL > config.MaxTTL {
+	if config.MaxTTL > 0 && config.DefaultTTL > 0 && config.MaxTTL < config.DefaultTTL {
 		return fmt.Errorf("DefaultTTL should not be more than MaxTTL")
 	}
 

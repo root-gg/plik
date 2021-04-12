@@ -89,6 +89,16 @@ header a:hover, header a:visited, header a:link, header a:active {
     text-decoration: none;
 }
 
+footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    /* Set the fixed height of the footer here */
+    height: 50px;
+    color: #FFFFFF;
+    font-family: 'Courgette', sans-serif;
+}
+
 .header-right {
     margin-right: 20px;
 }
