@@ -75,15 +75,15 @@ func (ps *PlikServer) PurgeDeletedFiles() (deleted int, err error) {
 		err = ps.dataBackend.RemoveFile(file)
 		if err != nil {
 			errors = append(errors, err)
-			log.Warningf("unable to delete file %s/%s : %s", file.UploadID, file.ID, err)
-			return
+			log.Warningf("unable to delete file %s/%s : %s, will retry", file.UploadID, file.ID, err)
+			return nil
 		}
 
 		err = ps.metadataBackend.UpdateFileStatus(file, common.FileRemoved, common.FileDeleted)
 		if err != nil {
 			errors = append(errors, err)
-			log.Warningf("unable to update deleted file %s/%s : %s", file.UploadID, file.ID, err)
-			return
+			log.Warningf("unable to update deleted file %s/%s : %s, will retry", file.UploadID, file.ID, err)
+			return nil
 		}
 
 		deleted++
