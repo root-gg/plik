@@ -131,7 +131,7 @@ Client configuration and preferences are stored at ~/.plikrc or /etc/plik/plikrc
 ```bash
 curl --form 'file=@/path/to/file' http://127.0.0.1:8080
 ```
-When Authentication is used and NoAnonymousUploads are disabled you can add:
+When Authentication is used and NoAnonymousUploads are enabled you can quick upload using user tokens:
 ```bash
 curl --form 'file=@/path/to/file' --header 'X-PlikToken: xxxx-xxx-xxxx-xxxxx-xxxxxxxx' http://127.0.0.1:8080
 ```
