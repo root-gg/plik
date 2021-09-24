@@ -1,0 +1,24 @@
+language: go
+
+go:
+  - "1.12"
+
+env:
+  - GO111MODULE=on
+
+services:
+  - docker
+
+install:
+  - go get github.com/mattn/goveralls
+  - go mod download
+
+before_script:
+  - docker-compose up -d
+
+script:
+  - go test -v -covermode=count -coverprofile=c.out
+  - $GOPATH/bin/goveralls -coverprofile=c.out -service=travis-ci
+
+after_script:
+  - docker-compose down -v
