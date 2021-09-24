@@ -35,6 +35,7 @@ import (
 	"github.com/root-gg/juliet"
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/dataBackend/file"
+	"github.com/root-gg/plik/server/dataBackend/gcs"
 	"github.com/root-gg/plik/server/dataBackend/stream"
 	"github.com/root-gg/plik/server/dataBackend/swift"
 	"github.com/root-gg/plik/server/dataBackend/weedfs"
@@ -72,6 +73,8 @@ func Initialize() {
 			dataBackend = swift.NewSwiftBackend(common.Config.DataBackendConfig)
 		case "weedfs":
 			dataBackend = weedfs.NewWeedFsBackend(common.Config.DataBackendConfig)
+		case "gcs":
+			dataBackend = gcs.NewGoogleCloudStorageBackend(common.Config.DataBackendConfig)
 		default:
 			common.Logger().Fatalf("Invalid data backend %s", common.Config.DataBackend)
 		}
