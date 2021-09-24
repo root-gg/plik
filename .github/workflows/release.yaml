@@ -16,6 +16,14 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
+    - name: Setup NodeJS
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14'
+
+    - name: Make the frontend
+      run: "make frontend"
+
     - name: Get the version
       id: get_version
       run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
@@ -23,7 +31,8 @@ jobs:
     - name: Build plik
       uses: wangyoucao577/go-release-action@master
       with:
-        project_path: server
+        extra_files: "server/webapp changelog"
+        project_path: "server"
         github_token: ${{ secrets.GITHUBTOKEN }}
         goos: ${{ matrix.goos }}
         goarch: ${{ matrix.goarch }}
