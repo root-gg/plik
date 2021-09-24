@@ -1,0 +1,30 @@
+name: go_build
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    name: build_to_release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64]
+    steps:
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+
+    - name: Get the version
+      id: get_version
+      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+
+    - name: Build plik
+      uses: wangyoucao577/go-release-action@master
+      with:
+        project_path: server
+        github_token: ${{ secrets.GITHUBTOKEN }}
+        goos: ${{ matrix.goos }}
+        goarch: ${{ matrix.goarch }}
+        binary_name: "plik"
