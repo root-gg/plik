@@ -38,6 +38,9 @@ ENV CLIENT_TARGETS=$CLIENT_TARGETS
 ARG TARGETS=""
 ENV TARGETS=$TARGETS
 
+ARG VERSION=""
+ENV VERSION=$VERSION
+
 RUN releaser/releaser.sh
 
 ##################################################################################

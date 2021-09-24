@@ -23,7 +23,7 @@ fi
 RELEASE_VERSION=$(server/gen_build_info.sh version)
 
 echo ""
-echo "Building clients"
+echo "Building clients for version $RELEASE_VERSION"
 echo ""
 
 rm -rf clients || true

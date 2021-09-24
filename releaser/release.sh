@@ -19,7 +19,7 @@ if ! make build-info | grep "release=true" >/dev/null ; then
   echo "!!! Release is not tagged !!!"
 fi
 
-docker-compose build
+docker-compose build --build-arg VERSION=$plik_release_version
 
 echo " Extracting release archives"
 

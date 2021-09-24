@@ -1,0 +1,49 @@
+# Visit https://goreleaser.com for documentation on how to customize this
+# behavior.
+before:
+
+builds:
+- env:
+    # goreleaser does not work with CGO, it could also complicate
+    # usage by users in CI/CD systems like Terraform Cloud where
+    # they are unable to install libraries.
+    - CGO_ENABLED=1
+  mod_timestamp: '{{ .CommitTimestamp }}'
+  dir: "server"
+  flags:
+    - -trimpath
+  tags:
+    - osusergo
+    - netgo
+    - sqlite_omit_load_extension
+  ldflags:
+    - "-X github.com/root-gg/plik/server/common.buildInfoString={{ .Env.BUILD_INFO }} -w -s -extldflags=-static"
+  goos:
+    - freebsd
+    - linux
+    - darwin
+  goarch:
+    - amd64
+    - '386'
+#    - arm
+    - arm64
+  ignore:
+    - goos: darwin
+      goarch: '386'
+  binary: 'server/plikd'
+archives:
+- format: "tar.gz"
+  name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}'
+  wrap_in_directory: false
+  files:
+    - clients
+    - changelog
+    - webapp
+checksum:
+  name_template: '{{ .ProjectName }}-{{ .Version }}.md5'
+  algorithm: md5
+release:
+  # If you want to manually examine the release before its live, uncomment this line:
+  # draft: true
+changelog:
+  skip: true
