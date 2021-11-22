@@ -1,0 +1,35 @@
+version: '3'
+
+services:
+  gormigrate:
+    image: gormigrate
+    depends_on:
+      - postgresql
+      - mysql
+      - sqlserver
+    environment:
+      PGPASSWORD: postgres
+      PG_CONN_STRING: host=postgresql user=postgres dbname=gormigrate_test port=5432 sslmode=disable
+
+      MYSQL_CONN_STRING: root:mysql@tcp(mysql)/gormigrate_test?multiStatements=true
+
+      SQLSERVER_CONN_STRING: server=sqlserver;database=master;user id=sa;password=SQL@1server;encrypt=disable
+
+  postgresql:
+    image: postgres:11.2
+    environment:
+      POSTGRES_DB: gormigrate_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+  mysql:
+    image: mysql:5.7
+    environment:
+      MYSQL_DATABASE: gormigrate_test
+      MYSQL_ROOT_PASSWORD: mysql
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2017-latest-ubuntu
+    environment:
+      ACCEPT_EULA: 'Y'
+      SA_PASSWORD: SQL@1server

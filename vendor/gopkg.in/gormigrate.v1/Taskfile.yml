@@ -1,0 +1,60 @@
+# https://taskfile.org
+
+version: '2'
+
+tasks:
+  dl-deps:
+    desc: Downloads cli dependencies
+    cmds:
+      - go get -u golang.org/x/lint/golint
+
+  go-get-all:
+    cmds:
+      - go get -t -tags 'sqlite postgresql mysql sqlserver' ./...
+
+  lint:
+    desc: Runs golint on this project
+    cmds:
+      - golint .
+
+  test-sqlite:
+    desc: Run tests for SQLite
+    cmds:
+      - task: test
+        vars: {DATABASE: sqlite}
+
+  test-pg:
+    desc: Run tests for PostgreSQL
+    cmds:
+      - task: test
+        vars: {DATABASE: postgresql}
+
+  test-mysql:
+    desc: Run tests for MySQL
+    cmds:
+      - task: test
+        vars: {DATABASE: mysql}
+
+  test-sqlserver:
+    desc: Run tests for Microsoft SQL Server
+    cmds:
+      - task: test
+        vars: {DATABASE: sqlserver}
+
+  test:
+    cmds:
+      - go test -v -tags {{.DATABASE}}
+
+  docker:
+    cmds:
+      - task: docker:build
+      - task: docker:test
+
+  docker:build:
+    cmds:
+      - docker build -t gormigrate .
+
+  docker:test:
+    cmds:
+      - docker-compose down -v
+      - docker-compose run gormigrate go test -v -tags 'postgresql sqlite mysql sqlserver'

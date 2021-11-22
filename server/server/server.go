@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/root-gg/plik/server/data/gcs"
 	"github.com/root-gg/plik/server/data/s3"
 
 	"github.com/gorilla/mux"
@@ -330,6 +331,8 @@ func NewDataBackend(impl string, params map[string]interface{}) (backend data.Ba
 		}
 	case "swift":
 		backend = swift.NewBackend(swift.NewConfig(params))
+	case "gcs":
+		backend = gcs.NewBackend(gcs.NewConfig(params))
 	case "testing":
 		backend = data_test.NewBackend()
 	default:
