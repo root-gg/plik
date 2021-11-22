@@ -44,7 +44,7 @@ ENV VERSION=$VERSION
 RUN releaser/releaser.sh
 
 ##################################################################################
-FROM alpine:3.12 AS plik-base
+FROM alpine:3.15 AS plik-base
 
 RUN apk add --no-cache ca-certificates
 
