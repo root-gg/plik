@@ -10,5 +10,11 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
+    - name: Run linter
+      run: make lint
+
     - name: Run tests
       run: make test
+
+    - name: Run test-backends
+      run: make test-backends

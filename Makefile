@@ -64,8 +64,6 @@ lint:
 	if [[ -z "$$OUT" ]]; then echo " OK" ; else echo " FAIL"; echo "$$OUT"; FAIL=1 ; fi ;\
 	echo -n " - go vet :" ; OUT=`go vet ./...` ; \
 	if [[ -z "$$OUT" ]]; then echo " OK" ; else echo " FAIL"; echo "$$OUT"; FAIL=1 ; fi ;\
-	echo -n " - go lint :" ; OUT=`golint ./... | grep -v ^vendor` ; \
-	if [[ -z "$$OUT" ]]; then echo " OK" ; else echo " FAIL"; echo "$$OUT"; FAIL=1 ; fi ;\
 	test $$FAIL -eq 0
 
 ###
