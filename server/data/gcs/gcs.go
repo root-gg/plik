@@ -46,7 +46,7 @@ func NewBackend(config *Config) (b *Backend) {
 	return
 }
 
-// GetFile implementation for Swift Data Backend
+// GetFile implementation for Google Cloud Storage Data Backend
 func (sb *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) {
 
 	// Get the GCS client
@@ -60,7 +60,7 @@ func (sb *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) 
 	return sb.client.Bucket(sb.Config.Bucket).Object(sb.getFileID(file.UploadID, file.ID)).NewReader(context.Background())
 }
 
-// AddFile implementation for Swift Data Backend
+// AddFile implementation for Google Cloud Storage Data Backend
 func (sb *Backend) AddFile(file *common.File, fileReader io.Reader) (err error) {
 
 	// Get the GCS client
@@ -82,7 +82,7 @@ func (sb *Backend) AddFile(file *common.File, fileReader io.Reader) (err error) 
 	return
 }
 
-// RemoveFile implementation for Swift Data Backend
+// RemoveFile implementation for Google Cloud Storage Data Backend
 func (sb *Backend) RemoveFile(file *common.File) (err error) {
 
 	// Get the GCS client
@@ -103,7 +103,7 @@ func (sb *Backend) RemoveFile(file *common.File) (err error) {
 	return
 }
 
-// RemoveUpload implementation for Swift Data Backend
+// RemoveUpload implementation for Google Cloud Storage Data Backend
 // Iterates on each upload file and call RemoveFile
 func (sb *Backend) RemoveUpload(ctx *juliet.Context, upload *common.Upload) (err error) {
 
