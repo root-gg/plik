@@ -1,0 +1,10 @@
+name: Run tests
+
+on: [push, pull_request]
+
+jobs:  
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run tests
+      run: make test
