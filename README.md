@@ -13,7 +13,7 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
 ### Main features
    - Powerful command line client
    - Easy to use web UI
-   - Multiple data backend : File, OpenStack Swift, S3
+   - Multiple data backend : File, OpenStack Swift, S3, Google Cloud Storage
    - Multiple metadata backend : Sqlite3, postgresql
    - OneShot : Files are destructed after the first download
    - Stream : Files are streamed from the uploader to the downloader (nothing stored server side)  
@@ -30,16 +30,16 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
    - [Filelink for Plik](https://gitlab.com/joendres/filelink-plik) : Thunderbird Addon to upload attachments to Plik
 
 ### Version
-1.3.1
+1.3.2
 
 ### Installation
 
 ##### From release
 To run plik, it's very simple :
 ```sh
-$ wget https://github.com/root-gg/plik/releases/download/1.3.1/plik-1.3.1-linux-amd64.tar.gz
-$ tar xzvf plik-1.3.1-linux-64bits.tar.gz
-$ cd plik-1.3.1/server
+$ wget https://github.com/root-gg/plik/releases/download/1.3.2/plik-1.3.2-linux-amd64.tar.gz
+$ tar xzvf plik-1.3.2-linux-64bits.tar.gz
+$ cd plik-1.3.2/server
 $ ./plikd
 ```
 Et voilà ! You now have a fully functional instance of Plik running on http://127.0.0.1:8080.  
@@ -150,6 +150,10 @@ Store uploaded files in a local or mounted file system directory.
  - Openstack Swift databackend : http://docs.openstack.org/developer/swift/
 
 Openstack Swift is a highly available, distributed, eventually consistent object/blob store which supports Server Side Encryption  
+
+ - Amazon S3
+
+ - Google Cloud Storage
 
 ### Available metadata backends
 
