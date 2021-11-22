@@ -13,8 +13,8 @@ jobs:
     - name: Run linter
       run: make lint
 
-    - name: Run test-backends
-      run: make test-backends
-
     - name: Run tests
       run: make test
+
+    - name: Run test-backends
+      run: make test-backends
