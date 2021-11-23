@@ -44,7 +44,7 @@ echo ""
 echo " Push images to Docker Hub"
 echo ""
 for tag in latest $plik_release_version ; do
-  for image in $( docker images ls | grep ^rootgg/plik | egrep -v "(release|builder)" | awk {'print $1'} | uniq ) ; do
+  for image in $( docker images ls | grep ^rootgg/plik | grep -v release | grep -v builder | awk {'print $1'} | uniq ) ; do
     echo " - pushing $image:$tag to docker hub"
     docker push $image:$tag
   done
