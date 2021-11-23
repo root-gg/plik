@@ -45,21 +45,6 @@ $ ./plikd
 Et voilà ! You now have a fully functional instance of Plik running on http://127.0.0.1:8080.  
 You can edit server/plikd.cfg to adapt the configuration to your needs (ports, ssl, ttl, backend params,...)
 
-##### From root.gg Debian repository
-
-Configure root.gg repository and install server and/or client
-```
-wget -O - http://mir.root.gg/gg.key | apt-key add -
-echo "deb http://mir.root.gg/ $(lsb_release --codename --short) main" > /etc/apt/sources.list.d/root.gg.list
-apt-get update
-apt-get install plikd plik
-```
-
-Edit server configuration at /etc/plikd.cfg and start the server
-```
-service plikd start
-```
-
 ##### From sources
 To compile plik from sources, you'll need golang and npm installed on your system.
 
