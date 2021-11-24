@@ -590,7 +590,7 @@ func (scope *Scope) buildCondition(clause map[string]interface{}, include bool) 
 		}
 		scopeQuotedTableName := newScope.QuotedTableName()
 		for _, field := range newScope.Fields() {
-			if !field.IsIgnored && !field.IsBlank {
+			if !field.IsIgnored && !field.IsBlank && field.Relationship == nil {
 				sqls = append(sqls, fmt.Sprintf("(%v.%v %s %v)", scopeQuotedTableName, scope.Quote(field.DBName), equalSQL, scope.AddToVars(field.Field.Interface())))
 			}
 		}
@@ -913,21 +913,25 @@ func (scope *Scope) updatedAttrsWithValues(value interface{}) (results map[strin
 	results = map[string]interface{}{}
 
 	for key, value := range convertInterfaceToMap(value, true, scope.db) {
-		if field, ok := scope.FieldByName(key); ok && scope.changeableField(field) {
-			if _, ok := value.(*SqlExpr); ok {
-				hasUpdate = true
-				results[field.DBName] = value
-			} else {
-				err := field.Set(value)
-				if field.IsNormal && !field.IsIgnored {
+		if field, ok := scope.FieldByName(key); ok {
+			if scope.changeableField(field) {
+				if _, ok := value.(*SqlExpr); ok {
 					hasUpdate = true
-					if err == ErrUnaddressable {
-						results[field.DBName] = value
-					} else {
-						results[field.DBName] = field.Field.Interface()
+					results[field.DBName] = value
+				} else {
+					err := field.Set(value)
+					if field.IsNormal && !field.IsIgnored {
+						hasUpdate = true
+						if err == ErrUnaddressable {
+							results[field.DBName] = value
+						} else {
+							results[field.DBName] = field.Field.Interface()
+						}
 					}
 				}
 			}
+		} else {
+			results[key] = value
 		}
 	}
 	return

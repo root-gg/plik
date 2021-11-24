@@ -152,6 +152,10 @@ func getForeignField(column string, fields []*StructField) *StructField {
 
 // GetModelStruct get value's model struct, relationships based on struct and tag definition
 func (scope *Scope) GetModelStruct() *ModelStruct {
+	return scope.getModelStruct(scope, make([]*StructField, 0))
+}
+
+func (scope *Scope) getModelStruct(rootScope *Scope, allFields []*StructField) *ModelStruct {
 	var modelStruct ModelStruct
 	// Scope value can't be nil
 	if scope.Value == nil {
@@ -237,7 +241,7 @@ func (scope *Scope) GetModelStruct() *ModelStruct {
 					field.IsNormal = true
 				} else if _, ok := field.TagSettingsGet("EMBEDDED"); ok || fieldStruct.Anonymous {
 					// is embedded struct
-					for _, subField := range scope.New(fieldValue).GetModelStruct().StructFields {
+					for _, subField := range scope.New(fieldValue).getModelStruct(rootScope, allFields).StructFields {
 						subField = subField.clone()
 						subField.Names = append([]string{fieldStruct.Name}, subField.Names...)
 						if prefix, ok := field.TagSettingsGet("EMBEDDED_PREFIX"); ok {
@@ -261,6 +265,7 @@ func (scope *Scope) GetModelStruct() *ModelStruct {
 						}
 
 						modelStruct.StructFields = append(modelStruct.StructFields, subField)
+						allFields = append(allFields, subField)
 					}
 					continue
 				} else {
@@ -394,7 +399,7 @@ func (scope *Scope) GetModelStruct() *ModelStruct {
 										} else {
 											// generate foreign keys from defined association foreign keys
 											for _, scopeFieldName := range associationForeignKeys {
-												if foreignField := getForeignField(scopeFieldName, modelStruct.StructFields); foreignField != nil {
+												if foreignField := getForeignField(scopeFieldName, allFields); foreignField != nil {
 													foreignKeys = append(foreignKeys, associationType+foreignField.Name)
 													associationForeignKeys = append(associationForeignKeys, foreignField.Name)
 												}
@@ -406,13 +411,13 @@ func (scope *Scope) GetModelStruct() *ModelStruct {
 											for _, foreignKey := range foreignKeys {
 												if strings.HasPrefix(foreignKey, associationType) {
 													associationForeignKey := strings.TrimPrefix(foreignKey, associationType)
-													if foreignField := getForeignField(associationForeignKey, modelStruct.StructFields); foreignField != nil {
+													if foreignField := getForeignField(associationForeignKey, allFields); foreignField != nil {
 														associationForeignKeys = append(associationForeignKeys, associationForeignKey)
 													}
 												}
 											}
 											if len(associationForeignKeys) == 0 && len(foreignKeys) == 1 {
-												associationForeignKeys = []string{scope.PrimaryKey()}
+												associationForeignKeys = []string{rootScope.PrimaryKey()}
 											}
 										} else if len(foreignKeys) != len(associationForeignKeys) {
 											scope.Err(errors.New("invalid foreign keys, should have same length"))
@@ -422,7 +427,7 @@ func (scope *Scope) GetModelStruct() *ModelStruct {
 
 									for idx, foreignKey := range foreignKeys {
 										if foreignField := getForeignField(foreignKey, toFields); foreignField != nil {
-											if associationField := getForeignField(associationForeignKeys[idx], modelStruct.StructFields); associationField != nil {
+											if associationField := getForeignField(associationForeignKeys[idx], allFields); associationField != nil {
 												// mark field as foreignkey, use global lock to avoid race
 												structsLock.Lock()
 												foreignField.IsForeignKey = true
@@ -502,7 +507,7 @@ func (scope *Scope) GetModelStruct() *ModelStruct {
 									} else {
 										// generate foreign keys form association foreign keys
 										for _, associationForeignKey := range tagAssociationForeignKeys {
-											if foreignField := getForeignField(associationForeignKey, modelStruct.StructFields); foreignField != nil {
+											if foreignField := getForeignField(associationForeignKey, allFields); foreignField != nil {
 												foreignKeys = append(foreignKeys, associationType+foreignField.Name)
 												associationForeignKeys = append(associationForeignKeys, foreignField.Name)
 											}
@@ -514,13 +519,13 @@ func (scope *Scope) GetModelStruct() *ModelStruct {
 										for _, foreignKey := range foreignKeys {
 											if strings.HasPrefix(foreignKey, associationType) {
 												associationForeignKey := strings.TrimPrefix(foreignKey, associationType)
-												if foreignField := getForeignField(associationForeignKey, modelStruct.StructFields); foreignField != nil {
+												if foreignField := getForeignField(associationForeignKey, allFields); foreignField != nil {
 													associationForeignKeys = append(associationForeignKeys, associationForeignKey)
 												}
 											}
 										}
 										if len(associationForeignKeys) == 0 && len(foreignKeys) == 1 {
-											associationForeignKeys = []string{scope.PrimaryKey()}
+											associationForeignKeys = []string{rootScope.PrimaryKey()}
 										}
 									} else if len(foreignKeys) != len(associationForeignKeys) {
 										scope.Err(errors.New("invalid foreign keys, should have same length"))
@@ -530,7 +535,7 @@ func (scope *Scope) GetModelStruct() *ModelStruct {
 
 								for idx, foreignKey := range foreignKeys {
 									if foreignField := getForeignField(foreignKey, toFields); foreignField != nil {
-										if scopeField := getForeignField(associationForeignKeys[idx], modelStruct.StructFields); scopeField != nil {
+										if scopeField := getForeignField(associationForeignKeys[idx], allFields); scopeField != nil {
 											// mark field as foreignkey, use global lock to avoid race
 											structsLock.Lock()
 											foreignField.IsForeignKey = true
@@ -630,6 +635,7 @@ func (scope *Scope) GetModelStruct() *ModelStruct {
 			}
 
 			modelStruct.StructFields = append(modelStruct.StructFields, field)
+			allFields = append(allFields, field)
 		}
 	}
 

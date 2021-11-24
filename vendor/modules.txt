@@ -61,7 +61,7 @@ github.com/inconshreveable/mousetrap
 # github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a
 ## explicit
 github.com/jinzhu/copier
-# github.com/jinzhu/gorm v1.9.13-0.20200126152832-7180bd0f27d1
+# github.com/jinzhu/gorm v1.9.16
 ## explicit
 github.com/jinzhu/gorm
 github.com/jinzhu/gorm/dialects/postgres
@@ -75,7 +75,7 @@ github.com/json-iterator/go
 github.com/kardianos/osext
 # github.com/klauspost/cpuid v1.3.1
 github.com/klauspost/cpuid
-# github.com/lib/pq v1.3.1-0.20200116171513-9eb3fc897d6f
+# github.com/lib/pq v1.10.4
 ## explicit
 github.com/lib/pq
 github.com/lib/pq/hstore
@@ -86,7 +86,7 @@ github.com/lib/pq/scram
 # github.com/mattn/go-runewidth v0.0.5-0.20181218000649-703b5e6b11ae
 ## explicit
 github.com/mattn/go-runewidth
-# github.com/mattn/go-sqlite3 v2.0.3+incompatible
+# github.com/mattn/go-sqlite3 v1.14.9
 ## explicit
 github.com/mattn/go-sqlite3
 # github.com/minio/md5-simd v1.1.0

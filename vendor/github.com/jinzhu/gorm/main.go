@@ -531,6 +531,11 @@ func (s *DB) Debug() *DB {
 // Transaction start a transaction as a block,
 // return error will rollback, otherwise to commit.
 func (s *DB) Transaction(fc func(tx *DB) error) (err error) {
+
+	if _, ok := s.db.(*sql.Tx); ok {
+		return fc(s)
+	}
+
 	panicked := true
 	tx := s.Begin()
 	defer func() {

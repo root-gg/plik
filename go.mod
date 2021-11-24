@@ -18,12 +18,12 @@ require (
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/iancoleman/strcase v0.1.2
 	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a
-	github.com/jinzhu/gorm v1.9.13-0.20200126152832-7180bd0f27d1
+	github.com/jinzhu/gorm v1.9.16
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
-	github.com/lib/pq v1.3.1-0.20200116171513-9eb3fc897d6f // indirect
+	github.com/lib/pq v1.10.4 // indirect
 	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/mattn/go-runewidth v0.0.5-0.20181218000649-703b5e6b11ae // indirect
-	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
+	github.com/mattn/go-sqlite3 v1.14.9 // indirect
 	github.com/minio/minio-go/v7 v7.0.5
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/ncw/swift v1.0.48-0.20190410202254-753d2090bb62
