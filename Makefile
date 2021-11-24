@@ -60,9 +60,9 @@ version:
 # Run linters
 ###
 lint:
-	@FAIL=0 ;echo -n " - go fmt :" ; OUT=`gofmt -l . | grep -v ^vendor` ; \
+	@FAIL=0 ;echo -n " - go fmt :" ; OUT=`gofmt -l . 2>&1 | grep -v ^vendor` ; \
 	if [[ -z "$$OUT" ]]; then echo " OK" ; else echo " FAIL"; echo "$$OUT"; FAIL=1 ; fi ;\
-	echo -n " - go vet :" ; OUT=`go vet ./...` ; \
+	echo -n " - go vet :" ; OUT=`go vet ./... 2>&1` ; \
 	if [[ -z "$$OUT" ]]; then echo " OK" ; else echo " FAIL"; echo "$$OUT"; FAIL=1 ; fi ;\
 	test $$FAIL -eq 0
 
