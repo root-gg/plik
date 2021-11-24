@@ -42,7 +42,7 @@ func TestMarshalUpload(t *testing.T) {
 
 	bytes, err := MarshalUpload(u, 0)
 	require.NoError(t, err, "marshal upload error")
-	require.NotZero(t, len(bytes), "invalid json lenght")
+	require.NotZero(t, len(bytes), "invalid json length")
 }
 
 func TestMarshalUploadV1(t *testing.T) {
@@ -51,5 +51,5 @@ func TestMarshalUploadV1(t *testing.T) {
 
 	bytes, err := MarshalUpload(u, 1)
 	require.NoError(t, err, "marshal upload error")
-	require.NotZero(t, len(bytes), "invalid json lenght")
+	require.NotZero(t, len(bytes), "invalid json length")
 }

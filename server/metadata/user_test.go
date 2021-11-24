@@ -100,12 +100,12 @@ func TestBackend_GetUsers(t *testing.T) {
 	users, cursor, err := b.GetUsers("", false, common.NewPagingQuery().WithLimit(100))
 	require.NoError(t, err, "get user error")
 	require.NotNil(t, cursor, "invalid nil cursor")
-	require.Len(t, users, 10, "invalid user lenght")
+	require.Len(t, users, 10, "invalid user length")
 
 	users, cursor, err = b.GetUsers(common.ProviderGoogle, false, common.NewPagingQuery().WithLimit(100))
 	require.NoError(t, err, "get user error")
 	require.NotNil(t, cursor, "invalid nil cursor")
-	require.Len(t, users, 5, "invalid user lenght")
+	require.Len(t, users, 5, "invalid user length")
 
 	users, cursor, err = b.GetUsers("", false, nil)
 	require.Error(t, err, "get user error expected")

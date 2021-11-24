@@ -9,7 +9,7 @@ import (
 	"github.com/root-gg/plik/server/common"
 )
 
-// UploadsCleaningRoutine periodicaly remove expired uploads
+// UploadsCleaningRoutine periodically remove expired uploads
 func (ps *PlikServer) uploadsCleaningRoutine() {
 	log := ps.config.NewLogger()
 	for {
