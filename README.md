@@ -8,7 +8,7 @@ Want to chat with us ? Telegram channel : https://t.me/plik_root_gg
 
 # Plik
 
-Plik is a scalable & friendly temporary file upload system ( wetransfer like ) in golang.
+Plik is a scalable & friendly temporary file upload system (Wetransfer like) in golang.
 
 ### Main features
    - Powerful command line client
@@ -23,8 +23,8 @@ Plik is a scalable & friendly temporary file upload system ( wetransfer like ) i
    - Comments : Add custom message (in Markdown format)
    - User authentication : Local / Google / OVH
    - Upload restriction : Source IP / Token
-   - Administrator dashboard
-   - Server side encryption ( with S3 data backend )
+   - Administrator CLI and web UI
+   - Server side encryption (with S3 data backend)
    - [ShareX](https://getsharex.com/) Uploader : Directly integrated into ShareX
    - [plikSharp](https://github.com/iss0/plikSharp) : A .NET API client for Plik
    - [Filelink for Plik](https://gitlab.com/joendres/filelink-plik) : Thunderbird Addon to upload attachments to Plik
