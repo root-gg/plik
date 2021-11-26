@@ -3,7 +3,7 @@ package common
 import (
 	"testing"
 
-	paginator "github.com/pilagod/gorm-cursor-paginator"
+	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
 	"github.com/stretchr/testify/require"
 )
 

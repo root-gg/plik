@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jinzhu/gorm"
-	paginator "github.com/pilagod/gorm-cursor-paginator"
+	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
+	"gorm.io/gorm"
 
 	"github.com/root-gg/plik/server/common"
 )
@@ -20,7 +20,7 @@ func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 	upload = &common.Upload{}
 
 	err = b.db.Take(upload, &common.Upload{ID: ID}).Error
-	if gorm.IsRecordNotFoundError(err) {
+	if err == gorm.ErrRecordNotFound {
 		return nil, nil
 	} else if err != nil {
 		return nil, err
@@ -54,12 +54,13 @@ func (b *Backend) GetUploads(userID string, tokenStr string, withFiles bool, pag
 	p := pagingQuery.Paginator()
 	p.SetKeys("CreatedAt", "ID")
 
-	err = p.Paginate(stmt, &uploads).Error
+	result, c, err := p.Paginate(stmt, &uploads)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	c := p.GetNextCursor()
+	if result.Error != nil {
+		return nil, nil, result.Error
+	}
 
 	return uploads, &c, err
 }
@@ -151,7 +152,7 @@ func (b *Backend) PurgeDeletedUploads() (removed int, err error) {
 			return removed, fmt.Errorf("unable to fetch next expired upload : %s", err)
 		}
 
-		var count int
+		var count int64
 		err := b.db.Model(&common.File{}).Not(&common.File{Status: common.FileDeleted}).Where(&common.File{UploadID: upload.ID}).Count(&count).Error
 		if err != nil {
 			return removed, err

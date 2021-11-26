@@ -2,18 +2,16 @@ package metadata
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"time"
 
-	"github.com/jinzhu/gorm"
+	"github.com/go-gormigrate/gormigrate/v2"
 	"github.com/root-gg/utils"
-	"gopkg.in/gormigrate.v1"
-
-	// load drivers
-	// Still some issues to workaround for mysql
-	//  - innodb deadlocks on create
-	//  - createdAt => datetime(6)
-	//_ "github.com/jinzhu/gorm/dialects/mysql"
-	_ "github.com/jinzhu/gorm/dialects/postgres"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"github.com/root-gg/plik/server/common"
 )
@@ -49,7 +47,41 @@ func NewBackend(config *Config) (b *Backend, err error) {
 	b = new(Backend)
 	b.Config = config
 
-	b.db, err = gorm.Open(b.Config.Driver, b.Config.ConnectionString)
+	// Setup database logging
+	var l logger.Interface
+	if config.Debug {
+		l = logger.New(
+			log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+			logger.Config{
+				SlowThreshold:             time.Second, // Slow SQL threshold
+				LogLevel:                  logger.Info, // Log level
+				IgnoreRecordNotFoundError: true,        // Ignore ErrRecordNotFound error for logger
+				Colorful:                  false,       // Disable color
+			},
+		)
+	} else {
+		l = logger.New(
+			log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+			logger.Config{
+				SlowThreshold:             time.Second,   // Slow SQL threshold
+				LogLevel:                  logger.Silent, // Log level
+				IgnoreRecordNotFoundError: true,          // Ignore ErrRecordNotFound error for logger
+				Colorful:                  false,         // Disable color
+			},
+		)
+	}
+
+	// Prepare database connection depending on driver type
+	var dial gorm.Dialector
+	switch config.Driver {
+	case "sqlite3":
+		dial = sqlite.Open(config.ConnectionString)
+	case "postgres":
+		dial = postgres.Open(config.ConnectionString)
+	}
+
+	// Open database connection
+	b.db, err = gorm.Open(dial, &gorm.Config{Logger: l})
 	if err != nil {
 		return nil, fmt.Errorf("unable to open database : %s", err)
 	}
@@ -57,26 +89,23 @@ func NewBackend(config *Config) (b *Backend, err error) {
 	if config.Driver == "sqlite3" {
 		err = b.db.Exec("PRAGMA journal_mode=WAL;").Error
 		if err != nil {
-			_ = b.db.Close()
+			_ = b.Shutdown()
 			return nil, fmt.Errorf("unable to set wal mode : %s", err)
 		}
 
 		err = b.db.Exec("PRAGMA foreign_keys = ON").Error
 		if err != nil {
-			_ = b.db.Close()
+			_ = b.Shutdown()
 			return nil, fmt.Errorf("unable to enable foreign keys : %s", err)
 		}
 	}
 
+	// For testing
 	if config.EraseFirst {
-		err = b.db.DropTableIfExists("files", "uploads", "tokens", "users", "settings", "migrations").Error
+		err = b.db.Migrator().DropTable("files", "uploads", "tokens", "users", "settings", "migrations")
 		if err != nil {
 			return nil, fmt.Errorf("unable to drop tables : %s", err)
 		}
-	}
-
-	if config.Debug {
-		b.db.LogMode(true)
 	}
 
 	err = b.initializeDB()
@@ -89,7 +118,7 @@ func NewBackend(config *Config) (b *Backend, err error) {
 
 func (b *Backend) initializeDB() (err error) {
 	m := gormigrate.New(b.db, gormigrate.DefaultOptions, []*gormigrate.Migration{
-		// you migrations here
+		// your migrations here
 	})
 
 	m.InitSchema(func(tx *gorm.DB) error {
@@ -105,7 +134,7 @@ func (b *Backend) initializeDB() (err error) {
 			&common.User{},
 			&common.Token{},
 			&common.Setting{},
-		).Error
+		)
 		if err != nil {
 			return err
 		}
@@ -134,5 +163,18 @@ func (b *Backend) initializeDB() (err error) {
 
 // Shutdown close the metadata backend
 func (b *Backend) Shutdown() (err error) {
-	return b.db.Close()
+
+	// Close database connection if needed
+	if b.db != nil {
+		db, err := b.db.DB()
+		if err != nil {
+			return err
+		}
+		err = db.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -3,9 +3,8 @@ package metadata
 import (
 	"fmt"
 
-	paginator "github.com/pilagod/gorm-cursor-paginator"
-
-	"github.com/jinzhu/gorm"
+	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
+	"gorm.io/gorm"
 
 	"github.com/root-gg/plik/server/common"
 )
@@ -19,7 +18,7 @@ func (b *Backend) CreateToken(token *common.Token) (err error) {
 func (b *Backend) GetToken(tokenStr string) (token *common.Token, err error) {
 	token = &common.Token{}
 	err = b.db.Where(&common.Token{Token: tokenStr}).Take(token).Error
-	if gorm.IsRecordNotFoundError(err) {
+	if err == gorm.ErrRecordNotFound {
 		return nil, nil
 	} else if err != nil {
 		return nil, err
@@ -35,12 +34,14 @@ func (b *Backend) GetTokens(userID string, pagingQuery *common.PagingQuery) (tok
 	p := pagingQuery.Paginator()
 	p.SetKeys("CreatedAt", "Token")
 
-	err = p.Paginate(stmt, &tokens).Error
+	result, c, err := p.Paginate(stmt, &tokens)
 	if err != nil {
 		return nil, nil, err
 	}
+	if result.Error != nil {
+		return nil, nil, result.Error
+	}
 
-	c := p.GetNextCursor()
 	return tokens, &c, err
 }
 
@@ -58,12 +59,13 @@ func (b *Backend) DeleteToken(tokenStr string) (deleted bool, err error) {
 
 // CountUserTokens count how many token a user has
 func (b *Backend) CountUserTokens(userID string) (count int, err error) {
-	err = b.db.Model(&common.Token{}).Where(&common.Token{UserID: userID}).Count(&count).Error
+	var c int64 // Gorm V2 needs int64 for counts
+	err = b.db.Model(&common.Token{}).Where(&common.Token{UserID: userID}).Count(&c).Error
 	if err != nil {
 		return -1, err
 	}
 
-	return count, nil
+	return int(c), nil
 }
 
 // ForEachToken execute f for every token in the database

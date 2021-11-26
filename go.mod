@@ -11,6 +11,7 @@ require (
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
 	github.com/dustin/go-humanize v1.0.1-0.20200219035652-afde56e7acac
 	github.com/fatih/color v1.9.0 // indirect
+	github.com/go-gormigrate/gormigrate/v2 v2.0.0
 	github.com/golang/protobuf v1.3.2-0.20190409050943-e91709a02e0e // indirect
 	github.com/golang/snappy v0.0.2-0.20190904063534-ff6b7dc882cf
 	github.com/google/uuid v1.1.2 // indirect
@@ -18,32 +19,29 @@ require (
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/iancoleman/strcase v0.1.2
 	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a
-	github.com/jinzhu/gorm v1.9.16
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/lib/pq v1.10.4 // indirect
-	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/mattn/go-runewidth v0.0.5-0.20181218000649-703b5e6b11ae // indirect
-	github.com/mattn/go-sqlite3 v1.14.9 // indirect
 	github.com/minio/minio-go/v7 v7.0.5
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/ncw/swift v1.0.48-0.20190410202254-753d2090bb62
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
 	github.com/olekukonko/ts v0.0.0-20171002115256-78ecb04241c0
-	github.com/pilagod/gorm-cursor-paginator v1.2.0
+	github.com/pilagod/gorm-cursor-paginator/v2 v2.2.0
 	github.com/root-gg/juliet v0.0.0-20160211163218-63378c6bd35e
 	github.com/root-gg/logger v0.0.0-20150501173826-5d9a47a35312
 	github.com/root-gg/utils v0.0.0-20201113182430-4cef83d8cdcf
 	github.com/spf13/cobra v0.0.6-0.20200106181057-89c7ffb5129b
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.7.0
 	go.opencensus.io v0.20.2 // indirect
-	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
-	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a
-	golang.org/x/sys v0.0.0-20201020230747-6e5568b54d1a // indirect
 	google.golang.org/api v0.3.3-0.20190418015003-33b7e862cd15
 	google.golang.org/appengine v1.5.0 // indirect
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
-	gopkg.in/gormigrate.v1 v1.6.0
 	gopkg.in/ini.v1 v1.62.0 // indirect
+	gorm.io/driver/postgres v1.2.2
+	gorm.io/driver/sqlite v1.2.6
+	gorm.io/gorm v1.22.3
 )

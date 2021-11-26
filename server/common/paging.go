@@ -1,7 +1,7 @@
 package common
 
 import (
-	paginator "github.com/pilagod/gorm-cursor-paginator"
+	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
 	"github.com/root-gg/utils"
 )
 

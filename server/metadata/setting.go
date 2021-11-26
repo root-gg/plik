@@ -3,7 +3,7 @@ package metadata
 import (
 	"fmt"
 
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 
 	"github.com/root-gg/plik/server/common"
 )
@@ -18,7 +18,7 @@ func (b *Backend) GetSetting(key string) (setting *common.Setting, err error) {
 	setting = &common.Setting{}
 
 	err = b.db.Take(setting, &common.Setting{Key: key}).Error
-	if gorm.IsRecordNotFoundError(err) {
+	if err == gorm.ErrRecordNotFound {
 		return nil, nil
 	} else if err != nil {
 		return nil, err
@@ -28,7 +28,7 @@ func (b *Backend) GetSetting(key string) (setting *common.Setting, err error) {
 
 // UpdateSetting update a setting in DB
 func (b *Backend) UpdateSetting(key string, oldValue string, newValue string) (err error) {
-	result := b.db.Model(&common.Setting{}).Where(&common.Setting{Key: key, Value: oldValue}).Update(&common.Setting{Value: newValue})
+	result := b.db.Model(&common.Setting{}).Where(&common.Setting{Key: key, Value: oldValue}).Update("value", newValue)
 	if result.Error != nil {
 		return result.Error
 	}

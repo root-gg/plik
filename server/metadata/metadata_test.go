@@ -7,15 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 
 	"github.com/root-gg/plik/server/common"
 )
 
 // Default config
-var metadataBackendConfig = &Config{Driver: "sqlite3", ConnectionString: "/tmp/plik.test.db", EraseFirst: true}
+var metadataBackendConfig = &Config{Driver: "sqlite3", ConnectionString: "/tmp/plik.test.db", EraseFirst: true, Debug: false}
 
 func TestMain(m *testing.M) {
 
@@ -78,7 +78,7 @@ func TestMetadata(t *testing.T) {
 	err = b.db.Preload("Files").Take(upload, "id = ?", uploadID).Error
 	require.NoError(t, err, "unable to fetch upload")
 
-	err = b.db.Close()
+	err = b.Shutdown()
 	require.NoError(t, err, "close db error")
 }
 
@@ -89,10 +89,10 @@ func TestGormConcurrent(t *testing.T) {
 	}
 
 	// https://github.com/jinzhu/gorm/issues/2875
-	db, err := gorm.Open("sqlite3", "/tmp/plik.db")
+	db, err := gorm.Open(sqlite.Open("/tmp/plik.db"))
 	require.NoError(t, err, "DB open error")
 
-	err = db.AutoMigrate(&Object{}).Error
+	err = db.AutoMigrate(&Object{})
 	require.NoError(t, err, "schema update error")
 
 	count := 30
@@ -163,7 +163,7 @@ func TestMetadataUpdateFileStatus(t *testing.T) {
 
 	file.Status = common.FileUploaded
 	result := b.db.Where(&common.File{Status: common.FileUploading}).Save(&file)
-	require.NoError(t, result.Error, "unable to update missing file")
+	require.Error(t, result.Error, "able to update missing file")
 	require.Equal(t, int64(0), result.RowsAffected, "unexpected update")
 
 	//!\\ ON MYSQL SAVE MODIFIES THE FILE STATUS BACK TO MISSING ( wtf ? ) //!\\
@@ -184,7 +184,7 @@ func TestMetadataNotFound(t *testing.T) {
 	upload := &common.Upload{}
 	err := b.db.Where(&common.Upload{ID: "notfound"}).Take(upload).Error
 	require.Error(t, err, "unable to fetch upload")
-	require.True(t, gorm.IsRecordNotFoundError(err), "unexpected error type")
+	require.Equal(t, gorm.ErrRecordNotFound, err, "unexpected error type")
 }
 
 func TestMetadataCursor(t *testing.T) {
@@ -271,17 +271,17 @@ func TestUnscoped(t *testing.T) {
 	err := b.db.Create(upload).Error
 	require.NoError(t, err, "unable to create upload")
 
-	var count int
+	var count int64
 	err = b.db.Model(&common.Upload{}).Unscoped().Where("deleted_at IS NOT NULL").Count(&count).Error
 	require.NoError(t, err, "get deleted upload error")
-	require.Equal(t, 0, count, "get deleted upload count error")
+	require.Equal(t, int64(0), count, "get deleted upload count error")
 
 	err = b.db.Delete(&upload).Error
 	require.NoError(t, err, "unable to delete upload")
 
 	upload = &common.Upload{}
 	err = b.db.Take(upload, &common.Upload{ID: uploadID}).Error
-	require.True(t, gorm.IsRecordNotFoundError(err), "get upload error")
+	require.Equal(t, gorm.ErrRecordNotFound, err, "get upload error")
 
 	upload = &common.Upload{}
 	err = b.db.Unscoped().Take(upload, &common.Upload{ID: uploadID}).Error
@@ -290,7 +290,7 @@ func TestUnscoped(t *testing.T) {
 
 	err = b.db.Model(&common.Upload{}).Unscoped().Where("deleted_at IS NOT NULL").Count(&count).Error
 	require.NoError(t, err, "get deleted upload error")
-	require.Equal(t, 1, count, "get deleted upload count error")
+	require.Equal(t, int64(1), count, "get deleted upload count error")
 }
 
 func TestDoubleDelete(t *testing.T) {

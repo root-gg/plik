@@ -14,7 +14,9 @@ func (b *Backend) GetUploadStatistics(userID *string, tokenStr *string) (uploads
 	if tokenStr != nil {
 		stmt = stmt.Where("uploads.token = ?", tokenStr)
 	}
-	err = stmt.Count(&uploads).Error
+
+	var uploadsCount int64 // Gorm V2 requires int64 for counts
+	err = stmt.Count(&uploadsCount).Error
 	if err != nil {
 		return 0, 0, 0, err
 	}
@@ -36,7 +38,7 @@ func (b *Backend) GetUploadStatistics(userID *string, tokenStr *string) (uploads
 		return 0, 0, 0, err
 	}
 
-	return uploads, files, size, nil
+	return int(uploadsCount), files, size, nil
 }
 
 // GetUserStatistics return statistics about user uploads

@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/stretchr/testify/require"
 
 	"github.com/root-gg/plik/server/common"
