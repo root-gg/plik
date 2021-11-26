@@ -23,7 +23,7 @@ const FileDeleted = "deleted"
 // File object
 type File struct {
 	ID       string `json:"id"`
-	UploadID string `json:"-"  gorm:"type:varchar(255) REFERENCES uploads(id) ON UPDATE RESTRICT ON DELETE RESTRICT"`
+	UploadID string `json:"-" gorm:"size:256;constraint:OnUpdate:RESTRICT,OnDelete:RESTRICT;"`
 	Name     string `json:"fileName"`
 
 	Status string `json:"status"`

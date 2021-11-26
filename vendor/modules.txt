@@ -34,6 +34,8 @@ github.com/dustin/go-humanize
 # github.com/go-gormigrate/gormigrate/v2 v2.0.0
 ## explicit
 github.com/go-gormigrate/gormigrate/v2
+# github.com/go-sql-driver/mysql v1.6.0
+github.com/go-sql-driver/mysql
 # github.com/golang/protobuf v1.3.2-0.20190409050943-e91709a02e0e
 ## explicit
 github.com/golang/protobuf/proto
@@ -300,12 +302,17 @@ google.golang.org/grpc/tap
 gopkg.in/ini.v1
 # gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 gopkg.in/yaml.v3
+# gorm.io/driver/mysql v1.2.0
+## explicit
+gorm.io/driver/mysql
 # gorm.io/driver/postgres v1.2.2
 ## explicit
 gorm.io/driver/postgres
 # gorm.io/driver/sqlite v1.2.6
 ## explicit
 gorm.io/driver/sqlite
+# gorm.io/driver/sqlserver v1.2.1
+## explicit
 # gorm.io/gorm v1.22.3
 ## explicit
 gorm.io/gorm

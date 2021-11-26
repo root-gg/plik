@@ -15,7 +15,7 @@ import (
 )
 
 // Default config
-var metadataBackendConfig = &Config{Driver: "sqlite3", ConnectionString: "/tmp/plik.test.db", EraseFirst: true, Debug: false}
+var metadataBackendConfig = &Config{Driver: "sqlite3", ConnectionString: "/tmp/plik.test.db", EraseFirst: true, Debug: true}
 
 func TestMain(m *testing.M) {
 

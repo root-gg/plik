@@ -92,7 +92,7 @@ func (b *Backend) RemoveUploadFiles(uploadID string) (err error) {
 func (b *Backend) DeleteUpload(uploadID string) (err error) {
 	err = b.db.Delete(&common.Upload{ID: uploadID}).Error
 	if err != nil {
-		return fmt.Errorf("unable to delete upload")
+		return fmt.Errorf("unable to delete upload : %s", err)
 	}
 
 	err = b.RemoveUploadFiles(uploadID)

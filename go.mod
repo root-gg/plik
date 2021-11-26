@@ -41,7 +41,9 @@ require (
 	google.golang.org/appengine v1.5.0 // indirect
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect
+	gorm.io/driver/mysql v1.2.0
 	gorm.io/driver/postgres v1.2.2
 	gorm.io/driver/sqlite v1.2.6
+	gorm.io/driver/sqlserver v1.2.1 // indirect
 	gorm.io/gorm v1.22.3
 )

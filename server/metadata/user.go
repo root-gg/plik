@@ -139,7 +139,7 @@ func (b *Backend) DeleteUser(userID string) (deleted bool, err error) {
 		// Delete user
 		result := tx.Where(&common.User{ID: userID}).Delete(common.User{})
 		if result.Error != nil {
-			return fmt.Errorf("unable to delete user metadata : %s", err)
+			return fmt.Errorf("unable to delete user metadata : %s", result.Error)
 		}
 
 		if result.RowsAffected > 0 {

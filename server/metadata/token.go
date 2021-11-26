@@ -51,7 +51,7 @@ func (b *Backend) DeleteToken(tokenStr string) (deleted bool, err error) {
 	// Delete token
 	result := b.db.Delete(&common.Token{Token: tokenStr})
 	if result.Error != nil {
-		return false, fmt.Errorf("unable to delete token metadata")
+		return false, fmt.Errorf("unable to delete token metadata : %s", result.Error)
 	}
 
 	return result.RowsAffected > 0, err

@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-gormigrate/gormigrate/v2"
 	"github.com/root-gg/utils"
+	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -78,6 +79,22 @@ func NewBackend(config *Config) (b *Backend, err error) {
 		dial = sqlite.Open(config.ConnectionString)
 	case "postgres":
 		dial = postgres.Open(config.ConnectionString)
+	case "mysql":
+		dial = mysql.New(mysql.Config{
+			DSN:                       config.ConnectionString,
+			DefaultStringSize:         256,  // default size for string fields
+			SkipInitializeWithVersion: true, // auto configure based on currently MySQL version
+		})
+
+		//case "sqlserver":
+		//	dial = sqlserver.Open(config.ConnectionString)
+		//
+		// There is currently an issue with the reserved keyword user not being correctly escaped
+		// "SELECT count(*) FROM "uploads" WHERE uploads.user == "user" AND "uploads"."deleted_at" IS NULL"
+		//  -> returns : Incorrect syntax near the keyword 'user'
+		// "SELECT count(*) FROM "uploads" WHERE uploads.[user] = "user" AND "uploads"."deleted_at" IS NULL"
+		//  -> Would be OK
+		// TODO investigate how the query is generated and maybe open issue in https://github.com/denisenkom/go-mssqldb ?
 	}
 
 	// Open database connection
@@ -123,10 +140,10 @@ func (b *Backend) initializeDB() (err error) {
 
 	m.InitSchema(func(tx *gorm.DB) error {
 
-		//if b.Config.Driver == "mysql" {
-		//	// Enable foreign keys
-		//	tx = tx.Set("gorm:table_options", "ENGINE=InnoDB")
-		//}
+		if b.Config.Driver == "mysql" {
+			// Enable foreign keys
+			tx = tx.Set("gorm:table_options", "ENGINE=InnoDB")
+		}
 
 		err := tx.AutoMigrate(
 			&common.Upload{},
@@ -135,23 +152,8 @@ func (b *Backend) initializeDB() (err error) {
 			&common.Token{},
 			&common.Setting{},
 		)
-		if err != nil {
-			return err
-		}
 
-		//if b.Config.Driver == "mysql" {
-		//	err = tx.Model(&common.File{}).AddForeignKey("upload_id", "uploads(id)", "RESTRICT", "RESTRICT").Error
-		//	if err != nil {
-		//		return err
-		//	}
-		//	err = tx.Model(&common.Token{}).AddForeignKey("user_id", "users(id)", "RESTRICT", "RESTRICT").Error
-		//	if err != nil {
-		//		return err
-		//	}
-		//}
-
-		// all other foreign keys...
-		return nil
+		return err
 	})
 
 	if err = m.Migrate(); err != nil {
