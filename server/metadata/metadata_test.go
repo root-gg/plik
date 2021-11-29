@@ -15,7 +15,7 @@ import (
 )
 
 // Default config
-var metadataBackendConfig = &Config{Driver: "sqlite3", ConnectionString: "/tmp/plik.test.db", EraseFirst: true, Debug: true}
+var metadataBackendConfig = &Config{Driver: "sqlite3", ConnectionString: "/tmp/plik.test.db", EraseFirst: true, Debug: false}
 
 func TestMain(m *testing.M) {
 
@@ -38,13 +38,19 @@ func TestMain(m *testing.M) {
 }
 
 func newTestMetadataBackend() *Backend {
-
 	b, err := NewBackend(metadataBackendConfig)
 	if err != nil {
 		panic(fmt.Sprintf("unable to create metadata backend : %s", err))
 	}
 
 	return b
+}
+
+func shutdownTestMetadataBackend(b *Backend) {
+	err := b.Shutdown()
+	if err != nil {
+		fmt.Printf("Unable to shutdown metadata backend : %s\n", err)
+	}
 }
 
 func TestNewConfig(t *testing.T) {
@@ -61,6 +67,7 @@ func TestNewConfig(t *testing.T) {
 
 func TestMetadata(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	uploadID := "azertiop"
 	upload := &common.Upload{ID: uploadID}
@@ -116,6 +123,7 @@ func TestGormConcurrent(t *testing.T) {
 
 func TestMetadataConcurrent(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	uploadID := "azertiop"
 	upload := &common.Upload{ID: uploadID}
@@ -148,6 +156,7 @@ func TestMetadataConcurrent(t *testing.T) {
 
 func TestMetadataUpdateFileStatus(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	uploadID := "azertiop"
 	upload := &common.Upload{ID: uploadID}
@@ -180,6 +189,7 @@ func TestMetadataUpdateFileStatus(t *testing.T) {
 
 func TestMetadataNotFound(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	err := b.db.Where(&common.Upload{ID: "notfound"}).Take(upload).Error
@@ -189,6 +199,7 @@ func TestMetadataNotFound(t *testing.T) {
 
 func TestMetadataCursor(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	var expected = []string{"upload 1", "upload 2", "upload 3"}
 	for _, id := range expected {
@@ -212,6 +223,7 @@ func TestMetadataCursor(t *testing.T) {
 
 func TestMetadataExpiredCursor(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	err := b.db.Create(&common.Upload{ID: "upload 1"}).Error
 	require.NoError(t, err, "unable to create upload")
@@ -241,6 +253,7 @@ func TestMetadataExpiredCursor(t *testing.T) {
 // https://github.com/mattn/go-sqlite3/issues/569
 func TestMetadataCursorLock(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	var expected = []string{"upload 1", "upload 2", "upload 3"}
 	for _, id := range expected {
@@ -264,6 +277,7 @@ func TestMetadataCursorLock(t *testing.T) {
 
 func TestUnscoped(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	uploadID := "azertiop"
 	upload := &common.Upload{ID: uploadID}
@@ -295,6 +309,7 @@ func TestUnscoped(t *testing.T) {
 
 func TestDoubleDelete(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	uploadID := "azertiop"
 	upload := &common.Upload{ID: uploadID}

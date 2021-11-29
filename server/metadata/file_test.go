@@ -11,6 +11,7 @@ import (
 
 func TestBackend_CreateFile(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 
@@ -23,6 +24,7 @@ func TestBackend_CreateFile(t *testing.T) {
 
 func TestBackend_CreateFile_UploadNotFound(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	upload.ID = "nope"
@@ -36,6 +38,7 @@ func TestBackend_CreateFile_UploadNotFound(t *testing.T) {
 
 func TestBackend_GetFile(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
@@ -51,6 +54,7 @@ func TestBackend_GetFile(t *testing.T) {
 
 func TestBackend_GetFile_NotFound(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	file, err := b.GetFile("not found")
 	require.NoError(t, err, "get file error")
@@ -59,6 +63,7 @@ func TestBackend_GetFile_NotFound(t *testing.T) {
 
 func TestBackend_GetFiles(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	// To spice the test
 	upload := &common.Upload{}
@@ -77,6 +82,7 @@ func TestBackend_GetFiles(t *testing.T) {
 
 func TestBackend_UpdateFile(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
@@ -104,6 +110,7 @@ func TestBackend_UpdateFile(t *testing.T) {
 
 func TestBackend_UpdateFileStatus(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
@@ -123,6 +130,7 @@ func TestBackend_UpdateFileStatus(t *testing.T) {
 
 func TestBackend_RemoveFile(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
@@ -155,6 +163,7 @@ func TestBackend_RemoveFile(t *testing.T) {
 
 func TestBackend_ForEachUploadFiles(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	upload.NewFile()
@@ -180,6 +189,7 @@ func TestBackend_ForEachUploadFiles(t *testing.T) {
 
 func TestBackend_ForEachRemovedFiles(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	upload.NewFile()
@@ -206,6 +216,7 @@ func TestBackend_ForEachRemovedFiles(t *testing.T) {
 
 func TestBackend_CountUploadFiles(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	_ = upload.NewFile()
@@ -219,6 +230,7 @@ func TestBackend_CountUploadFiles(t *testing.T) {
 
 func TestBackend_ForEachFile(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	file := upload.NewFile()

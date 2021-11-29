@@ -11,6 +11,7 @@ import (
 
 func TestBackend_CreateToken(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user := common.NewUser(common.ProviderLocal, "user")
 	createUser(t, b, user)
@@ -27,6 +28,7 @@ func TestBackend_CreateToken(t *testing.T) {
 
 func TestBackend_GetToken(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	token, err := b.GetToken("token")
 	require.NoError(t, err, "get token error")
@@ -47,6 +49,7 @@ func TestBackend_GetToken(t *testing.T) {
 
 func TestBackend_GetTokens(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user := common.NewUser(common.ProviderLocal, "user")
 	for i := 0; i < 10; i++ {
@@ -62,6 +65,7 @@ func TestBackend_GetTokens(t *testing.T) {
 
 func TestBackend_DeleteToken(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	deleted, err := b.DeleteToken("token")
 	require.NoError(t, err, "get token error")
@@ -86,6 +90,7 @@ func TestBackend_DeleteToken(t *testing.T) {
 
 func TestBackend_CountUserTokens(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user := common.NewUser(common.ProviderLocal, "user")
 	for i := 0; i < 10; i++ {
@@ -100,6 +105,7 @@ func TestBackend_CountUserTokens(t *testing.T) {
 
 func TestBackend_ForEachToken(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user := common.NewUser(common.ProviderLocal, "user")
 	token := user.NewToken()

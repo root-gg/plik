@@ -26,6 +26,8 @@ func createMetadata(t *testing.T, b *Backend) {
 
 func TestBackend_Export(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
 	createMetadata(t, b)
 
 	path := "/tmp/plik.metadata.test.snappy.gob"
@@ -33,6 +35,8 @@ func TestBackend_Export(t *testing.T) {
 	require.NoError(t, err, "export error %s", err)
 
 	b = newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
 	err = b.Import(path)
 	require.NoError(t, err, "import error %s", err)
 }

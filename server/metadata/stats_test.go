@@ -11,6 +11,7 @@ import (
 
 func TestBackend_GetUploadStatistics(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	for i := 1; i <= 100; i++ {
 		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
@@ -31,6 +32,7 @@ func TestBackend_GetUploadStatistics(t *testing.T) {
 
 func TestBackend_GetUploadNoFiles(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	for i := 1; i <= 100; i++ {
 		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
@@ -46,6 +48,7 @@ func TestBackend_GetUploadNoFiles(t *testing.T) {
 
 func TestBackend_GetUploadStatistics_User(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	for i := 1; i <= 100; i++ {
 		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
@@ -78,6 +81,7 @@ func TestBackend_GetUploadStatistics_User(t *testing.T) {
 
 func TestBackend_GetUploadStatistics_Token(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	for i := 1; i <= 100; i++ {
 		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
@@ -114,6 +118,7 @@ func TestBackend_GetUploadStatistics_Token(t *testing.T) {
 
 func TestBackend_GetUploadStatistics_Anonymous(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	for i := 1; i <= 100; i++ {
 		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
@@ -152,6 +157,7 @@ func TestBackend_GetUploadStatistics_Anonymous(t *testing.T) {
 
 func TestBackend_GetUserStatistics(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	for i := 1; i <= 100; i++ {
 		upload := &common.Upload{User: "user_id", Comments: fmt.Sprintf("%d", i)}
@@ -172,6 +178,7 @@ func TestBackend_GetUserStatistics(t *testing.T) {
 
 func TestBackend_GetServerStatistics(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	for i := 1; i <= 10; i++ {
 		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}

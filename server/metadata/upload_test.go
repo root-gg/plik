@@ -18,6 +18,7 @@ func createUpload(t *testing.T, b *Backend, upload *common.Upload) {
 
 func TestBackend_CreateUpload(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
@@ -33,6 +34,7 @@ func TestBackend_CreateUpload(t *testing.T) {
 
 func TestBackend_GetUpload(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	_ = upload.NewFile()
@@ -49,6 +51,7 @@ func TestBackend_GetUpload(t *testing.T) {
 
 func TestBackend_GetUpload_NotFound(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload, err := b.GetUpload("not found")
 	require.NoError(t, err, "get upload error")
@@ -57,6 +60,7 @@ func TestBackend_GetUpload_NotFound(t *testing.T) {
 
 func TestBackend_GetUploads_MissingPagingQuery(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	_, _, err := b.GetUploads("", "", false, nil)
 	require.Error(t, err, "get upload error expected")
@@ -64,6 +68,7 @@ func TestBackend_GetUploads_MissingPagingQuery(t *testing.T) {
 
 func TestBackend_DeleteUpload(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	_ = upload.NewFile()
@@ -80,6 +85,7 @@ func TestBackend_DeleteUpload(t *testing.T) {
 
 func TestBackend_GetUploads(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	for i := 1; i <= 100; i++ {
 		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
@@ -126,6 +132,7 @@ func TestBackend_GetUploads(t *testing.T) {
 
 func TestBackend_GetUploadsWithFiles(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	upload.NewFile()
@@ -147,6 +154,7 @@ func TestBackend_GetUploadsWithFiles(t *testing.T) {
 
 func TestBackend_GetUploads_User(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user := &common.User{ID: "user"}
 
@@ -174,6 +182,7 @@ func TestBackend_GetUploads_User(t *testing.T) {
 
 func TestBackend_GetUploads_Token(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	token := &common.Token{Token: "token"}
 
@@ -201,6 +210,7 @@ func TestBackend_GetUploads_Token(t *testing.T) {
 
 func TestBackend_DeleteExpiredUploads(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload1 := &common.Upload{}
 	createUpload(t, b, upload1)
@@ -228,6 +238,7 @@ func TestBackend_DeleteExpiredUploads(t *testing.T) {
 
 func TestBackend_PurgeDeletedUploads(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	upload.NewFile().Status = common.FileUploaded
@@ -256,6 +267,7 @@ func TestBackend_PurgeDeletedUploads(t *testing.T) {
 
 func TestBackend_ForEachUpload(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	upload.Comments = "foo bar"

@@ -11,6 +11,7 @@ import (
 
 func TestCreateSetting(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	err := b.CreateSetting(&common.Setting{Key: "foo", Value: "bar"})
 	require.NoError(t, err, "create setting error")
@@ -21,6 +22,7 @@ func TestCreateSetting(t *testing.T) {
 
 func TestGetSetting(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	setting, err := b.GetSetting("foo")
 	require.NoError(t, err, "get setting error")
@@ -38,6 +40,7 @@ func TestGetSetting(t *testing.T) {
 
 func TestUpdateSetting(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	err := b.UpdateSetting("foo", "bar", "baz")
 	require.Error(t, err, "update setting error expected")
@@ -60,6 +63,7 @@ func TestUpdateSetting(t *testing.T) {
 
 func TestDeleteSetting(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	err := b.CreateSetting(&common.Setting{Key: "foo", Value: "bar"})
 	require.NoError(t, err, "create setting error")
@@ -78,6 +82,7 @@ func TestDeleteSetting(t *testing.T) {
 
 func TestBackend_ForEachSetting(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	err := b.CreateSetting(&common.Setting{Key: "foo", Value: "bar"})
 	require.NoError(t, err, "create setting error")

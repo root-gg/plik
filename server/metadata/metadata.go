@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -22,6 +23,8 @@ type Config struct {
 	Driver           string
 	ConnectionString string
 	EraseFirst       bool
+	MaxOpenConns     int
+	MaxIdleConns     int
 	Debug            bool
 }
 
@@ -106,13 +109,17 @@ func NewBackend(config *Config) (b *Backend, err error) {
 	if config.Driver == "sqlite3" {
 		err = b.db.Exec("PRAGMA journal_mode=WAL;").Error
 		if err != nil {
-			_ = b.Shutdown()
+			if err := b.Shutdown(); err != nil {
+				b.db.Logger.Error(context.Background(), "Unable to shutdown metadata backend : %s", err)
+			}
 			return nil, fmt.Errorf("unable to set wal mode : %s", err)
 		}
 
 		err = b.db.Exec("PRAGMA foreign_keys = ON").Error
 		if err != nil {
-			_ = b.Shutdown()
+			if err := b.Shutdown(); err != nil {
+				b.db.Logger.Error(context.Background(), "Unable to shutdown metadata backend : %s", err)
+			}
 			return nil, fmt.Errorf("unable to enable foreign keys : %s", err)
 		}
 	}
@@ -125,14 +132,26 @@ func NewBackend(config *Config) (b *Backend, err error) {
 		}
 	}
 
+	// Initialize database schema
 	err = b.initializeDB()
 	if err != nil {
+		if err := b.Shutdown(); err != nil {
+			b.db.Logger.Error(context.Background(), "Unable to shutdown metadata backend : %s", err)
+		}
 		return nil, fmt.Errorf("unable to initialize DB : %s", err)
+	}
+
+	// Adjust max idle/open connection pool size
+	err = b.adjustConnectionPoolParameters()
+	if err != nil {
+		return nil, err
 	}
 
 	return b, err
 }
 
+// Initialize the metadata backend.
+//  - Create or update the database schema if needed
 func (b *Backend) initializeDB() (err error) {
 	m := gormigrate.New(b.db, gormigrate.DefaultOptions, []*gormigrate.Migration{
 		// your migrations here
@@ -163,10 +182,30 @@ func (b *Backend) initializeDB() (err error) {
 	return nil
 }
 
-// Shutdown close the metadata backend
+// Adjust max idle/open connection pool size
+func (b *Backend) adjustConnectionPoolParameters() (err error) {
+	// Get generic "database/sql" database handle
+	sqlDB, err := b.db.DB()
+	if err != nil {
+		return fmt.Errorf("unable to get SQL DB handle : %s", err)
+	}
+
+	if b.Config.MaxIdleConns > 0 {
+		sqlDB.SetMaxIdleConns(b.Config.MaxIdleConns)
+	}
+
+	if b.Config.MaxOpenConns > 0 {
+		// Need at least a few because of https://github.com/mattn/go-sqlite3/issues/569
+		sqlDB.SetMaxOpenConns(b.Config.MaxOpenConns)
+	}
+
+	return nil
+}
+
+// Shutdown the the metadata backend, close all connections to the database.
 func (b *Backend) Shutdown() (err error) {
 
-	// Close database connection if needed
+	// Close database connection
 	if b.db != nil {
 		db, err := b.db.DB()
 		if err != nil {
