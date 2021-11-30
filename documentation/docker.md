@@ -35,3 +35,26 @@ Here, we map local folder /data to the /home/plik/server/files folder of the con
 $ docker run -t -d -p 8080:8080 -v /data:/home/plik/server/files rootgg/plik
 ab9b2c99da1f3e309cd3b12392b9084b5cafcca0325d7d47ff76f5b1e475d1b9
 ```
+
+
+### Usage with docker-compose
+
+Use this example file to set up your instance with all needed volumes. All files, accounts and tokens will be persistent in this configuration.
+Ensure that all volumes belong to user/group `1000`.
+
+```yaml
+version: "3.5"
+services:
+  plik:
+    image: rootgg/plik:latest
+    container_name: plik
+    ports:
+      - 8091:8080
+    volumes:
+      - ./plikd.cfg:/home/plik/server/plikd.cfg
+      - ./plik.db:/home/plik/server/plik.db
+      - ./plik.db-wal:/home/plik/server/plik.db-wal
+      - ./data:/home/plik/server/files
+      - ./metadata:/home/plik/server/metadata    
+    restart: "unless-stopped"
+```
