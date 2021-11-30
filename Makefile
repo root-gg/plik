@@ -5,7 +5,9 @@ BUILD_FLAG = -ldflags="-X github.com/root-gg/plik/server/common.buildInfoString=
 BUILD_TAGS = -tags osusergo,netgo,sqlite_omit_load_extension
 
 GO_BUILD = go build $(BUILD_FLAG) $(BUILD_TAGS)
-GO_TEST = GORACE="halt_on_error=1" go test $(BUILD_FLAG) $(BUILD_TAGS) -race -cover -p 1
+
+COVER_FILE = /tmp/plik.coverprofile
+GO_TEST = GORACE="halt_on_error=1" go test $(BUILD_FLAG) $(BUILD_TAGS) -race -cover -coverprofile=$(COVER_FILE) -p 1
 
 ifdef ENABLE_RACE_DETECTOR
 	GO_BUILD := GORACE="halt_on_error=1" $(GO_BUILD) -race
@@ -76,9 +78,17 @@ fmt:
 # Run tests
 ###
 test:
-	@if curl -s 127.0.0.1:8080 > /dev/null ; then echo "Plik server probably already running" && exit 1 ; fi
+	@if curl -s 127.0.0.1:8080 > /dev/null ; then echo "Plik server probably already running" ; exit 1 ; fi
 	@$(GO_TEST) ./... 2>&1 | grep -v "no test files"; test $${PIPESTATUS[0]} -eq 0
 	@echo "cli client integration tests :" && cd client && ./test.sh
+
+###
+# Open last cover profile in web browser
+###
+cover:
+	@if [[ ! -f $(COVER_FILE) ]]; then echo "Please run \"make test\" first to generate a cover profile" ; exit 1; fi
+	@go tool cover -html=$(COVER_FILE)
+	@echo "Check your web browser to see the cover profile"
 
 ###
 # Run integration tests for all available backends
