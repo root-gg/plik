@@ -89,6 +89,44 @@ func TestMetadata(t *testing.T) {
 	require.NoError(t, err, "close db error")
 }
 
+func TestMetadataInvalidBackend(t *testing.T) {
+	metadataBackendConfig := &Config{Driver: "invalid"}
+	b, err := NewBackend(metadataBackendConfig)
+	require.Error(t, err)
+	require.Nil(t, b)
+}
+
+func TestMetadataBackendDebug(t *testing.T) {
+	debugMetadataBackendConfig := *metadataBackendConfig
+	debugMetadataBackendConfig.Debug = true
+	b, err := NewBackend(&debugMetadataBackendConfig)
+	require.NoError(t, err)
+	require.NotNil(t, b)
+	_ = b.Shutdown()
+}
+
+func TestMetadataInvalidConnectionString(t *testing.T) {
+	metadataBackendConfig := &Config{Driver: "mysql", ConnectionString: "!fo{o}b@r"}
+	b, err := NewBackend(metadataBackendConfig)
+	require.Error(t, err)
+	require.Nil(t, b)
+
+	metadataBackendConfig = &Config{Driver: "postgres", ConnectionString: "!fo{o}b@r"}
+	b, err = NewBackend(metadataBackendConfig)
+	require.Error(t, err)
+	require.Nil(t, b)
+}
+
+func TestConnectionPoolParams(t *testing.T) {
+	metadataBackendConfig := *metadataBackendConfig
+	metadataBackendConfig.MaxIdleConns = 10
+	metadataBackendConfig.MaxOpenConns = 50
+	b, err := NewBackend(&metadataBackendConfig)
+	require.NoError(t, err)
+	require.NotNil(t, b)
+	_ = b.Shutdown()
+}
+
 func TestGormConcurrent(t *testing.T) {
 	type Object struct {
 		gorm.Model

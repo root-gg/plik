@@ -89,21 +89,23 @@ func NewBackend(config *Config) (b *Backend, err error) {
 			SkipInitializeWithVersion: true, // auto configure based on currently MySQL version
 		})
 
-		//case "sqlserver":
-		//	dial = sqlserver.Open(config.ConnectionString)
-		//
-		// There is currently an issue with the reserved keyword user not being correctly escaped
-		// "SELECT count(*) FROM "uploads" WHERE uploads.user == "user" AND "uploads"."deleted_at" IS NULL"
-		//  -> returns : Incorrect syntax near the keyword 'user'
-		// "SELECT count(*) FROM "uploads" WHERE uploads.[user] = "user" AND "uploads"."deleted_at" IS NULL"
-		//  -> Would be OK
-		// TODO investigate how the query is generated and maybe open issue in https://github.com/denisenkom/go-mssqldb ?
+	//case "sqlserver":
+	//	dial = sqlserver.Open(config.ConnectionString)
+	//
+	// There is currently an issue with the reserved keyword user not being correctly escaped
+	// "SELECT count(*) FROM "uploads" WHERE uploads.user == "user" AND "uploads"."deleted_at" IS NULL"
+	//  -> returns : Incorrect syntax near the keyword 'user'
+	// "SELECT count(*) FROM "uploads" WHERE uploads.[user] = "user" AND "uploads"."deleted_at" IS NULL"
+	//  -> Would be OK
+	// TODO investigate how the query is generated and maybe open issue in https://github.com/denisenkom/go-mssqldb ?
+	default:
+		return nil, fmt.Errorf("Invalid metadata backend driver : %s", config.Driver)
 	}
 
 	// Open database connection
 	b.db, err = gorm.Open(dial, &gorm.Config{Logger: l})
 	if err != nil {
-		return nil, fmt.Errorf("unable to open database : %s", err)
+		return nil, fmt.Errorf("Unable to open database : %s", err)
 	}
 
 	if config.Driver == "sqlite3" {
