@@ -21,6 +21,7 @@ func init() {
 func exportMetadata(cmd *cobra.Command, args []string) {
 	if len(args) != 1 {
 		fmt.Println("Missing metadata export file")
+		os.Exit(1)
 	}
 
 	initializeMetadataBackend()
