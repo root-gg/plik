@@ -332,7 +332,10 @@ func NewDataBackend(impl string, params map[string]interface{}) (backend data.Ba
 	case "swift":
 		backend = swift.NewBackend(swift.NewConfig(params))
 	case "gcs":
-		backend = gcs.NewBackend(gcs.NewConfig(params))
+		backend, err = gcs.NewBackend(gcs.NewConfig(params))
+		if err != nil {
+			return nil, err
+		}
 	case "testing":
 		backend = data_test.NewBackend()
 	default:
