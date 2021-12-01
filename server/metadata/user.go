@@ -124,12 +124,12 @@ func (b *Backend) DeleteUserUploads(userID string, tokenStr string) (removed int
 
 // DeleteUser delete a user from the DB
 func (b *Backend) DeleteUser(userID string) (deleted bool, err error) {
-	err = b.db.Transaction(func(tx *gorm.DB) (err error) {
-		_, err = b.DeleteUserUploads(userID, "")
-		if err != nil {
-			return err
-		}
+	_, err = b.DeleteUserUploads(userID, "")
+	if err != nil {
+		return false, err
+	}
 
+	err = b.db.Transaction(func(tx *gorm.DB) (err error) {
 		// Delete user tokens
 		err = tx.Where(&common.Token{UserID: userID}).Delete(&common.Token{}).Error
 		if err != nil {
