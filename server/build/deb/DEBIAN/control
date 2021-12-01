@@ -1,8 +1,0 @@
-Package: plikd
-Version: ##VERSION##
-Section: base
-Priority: optional
-Architecture: ##ARCH##
-Homepage: https://github.com/root-gg/plik
-Maintainer: Mathieu Bodjikian <mathieu@bodjikian.fr>, Charles-Antoine Mathieu <skatkatt@root.gg>
-Description: Plikd is the server binary of plik project. Plik is a multi-backend uploading file system
