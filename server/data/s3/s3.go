@@ -150,7 +150,19 @@ func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (err error) {
 
 // RemoveFile implementation for S3 Data Backend
 func (b *Backend) RemoveFile(file *common.File) (err error) {
-	return b.client.RemoveObject(context.TODO(), b.config.Bucket, b.getObjectName(file.ID), minio.RemoveObjectOptions{})
+	objectName := b.getObjectName(file.ID)
+	err = b.client.RemoveObject(context.TODO(), b.config.Bucket, objectName, minio.RemoveObjectOptions{})
+	if err != nil {
+		// Ignore "file not found" errors
+		if minioError, ok := err.(minio.ErrorResponse); ok {
+			if minioError.Code == "NoSuchKey" {
+				return nil
+			}
+		}
+		return fmt.Errorf("Unable to remove s3 object %s : %s", objectName, err)
+	}
+
+	return nil
 }
 
 func (b *Backend) getObjectName(name string) string {
