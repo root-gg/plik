@@ -187,8 +187,11 @@ func (b *Backend) PurgeDeletedUploads() (removed int, err error) {
 }
 
 // ForEachUpload execute f for every upload in the database
-func (b *Backend) ForEachUpload(f func(upload *common.Upload) error) (err error) {
+func (b *Backend) forEachUpload(f func(upload *common.Upload) error, unscoped bool) (err error) {
 	stmt := b.db.Model(&common.Upload{})
+	if unscoped {
+		stmt = stmt.Unscoped()
+	}
 
 	rows, err := stmt.Rows()
 	if err != nil {
@@ -209,4 +212,14 @@ func (b *Backend) ForEachUpload(f func(upload *common.Upload) error) (err error)
 	}
 
 	return nil
+}
+
+// ForEachUpload execute f for every upload in the database
+func (b *Backend) ForEachUpload(f func(upload *common.Upload) error) (err error) {
+	return b.forEachUpload(f, false)
+}
+
+// ForEachUploadUnscoped execute f for every upload in the database even soft deleted ones
+func (b *Backend) ForEachUploadUnscoped(f func(upload *common.Upload) error) (err error) {
+	return b.forEachUpload(f, true)
 }

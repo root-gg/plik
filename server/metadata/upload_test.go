@@ -290,3 +290,43 @@ func TestBackend_ForEachUpload(t *testing.T) {
 	err = b.ForEachUpload(f)
 	require.Errorf(t, err, "expected")
 }
+
+func TestBackend_ForEachUploadUnscoped(t *testing.T) {
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	upload1 := &common.Upload{}
+	upload1.NewFile()
+	createUpload(t, b, upload1)
+
+	upload2 := &common.Upload{}
+	upload2.NewFile()
+	createUpload(t, b, upload2)
+
+	count := 0
+	f := func(upload *common.Upload) error {
+		count++
+		return nil
+	}
+	err := b.ForEachUpload(f)
+	require.NoError(t, err, "for each upload error : %s", err)
+	require.Equal(t, 2, count, "invalid upload count")
+
+	count = 0
+	err = b.ForEachUploadUnscoped(f)
+	require.NoError(t, err, "for each upload error : %s", err)
+	require.Equal(t, 2, count, "invalid upload count")
+
+	err = b.DeleteUpload(upload1.ID)
+	require.NoError(t, err, "unable to delete upload1")
+
+	count = 0
+	err = b.ForEachUpload(f)
+	require.NoError(t, err, "for each upload error : %s", err)
+	require.Equal(t, 1, count, "invalid upload count")
+
+	count = 0
+	err = b.ForEachUploadUnscoped(f)
+	require.NoError(t, err, "for each upload error : %s", err)
+	require.Equal(t, 2, count, "invalid upload count")
+}
