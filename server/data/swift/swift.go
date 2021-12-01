@@ -96,10 +96,14 @@ func (b *Backend) RemoveFile(file *common.File) (err error) {
 	objectID := objectID(file)
 	err = b.connection.ObjectDelete(b.config.Container, objectID)
 	if err != nil {
+		// Ignore "file not found" errors
+		if err == swift.ObjectNotFound {
+			return nil
+		}
 		return err
 	}
 
-	return
+	return nil
 }
 
 func objectID(file *common.File) string {
