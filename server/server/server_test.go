@@ -125,6 +125,36 @@ func TestClean(t *testing.T) {
 	require.Error(t, err, "missing get file error")
 }
 
+func TestCleanUploadingFiles(t *testing.T) {
+	ps := newPlikServer()
+	defer ps.ShutdownNow()
+
+	upload := &common.Upload{}
+	file := upload.NewFile()
+	file.Status = common.FileUploading
+	upload.TTL = 1
+	deadline := time.Now().Add(-10 * time.Minute)
+	upload.ExpireAt = &deadline
+	upload.PrepareInsertForTests()
+
+	require.True(t, upload.IsExpired(), "upload should be expired")
+
+	err := ps.metadataBackend.CreateUpload(upload)
+	require.NoError(t, err, "unable to save upload")
+
+	err = ps.dataBackend.AddFile(file, bytes.NewBufferString("data data data"))
+	require.NoError(t, err, "unable to save file")
+
+	ps.Clean()
+
+	u, err := ps.metadataBackend.GetUpload(upload.ID)
+	require.NoError(t, err, "unexpected unable to get upload")
+	require.Nil(t, u, "should be unable to get expired upload after clean")
+
+	_, err = ps.dataBackend.GetFile(file)
+	require.Error(t, err, "missing get file error")
+}
+
 func TestAutoClean(t *testing.T) {
 	ps := newPlikServer()
 	defer ps.ShutdownNow()

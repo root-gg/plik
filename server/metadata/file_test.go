@@ -138,6 +138,7 @@ func TestBackend_RemoveFile(t *testing.T) {
 	err := b.RemoveFile(file)
 	require.Error(t, err, "remove file error expected")
 
+	// File status Uploaded
 	file.Status = common.FileUploaded
 	createUpload(t, b, upload)
 
@@ -149,6 +150,7 @@ func TestBackend_RemoveFile(t *testing.T) {
 	require.NotNil(t, f, "missing file")
 	require.Equal(t, common.FileRemoved, f.Status, "invalid file status")
 
+	// File status Missing
 	err = b.UpdateFileStatus(file, common.FileRemoved, common.FileMissing)
 	require.NoError(t, err, "update file status error")
 
@@ -159,6 +161,18 @@ func TestBackend_RemoveFile(t *testing.T) {
 	require.NoError(t, err, "get file error")
 	require.NotNil(t, f, "missing file")
 	require.Equal(t, common.FileDeleted, f.Status, "invalid file status")
+
+	// File status Uploading
+	err = b.UpdateFileStatus(file, common.FileDeleted, common.FileUploading)
+	require.NoError(t, err, "update file status error")
+
+	err = b.RemoveFile(file)
+	require.NoError(t, err, "remove file error")
+
+	f, err = b.GetFile(file.ID)
+	require.NoError(t, err, "get file error")
+	require.NotNil(t, f, "missing file")
+	require.Equal(t, common.FileRemoved, f.Status, "invalid file status")
 }
 
 func TestBackend_ForEachUploadFiles(t *testing.T) {

@@ -67,9 +67,9 @@ func (b *Backend) UpdateFileStatus(file *common.File, oldStatus string, newStatu
 // The file will then be deleted from the data backend by the server and the status changed to deleted.
 func (b *Backend) RemoveFile(file *common.File) error {
 	switch file.Status {
-	case common.FileMissing, common.FileUploading, "":
+	case common.FileMissing, "":
 		return b.UpdateFileStatus(file, file.Status, common.FileDeleted)
-	case common.FileUploaded:
+	case common.FileUploaded, common.FileUploading:
 		return b.UpdateFileStatus(file, file.Status, common.FileRemoved)
 	//case common.FileRemoved, common.FileDeleted:
 	//	return nil
