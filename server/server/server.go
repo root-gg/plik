@@ -12,15 +12,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/root-gg/plik/server/data/gcs"
-	"github.com/root-gg/plik/server/data/s3"
-
 	"github.com/gorilla/mux"
+	"github.com/root-gg/logger"
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
 	"github.com/root-gg/plik/server/data/file"
+	"github.com/root-gg/plik/server/data/gcs"
+	"github.com/root-gg/plik/server/data/s3"
 	"github.com/root-gg/plik/server/data/stream"
 	"github.com/root-gg/plik/server/data/swift"
 	data_test "github.com/root-gg/plik/server/data/testing"
@@ -295,14 +295,14 @@ func (ps *PlikServer) WithMetadataBackend(backend *metadata.Backend) *PlikServer
 }
 
 // NewMetadataBackend Initialize metadata backend from metadata backend configuration
-func NewMetadataBackend(params map[string]interface{}) (backend *metadata.Backend, err error) {
-	return metadata.NewBackend(metadata.NewConfig(params))
+func NewMetadataBackend(params map[string]interface{}, log *logger.Logger) (backend *metadata.Backend, err error) {
+	return metadata.NewBackend(metadata.NewConfig(params), log)
 }
 
 // Initialize metadata backend
 func (ps *PlikServer) initializeMetadataBackend() (err error) {
 	if ps.metadataBackend == nil {
-		ps.metadataBackend, err = NewMetadataBackend(ps.config.MetadataBackendConfig)
+		ps.metadataBackend, err = NewMetadataBackend(ps.config.MetadataBackendConfig, ps.config.NewLogger())
 		if err != nil {
 			return err
 		}

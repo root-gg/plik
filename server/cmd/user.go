@@ -304,7 +304,7 @@ func deleteUser(cmd *cobra.Command, args []string) {
 	// Delete user uploads
 
 	deleteUpload := func(upload *common.Upload) error {
-		return metadataBackend.DeleteUpload(upload.ID)
+		return metadataBackend.RemoveUpload(upload.ID)
 	}
 	err = metadataBackend.ForEachUserUploads(userID, "", deleteUpload)
 	if err != nil {

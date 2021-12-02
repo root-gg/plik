@@ -9,6 +9,26 @@ import (
 	"github.com/root-gg/plik/server/common"
 )
 
+/*
+  Plik cleaning design :
+    - Uploads and files can be removed from the server by two actions :
+      - Manually from the : UI / API / Command line
+      - Automatically when the upload TTL expires
+
+    - When this happens :
+      - The upload is only soft deleted from the metadata database
+      - All the upload files status are updated to Removed (or directly to deleted if they have never been uploaded)
+      - From this moment the upload and its files won't be accessible anymore
+
+    - The background cleaning routine :
+      - Is triggered periodically by a running Plik server with IsAutoClean true
+      - Can be triggered manually from the CLI
+
+      1 Mark expired uploads and files as removed and ready to be cleaned
+      2 Deletes all the removed files from the data backend
+      3 Purge (real delete) removed upload and files from the metadata backend
+*/
+
 // UploadsCleaningRoutine periodically remove expired uploads
 func (ps *PlikServer) uploadsCleaningRoutine() {
 	log := ps.config.NewLogger()
@@ -38,7 +58,7 @@ func (ps *PlikServer) Clean() {
 	log := ps.config.NewLogger()
 
 	// 1 - soft delete expired uploads
-	removed, err := ps.metadataBackend.DeleteExpiredUploads()
+	removed, err := ps.metadataBackend.RemoveExpiredUploads()
 	if removed > 0 {
 		log.Infof("removed %d expired uploads", removed)
 	}
@@ -57,7 +77,7 @@ func (ps *PlikServer) Clean() {
 
 	// 3 - purge deleted uploads
 
-	purged, err := ps.metadataBackend.PurgeDeletedUploads()
+	purged, err := ps.metadataBackend.DeleteRemovedUploads()
 	if purged > 0 {
 		log.Infof("purged %d deleted uploads", purged)
 	}

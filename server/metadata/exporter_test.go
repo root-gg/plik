@@ -50,7 +50,7 @@ func TestBackend_ExportRemovedFiles(t *testing.T) {
 	createUpload(t, b, upload)
 
 	// Soft delete upload
-	err := b.DeleteUpload(upload.ID)
+	err := b.RemoveUpload(upload.ID)
 	require.NoError(t, err, "unable to delete upload")
 
 	path := "/tmp/plik.metadata.test.snappy.gob"

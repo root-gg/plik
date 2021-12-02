@@ -10,11 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/root-gg/plik/server/data/s3"
-
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data"
 	"github.com/root-gg/plik/server/data/file"
+	"github.com/root-gg/plik/server/data/s3"
 	"github.com/root-gg/plik/server/data/swift"
 	data_test "github.com/root-gg/plik/server/data/testing"
 	"github.com/root-gg/plik/server/metadata"
@@ -123,7 +122,7 @@ func newPlikServerAndClient() (ps *server.PlikServer, pc *Client) {
 	_ = config.Initialize()
 	ps = server.NewPlikServer(config)
 
-	metadataBackend, err := metadata.NewBackend(metadataBackendConfig)
+	metadataBackend, err := metadata.NewBackend(metadataBackendConfig, config.NewLogger())
 	if err != nil {
 		panic(err)
 	}

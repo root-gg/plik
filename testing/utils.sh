@@ -51,6 +51,7 @@ function run_tests {
 
     if [[ -z "$TEST" ]]; then
         ( cd "$ROOT/plik" && GORACE="halt_on_error=1" go test -count=1 -race ./... )
+        ( cd "$ROOT/server/server" && GORACE="halt_on_error=1" go test -count=1 -race ./... )
 
         # Run metadata backend tests
         if [[ "$BACKEND" == "postgres" ]] || [[ "$BACKEND" == "mariadb" ]] || [[ "$BACKEND" == "mysql" ]] || [[ "$BACKEND" == "mssql" ]]; then
@@ -58,6 +59,7 @@ function run_tests {
         fi
     else
         ( cd "$ROOT/plik" && GORACE="halt_on_error=1" go test -count=1 -v -race -run "$TEST" )
+        ( cd "$ROOT/server/server" && GORACE="halt_on_error=1" go test -count=1 -race ./... )
 
         # Run metadata backend test
         if [[ "$BACKEND" == "postgres" ]] || [[ "$BACKEND" == "mariadb" ]] || [[ "$BACKEND" == "mysql" ]] || [[ "$BACKEND" == "mssql" ]]; then

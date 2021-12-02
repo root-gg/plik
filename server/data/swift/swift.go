@@ -54,13 +54,11 @@ func (b *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) {
 	reader, pipeWriter := io.Pipe()
 	objectID := objectID(file)
 	go func() {
-		_, err = b.connection.ObjectGet(b.config.Container, objectID, pipeWriter, true, nil)
-		defer func() { _ = pipeWriter.Close() }()
-		if err != nil {
-			return
-		}
+		_, e := b.connection.ObjectGet(b.config.Container, objectID, pipeWriter, true, nil)
+		defer func() { _ = pipeWriter.CloseWithError(e) }()
 	}()
 
+	// This does only very basic checking and basically always return nil, error will happen when reading from the reader
 	return reader, nil
 }
 

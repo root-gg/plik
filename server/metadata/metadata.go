@@ -3,29 +3,28 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
 	"time"
 
 	"github.com/go-gormigrate/gormigrate/v2"
+	"github.com/root-gg/logger"
 	"github.com/root-gg/utils"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 
 	"github.com/root-gg/plik/server/common"
 )
 
 // Config metadata backend configuration
 type Config struct {
-	Driver           string
-	ConnectionString string
-	EraseFirst       bool
-	MaxOpenConns     int
-	MaxIdleConns     int
-	Debug            bool
+	Driver             string
+	ConnectionString   string
+	EraseFirst         bool
+	MaxOpenConns       int
+	MaxIdleConns       int
+	Debug              bool
+	SlowQueryThreshold string
 }
 
 // NewConfig instantiate a new default configuration
@@ -42,38 +41,15 @@ func NewConfig(params map[string]interface{}) (config *Config) {
 type Backend struct {
 	Config *Config
 
-	db *gorm.DB
+	log *logger.Logger
+	db  *gorm.DB
 }
 
 // NewBackend instantiate a new File Data Backend
 // from configuration passed as argument
-func NewBackend(config *Config) (b *Backend, err error) {
+func NewBackend(config *Config, log *logger.Logger) (b *Backend, err error) {
 	b = new(Backend)
 	b.Config = config
-
-	// Setup database logging
-	var l logger.Interface
-	if config.Debug {
-		l = logger.New(
-			log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
-			logger.Config{
-				SlowThreshold:             time.Second, // Slow SQL threshold
-				LogLevel:                  logger.Info, // Log level
-				IgnoreRecordNotFoundError: true,        // Ignore ErrRecordNotFound error for logger
-				Colorful:                  false,       // Disable color
-			},
-		)
-	} else {
-		l = logger.New(
-			log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
-			logger.Config{
-				SlowThreshold:             time.Second,   // Slow SQL threshold
-				LogLevel:                  logger.Silent, // Log level
-				IgnoreRecordNotFoundError: true,          // Ignore ErrRecordNotFound error for logger
-				Colorful:                  false,         // Disable color
-			},
-		)
-	}
 
 	// Prepare database connection depending on driver type
 	var dial gorm.Dialector
@@ -102,8 +78,29 @@ func NewBackend(config *Config) (b *Backend, err error) {
 		return nil, fmt.Errorf("Invalid metadata backend driver : %s", config.Driver)
 	}
 
+	// Setup logging adaptor
+	b.log = log
+	gormLoggerAdapter := NewGormLoggerAdapter(log.Copy())
+
+	if b.Config.Debug {
+		// Display all Gorm log messages
+		gormLoggerAdapter.logger.SetMinLevel(logger.DEBUG)
+	} else {
+		// Display only Gorm errors
+		gormLoggerAdapter.logger.SetMinLevel(logger.WARNING)
+	}
+
+	// Set slow query threshold
+	if config.SlowQueryThreshold != "" {
+		duration, err := time.ParseDuration(config.SlowQueryThreshold)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to parse SlowQueryThreshold : %s", err)
+		}
+		gormLoggerAdapter.SlowQueryThreshold = duration
+	}
+
 	// Open database connection
-	b.db, err = gorm.Open(dial, &gorm.Config{Logger: l})
+	b.db, err = gorm.Open(dial, &gorm.Config{Logger: gormLoggerAdapter})
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open database : %s", err)
 	}
@@ -112,7 +109,7 @@ func NewBackend(config *Config) (b *Backend, err error) {
 		err = b.db.Exec("PRAGMA journal_mode=WAL;").Error
 		if err != nil {
 			if err := b.Shutdown(); err != nil {
-				b.db.Logger.Error(context.Background(), "Unable to shutdown metadata backend : %s", err)
+				b.log.Criticalf("Unable to shutdown metadata backend : %s", err)
 			}
 			return nil, fmt.Errorf("unable to set wal mode : %s", err)
 		}
@@ -120,7 +117,7 @@ func NewBackend(config *Config) (b *Backend, err error) {
 		err = b.db.Exec("PRAGMA foreign_keys = ON").Error
 		if err != nil {
 			if err := b.Shutdown(); err != nil {
-				b.db.Logger.Error(context.Background(), "Unable to shutdown metadata backend : %s", err)
+				b.log.Criticalf("Unable to shutdown metadata backend : %s", err)
 			}
 			return nil, fmt.Errorf("unable to enable foreign keys : %s", err)
 		}

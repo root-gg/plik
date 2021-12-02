@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/root-gg/logger"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -38,7 +39,7 @@ func TestMain(m *testing.M) {
 }
 
 func newTestMetadataBackend() *Backend {
-	b, err := NewBackend(metadataBackendConfig)
+	b, err := NewBackend(metadataBackendConfig, logger.NewLogger())
 	if err != nil {
 		panic(fmt.Sprintf("unable to create metadata backend : %s", err))
 	}
@@ -91,7 +92,7 @@ func TestMetadata(t *testing.T) {
 
 func TestMetadataInvalidBackend(t *testing.T) {
 	metadataBackendConfig := &Config{Driver: "invalid"}
-	b, err := NewBackend(metadataBackendConfig)
+	b, err := NewBackend(metadataBackendConfig, logger.NewLogger())
 	require.Error(t, err)
 	require.Nil(t, b)
 }
@@ -99,20 +100,36 @@ func TestMetadataInvalidBackend(t *testing.T) {
 func TestMetadataBackendDebug(t *testing.T) {
 	debugMetadataBackendConfig := *metadataBackendConfig
 	debugMetadataBackendConfig.Debug = true
-	b, err := NewBackend(&debugMetadataBackendConfig)
+	b, err := NewBackend(&debugMetadataBackendConfig, logger.NewLogger())
 	require.NoError(t, err)
 	require.NotNil(t, b)
 	_ = b.Shutdown()
 }
 
+func TestMetadataSlowQueryThreshold(t *testing.T) {
+	slowQueryThresholdMetadataBackendConfig := *metadataBackendConfig
+	slowQueryThresholdMetadataBackendConfig.SlowQueryThreshold = "60s"
+	b, err := NewBackend(&slowQueryThresholdMetadataBackendConfig, logger.NewLogger())
+	require.NoError(t, err)
+	require.NotNil(t, b)
+}
+
+func TestMetadataInvalidSlowQueryThreshold(t *testing.T) {
+	slowQueryThresholdMetadataBackendConfig := *metadataBackendConfig
+	slowQueryThresholdMetadataBackendConfig.SlowQueryThreshold = "blah"
+	b, err := NewBackend(&slowQueryThresholdMetadataBackendConfig, logger.NewLogger())
+	require.Error(t, err)
+	require.Nil(t, b)
+}
+
 func TestMetadataInvalidConnectionString(t *testing.T) {
 	metadataBackendConfig := &Config{Driver: "mysql", ConnectionString: "!fo{o}b@r"}
-	b, err := NewBackend(metadataBackendConfig)
+	b, err := NewBackend(metadataBackendConfig, logger.NewLogger())
 	require.Error(t, err)
 	require.Nil(t, b)
 
 	metadataBackendConfig = &Config{Driver: "postgres", ConnectionString: "!fo{o}b@r"}
-	b, err = NewBackend(metadataBackendConfig)
+	b, err = NewBackend(metadataBackendConfig, logger.NewLogger())
 	require.Error(t, err)
 	require.Nil(t, b)
 }
@@ -121,7 +138,7 @@ func TestConnectionPoolParams(t *testing.T) {
 	metadataBackendConfig := *metadataBackendConfig
 	metadataBackendConfig.MaxIdleConns = 10
 	metadataBackendConfig.MaxOpenConns = 50
-	b, err := NewBackend(&metadataBackendConfig)
+	b, err := NewBackend(&metadataBackendConfig, logger.NewLogger())
 	require.NoError(t, err)
 	require.NotNil(t, b)
 	_ = b.Shutdown()

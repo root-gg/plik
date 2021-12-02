@@ -220,11 +220,11 @@ func TestBackend_DeleteUserUploads(t *testing.T) {
 		createUpload(t, b, upload)
 	}
 
-	deleted, err := b.DeleteUserUploads(user.ID, token.Token)
+	deleted, err := b.RemoveUserUploads(user.ID, token.Token)
 	require.NoError(t, err, "for each user upload error")
 	require.Equal(t, 5, deleted, "invalid upload count")
 
-	deleted, err = b.DeleteUserUploads(user.ID, "")
+	deleted, err = b.RemoveUserUploads(user.ID, "")
 	require.NoError(t, err, "for each user upload error")
 	require.Equal(t, 2, deleted, "invalid upload count")
 }

@@ -121,6 +121,7 @@ func (b *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) {
 		return nil, err
 	}
 
+	// This does only very basic checking and basically always return nil, error will happen when reading from the reader
 	return b.client.GetObject(context.TODO(), b.config.Bucket, b.getObjectName(file.ID), getOpts)
 }
 
@@ -154,10 +155,9 @@ func (b *Backend) RemoveFile(file *common.File) (err error) {
 	err = b.client.RemoveObject(context.TODO(), b.config.Bucket, objectName, minio.RemoveObjectOptions{})
 	if err != nil {
 		// Ignore "file not found" errors
-		if minioError, ok := err.(minio.ErrorResponse); ok {
-			if minioError.Code == "NoSuchKey" {
-				return nil
-			}
+		errResponse := minio.ToErrorResponse(err)
+		if errResponse.Code == "NoSuchKey" {
+			return nil
 		}
 		return fmt.Errorf("Unable to remove s3 object %s : %s", objectName, err)
 	}

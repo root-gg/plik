@@ -68,8 +68,12 @@ func (b *Backend) UpdateFileStatus(file *common.File, oldStatus string, newStatu
 func (b *Backend) RemoveFile(file *common.File) error {
 	switch file.Status {
 	case common.FileMissing, "":
+		// Missing files were never uploaded, even partially it is safe to update the status to deleted directly
 		return b.UpdateFileStatus(file, file.Status, common.FileDeleted)
 	case common.FileUploaded, common.FileUploading:
+		// Uploaded, Uploading files have been at least partially uploaded
+		// by setting the status to Removed we mark the files as ready to be deleted from the Data backend
+		// which will occur during the next cleaning cycle
 		return b.UpdateFileStatus(file, file.Status, common.FileRemoved)
 	//case common.FileRemoved, common.FileDeleted:
 	//	return nil

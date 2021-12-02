@@ -96,12 +96,12 @@ func (b *Backend) ForEachUserUploads(userID string, tokenStr string, f func(uplo
 	return nil
 }
 
-// DeleteUserUploads delets all uploads matching the user and token filters
-func (b *Backend) DeleteUserUploads(userID string, tokenStr string) (removed int, err error) {
+// RemoveUserUploads deletes all uploads matching the user and token filters
+func (b *Backend) RemoveUserUploads(userID string, tokenStr string) (removed int, err error) {
 	deleted := 0
 	var errors []error
 	f := func(upload *common.Upload) (err error) {
-		err = b.DeleteUpload(upload.ID)
+		err = b.RemoveUpload(upload.ID)
 		if err != nil {
 			// TODO LOG
 			errors = append(errors, err)
@@ -124,7 +124,7 @@ func (b *Backend) DeleteUserUploads(userID string, tokenStr string) (removed int
 
 // DeleteUser delete a user from the DB
 func (b *Backend) DeleteUser(userID string) (deleted bool, err error) {
-	_, err = b.DeleteUserUploads(userID, "")
+	_, err = b.RemoveUserUploads(userID, "")
 	if err != nil {
 		return false, err
 	}
