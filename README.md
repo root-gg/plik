@@ -380,7 +380,7 @@ One can specify configuration parameters using env variable with the configurati
 ```
 
 For Arrays and config maps they must be provided in json format.
-Arrays are overriden but maps are merged
+Arrays are overridden but maps are merged
 
 ```
     PLIKD_DATA_BACKEND_CONFIG='{"Directory":"/var/files"}' ./plikd
