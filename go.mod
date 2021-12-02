@@ -28,7 +28,6 @@ require (
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
 	github.com/olekukonko/ts v0.0.0-20171002115256-78ecb04241c0
 	github.com/pilagod/gorm-cursor-paginator/v2 v2.2.0
-	github.com/root-gg/juliet v0.0.0-20160211163218-63378c6bd35e
 	github.com/root-gg/logger v0.0.0-20150501173826-5d9a47a35312
 	github.com/root-gg/utils v0.0.0-20201113182430-4cef83d8cdcf
 	github.com/spf13/cobra v0.0.6-0.20200106181057-89c7ffb5129b
