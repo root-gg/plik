@@ -144,7 +144,7 @@ func TestDataBackend(t *testing.T) {
 	upload := &common.Upload{}
 	file := upload.NewFile()
 	file.Status = common.FileUploaded
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	content := "data data data"
 	err := ps.dataBackend.AddFile(file, bytes.NewBufferString(content))
@@ -180,7 +180,7 @@ func TestClean(t *testing.T) {
 	upload.TTL = 1
 	deadline := time.Now().Add(-10 * time.Minute)
 	upload.ExpireAt = &deadline
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	require.True(t, upload.IsExpired(), "upload should be expired")
 
@@ -211,7 +211,7 @@ func TestCleanUploadingFiles(t *testing.T) {
 	upload.TTL = 1
 	deadline := time.Now().Add(-10 * time.Minute)
 	upload.ExpireAt = &deadline
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	require.True(t, upload.IsExpired(), "upload should be expired")
 
@@ -247,7 +247,7 @@ func TestAutoClean(t *testing.T) {
 	upload.TTL = 1
 	deadline := time.Now().Add(-10 * time.Minute)
 	upload.ExpireAt = &deadline
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	require.True(t, upload.IsExpired(), "upload should be expired")
 

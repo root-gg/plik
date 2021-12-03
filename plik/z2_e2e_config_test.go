@@ -160,7 +160,7 @@ func TestTTLNoLimitDisabled(t *testing.T) {
 	upload.TTL = -1
 	err = upload.Create()
 	require.Error(t, err, "unable to create upload")
-	require.Contains(t, err.Error(), "cannot set infinite ttl", "invalid error")
+	require.Contains(t, err.Error(), "cannot set infinite TTL", "invalid error")
 }
 
 func TestPasswordDisabled(t *testing.T) {

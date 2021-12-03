@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -16,7 +15,7 @@ import (
 )
 
 func createTestUpload(t *testing.T, ctx *context.Context, upload *common.Upload) {
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "create upload error")
 	ctx.SetUpload(upload)
@@ -45,6 +44,8 @@ func TestCreateUploadWithoutOptions(t *testing.T) {
 
 	require.NotEqual(t, "", upload.ID, "missing upload id")
 	require.NotEqual(t, "", upload.UploadToken, "missing upload token")
+	require.True(t, upload.IsAdmin, "invalid upload admin status") // You are always admin of your own upload
+
 }
 
 func TestCreateUploadWithOptions(t *testing.T) {
@@ -97,6 +98,7 @@ func TestCreateUploadWithOptions(t *testing.T) {
 	require.Equal(t, "", upload.Login, "invalid upload login")
 	require.Equal(t, "", upload.Password, "invalid upload password")
 	require.Equal(t, len(uploadToCreate.Files), len(upload.Files), "invalid upload password")
+	require.True(t, upload.IsAdmin, "invalid upload admin status") // You are always admin of your own upload
 
 	for _, file := range upload.Files {
 		require.NotEqual(t, "", file.ID, "missing file id")
@@ -104,6 +106,8 @@ func TestCreateUploadWithOptions(t *testing.T) {
 		require.Equal(t, fileToUpload.Reference, file.Reference, "invalid file reference")
 		require.Equal(t, "missing", file.Status, "invalid file status")
 	}
+
+	require.Equal(t, "Basic "+common.EncodeAuthBasicHeader("foo", "bar"), rr.Header().Get("Authorization"))
 }
 
 func TestCreateWithForbiddenOptions(t *testing.T) {
@@ -113,6 +117,7 @@ func TestCreateWithForbiddenOptions(t *testing.T) {
 	uploadToCreate.ID = "custom"
 	uploadToCreate.DownloadDomain = "hack.me"
 	uploadToCreate.UploadToken = "token"
+	uploadToCreate.IsAdmin = false
 
 	reqBody, err := json.Marshal(uploadToCreate)
 	require.NoError(t, err, "unable to marshal request body")
@@ -136,6 +141,24 @@ func TestCreateWithForbiddenOptions(t *testing.T) {
 	require.NotEqual(t, uploadToCreate.UploadToken, upload.UploadToken, "invalid upload token")
 	require.NotEqual(t, uploadToCreate.DownloadDomain, upload.DownloadDomain, "invalid download domain")
 	require.Equal(t, 0, len(upload.Files), "invalid upload files count")
+	require.True(t, upload.IsAdmin, "invalid upload admin status") // You are always admin of your own upload
+}
+
+func TestCreateUploadInvalidParameters(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	ctx.GetConfig().OneShot = false
+
+	uploadToCreate := &common.Upload{OneShot: true}
+	reqBody, err := json.Marshal(uploadToCreate)
+	require.NoError(t, err, "unable to marshal request body")
+
+	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	CreateUpload(ctx, rr, req)
+
+	context.TestBadRequest(t, rr, "one shot uploads are not enabled")
 }
 
 func TestCreateWithoutAnonymousUpload(t *testing.T) {
@@ -184,184 +207,25 @@ func TestCreateInvalidRequestBody(t *testing.T) {
 	context.TestBadRequest(t, rr, "unable to deserialize request body")
 }
 
-func TestCreateTooManyFiles(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().MaxFilePerUpload = 2
+type NeverEndingReader struct{}
 
-	uploadToCreate := &common.Upload{}
-
-	for i := 0; i < 10; i++ {
-		fileToUpload := &common.File{}
-		fileToUpload.Reference = strconv.Itoa(i)
-		uploadToCreate.Files = append(uploadToCreate.Files, fileToUpload)
+func (r *NeverEndingReader) Read(p []byte) (n int, err error) {
+	for i, _ := range p {
+		p[i] = byte('x')
 	}
-
-	reqBody, err := json.Marshal(uploadToCreate)
-	require.NoError(t, err, "unable to marshal request body")
-
-	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
-	require.NoError(t, err, "unable to create new request")
-
-	rr := ctx.NewRecorder(req)
-	CreateUpload(ctx, rr, req)
-
-	context.TestBadRequest(t, rr, "too many files. maximum is")
+	return len(p), nil
 }
 
-func TestCreateOneShotWhenOneShotIsDisabled(t *testing.T) {
+func TestCreateUpload_BodyTooBig(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().OneShot = false
 
-	uploadToCreate := &common.Upload{}
-	uploadToCreate.OneShot = true
-	reqBody, err := json.Marshal(uploadToCreate)
-	require.NoError(t, err, "unable to marshal request body")
-
-	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
+	req, err := http.NewRequest("POST", "/upload", &NeverEndingReader{})
 	require.NoError(t, err, "unable to create new request")
 
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestBadRequest(t, rr, "one shot uploads are not enabled")
-}
-
-func TestCreateOneShotWhenRemovableIsDisabled(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().Removable = false
-
-	uploadToCreate := &common.Upload{}
-	uploadToCreate.Removable = true
-	reqBody, err := json.Marshal(uploadToCreate)
-	require.NoError(t, err, "unable to marshal request body")
-
-	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
-	require.NoError(t, err, "unable to create new request")
-
-	rr := ctx.NewRecorder(req)
-	CreateUpload(ctx, rr, req)
-
-	context.TestBadRequest(t, rr, "removable uploads are not enabled")
-}
-
-func TestCreateStreamWhenStreamIsDisabled(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().Stream = false
-
-	uploadToCreate := &common.Upload{}
-	uploadToCreate.Stream = true
-	reqBody, err := json.Marshal(uploadToCreate)
-	require.NoError(t, err, "unable to marshal request body")
-
-	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
-	require.NoError(t, err, "unable to create new request")
-
-	rr := ctx.NewRecorder(req)
-	CreateUpload(ctx, rr, req)
-
-	context.TestBadRequest(t, rr, "stream mode is not enabled")
-}
-
-func TestCreateInvalidTTL(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().MaxTTL = 30
-
-	uploadToCreate := &common.Upload{}
-	uploadToCreate.TTL = 365
-	reqBody, err := json.Marshal(uploadToCreate)
-	require.NoError(t, err, "unable to marshal request body")
-
-	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
-	require.NoError(t, err, "unable to create new request")
-
-	rr := ctx.NewRecorder(req)
-	CreateUpload(ctx, rr, req)
-
-	context.TestBadRequest(t, rr, "invalid ttl. (maximum allowed is : 30)")
-}
-
-func TestCreateInvalidNegativeTTL(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-
-	uploadToCreate := &common.Upload{}
-	uploadToCreate.TTL = -365
-	reqBody, err := json.Marshal(uploadToCreate)
-	require.NoError(t, err, "unable to marshal request body")
-
-	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
-	require.NoError(t, err, "unable to create new request")
-
-	rr := ctx.NewRecorder(req)
-	CreateUpload(ctx, rr, req)
-
-	context.TestBadRequest(t, rr, "invalid ttl")
-}
-
-func TestCreateWithPasswordWhenPasswordIsNotEnabled(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().ProtectedByPassword = false
-
-	uploadToCreate := &common.Upload{}
-	uploadToCreate.Password = "password"
-	reqBody, err := json.Marshal(uploadToCreate)
-	require.NoError(t, err, "unable to marshal request body")
-
-	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
-	require.NoError(t, err, "unable to create new request")
-
-	rr := ctx.NewRecorder(req)
-	CreateUpload(ctx, rr, req)
-
-	context.TestBadRequest(t, rr, "password protection is not enabled")
-}
-
-func TestCreateWithPasswordAndDefaultLogin(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-
-	uploadToCreate := &common.Upload{}
-	uploadToCreate.Password = "password"
-	reqBody, err := json.Marshal(uploadToCreate)
-	require.NoError(t, err, "unable to marshal request body")
-
-	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
-	require.NoError(t, err, "unable to create new request")
-
-	rr := ctx.NewRecorder(req)
-	CreateUpload(ctx, rr, req)
-
-	// Check the status code is what we expect.
-	context.TestOK(t, rr)
-
-	respBody, err := ioutil.ReadAll(rr.Body)
-	require.NoError(t, err, "unable to read response body")
-
-	var upload = &common.Upload{}
-	err = json.Unmarshal(respBody, upload)
-	require.NoError(t, err, "unable to unmarshal response body")
-}
-
-func TestCreateWithFilenameTooLong(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-
-	uploadToCreate := &common.Upload{}
-	file := common.NewFile()
-	name := make([]byte, 2000)
-	for i := range name {
-		name[i] = 'x'
-	}
-	file.Name = string(name)
-	uploadToCreate.Files = append(uploadToCreate.Files, file)
-
-	reqBody, err := json.Marshal(uploadToCreate)
-	require.NoError(t, err, "unable to marshal request body")
-
-	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
-	require.NoError(t, err, "unable to create new request")
-
-	rr := ctx.NewRecorder(req)
-	CreateUpload(ctx, rr, req)
-
-	context.TestBadRequest(t, rr, "is too long")
+	context.TestBadRequest(t, rr, "request body too large")
 }
 
 //func TestCreateWithMetadataBackendError(t *testing.T) {

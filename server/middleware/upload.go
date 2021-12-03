@@ -49,25 +49,34 @@ func Upload(ctx *context.Context, next http.Handler) http.Handler {
 		// Save upload in the request context
 		ctx.SetUpload(upload)
 
-		// Check upload token
+		// Being admin of an upload means that you can :
+		//  - Add files to the upload
+		//  - Remove the upload
+		// There are several ways to be considered admin of an upload
+		//  - Providing the correct UploadToken (authenticated or not)
+		//  - Being authenticated with an Admin user
+		//  - Being authenticated with a cookie with the user having created the upload
+		//  - Being authenticated with a token with the user and token having create the upload
+
+		upload.IsAdmin = false
 		uploadToken := req.Header.Get("X-UploadToken")
 		if uploadToken != "" && uploadToken == upload.UploadToken {
-			ctx.SetUploadAdmin(true)
+			upload.IsAdmin = true
 		} else {
 			token := ctx.GetToken()
 			if token != nil {
 				// A user authenticated with a token can manage uploads created with such token
 				if upload.Token == token.Token {
-					ctx.SetUploadAdmin(true)
+					upload.IsAdmin = true
 				}
 			} else {
 				// Check if upload belongs to user or if user is admin
 				if ctx.IsAdmin() {
-					ctx.SetUploadAdmin(true)
+					upload.IsAdmin = true
 				} else {
 					user := ctx.GetUser()
 					if user != nil && upload.User == ctx.GetUser().ID {
-						ctx.SetUploadAdmin(true)
+						upload.IsAdmin = true
 					}
 				}
 			}
@@ -84,7 +93,7 @@ func Upload(ctx *context.Context, next http.Handler) http.Handler {
 		}
 
 		// Handle basic auth if upload is password protected
-		if upload.ProtectedByPassword && !ctx.IsUploadAdmin() {
+		if upload.ProtectedByPassword && !upload.IsAdmin {
 			if req.Header.Get("Authorization") == "" {
 				forbidden("missing Authorization header")
 				return

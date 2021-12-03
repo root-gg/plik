@@ -27,7 +27,6 @@ type Context struct {
 	user                *common.User
 	token               *common.Token
 	isWhitelisted       *bool
-	isUploadAdmin       bool
 	isRedirectOnFailure bool
 	isQuick             bool
 	req                 *http.Request
@@ -253,22 +252,6 @@ func (ctx *Context) SetToken(token *common.Token) {
 	defer ctx.mu.Unlock()
 
 	ctx.token = token
-}
-
-// IsUploadAdmin get isUploadAdmin from the context.
-func (ctx *Context) IsUploadAdmin() bool {
-	ctx.mu.RLock()
-	defer ctx.mu.RUnlock()
-
-	return ctx.isUploadAdmin
-}
-
-// SetUploadAdmin set isUploadAdmin in the context
-func (ctx *Context) SetUploadAdmin(isUploadAdmin bool) {
-	ctx.mu.Lock()
-	defer ctx.mu.Unlock()
-
-	ctx.isUploadAdmin = isUploadAdmin
 }
 
 // IsRedirectOnFailure get isRedirectOnFailure from the context.

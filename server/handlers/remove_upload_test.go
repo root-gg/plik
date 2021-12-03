@@ -17,15 +17,14 @@ import (
 
 func TestRemoveUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
 	data := "data"
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	file := upload.NewFile()
 	file.Name = "file"
 	file.Status = "uploaded"
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	err := createTestFile(ctx, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file 1")
@@ -114,10 +113,9 @@ func TestRemoveUploadNoUpload(t *testing.T) {
 
 func TestRemoveUploadDataBackendError(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
-	upload.PrepareInsertForTests()
+	upload := &common.Upload{IsAdmin: true}
+	upload.InitializeForTests()
 	createTestUpload(t, ctx, upload)
 
 	ctx.SetUpload(upload)

@@ -16,16 +16,17 @@ func CreateUpload(ctx *context.Context, next http.Handler) http.Handler {
 			return
 		}
 
-		// Create upload
-		upload := &common.Upload{}
-
-		// Assign context parameters ( ip / user / token )
-		ctx.ConfigureUploadFromContext(upload)
-
-		// Set and validate upload parameters
-		err := upload.PrepareInsert(ctx.GetConfig())
+		// Create upload with default params
+		upload, err := common.CreateUpload(ctx.GetConfig(), &common.Upload{})
 		if err != nil {
-			ctx.BadRequest(err.Error())
+			ctx.BadRequest("unable to create upload : %s", err)
+			return
+		}
+
+		// Assign context parameters ( IP / user / token )
+		err = ctx.ConfigureUploadFromContext(upload)
+		if err != nil {
+			ctx.BadRequest("unable to create upload : %s", err)
 			return
 		}
 
@@ -36,9 +37,11 @@ func CreateUpload(ctx *context.Context, next http.Handler) http.Handler {
 			return
 		}
 
+		// You are always admin of your own uploads
+		upload.IsAdmin = true
+
 		// Save upload in the request context
 		ctx.SetUpload(upload)
-		ctx.SetUploadAdmin(true)
 
 		// Change the output of the addFile handler
 		ctx.SetQuick(true)

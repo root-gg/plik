@@ -16,7 +16,7 @@ func RemoveFile(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 	}
 
 	// Check authorization
-	if !upload.Removable && !ctx.IsUploadAdmin() {
+	if !upload.Removable && !upload.IsAdmin {
 		ctx.Forbidden("you are not allowed to remove files from this upload")
 		return
 	}

@@ -84,7 +84,7 @@ func TestFileInvalidFileName(t *testing.T) {
 	file.Name = "filename"
 	ctx.SetUpload(upload)
 
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "create upload error")
 
@@ -112,7 +112,7 @@ func TestFile(t *testing.T) {
 	file.Name = "filename"
 	ctx.SetUpload(upload)
 
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "create upload error")
 
@@ -134,4 +134,34 @@ func TestFile(t *testing.T) {
 	f := ctx.GetFile()
 	require.NotNil(t, f, "missing file from context")
 	require.Equal(t, file.ID, f.ID, "invalid file from context")
+}
+
+func TestFileMetadataBackendError(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	upload := &common.Upload{}
+	file := upload.NewFile()
+	file.Name = "filename"
+	ctx.SetUpload(upload)
+
+	upload.InitializeForTests()
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
+	require.NoError(t, err, "create upload error")
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	// Fake gorilla/mux vars
+	vars := map[string]string{
+		"fileID":   file.ID,
+		"filename": file.Name,
+	}
+	req = mux.SetURLVars(req, vars)
+
+	err = ctx.GetMetadataBackend().Shutdown()
+	require.NoError(t, err, "unable to shutdown metadata backend")
+
+	rr := ctx.NewRecorder(req)
+	File(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	context.TestInternalServerError(t, rr, "database is closed")
 }

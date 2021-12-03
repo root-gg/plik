@@ -16,10 +16,9 @@ import (
 
 func TestGetUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
-	upload.PrepareInsertForTests()
+	upload := &common.Upload{IsAdmin: true}
+	upload.InitializeForTests()
 	upload.Login = "secret"
 	upload.Password = "secret"
 	file := upload.NewFile()
@@ -63,4 +62,24 @@ func TestGetUploadMissingUpload(t *testing.T) {
 	context.TestPanic(t, rr, "missing upload from context", func() {
 		GetUpload(ctx, rr, req)
 	})
+}
+
+func TestGetUploadMetadataBackendError(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	upload := &common.Upload{IsAdmin: true}
+	upload.InitializeForTests()
+	createTestUpload(t, ctx, upload)
+	ctx.SetUpload(upload)
+
+	err := ctx.GetMetadataBackend().Shutdown()
+	require.NoError(t, err, "unable to shutdown metadata backend")
+
+	req, err := http.NewRequest("GET", "/upload/"+upload.ID, bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	GetUpload(ctx, rr, req)
+
+	context.TestInternalServerError(t, rr, "database is closed")
 }

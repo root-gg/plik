@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -29,7 +30,7 @@ func newTestingContext(config *common.Configuration) (ctx *context.Context) {
 	metadataBackendConfig := &metadata.Config{Driver: "sqlite3", ConnectionString: "/tmp/plik.test.db", EraseFirst: true}
 	metadataBackend, err := metadata.NewBackend(metadataBackendConfig, config.NewLogger())
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("unable to initialize metadata backend : %s", err))
 	}
 	ctx.SetMetadataBackend(metadataBackend)
 

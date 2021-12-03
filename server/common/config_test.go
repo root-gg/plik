@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/root-gg/logger"
+
 	"github.com/iancoleman/strcase"
 
 	"github.com/stretchr/testify/require"
@@ -44,6 +46,13 @@ func TestInitializeConfigUploadWhitelist(t *testing.T) {
 	require.Equal(t, config.UploadWhitelist[0]+"/32", config.uploadWhitelist[0].String(), "invalid parsed upload IP")
 	require.Equal(t, config.UploadWhitelist[1], config.uploadWhitelist[1].String(), "invalid parsed upload IP")
 	require.Equal(t, config.UploadWhitelist[1], config.uploadWhitelist[2].String(), "invalid parsed upload IP")
+
+	config = NewConfiguration()
+	config.UploadWhitelist = []string{"foo", "bar", "baz"}
+
+	err = config.Initialize()
+	RequireError(t, err, "failed to parse upload whitelist")
+
 }
 
 func TestIsWhitelisted(t *testing.T) {
@@ -133,6 +142,23 @@ func TestGetServerUrl(t *testing.T) {
 func TestString(t *testing.T) {
 	config := NewConfiguration()
 	require.NotEmpty(t, config.String())
+
+	config.DownloadDomain = "download.domain"
+	config.OneShot = false
+	config.Removable = false
+	config.Stream = false
+	config.ProtectedByPassword = false
+	config.DefaultTTL = -1
+	config.MaxTTL = -1
+	require.NotEmpty(t, config.String())
+
+	config.Authentication = true
+	require.NotEmpty(t, config.String())
+
+	config.GoogleAuthentication = true
+	config.OvhAuthentication = true
+	config.OvhAPIEndpoint = "api.ovh.com"
+	require.NotEmpty(t, config.String())
 }
 
 func TestConfiguration_EnvironmentOverride(t *testing.T) {
@@ -168,4 +194,24 @@ func TestConfiguration_EnvironmentOverride(t *testing.T) {
 	require.Equal(t, int64(42), config.MaxFileSize)
 	require.EqualValues(t, []string{"127.0.0.1"}, config.UploadWhitelist)
 	require.EqualValues(t, map[string]interface{}{"path": "files"}, config.MetadataBackendConfig)
+}
+
+func TestConfiguration_NewLogger(t *testing.T) {
+	config := NewConfiguration()
+	log := config.NewLogger()
+	require.NotNil(t, log, "invalid nil logger")
+	require.Equal(t, logger.INFO, log.MinLevel, "invalid logger level")
+
+	config.Debug = true
+	log = config.NewLogger()
+	require.Equal(t, logger.DEBUG, log.MinLevel, "invalid logger level")
+}
+
+func TestNewConfiguration_InitializeDebugCompat(t *testing.T) {
+	config := NewConfiguration()
+	config.LogLevel = "DEBUG"
+	err := config.Initialize()
+	require.NoError(t, err, "initialize error")
+	require.True(t, config.Debug)
+	require.True(t, config.DebugRequests)
 }

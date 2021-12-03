@@ -17,7 +17,7 @@ func TestAddGetFile(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -58,7 +58,7 @@ func TestRemoveFile(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	err := backend.RemoveFile(file)
 	require.NoError(t, err)

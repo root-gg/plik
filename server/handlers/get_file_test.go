@@ -25,15 +25,16 @@ func createTestFile(ctx *context.Context, file *common.File, reader io.Reader) (
 }
 
 func TestGetFile(t *testing.T) {
-	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
+	config := common.NewConfiguration()
+	config.EnhancedWebSecurity = true
+	ctx := newTestingContext(config)
 
 	data := "data"
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	file := upload.NewFile()
 	file.Name = "file"
-	file.Status = "uploaded"
+	file.Status = common.FileUploaded
 	file.Md5 = "12345"
 	file.Type = "type"
 	file.Size = int64(len(data))
@@ -45,8 +46,9 @@ func TestGetFile(t *testing.T) {
 	ctx.SetUpload(upload)
 	ctx.SetFile(file)
 
-	req, err := http.NewRequest("GET", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name, bytes.NewBuffer([]byte{}))
+	req, err := http.NewRequest("GET", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name+"?dl=true", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
+	req.URL.Query().Set("dl", "true")
 
 	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
@@ -59,13 +61,18 @@ func TestGetFile(t *testing.T) {
 	require.NoError(t, err, "unable to read response body")
 
 	require.Equal(t, data, string(respBody), "invalid file content")
+	require.NotEmpty(t, rr.Header().Get("X-Content-Type-Options"))
+	require.NotEmpty(t, rr.Header().Get("X-XSS-Protection"))
+	require.NotEmpty(t, rr.Header().Get("X-Frame-Options"))
+	require.NotEmpty(t, rr.Header().Get("Content-Security-Policy"))
+	require.Equal(t, rr.Header().Get("Content-Disposition"), fmt.Sprintf(`attachement; filename="%s"`, file.Name))
 }
 
 func TestGetOneShotFile(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
 	upload := &common.Upload{}
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 	upload.OneShot = true
 	file := upload.NewFile()
 	file.Name = "file"
@@ -90,6 +97,51 @@ func TestGetOneShotFile(t *testing.T) {
 	respBody, err := ioutil.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 	require.Equal(t, data, string(respBody), "invalid file content")
+
+	require.NotEmpty(t, rr.Header().Get("Cache-Control"))
+	require.NotEmpty(t, rr.Header().Get("Pragma"))
+	require.NotEmpty(t, rr.Header().Get("Expires"))
+
+	f, err := ctx.GetMetadataBackend().GetFile(file.ID)
+	require.NoError(t, err, "unable to get file metadata")
+	require.Equal(t, common.FileRemoved, f.Status, "invalid file status")
+}
+
+func TestGetStreamingFile(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	backend := data_test.NewBackend()
+	ctx.SetDataBackend(backend)
+	ctx.SetStreamBackend(backend)
+
+	upload := &common.Upload{Stream: true}
+	upload.InitializeForTests()
+	file := upload.NewFile()
+	file.Name = "file"
+	file.Status = common.FileUploading
+	createTestUpload(t, ctx, upload)
+
+	data := "data"
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte(data)))
+	require.NoError(t, err, "unable to create test file")
+
+	ctx.SetUpload(upload)
+	ctx.SetFile(file)
+
+	req, err := http.NewRequest("GET", "/file/"+upload.ID+"/"+file.ID+"/"+file.Name, bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	GetFile(ctx, rr, req)
+
+	context.TestOK(t, rr)
+
+	respBody, err := ioutil.ReadAll(rr.Body)
+	require.NoError(t, err, "unable to read response body")
+	require.Equal(t, data, string(respBody), "invalid file content")
+
+	require.NotEmpty(t, rr.Header().Get("Cache-Control"))
+	require.NotEmpty(t, rr.Header().Get("Pragma"))
+	require.NotEmpty(t, rr.Header().Get("Expires"))
 }
 
 func TestGetRemovedFile(t *testing.T) {
@@ -188,7 +240,7 @@ func TestGetHtmlFile(t *testing.T) {
 	ctx := newTestingContext(config)
 
 	upload := &common.Upload{}
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	file := upload.NewFile()
 	file.Type = "html"
@@ -214,7 +266,7 @@ func TestGetFileNoType(t *testing.T) {
 	ctx := newTestingContext(config)
 
 	upload := &common.Upload{}
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	file := upload.NewFile()
 	file.Status = "uploaded"
@@ -239,11 +291,11 @@ func TestGetFileDataBackendError(t *testing.T) {
 	ctx := newTestingContext(config)
 
 	upload := &common.Upload{}
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	file := upload.NewFile()
 	file.Name = "file"
-	file.Status = "uploaded"
+	file.Status = common.FileUploaded
 	err := createTestFile(ctx, file, bytes.NewBuffer([]byte("data")))
 	require.NoError(t, err, "unable to create test file")
 
@@ -257,4 +309,54 @@ func TestGetFileDataBackendError(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	GetFile(ctx, rr, req)
 	context.TestInternalServerError(t, rr, "unable to get file from data backend : data backend error")
+}
+
+func TestGetFileInvalidStatus(t *testing.T) {
+	config := common.NewConfiguration()
+	ctx := newTestingContext(config)
+
+	upload := &common.Upload{}
+	upload.InitializeForTests()
+
+	file := upload.NewFile()
+	file.Name = "file"
+	file.Status = common.FileMissing
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte("data")))
+	require.NoError(t, err, "unable to create test file")
+
+	ctx.SetUpload(upload)
+	ctx.SetFile(file)
+
+	ctx.GetDataBackend().(*data_test.Backend).SetError(errors.New("data backend error"))
+	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	GetFile(ctx, rr, req)
+	context.TestNotFound(t, rr, "is not available")
+}
+
+func TestGetFileInvalidStatusStreaming(t *testing.T) {
+	config := common.NewConfiguration()
+	ctx := newTestingContext(config)
+
+	upload := &common.Upload{Stream: true}
+	upload.InitializeForTests()
+
+	file := upload.NewFile()
+	file.Name = "file"
+	file.Status = common.FileMissing
+	err := createTestFile(ctx, file, bytes.NewBuffer([]byte("data")))
+	require.NoError(t, err, "unable to create test file")
+
+	ctx.SetUpload(upload)
+	ctx.SetFile(file)
+
+	ctx.GetDataBackend().(*data_test.Backend).SetError(errors.New("data backend error"))
+	req, err := http.NewRequest("GET", "/file/", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	GetFile(ctx, rr, req)
+	context.TestNotFound(t, rr, "is not available")
 }

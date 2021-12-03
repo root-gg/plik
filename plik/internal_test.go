@@ -109,7 +109,7 @@ func TestUploadFileNoUpload(t *testing.T) {
 	upload := &common.Upload{}
 	file := upload.NewFile()
 	file.Name = "filename"
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	_, err = pc.uploadFile(upload, file, bytes.NewBufferString("data"))
 	common.RequireError(t, err, "upload "+upload.ID+" not found")
@@ -128,7 +128,7 @@ func TestUploadFileReaderError(t *testing.T) {
 	upload := &common.Upload{}
 	file := upload.NewFile()
 	file.Name = "filename"
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	_, err = pc.uploadFile(upload, file, common.NewErrorReaderString("io error"))
 	common.RequireError(t, err, "io error")

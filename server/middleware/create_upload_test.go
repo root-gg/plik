@@ -38,7 +38,7 @@ func TestCreateUpload(t *testing.T) {
 	require.Equal(t, ctx.GetUser().ID, upload.User, "invalid source ip")
 	require.Equal(t, ctx.GetToken().Token, upload.Token, "invalid source ip")
 
-	require.True(t, ctx.IsUploadAdmin(), "should be upload admin")
+	require.True(t, ctx.GetUpload().IsAdmin, "should be upload admin")
 	require.True(t, ctx.IsQuick(), "should be quick")
 }
 
@@ -57,4 +57,31 @@ func TestCreateUploadNotWhitelisted(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 	context.TestForbidden(t, rr, "untrusted source IP address")
+}
+
+func TestCreateUploadInvalidContext(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	ctx.GetConfig().NoAnonymousUploads = true
+
+	ctx.SetSourceIP(net.ParseIP("1.2.3.4"))
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	CreateUpload(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	context.TestBadRequest(t, rr, "anonymous uploads are disabled")
+}
+
+func TestCreateUploadMetadataBackendError(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	err := ctx.GetMetadataBackend().Shutdown()
+	require.NoError(t, err, "unable to shutdown metadata backend")
+
+	ctx.SetSourceIP(net.ParseIP("1.2.3.4"))
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	CreateUpload(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	context.TestInternalServerError(t, rr, "database is closed")
 }

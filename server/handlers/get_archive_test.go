@@ -71,6 +71,27 @@ func TestGetArchive(t *testing.T) {
 	require.Equal(t, data, string(content), "invalid archived file content")
 }
 
+func TestGetArchiveStreaming(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	upload := &common.Upload{Stream: true}
+	ctx.SetUpload(upload)
+
+	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+"archive.zip", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	// Fake gorilla/mux vars
+	vars := map[string]string{
+		"filename": "archive.zip",
+	}
+	req = mux.SetURLVars(req, vars)
+
+	rr := ctx.NewRecorder(req)
+	GetArchive(ctx, rr, req)
+
+	context.TestBadRequest(t, rr, "archive feature is not available in stream mode")
+}
+
 func TestGetArchiveNoFile(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
@@ -90,6 +111,33 @@ func TestGetArchiveNoFile(t *testing.T) {
 	GetArchive(ctx, rr, req)
 
 	context.TestBadRequest(t, rr, "nothing to archive")
+}
+
+func TestGetArchiveFileNameTooLong(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	upload := &common.Upload{}
+	ctx.SetUpload(upload)
+
+	archiveName := ""
+	for i := 0; i < 10240; i++ {
+		archiveName += "x"
+	}
+	archiveName += ".zip"
+
+	req, err := http.NewRequest("GET", "/archive/"+upload.ID+"/"+archiveName, bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	// Fake gorilla/mux vars
+	vars := map[string]string{
+		"filename": archiveName,
+	}
+	req = mux.SetURLVars(req, vars)
+
+	rr := ctx.NewRecorder(req)
+	GetArchive(ctx, rr, req)
+
+	context.TestBadRequest(t, rr, "archive name too long")
 }
 
 func TestGetArchiveInvalidDownloadDomain(t *testing.T) {

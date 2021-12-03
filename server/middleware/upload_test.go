@@ -49,7 +49,7 @@ func TestUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
 	upload := &common.Upload{}
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
@@ -75,7 +75,7 @@ func TestUploadExpired(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
 	upload := &common.Upload{}
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 	deadline := time.Now().Add(-10 * time.Minute)
 	upload.ExpireAt = &deadline
 
@@ -101,7 +101,7 @@ func TestUploadToken(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
 	upload := &common.Upload{}
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 	upload.UploadToken = "token"
 
 	err := ctx.GetMetadataBackend().CreateUpload(upload)
@@ -122,9 +122,9 @@ func TestUploadToken(t *testing.T) {
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
-	require.NotNil(t, upload, ctx.GetUpload(), "invalid upload from context")
+	require.NotNil(t, ctx.GetUpload(), "invalid upload from context")
 	require.Equal(t, upload.Token, ctx.GetUpload().Token, "invalid upload from context")
-	require.True(t, ctx.IsUploadAdmin(), "invalid upload admin status")
+	require.True(t, ctx.GetUpload().IsAdmin, "invalid upload admin status")
 }
 
 func TestUploadUser(t *testing.T) {
@@ -136,7 +136,7 @@ func TestUploadUser(t *testing.T) {
 	ctx.SetUser(user)
 
 	upload := &common.Upload{}
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 	upload.User = user.ID
 
 	err := ctx.GetMetadataBackend().CreateUpload(upload)
@@ -155,9 +155,9 @@ func TestUploadUser(t *testing.T) {
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
-	require.NotNil(t, upload, ctx.GetUpload(), "invalid upload from context")
+	require.NotNil(t, ctx.GetUpload(), "invalid upload from context")
 	require.Equal(t, upload.User, ctx.GetUpload().User, "invalid upload from context")
-	require.True(t, ctx.IsUploadAdmin(), "invalid upload admin status")
+	require.True(t, ctx.GetUpload().IsAdmin, "invalid upload admin status")
 }
 
 func TestUploadUserToken(t *testing.T) {
@@ -168,7 +168,7 @@ func TestUploadUserToken(t *testing.T) {
 	ctx.SetToken(token)
 
 	upload := &common.Upload{}
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 	upload.Token = token.Token
 
 	err := ctx.GetMetadataBackend().CreateUpload(upload)
@@ -189,7 +189,7 @@ func TestUploadUserToken(t *testing.T) {
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
 	require.NotNil(t, upload, ctx.GetUpload(), "invalid upload from context")
 	require.Equal(t, upload.User, ctx.GetUpload().User, "invalid upload from context")
-	require.True(t, ctx.IsUploadAdmin(), "invalid upload admin status")
+	require.True(t, ctx.GetUpload().IsAdmin, "invalid upload admin status")
 }
 
 func TestUploadUserAdmin(t *testing.T) {
@@ -202,7 +202,7 @@ func TestUploadUserAdmin(t *testing.T) {
 	ctx.SetUser(user)
 
 	upload := &common.Upload{}
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
@@ -220,9 +220,9 @@ func TestUploadUserAdmin(t *testing.T) {
 	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
-	require.NotNil(t, upload, ctx.GetUpload(), "invalid upload from context")
+	require.NotNil(t, ctx.GetUpload(), "invalid upload from context")
 	require.Equal(t, upload.User, ctx.GetUpload().User, "invalid upload from context")
-	require.True(t, ctx.IsUploadAdmin(), "invalid upload admin status")
+	require.True(t, ctx.GetUpload().IsAdmin, "invalid upload admin status")
 	require.True(t, ctx.IsAdmin(), "invalid admin status")
 }
 
@@ -232,7 +232,7 @@ func TestUploadPasswordMissingHeader(t *testing.T) {
 
 	upload := &common.Upload{}
 	upload.ProtectedByPassword = true
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
@@ -258,7 +258,7 @@ func TestUploadPasswordInvalidHeader(t *testing.T) {
 
 	upload := &common.Upload{}
 	upload.ProtectedByPassword = true
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
@@ -286,7 +286,7 @@ func TestUploadPasswordInvalidScheme(t *testing.T) {
 
 	upload := &common.Upload{}
 	upload.ProtectedByPassword = true
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
@@ -314,7 +314,7 @@ func TestUploadPasswordInvalidPassword(t *testing.T) {
 
 	upload := &common.Upload{}
 	upload.ProtectedByPassword = true
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	err := ctx.GetMetadataBackend().CreateUpload(upload)
 	require.NoError(t, err, "Unable to create upload")
@@ -346,7 +346,7 @@ func TestUploadPassword(t *testing.T) {
 	upload.ProtectedByPassword = true
 	upload.Login = "login"
 	upload.Password = "password"
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	// The Authorization header will contain the base64 version of "login:password"
 	// Save only the md5sum of this string to authenticate further requests
@@ -374,5 +374,5 @@ func TestUploadPassword(t *testing.T) {
 	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
 	require.NotNil(t, ctx.GetUpload(), "missing upload from context")
 	require.Equal(t, upload.ID, ctx.GetUpload().ID, "invalid upload from context")
-	require.False(t, ctx.IsUploadAdmin(), "invalid upload admin status")
+	require.False(t, upload.IsAdmin, "invalid upload admin status")
 }

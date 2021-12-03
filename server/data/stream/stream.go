@@ -64,7 +64,7 @@ func (b *Backend) AddFile(file *common.File, stream io.Reader) (err error) {
 	return nil
 }
 
-// RemoveFile is not implemented
+// RemoveFile does not need to be implemented cleaning occurs in AddFile's defer delete
 func (b *Backend) RemoveFile(file *common.File) (err error) {
 	return nil
 }

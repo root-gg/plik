@@ -24,7 +24,6 @@ my $struct = [
 	'token', '*common.Token', {},
 
 	'isWhitelisted', '*bool', { internal => 1 },
-	'isUploadAdmin', 'bool', {},
 	'isRedirectOnFailure', 'bool', {},
 	'isQuick', 'bool', {},
 

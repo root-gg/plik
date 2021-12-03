@@ -54,7 +54,7 @@ func TestAddFileImpossibleToCreateDirectory(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	err := backend.AddFile(file, &bytes.Buffer{})
 	require.Error(t, err, "unable to create directory")
@@ -66,7 +66,7 @@ func TestAddFileInvalidReader(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	reader := common.NewErrorReader(errors.New("io error"))
 	err := backend.AddFile(file, reader)
@@ -80,7 +80,7 @@ func TestAddFile(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	reader := bytes.NewBufferString("data")
 	err := backend.AddFile(file, reader)
@@ -104,7 +104,7 @@ func TestGetFileInvalidDirectory(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	// null byte looks like a good invalid dirname value ^^
 	backend.Config.Directory = string([]byte{0})
@@ -119,7 +119,7 @@ func TestGetFileMissingFile(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	_, err := backend.GetFile(file)
 	require.Error(t, err, "no error with missing file")
@@ -132,7 +132,7 @@ func TestGetFile(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	reader := bytes.NewBufferString("data")
 	err := backend.AddFile(file, reader)
@@ -152,7 +152,7 @@ func TestGetFileCompathPath(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	reader := bytes.NewBufferString("data")
 	dir := fmt.Sprintf("%s/%s/%s", backend.Config.Directory, file.UploadID[:2], file.UploadID)
@@ -184,7 +184,7 @@ func TestRemoveFileInvalidDirectory(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	// null byte looks like a good invalid dirname value ^^
 	backend.Config.Directory = string([]byte{0})
@@ -199,7 +199,7 @@ func TestRemoveFileMissingFile(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	err := backend.RemoveFile(file)
 	require.NoError(t, err, "error removing missing file")
@@ -211,7 +211,7 @@ func TestRemoveFile(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	reader := bytes.NewBufferString("data")
 	err := backend.AddFile(file, reader)
@@ -240,7 +240,7 @@ func TestRemoveFileTwice(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	reader := bytes.NewBufferString("data")
 	err := backend.AddFile(file, reader)
@@ -272,7 +272,7 @@ func TestRemoveFileCompatPath(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	reader := bytes.NewBufferString("data")
 	dir := fmt.Sprintf("%s/%s/%s", backend.Config.Directory, file.UploadID[:2], file.UploadID)
