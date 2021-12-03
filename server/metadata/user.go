@@ -3,8 +3,8 @@ package metadata
 import (
 	"fmt"
 
-	"github.com/jinzhu/gorm"
-	paginator "github.com/pilagod/gorm-cursor-paginator"
+	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
+	"gorm.io/gorm"
 
 	"github.com/root-gg/plik/server/common"
 )
@@ -31,7 +31,7 @@ func (b *Backend) UpdateUser(user *common.User) (err error) {
 func (b *Backend) GetUser(ID string) (user *common.User, err error) {
 	user = &common.User{}
 	err = b.db.Where(&common.User{ID: ID}).Take(user).Error
-	if gorm.IsRecordNotFoundError(err) {
+	if err == gorm.ErrRecordNotFound {
 		return nil, nil
 	} else if err != nil {
 		return nil, err
@@ -60,12 +60,13 @@ func (b *Backend) GetUsers(provider string, withTokens bool, pagingQuery *common
 		stmt = stmt.Where(&common.User{Provider: provider})
 	}
 
-	err = p.Paginate(stmt, &users).Error
+	result, c, err := p.Paginate(stmt, &users)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	c := p.GetNextCursor()
+	if result.Error != nil {
+		return nil, nil, result.Error
+	}
 
 	return users, &c, err
 }
@@ -95,12 +96,12 @@ func (b *Backend) ForEachUserUploads(userID string, tokenStr string, f func(uplo
 	return nil
 }
 
-// DeleteUserUploads delets all uploads matching the user and token filters
-func (b *Backend) DeleteUserUploads(userID string, tokenStr string) (removed int, err error) {
+// RemoveUserUploads deletes all uploads matching the user and token filters
+func (b *Backend) RemoveUserUploads(userID string, tokenStr string) (removed int, err error) {
 	deleted := 0
 	var errors []error
 	f := func(upload *common.Upload) (err error) {
-		err = b.DeleteUpload(upload.ID)
+		err = b.RemoveUpload(upload.ID)
 		if err != nil {
 			// TODO LOG
 			errors = append(errors, err)
@@ -123,22 +124,22 @@ func (b *Backend) DeleteUserUploads(userID string, tokenStr string) (removed int
 
 // DeleteUser delete a user from the DB
 func (b *Backend) DeleteUser(userID string) (deleted bool, err error) {
-	err = b.db.Transaction(func(tx *gorm.DB) (err error) {
-		_, err = b.DeleteUserUploads(userID, "")
-		if err != nil {
-			return err
-		}
+	_, err = b.RemoveUserUploads(userID, "")
+	if err != nil {
+		return false, err
+	}
 
+	err = b.db.Transaction(func(tx *gorm.DB) (err error) {
 		// Delete user tokens
-		err = tx.Delete(&common.Token{UserID: userID}).Error
+		err = tx.Where(&common.Token{UserID: userID}).Delete(&common.Token{}).Error
 		if err != nil {
-			return fmt.Errorf("unable to delete tokens metadata")
+			return fmt.Errorf("unable to delete tokens metadata : %s", err)
 		}
 
 		// Delete user
-		result := tx.Unscoped().Delete(&common.User{ID: userID})
+		result := tx.Where(&common.User{ID: userID}).Delete(common.User{})
 		if result.Error != nil {
-			return fmt.Errorf("unable to delete user metadata")
+			return fmt.Errorf("unable to delete user metadata : %s", result.Error)
 		}
 
 		if result.RowsAffected > 0 {
@@ -153,12 +154,13 @@ func (b *Backend) DeleteUser(userID string) (deleted bool, err error) {
 
 // CountUsers count the number of user in the DB
 func (b *Backend) CountUsers() (count int, err error) {
-	err = b.db.Model(&common.User{}).Count(&count).Error
+	var c int64 // Gorm V2 needs int64 for counts
+	err = b.db.Model(&common.User{}).Count(&c).Error
 	if err != nil {
 		return -1, err
 	}
 
-	return count, nil
+	return int(c), nil
 }
 
 // ForEachUsers execute f for every user in the database

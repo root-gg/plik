@@ -1,29 +1,30 @@
 package metadata
 
 import (
+	"context"
 	"fmt"
+	"time"
 
-	"github.com/jinzhu/gorm"
+	"github.com/go-gormigrate/gormigrate/v2"
+	"github.com/root-gg/logger"
 	"github.com/root-gg/utils"
-	"gopkg.in/gormigrate.v1"
-
-	// load drivers
-	// Still some issues to workaround for mysql
-	//  - innodb deadlocks on create
-	//  - createdAt => datetime(6)
-	//_ "github.com/jinzhu/gorm/dialects/mysql"
-	_ "github.com/jinzhu/gorm/dialects/postgres"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 
 	"github.com/root-gg/plik/server/common"
 )
 
 // Config metadata backend configuration
 type Config struct {
-	Driver           string
-	ConnectionString string
-	EraseFirst       bool
-	Debug            bool
+	Driver             string
+	ConnectionString   string
+	EraseFirst         bool
+	MaxOpenConns       int
+	MaxIdleConns       int
+	Debug              bool
+	SlowQueryThreshold string
 }
 
 // NewConfig instantiate a new default configuration
@@ -40,64 +41,127 @@ func NewConfig(params map[string]interface{}) (config *Config) {
 type Backend struct {
 	Config *Config
 
-	db *gorm.DB
+	log *logger.Logger
+	db  *gorm.DB
 }
 
 // NewBackend instantiate a new File Data Backend
 // from configuration passed as argument
-func NewBackend(config *Config) (b *Backend, err error) {
+func NewBackend(config *Config, log *logger.Logger) (b *Backend, err error) {
 	b = new(Backend)
 	b.Config = config
 
-	b.db, err = gorm.Open(b.Config.Driver, b.Config.ConnectionString)
+	// Prepare database connection depending on driver type
+	var dial gorm.Dialector
+	switch config.Driver {
+	case "sqlite3":
+		dial = sqlite.Open(config.ConnectionString)
+	case "postgres":
+		dial = postgres.Open(config.ConnectionString)
+	case "mysql":
+		dial = mysql.New(mysql.Config{
+			DSN:                       config.ConnectionString,
+			DefaultStringSize:         256,  // default size for string fields
+			SkipInitializeWithVersion: true, // auto configure based on currently MySQL version
+		})
+
+	//case "sqlserver":
+	//	dial = sqlserver.Open(config.ConnectionString)
+	//
+	// There is currently an issue with the reserved keyword user not being correctly escaped
+	// "SELECT count(*) FROM "uploads" WHERE uploads.user == "user" AND "uploads"."deleted_at" IS NULL"
+	//  -> returns : Incorrect syntax near the keyword 'user'
+	// "SELECT count(*) FROM "uploads" WHERE uploads.[user] = "user" AND "uploads"."deleted_at" IS NULL"
+	//  -> Would be OK
+	// TODO investigate how the query is generated and maybe open issue in https://github.com/denisenkom/go-mssqldb ?
+	default:
+		return nil, fmt.Errorf("Invalid metadata backend driver : %s", config.Driver)
+	}
+
+	// Setup logging adaptor
+	b.log = log
+	gormLoggerAdapter := NewGormLoggerAdapter(log.Copy())
+
+	if b.Config.Debug {
+		// Display all Gorm log messages
+		gormLoggerAdapter.logger.SetMinLevel(logger.DEBUG)
+	} else {
+		// Display only Gorm errors
+		gormLoggerAdapter.logger.SetMinLevel(logger.WARNING)
+	}
+
+	// Set slow query threshold
+	if config.SlowQueryThreshold != "" {
+		duration, err := time.ParseDuration(config.SlowQueryThreshold)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to parse SlowQueryThreshold : %s", err)
+		}
+		gormLoggerAdapter.SlowQueryThreshold = duration
+	}
+
+	// Open database connection
+	b.db, err = gorm.Open(dial, &gorm.Config{Logger: gormLoggerAdapter})
 	if err != nil {
-		return nil, fmt.Errorf("unable to open database : %s", err)
+		return nil, fmt.Errorf("Unable to open database : %s", err)
 	}
 
 	if config.Driver == "sqlite3" {
 		err = b.db.Exec("PRAGMA journal_mode=WAL;").Error
 		if err != nil {
-			_ = b.db.Close()
+			if err := b.Shutdown(); err != nil {
+				b.log.Criticalf("Unable to shutdown metadata backend : %s", err)
+			}
 			return nil, fmt.Errorf("unable to set wal mode : %s", err)
 		}
 
 		err = b.db.Exec("PRAGMA foreign_keys = ON").Error
 		if err != nil {
-			_ = b.db.Close()
+			if err := b.Shutdown(); err != nil {
+				b.log.Criticalf("Unable to shutdown metadata backend : %s", err)
+			}
 			return nil, fmt.Errorf("unable to enable foreign keys : %s", err)
 		}
 	}
 
+	// For testing
 	if config.EraseFirst {
-		err = b.db.DropTableIfExists("files", "uploads", "tokens", "users", "settings", "migrations").Error
+		err = b.db.Migrator().DropTable("files", "uploads", "tokens", "users", "settings", "migrations")
 		if err != nil {
 			return nil, fmt.Errorf("unable to drop tables : %s", err)
 		}
 	}
 
-	if config.Debug {
-		b.db.LogMode(true)
-	}
-
+	// Initialize database schema
 	err = b.initializeDB()
 	if err != nil {
+		if err := b.Shutdown(); err != nil {
+			b.db.Logger.Error(context.Background(), "Unable to shutdown metadata backend : %s", err)
+		}
 		return nil, fmt.Errorf("unable to initialize DB : %s", err)
+	}
+
+	// Adjust max idle/open connection pool size
+	err = b.adjustConnectionPoolParameters()
+	if err != nil {
+		return nil, err
 	}
 
 	return b, err
 }
 
+// Initialize the metadata backend.
+//  - Create or update the database schema if needed
 func (b *Backend) initializeDB() (err error) {
 	m := gormigrate.New(b.db, gormigrate.DefaultOptions, []*gormigrate.Migration{
-		// you migrations here
+		// your migrations here
 	})
 
 	m.InitSchema(func(tx *gorm.DB) error {
 
-		//if b.Config.Driver == "mysql" {
-		//	// Enable foreign keys
-		//	tx = tx.Set("gorm:table_options", "ENGINE=InnoDB")
-		//}
+		if b.Config.Driver == "mysql" {
+			// Enable foreign keys
+			tx = tx.Set("gorm:table_options", "ENGINE=InnoDB")
+		}
 
 		err := tx.AutoMigrate(
 			&common.Upload{},
@@ -105,24 +169,9 @@ func (b *Backend) initializeDB() (err error) {
 			&common.User{},
 			&common.Token{},
 			&common.Setting{},
-		).Error
-		if err != nil {
-			return err
-		}
+		)
 
-		//if b.Config.Driver == "mysql" {
-		//	err = tx.Model(&common.File{}).AddForeignKey("upload_id", "uploads(id)", "RESTRICT", "RESTRICT").Error
-		//	if err != nil {
-		//		return err
-		//	}
-		//	err = tx.Model(&common.Token{}).AddForeignKey("user_id", "users(id)", "RESTRICT", "RESTRICT").Error
-		//	if err != nil {
-		//		return err
-		//	}
-		//}
-
-		// all other foreign keys...
-		return nil
+		return err
 	})
 
 	if err = m.Migrate(); err != nil {
@@ -132,7 +181,40 @@ func (b *Backend) initializeDB() (err error) {
 	return nil
 }
 
-// Shutdown close the metadata backend
+// Adjust max idle/open connection pool size
+func (b *Backend) adjustConnectionPoolParameters() (err error) {
+	// Get generic "database/sql" database handle
+	sqlDB, err := b.db.DB()
+	if err != nil {
+		return fmt.Errorf("unable to get SQL DB handle : %s", err)
+	}
+
+	if b.Config.MaxIdleConns > 0 {
+		sqlDB.SetMaxIdleConns(b.Config.MaxIdleConns)
+	}
+
+	if b.Config.MaxOpenConns > 0 {
+		// Need at least a few because of https://github.com/mattn/go-sqlite3/issues/569
+		sqlDB.SetMaxOpenConns(b.Config.MaxOpenConns)
+	}
+
+	return nil
+}
+
+// Shutdown the the metadata backend, close all connections to the database.
 func (b *Backend) Shutdown() (err error) {
-	return b.db.Close()
+
+	// Close database connection
+	if b.db != nil {
+		db, err := b.db.DB()
+		if err != nil {
+			return err
+		}
+		err = db.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

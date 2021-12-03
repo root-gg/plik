@@ -122,7 +122,8 @@ func (b *Backend) Export(path string) (err error) {
 	fmt.Printf("exported %d tokens\n", count)
 
 	count = 0
-	err = b.ForEachUpload(func(upload *common.Upload) error {
+	// Need to export "soft deleted" uploads too else some removed/deleted files will have broken foreign keys
+	err = b.ForEachUploadUnscoped(func(upload *common.Upload) error {
 		count++
 		return e.addUpload(upload)
 	})

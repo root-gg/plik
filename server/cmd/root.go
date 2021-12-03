@@ -8,11 +8,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/root-gg/plik/server/data"
-
 	"github.com/spf13/cobra"
 
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/data"
 	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/plik/server/server"
 )
@@ -108,7 +107,7 @@ var metadataBackend *metadata.Backend
 func initializeMetadataBackend() {
 	var err error
 	initializeMetadataBackendOnce.Do(func() {
-		metadataBackend, err = server.NewMetadataBackend(config.MetadataBackendConfig)
+		metadataBackend, err = server.NewMetadataBackend(config.MetadataBackendConfig, config.NewLogger())
 		if err != nil {
 			fmt.Printf("unable to initialize metadata backend : %s\n", err)
 			os.Exit(1)

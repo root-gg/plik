@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/big"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 var (
@@ -35,9 +37,9 @@ type Upload struct {
 	Login               string `json:"login,omitempty"`
 	Password            string `json:"password,omitempty"`
 
-	CreatedAt time.Time  `json:"createdAt"`
-	DeletedAt *time.Time `json:"-" gorm:"index:idx_upload_deleted_at"`
-	ExpireAt  *time.Time `json:"expireAt" gorm:"index:idx_upload_expire_at"`
+	CreatedAt time.Time      `json:"createdAt"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index:idx_upload_deleted_at"`
+	ExpireAt  *time.Time     `json:"expireAt" gorm:"index:idx_upload_expire_at"`
 }
 
 // NewFile creates a new file and add it to the current upload

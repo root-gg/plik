@@ -94,6 +94,9 @@ func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (err error) {
 func (b *Backend) RemoveFile(file *common.File) (err error) {
 	_, path, err := b.getPathCompat(file)
 	if err != nil {
+		if err == errNoSuchFileOrDirectory {
+			return nil
+		}
 		return err
 	}
 
@@ -123,8 +126,9 @@ func (b *Backend) getPath(file *common.File) (dir string, path string, err error
 	return dir, path, nil
 }
 
-func (b *Backend) getPathCompat(file *common.File) (dir string, path string, err error) {
+var errNoSuchFileOrDirectory = fmt.Errorf("no such file or directory")
 
+func (b *Backend) getPathCompat(file *common.File) (dir string, path string, err error) {
 	dir, path, err = b.getPath(file)
 	if err != nil {
 		return "", "", err
@@ -156,5 +160,5 @@ func (b *Backend) getPathCompat(file *common.File) (dir string, path string, err
 		return "", "", err
 	}
 
-	return dir, path, fmt.Errorf("no such file or directory")
+	return "", "", errNoSuchFileOrDirectory
 }

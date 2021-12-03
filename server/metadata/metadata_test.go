@@ -7,15 +7,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"github.com/root-gg/logger"
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 
 	"github.com/root-gg/plik/server/common"
 )
 
 // Default config
-var metadataBackendConfig = &Config{Driver: "sqlite3", ConnectionString: "/tmp/plik.test.db", EraseFirst: true}
+var metadataBackendConfig = &Config{Driver: "sqlite3", ConnectionString: "/tmp/plik.test.db", EraseFirst: true, Debug: false}
 
 func TestMain(m *testing.M) {
 
@@ -38,13 +39,19 @@ func TestMain(m *testing.M) {
 }
 
 func newTestMetadataBackend() *Backend {
-
-	b, err := NewBackend(metadataBackendConfig)
+	b, err := NewBackend(metadataBackendConfig, logger.NewLogger())
 	if err != nil {
 		panic(fmt.Sprintf("unable to create metadata backend : %s", err))
 	}
 
 	return b
+}
+
+func shutdownTestMetadataBackend(b *Backend) {
+	err := b.Shutdown()
+	if err != nil {
+		fmt.Printf("Unable to shutdown metadata backend : %s\n", err)
+	}
 }
 
 func TestNewConfig(t *testing.T) {
@@ -61,6 +68,7 @@ func TestNewConfig(t *testing.T) {
 
 func TestMetadata(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	uploadID := "azertiop"
 	upload := &common.Upload{ID: uploadID}
@@ -78,8 +86,62 @@ func TestMetadata(t *testing.T) {
 	err = b.db.Preload("Files").Take(upload, "id = ?", uploadID).Error
 	require.NoError(t, err, "unable to fetch upload")
 
-	err = b.db.Close()
+	err = b.Shutdown()
 	require.NoError(t, err, "close db error")
+}
+
+func TestMetadataInvalidBackend(t *testing.T) {
+	metadataBackendConfig := &Config{Driver: "invalid"}
+	b, err := NewBackend(metadataBackendConfig, logger.NewLogger())
+	require.Error(t, err)
+	require.Nil(t, b)
+}
+
+func TestMetadataBackendDebug(t *testing.T) {
+	debugMetadataBackendConfig := *metadataBackendConfig
+	debugMetadataBackendConfig.Debug = true
+	b, err := NewBackend(&debugMetadataBackendConfig, logger.NewLogger())
+	require.NoError(t, err)
+	require.NotNil(t, b)
+	_ = b.Shutdown()
+}
+
+func TestMetadataSlowQueryThreshold(t *testing.T) {
+	slowQueryThresholdMetadataBackendConfig := *metadataBackendConfig
+	slowQueryThresholdMetadataBackendConfig.SlowQueryThreshold = "60s"
+	b, err := NewBackend(&slowQueryThresholdMetadataBackendConfig, logger.NewLogger())
+	require.NoError(t, err)
+	require.NotNil(t, b)
+}
+
+func TestMetadataInvalidSlowQueryThreshold(t *testing.T) {
+	slowQueryThresholdMetadataBackendConfig := *metadataBackendConfig
+	slowQueryThresholdMetadataBackendConfig.SlowQueryThreshold = "blah"
+	b, err := NewBackend(&slowQueryThresholdMetadataBackendConfig, logger.NewLogger())
+	require.Error(t, err)
+	require.Nil(t, b)
+}
+
+func TestMetadataInvalidConnectionString(t *testing.T) {
+	metadataBackendConfig := &Config{Driver: "mysql", ConnectionString: "!fo{o}b@r"}
+	b, err := NewBackend(metadataBackendConfig, logger.NewLogger())
+	require.Error(t, err)
+	require.Nil(t, b)
+
+	metadataBackendConfig = &Config{Driver: "postgres", ConnectionString: "!fo{o}b@r"}
+	b, err = NewBackend(metadataBackendConfig, logger.NewLogger())
+	require.Error(t, err)
+	require.Nil(t, b)
+}
+
+func TestConnectionPoolParams(t *testing.T) {
+	metadataBackendConfig := *metadataBackendConfig
+	metadataBackendConfig.MaxIdleConns = 10
+	metadataBackendConfig.MaxOpenConns = 50
+	b, err := NewBackend(&metadataBackendConfig, logger.NewLogger())
+	require.NoError(t, err)
+	require.NotNil(t, b)
+	_ = b.Shutdown()
 }
 
 func TestGormConcurrent(t *testing.T) {
@@ -89,10 +151,10 @@ func TestGormConcurrent(t *testing.T) {
 	}
 
 	// https://github.com/jinzhu/gorm/issues/2875
-	db, err := gorm.Open("sqlite3", "/tmp/plik.db")
+	db, err := gorm.Open(sqlite.Open("/tmp/plik.db"))
 	require.NoError(t, err, "DB open error")
 
-	err = db.AutoMigrate(&Object{}).Error
+	err = db.AutoMigrate(&Object{})
 	require.NoError(t, err, "schema update error")
 
 	count := 30
@@ -116,6 +178,7 @@ func TestGormConcurrent(t *testing.T) {
 
 func TestMetadataConcurrent(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	uploadID := "azertiop"
 	upload := &common.Upload{ID: uploadID}
@@ -148,6 +211,7 @@ func TestMetadataConcurrent(t *testing.T) {
 
 func TestMetadataUpdateFileStatus(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	uploadID := "azertiop"
 	upload := &common.Upload{ID: uploadID}
@@ -163,7 +227,7 @@ func TestMetadataUpdateFileStatus(t *testing.T) {
 
 	file.Status = common.FileUploaded
 	result := b.db.Where(&common.File{Status: common.FileUploading}).Save(&file)
-	require.NoError(t, result.Error, "unable to update missing file")
+	require.Error(t, result.Error, "able to update missing file")
 	require.Equal(t, int64(0), result.RowsAffected, "unexpected update")
 
 	//!\\ ON MYSQL SAVE MODIFIES THE FILE STATUS BACK TO MISSING ( wtf ? ) //!\\
@@ -180,15 +244,17 @@ func TestMetadataUpdateFileStatus(t *testing.T) {
 
 func TestMetadataNotFound(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	err := b.db.Where(&common.Upload{ID: "notfound"}).Take(upload).Error
 	require.Error(t, err, "unable to fetch upload")
-	require.True(t, gorm.IsRecordNotFoundError(err), "unexpected error type")
+	require.Equal(t, gorm.ErrRecordNotFound, err, "unexpected error type")
 }
 
 func TestMetadataCursor(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	var expected = []string{"upload 1", "upload 2", "upload 3"}
 	for _, id := range expected {
@@ -212,6 +278,7 @@ func TestMetadataCursor(t *testing.T) {
 
 func TestMetadataExpiredCursor(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	err := b.db.Create(&common.Upload{ID: "upload 1"}).Error
 	require.NoError(t, err, "unable to create upload")
@@ -241,6 +308,7 @@ func TestMetadataExpiredCursor(t *testing.T) {
 // https://github.com/mattn/go-sqlite3/issues/569
 func TestMetadataCursorLock(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	var expected = []string{"upload 1", "upload 2", "upload 3"}
 	for _, id := range expected {
@@ -264,6 +332,7 @@ func TestMetadataCursorLock(t *testing.T) {
 
 func TestUnscoped(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	uploadID := "azertiop"
 	upload := &common.Upload{ID: uploadID}
@@ -271,17 +340,17 @@ func TestUnscoped(t *testing.T) {
 	err := b.db.Create(upload).Error
 	require.NoError(t, err, "unable to create upload")
 
-	var count int
+	var count int64
 	err = b.db.Model(&common.Upload{}).Unscoped().Where("deleted_at IS NOT NULL").Count(&count).Error
 	require.NoError(t, err, "get deleted upload error")
-	require.Equal(t, 0, count, "get deleted upload count error")
+	require.Equal(t, int64(0), count, "get deleted upload count error")
 
 	err = b.db.Delete(&upload).Error
 	require.NoError(t, err, "unable to delete upload")
 
 	upload = &common.Upload{}
 	err = b.db.Take(upload, &common.Upload{ID: uploadID}).Error
-	require.True(t, gorm.IsRecordNotFoundError(err), "get upload error")
+	require.Equal(t, gorm.ErrRecordNotFound, err, "get upload error")
 
 	upload = &common.Upload{}
 	err = b.db.Unscoped().Take(upload, &common.Upload{ID: uploadID}).Error
@@ -290,11 +359,12 @@ func TestUnscoped(t *testing.T) {
 
 	err = b.db.Model(&common.Upload{}).Unscoped().Where("deleted_at IS NOT NULL").Count(&count).Error
 	require.NoError(t, err, "get deleted upload error")
-	require.Equal(t, 1, count, "get deleted upload count error")
+	require.Equal(t, int64(1), count, "get deleted upload count error")
 }
 
 func TestDoubleDelete(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	uploadID := "azertiop"
 	upload := &common.Upload{ID: uploadID}

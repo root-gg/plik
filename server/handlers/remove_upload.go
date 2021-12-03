@@ -21,7 +21,7 @@ func RemoveUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	err := ctx.GetMetadataBackend().DeleteUpload(upload.ID)
+	err := ctx.GetMetadataBackend().RemoveUpload(upload.ID)
 	if err != nil {
 		ctx.InternalServerError("unable tuto delete upload", err)
 		return

@@ -29,6 +29,11 @@ func NewBackend() (b *Backend) {
 	return
 }
 
+// GetFiles return the content of the backend for testing purposes
+func (b *Backend) GetFiles() (files map[string][]byte) {
+	return b.files
+}
+
 // GetFile implementation for testing data backend will search
 // on filesystem the asked file and return its reading filehandle
 func (b *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) {

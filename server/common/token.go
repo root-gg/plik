@@ -12,7 +12,7 @@ type Token struct {
 	Token   string `json:"token" gorm:"primary_key"`
 	Comment string `json:"comment,omitempty"`
 
-	UserID string `json:"-" gorm:"type:varchar(255) REFERENCES users(id) ON UPDATE RESTRICT ON DELETE CASCADE"`
+	UserID string `json:"-" gorm:"size:256;constraint:OnUpdate:RESTRICT,OnDelete:RESTRICT;"`
 
 	CreatedAt time.Time `json:"createdAt"`
 }

@@ -141,7 +141,7 @@ func deleteFiles(cmd *cobra.Command, args []string) {
 			os.Exit(0)
 		}
 
-		err = metadataBackend.DeleteUpload(fileParams.uploadID)
+		err = metadataBackend.RemoveUpload(fileParams.uploadID)
 		if err != nil {
 			fmt.Printf("Unable to get upload files : %s\n", err)
 			os.Exit(1)
@@ -160,7 +160,7 @@ func deleteFiles(cmd *cobra.Command, args []string) {
 		}
 
 		deleteUpload := func(upload *common.Upload) error {
-			return metadataBackend.DeleteUpload(upload.ID)
+			return metadataBackend.RemoveUpload(upload.ID)
 		}
 		err = metadataBackend.ForEachUpload(deleteUpload)
 		if err != nil {

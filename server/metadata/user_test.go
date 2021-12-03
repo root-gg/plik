@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/stretchr/testify/require"
 
 	"github.com/root-gg/plik/server/common"
@@ -17,6 +16,7 @@ func createUser(t *testing.T, b *Backend, user *common.User) {
 
 func TestBackend_CreateUser(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user := &common.User{ID: "user"}
 	createUser(t, b, user)
@@ -26,6 +26,7 @@ func TestBackend_CreateUser(t *testing.T) {
 
 func TestBackend_CreateUser_Exist(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user := &common.User{ID: "user"}
 	createUser(t, b, user)
@@ -36,6 +37,7 @@ func TestBackend_CreateUser_Exist(t *testing.T) {
 
 func TestBackend_UpdateUser(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user := &common.User{ID: "user", Name: "foo"}
 	createUser(t, b, user)
@@ -54,6 +56,7 @@ func TestBackend_UpdateUser(t *testing.T) {
 
 func TestBackend_UpdateUser_NotFound(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user := &common.User{ID: "user", Name: "foo"}
 	err := b.UpdateUser(user)
@@ -67,6 +70,7 @@ func TestBackend_UpdateUser_NotFound(t *testing.T) {
 
 func TestBackend_GetUser(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user := &common.User{ID: "user"}
 	createUser(t, b, user)
@@ -78,6 +82,7 @@ func TestBackend_GetUser(t *testing.T) {
 
 func TestBackend_GetUser_NotFound(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user, err := b.GetUser("not found")
 	require.NoError(t, err, "get user error")
@@ -86,6 +91,7 @@ func TestBackend_GetUser_NotFound(t *testing.T) {
 
 func TestBackend_GetUsers(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	for i := 0; i < 5; i++ {
 		user := common.NewUser(common.ProviderLocal, fmt.Sprintf("user_%d", i))
@@ -113,6 +119,7 @@ func TestBackend_GetUsers(t *testing.T) {
 
 func TestBackend_DeleteUser(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user := &common.User{ID: "user"}
 
@@ -133,6 +140,7 @@ func TestBackend_DeleteUser(t *testing.T) {
 
 func TestBackend_ForEachUserUploads(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user := common.NewUser(common.ProviderLocal, "user")
 	token := user.NewToken()
@@ -187,6 +195,7 @@ func TestBackend_ForEachUserUploads(t *testing.T) {
 
 func TestBackend_DeleteUserUploads(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user := common.NewUser(common.ProviderLocal, "user")
 	token := user.NewToken()
@@ -211,17 +220,18 @@ func TestBackend_DeleteUserUploads(t *testing.T) {
 		createUpload(t, b, upload)
 	}
 
-	deleted, err := b.DeleteUserUploads(user.ID, token.Token)
+	deleted, err := b.RemoveUserUploads(user.ID, token.Token)
 	require.NoError(t, err, "for each user upload error")
 	require.Equal(t, 5, deleted, "invalid upload count")
 
-	deleted, err = b.DeleteUserUploads(user.ID, "")
+	deleted, err = b.RemoveUserUploads(user.ID, "")
 	require.NoError(t, err, "for each user upload error")
 	require.Equal(t, 2, deleted, "invalid upload count")
 }
 
 func TestBackend_CountUsers(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user := common.NewUser(common.ProviderLocal, "user")
 	createUser(t, b, user)

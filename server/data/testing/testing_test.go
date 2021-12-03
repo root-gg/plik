@@ -14,6 +14,20 @@ import (
 // Ensure Testing Data Backend implements data.Backend interface
 var _ data.Backend = (*Backend)(nil)
 
+func TestGetFiles(t *testing.T) {
+	backend := NewBackend()
+	upload := &common.Upload{}
+	file := upload.NewFile()
+
+	err := backend.AddFile(file, &bytes.Buffer{})
+	require.NoError(t, err, "unable to add file")
+
+	files := backend.GetFiles()
+	require.NotNil(t, files, "missing file map")
+	require.Lenf(t, files, 1, "empty file map")
+	require.NotNil(t, files[file.ID], "missing file")
+}
+
 func TestAddFileError(t *testing.T) {
 	backend := NewBackend()
 	backend.SetError(errors.New("error"))

@@ -202,8 +202,7 @@ func TestRemoveFileMissingFile(t *testing.T) {
 	upload.PrepareInsertForTests()
 
 	err := backend.RemoveFile(file)
-	require.Error(t, err, "no error with invalid upload id")
-	require.Contains(t, err.Error(), "no such file or directory", "invalid error message")
+	require.NoError(t, err, "error removing missing file")
 }
 
 func TestRemoveFile(t *testing.T) {
@@ -233,6 +232,38 @@ func TestRemoveFile(t *testing.T) {
 
 	_, err = os.Open(path)
 	require.Error(t, err, "able to open removed file")
+}
+
+func TestRemoveFileTwice(t *testing.T) {
+	backend, clean := newBackend(t)
+	defer clean()
+
+	upload := &common.Upload{}
+	file := upload.NewFile()
+	upload.PrepareInsertForTests()
+
+	reader := bytes.NewBufferString("data")
+	err := backend.AddFile(file, reader)
+	require.NoError(t, err, "unable to add file")
+
+	_, path, err := backend.getPathCompat(file)
+	require.NoError(t, err, "unable to get file path")
+
+	fh, err := os.Open(path)
+	require.NoError(t, err, "unable to open file")
+
+	read, err := ioutil.ReadAll(fh)
+	require.NoError(t, err, "unable to read file")
+	require.Equal(t, "data", string(read), "inavlid file content")
+
+	err = backend.RemoveFile(file)
+	require.NoError(t, err, "unable to remove file")
+
+	_, err = os.Open(path)
+	require.Error(t, err, "able to open removed file")
+
+	err = backend.RemoveFile(file)
+	require.NoError(t, err, "unable to remove file")
 }
 
 func TestRemoveFileCompatPath(t *testing.T) {

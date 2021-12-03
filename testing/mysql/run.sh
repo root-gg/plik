@@ -10,9 +10,10 @@ TEST=$2
 source ../utils.sh
 check_docker_connectivity
 
-DOCKER_IMAGE="mariadb:latest"
+DOCKER_VERSION=${DOCKER_VERSION-5}
+DOCKER_IMAGE="mysql:$DOCKER_VERSION"
 DOCKER_NAME="plik.mysql"
-DOCKER_PORT=2601
+DOCKER_PORT=2606
 
 function start {
     if status ; then
@@ -28,7 +29,7 @@ function start {
             -e MYSQL_PASSWORD="password" \
             --name "$DOCKER_NAME" "$DOCKER_IMAGE"
 
-        echo "waiting for mysqld to start ..."
+        echo "waiting for mssql to start ..."
         sleep 30
         if ! status ; then
             echo "IMAGE IS NOT RUNNING"

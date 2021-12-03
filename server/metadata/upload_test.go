@@ -5,7 +5,8 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"gorm.io/gorm"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/root-gg/plik/server/common"
@@ -19,6 +20,7 @@ func createUpload(t *testing.T, b *Backend, upload *common.Upload) {
 
 func TestBackend_CreateUpload(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
@@ -34,6 +36,7 @@ func TestBackend_CreateUpload(t *testing.T) {
 
 func TestBackend_GetUpload(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	_ = upload.NewFile()
@@ -50,6 +53,7 @@ func TestBackend_GetUpload(t *testing.T) {
 
 func TestBackend_GetUpload_NotFound(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload, err := b.GetUpload("not found")
 	require.NoError(t, err, "get upload error")
@@ -58,6 +62,7 @@ func TestBackend_GetUpload_NotFound(t *testing.T) {
 
 func TestBackend_GetUploads_MissingPagingQuery(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	_, _, err := b.GetUploads("", "", false, nil)
 	require.Error(t, err, "get upload error expected")
@@ -65,13 +70,14 @@ func TestBackend_GetUploads_MissingPagingQuery(t *testing.T) {
 
 func TestBackend_DeleteUpload(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	_ = upload.NewFile()
 
 	createUpload(t, b, upload)
 
-	err := b.DeleteUpload(upload.ID)
+	err := b.RemoveUpload(upload.ID)
 	require.NoError(t, err, "get upload error")
 
 	upload, err = b.GetUpload(upload.ID)
@@ -81,6 +87,7 @@ func TestBackend_DeleteUpload(t *testing.T) {
 
 func TestBackend_GetUploads(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	for i := 1; i <= 100; i++ {
 		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
@@ -127,6 +134,7 @@ func TestBackend_GetUploads(t *testing.T) {
 
 func TestBackend_GetUploadsWithFiles(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	upload.NewFile()
@@ -148,6 +156,7 @@ func TestBackend_GetUploadsWithFiles(t *testing.T) {
 
 func TestBackend_GetUploads_User(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	user := &common.User{ID: "user"}
 
@@ -175,6 +184,7 @@ func TestBackend_GetUploads_User(t *testing.T) {
 
 func TestBackend_GetUploads_Token(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	token := &common.Token{Token: "token"}
 
@@ -202,6 +212,7 @@ func TestBackend_GetUploads_Token(t *testing.T) {
 
 func TestBackend_DeleteExpiredUploads(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload1 := &common.Upload{}
 	createUpload(t, b, upload1)
@@ -222,41 +233,155 @@ func TestBackend_DeleteExpiredUploads(t *testing.T) {
 	err = b.db.Save(upload3).Error
 	require.NoError(t, err, "update upload error")
 
-	removed, err := b.DeleteExpiredUploads()
+	removed, err := b.RemoveExpiredUploads()
 	require.Nil(t, err, "delete expired upload error")
 	require.Equal(t, 1, removed, "removed expired upload count mismatch")
 }
 
 func TestBackend_PurgeDeletedUploads(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
-	upload.NewFile().Status = common.FileUploaded
+
+	// All upload files need to be deleted from the data backend
+	// So we can purge the upload and file metadata from the metadata backend
+	file := upload.NewFile()
+	file.Status = common.FileDeleted
 	createUpload(t, b, upload)
 
-	purged, err := b.PurgeDeletedUploads()
+	// Noop
+	purged, err := b.DeleteRemovedUploads()
 	require.NoError(t, err, "purge deleted upload error")
 	require.Equal(t, 0, purged, "invalid purged count")
 
-	err = b.DeleteUpload(upload.ID)
+	u, err := b.GetUpload(upload.ID)
+	require.NoError(t, err, "unable to get upload")
+	require.Equal(t, upload.ID, u.ID, "unable to get upload")
+
+	f, err := b.GetFile(file.ID)
+	require.NoError(t, err, "unable to get file")
+	require.Equal(t, file.ID, f.ID, "unable to get file")
+
+	err = b.RemoveUpload(upload.ID)
 	require.NoError(t, err, "delete upload error")
 
-	purged, err = b.PurgeDeletedUploads()
-	require.NoError(t, err, "purge deleted upload error")
-
-	f := func(file *common.File) error {
-		return b.UpdateFileStatus(file, file.Status, common.FileDeleted)
-	}
-	err = b.ForEachRemovedFile(f)
-	require.NoError(t, err, "delete files error")
-
-	purged, err = b.PurgeDeletedUploads()
+	purged, err = b.DeleteRemovedUploads()
 	require.NoError(t, err, "purge deleted upload error")
 	require.Equal(t, 1, purged, "invalid purged count")
+
+	u, err = b.GetUpload(upload.ID)
+	require.NoError(t, err, "unable to get upload")
+	require.Nil(t, u, "upload is not nil")
+
+	f, err = b.GetFile(file.ID)
+	require.NoError(t, err, "unable to get file")
+	require.Nil(t, f, "file is not nil")
+}
+
+// Same as below but with uploaded or uploading file status
+func TestBackend_PurgeDeletedUploads_FixFileStatus(t *testing.T) {
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	upload := &common.Upload{}
+
+	// All upload files need to be deleted from the data backend
+	// So we can purge the upload and file metadata from the metadata backend
+	file := upload.NewFile()
+	file.Status = common.FileDeleted
+	createUpload(t, b, upload)
+
+	err := b.RemoveUpload(upload.ID)
+	require.NoError(t, err, "delete upload error")
+
+	// But sometimes shit happen and all the files are not properly deleted :'(
+	err = b.UpdateFileStatus(file, common.FileDeleted, common.FileUploaded)
+	require.Nil(t, err, "unable to update file status")
+
+	purged, err := b.DeleteRemovedUploads()
+	require.Error(t, err, "missing purge deleted upload errors")
+	require.Equal(t, 0, purged, "invalid purged upload count")
+
+	// Upload has been soft deleted by RemoveUpload
+	u := &common.Upload{}
+	err = b.db.Unscoped().Take(u, &common.Upload{ID: upload.ID}).Error
+	require.NoError(t, err, "unable to get upload")
+	require.Equal(t, upload.ID, u.ID, "unable to get upload")
+
+	// File status has been updated to removed
+	f, err := b.GetFile(file.ID)
+	require.NoError(t, err, "unable to get file")
+	require.Equal(t, file.ID, f.ID, "unable to get file")
+	require.Equal(t, common.FileRemoved, f.Status, "invalid file status")
+
+	// Let's simulate the removal of the file
+	err = b.UpdateFileStatus(f, common.FileRemoved, common.FileDeleted)
+	require.NoError(t, err, "unable to update file status")
+
+	purged, err = b.DeleteRemovedUploads()
+	require.NoError(t, err, "purge deleted upload error")
+	require.Equal(t, 1, purged, "invalid purged count")
+
+	err = b.db.Take(u, &common.Upload{ID: upload.ID}).Error
+	require.Equal(t, gorm.ErrRecordNotFound, err, "unable to get upload")
+
+	f, err = b.GetFile(f.ID)
+	require.NoError(t, err, "unable to get file")
+	require.Nil(t, f, "file is not nil")
+}
+
+// Same as above but with missing or empty file status
+func TestBackend_PurgeDeletedUploads_FixFileStatusMissing(t *testing.T) {
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	upload := &common.Upload{}
+
+	// All upload files need to be deleted from the data backend
+	// So we can purge the upload and file metadata from the metadata backend
+	file := upload.NewFile()
+	file.Status = common.FileDeleted
+	createUpload(t, b, upload)
+
+	err := b.RemoveUpload(upload.ID)
+	require.NoError(t, err, "delete upload error")
+
+	// But sometimes shit happen and all the files are not properly deleted :'(
+	err = b.UpdateFileStatus(file, common.FileDeleted, common.FileMissing)
+	require.Nil(t, err, "unable to update file status")
+
+	purged, err := b.DeleteRemovedUploads()
+	require.Error(t, err, "missing purge deleted upload errors")
+	require.Equal(t, 0, purged, "invalid purged upload count")
+
+	// Upload has been soft deleted by RemoveUpload
+	u := &common.Upload{}
+	err = b.db.Unscoped().Take(u, &common.Upload{ID: upload.ID}).Error
+	require.NoError(t, err, "unable to get upload")
+	require.Equal(t, upload.ID, u.ID, "unable to get upload")
+
+	// File status has been updated to deleted
+	f, err := b.GetFile(file.ID)
+	require.NoError(t, err, "unable to get file")
+	require.Equal(t, file.ID, f.ID, "unable to get file")
+	require.Equal(t, common.FileDeleted, f.Status, "invalid file status")
+
+	purged, err = b.DeleteRemovedUploads()
+	require.NoError(t, err, "purge deleted upload error")
+	require.Equal(t, 1, purged, "invalid purged count")
+
+	err = b.db.Take(u, &common.Upload{ID: upload.ID}).Error
+	require.Equal(t, gorm.ErrRecordNotFound, err, "unable to get upload")
+
+	f, err = b.GetFile(f.ID)
+	require.NoError(t, err, "unable to get file")
+	require.Nil(t, f, "file is not nil")
 }
 
 func TestBackend_ForEachUpload(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
 
 	upload := &common.Upload{}
 	upload.Comments = "foo bar"
@@ -278,4 +403,44 @@ func TestBackend_ForEachUpload(t *testing.T) {
 	}
 	err = b.ForEachUpload(f)
 	require.Errorf(t, err, "expected")
+}
+
+func TestBackend_ForEachUploadUnscoped(t *testing.T) {
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	upload1 := &common.Upload{}
+	upload1.NewFile()
+	createUpload(t, b, upload1)
+
+	upload2 := &common.Upload{}
+	upload2.NewFile()
+	createUpload(t, b, upload2)
+
+	count := 0
+	f := func(upload *common.Upload) error {
+		count++
+		return nil
+	}
+	err := b.ForEachUpload(f)
+	require.NoError(t, err, "for each upload error : %s", err)
+	require.Equal(t, 2, count, "invalid upload count")
+
+	count = 0
+	err = b.ForEachUploadUnscoped(f)
+	require.NoError(t, err, "for each upload error : %s", err)
+	require.Equal(t, 2, count, "invalid upload count")
+
+	err = b.RemoveUpload(upload1.ID)
+	require.NoError(t, err, "unable to delete upload1")
+
+	count = 0
+	err = b.ForEachUpload(f)
+	require.NoError(t, err, "for each upload error : %s", err)
+	require.Equal(t, 1, count, "invalid upload count")
+
+	count = 0
+	err = b.ForEachUploadUnscoped(f)
+	require.NoError(t, err, "for each upload error : %s", err)
+	require.Equal(t, 2, count, "invalid upload count")
 }

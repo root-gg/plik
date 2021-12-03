@@ -90,7 +90,7 @@ func RemoveUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http
 		tokenStr = token.Token
 	}
 
-	deleted, err := ctx.GetMetadataBackend().DeleteUserUploads(userID, tokenStr)
+	deleted, err := ctx.GetMetadataBackend().RemoveUserUploads(userID, tokenStr)
 	if err != nil {
 		ctx.InternalServerError("unable to delete user uploads", err)
 		return

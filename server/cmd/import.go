@@ -4,8 +4,16 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/root-gg/plik/server/metadata"
+
 	"github.com/spf13/cobra"
 )
+
+type importFlagParams struct {
+	ignoreErrors bool
+}
+
+var importParams = importFlagParams{}
 
 // importCmd to import metadata
 var importCmd = &cobra.Command{
@@ -15,6 +23,7 @@ var importCmd = &cobra.Command{
 }
 
 func init() {
+	importCmd.Flags().BoolVar(&importParams.ignoreErrors, "ignore-errors", false, "ignore and logs errors")
 	rootCmd.AddCommand(importCmd)
 }
 
@@ -27,7 +36,11 @@ func importMetadata(cmd *cobra.Command, args []string) {
 
 	fmt.Printf("Importing metadata from %s to %s %s\n", args[0], metadataBackend.Config.Driver, metadataBackend.Config.ConnectionString)
 
-	err := metadataBackend.Import(args[0])
+	importOptions := &metadata.ImportOptions{
+		IgnoreErrors: importParams.ignoreErrors,
+	}
+
+	err := metadataBackend.Import(args[0], importOptions)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

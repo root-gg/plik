@@ -26,6 +26,8 @@ func createMetadata(t *testing.T, b *Backend) {
 
 func TestBackend_Export(t *testing.T) {
 	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
 	createMetadata(t, b)
 
 	path := "/tmp/plik.metadata.test.snappy.gob"
@@ -33,6 +35,32 @@ func TestBackend_Export(t *testing.T) {
 	require.NoError(t, err, "export error %s", err)
 
 	b = newTestMetadataBackend()
-	err = b.Import(path)
+	defer shutdownTestMetadataBackend(b)
+
+	err = b.Import(path, &ImportOptions{})
+	require.NoError(t, err, "import error %s", err)
+}
+
+func TestBackend_ExportRemovedFiles(t *testing.T) {
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	upload := &common.Upload{}
+	upload.NewFile()
+	createUpload(t, b, upload)
+
+	// Soft delete upload
+	err := b.RemoveUpload(upload.ID)
+	require.NoError(t, err, "unable to delete upload")
+
+	path := "/tmp/plik.metadata.test.snappy.gob"
+	err = b.Export(path)
+	require.NoError(t, err, "export error %s", err)
+
+	shutdownTestMetadataBackend(b)
+	b = newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	err = b.Import(path, &ImportOptions{})
 	require.NoError(t, err, "import error %s", err)
 }

@@ -17,7 +17,7 @@ func newTestingContext(config *common.Configuration) (ctx *context.Context) {
 	ctx.SetStreamBackend(data_test.NewBackend())
 
 	metadataBackendConfig := &metadata.Config{Driver: "sqlite3", ConnectionString: "/tmp/plik.test.db", EraseFirst: true}
-	metadataBackend, err := metadata.NewBackend(metadataBackendConfig)
+	metadataBackend, err := metadata.NewBackend(metadataBackendConfig, config.NewLogger())
 	if err != nil {
 		panic(err)
 	}

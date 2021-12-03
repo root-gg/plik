@@ -3,7 +3,7 @@ package metadata
 import (
 	"fmt"
 
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 
 	"github.com/root-gg/plik/server/common"
 )
@@ -17,7 +17,7 @@ func (b *Backend) CreateFile(file *common.File) (err error) {
 func (b *Backend) GetFile(fileID string) (file *common.File, err error) {
 	file = &common.File{}
 	err = b.db.Where(&common.File{ID: fileID}).Take(file).Error
-	if gorm.IsRecordNotFoundError(err) {
+	if err == gorm.ErrRecordNotFound {
 		return nil, nil
 	} else if err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func (b *Backend) UpdateFile(file *common.File, status string) error {
 
 // UpdateFileStatus update a file status in DB. oldStatus ensure the file status has not changed since loaded
 func (b *Backend) UpdateFileStatus(file *common.File, oldStatus string, newStatus string) error {
-	result := b.db.Model(&common.File{}).Where(&common.File{ID: file.ID, Status: oldStatus}).Update(&common.File{Status: newStatus})
+	result := b.db.Model(&common.File{}).Where(&common.File{ID: file.ID, Status: oldStatus}).Update("status", newStatus)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -67,9 +67,13 @@ func (b *Backend) UpdateFileStatus(file *common.File, oldStatus string, newStatu
 // The file will then be deleted from the data backend by the server and the status changed to deleted.
 func (b *Backend) RemoveFile(file *common.File) error {
 	switch file.Status {
-	case common.FileMissing, common.FileUploading, "":
+	case common.FileMissing, "":
+		// Missing files were never uploaded, even partially it is safe to update the status to deleted directly
 		return b.UpdateFileStatus(file, file.Status, common.FileDeleted)
-	case common.FileUploaded:
+	case common.FileUploaded, common.FileUploading:
+		// Uploaded, Uploading files have been at least partially uploaded
+		// by setting the status to Removed we mark the files as ready to be deleted from the Data backend
+		// which will occur during the next cleaning cycle
 		return b.UpdateFileStatus(file, file.Status, common.FileRemoved)
 	//case common.FileRemoved, common.FileDeleted:
 	//	return nil
@@ -126,12 +130,14 @@ func (b *Backend) ForEachRemovedFile(f func(file *common.File) error) (err error
 
 // CountUploadFiles count how many files have been added to an upload
 func (b *Backend) CountUploadFiles(uploadID string) (count int, err error) {
-	err = b.db.Model(&common.File{}).Where(&common.File{UploadID: uploadID}).Count(&count).Error
+	var c int64 // Gorm V2 requires int64 for counts
+
+	err = b.db.Model(&common.File{}).Where(&common.File{UploadID: uploadID}).Count(&c).Error
 	if err != nil {
 		return -1, err
 	}
 
-	return count, nil
+	return int(c), nil
 }
 
 // ForEachFile execute f for every file in the database

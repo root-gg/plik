@@ -1,7 +1,5 @@
 #!/bin/bash
 
-
-
 set -e
 cd "$(dirname "$0")"
 
@@ -9,8 +7,10 @@ source ./utils.sh
 check_docker_connectivity
 
 BACKENDS=(
-#    mysql
+    mariadb
+    mysql
     postgres
+    #mssql // There is currently an issue with reserved keyword user not being escaped from queries
     minio
     swift
 )

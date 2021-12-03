@@ -53,7 +53,7 @@ Upload file :
 Get file :
 
   - **HEAD** /$mode/:uploadid:/:fileid:/:filename:
-    - Returns only HTTP headers. Usefull to know Content-Type and Content-Length without downloading the file. Especially if upload has OneShot option enabled.
+    - Returns only HTTP headers. Useful to know Content-Type and Content-Length without downloading the file. Especially if upload has OneShot option enabled.
 
   - **GET**  /$mode/:uploadid:/:fileid:/:filename:
     - Download file. Filename **MUST** match. A browser, might try to display the file if it's a jpeg for example. You may try to force download with ?dl=1 in url.
