@@ -336,3 +336,29 @@ func TestQuickUpload(t *testing.T) {
 
 	require.Equal(t, content, string(respBody), "invalid file content")
 }
+
+func TestCreateUploadWithForbidenOptions(t *testing.T) {
+	ps, pc := newPlikServerAndClient()
+	defer shutdown(ps)
+
+	err := start(ps)
+	require.NoError(t, err, "unable to start plik server")
+
+	uploadToCreate := &common.Upload{}
+	uploadToCreate.IsAdmin = true
+	uploadToCreate.DownloadDomain = "hack.me"
+	uploadToCreate.RemoteIP = "1.3.3.7"
+	uploadToCreate.UploadToken = "my-own-token"
+	uploadToCreate.CreatedAt = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	uploadParams, err := pc.create(uploadToCreate)
+	require.NoError(t, err, "unable to create upload")
+	require.NotNil(t, uploadParams, "invalid nil uploads params")
+	require.NotZero(t, uploadParams.ID, "invalid upload id")
+
+	upload, err := pc.getUploadWithParams(&common.Upload{ID: uploadParams.ID})
+	require.False(t, upload.Metadata().IsAdmin, "invalid upload admin status")
+	require.Equal(t, "", upload.Metadata().DownloadDomain, "invalid upload download domain")
+	require.Equal(t, "", upload.Metadata().RemoteIP, "invalid upload download domain")
+	require.NotEqual(t, uploadToCreate.UploadToken, upload.Metadata().UploadToken, "invalid upload download domain")
+	require.NotEqual(t, uploadToCreate.CreatedAt, upload.Metadata().CreatedAt, "invalid upload download domain")
+}

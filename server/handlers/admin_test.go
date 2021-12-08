@@ -90,6 +90,24 @@ func TestGetUsersNotAdmin(t *testing.T) {
 	context.TestForbidden(t, rr, "you need administrator privileges")
 }
 
+func TestGetUsersMetadataBackendError(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	createAdminUser(t, ctx)
+	ctx.GetUser().IsAdmin = true
+	ctx.SetPagingQuery(&common.PagingQuery{})
+
+	err := ctx.GetMetadataBackend().Shutdown()
+	require.NoError(t, err, "unable to shutdown metadata backend")
+
+	req, err := http.NewRequest("GET", "/admin/users", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	GetUsers(ctx, rr, req)
+
+	context.TestInternalServerError(t, rr, "database is closed")
+}
+
 func TestGetServerStatistics(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	createAdminUser(t, ctx)
@@ -99,7 +117,7 @@ func TestGetServerStatistics(t *testing.T) {
 		file := upload.NewFile()
 		file.Size = 2
 		file.Status = common.FileUploaded
-		upload.PrepareInsertForTests()
+		upload.InitializeForTests()
 		err := ctx.GetMetadataBackend().CreateUpload(upload)
 		require.NoError(t, err, "create error")
 	}
@@ -110,7 +128,7 @@ func TestGetServerStatistics(t *testing.T) {
 		file := upload.NewFile()
 		file.Size = 3
 		file.Status = common.FileUploaded
-		upload.PrepareInsertForTests()
+		upload.InitializeForTests()
 		err := ctx.GetMetadataBackend().CreateUpload(upload)
 		require.NoError(t, err, "create error")
 	}
@@ -163,4 +181,21 @@ func TestGetServerStatisticsNotAdmin(t *testing.T) {
 	GetServerStatistics(ctx, rr, req)
 
 	context.TestForbidden(t, rr, "you need administrator privileges")
+}
+
+func TestGetServerStatisticsMetadataBackendError(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	createAdminUser(t, ctx)
+	ctx.GetUser().IsAdmin = true
+
+	err := ctx.GetMetadataBackend().Shutdown()
+	require.NoError(t, err, "unable to shutdown metadata backend")
+
+	req, err := http.NewRequest("GET", "/admin/users", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	GetServerStatistics(ctx, rr, req)
+
+	context.TestInternalServerError(t, rr, "database is closed")
 }

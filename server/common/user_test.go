@@ -23,3 +23,11 @@ func TestUser_String(t *testing.T) {
 	user.Email = "user@root.gg"
 	fmt.Println(user.String())
 }
+
+func TestIsValidProvider(t *testing.T) {
+	require.True(t, IsValidProvider(ProviderLocal))
+	require.True(t, IsValidProvider(ProviderGoogle))
+	require.True(t, IsValidProvider(ProviderOVH))
+	require.False(t, IsValidProvider(""))
+	require.False(t, IsValidProvider("foo"))
+}

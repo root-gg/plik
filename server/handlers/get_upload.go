@@ -26,14 +26,8 @@ func GetUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Request
 
 	upload.Files = files
 
-	// Remove all private information (ip, data backend details, ...) before
-	// sending metadata back to the client
-	upload.Sanitize()
-	upload.DownloadDomain = config.DownloadDomain
-
-	if ctx.IsUploadAdmin() {
-		upload.IsAdmin = true
-	}
+	// Hide private information (IP, data backend details, User ID, Login/Password, ...)
+	upload.Sanitize(config)
 
 	common.WriteJSONResponse(resp, upload)
 }

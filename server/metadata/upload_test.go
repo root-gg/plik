@@ -13,7 +13,7 @@ import (
 )
 
 func createUpload(t *testing.T, b *Backend, upload *common.Upload) {
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 	err := b.CreateUpload(upload)
 	require.NoError(t, err, "create upload error : %s", err)
 }

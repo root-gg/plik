@@ -30,7 +30,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	}
 
 	// Check authorization
-	if !ctx.IsUploadAdmin() {
+	if !upload.IsAdmin {
 		ctx.Forbidden("you are not allowed to add file to this upload")
 		return
 	}
@@ -86,13 +86,9 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		}
 
 		// Create a new file object
-		file = common.NewFile()
-		file.Name = fileName
-
-		// Set and verify parameters
-		err = file.PrepareInsert(upload)
+		file, err = common.CreateFile(config, upload, &common.File{Name: fileName})
 		if err != nil {
-			ctx.BadRequest(err.Error())
+			ctx.BadRequest("unable to create file : %s", err.Error())
 			return
 		}
 
@@ -164,7 +160,6 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	file.Md5 = preprocessOutput.md5sum
 
 	// Update file status
-	//currentStatus = file.Status
 	if upload.Stream {
 		file.Status = common.FileDeleted
 	} else {

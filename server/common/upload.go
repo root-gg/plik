@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/root-gg/utils"
 	"gorm.io/gorm"
 )
 
@@ -18,7 +19,7 @@ type Upload struct {
 	ID  string `json:"id"`
 	TTL int    `json:"ttl"`
 
-	DownloadDomain string `json:"downloadDomain"`
+	DownloadDomain string `json:"downloadDomain" gorm:"-"`
 	RemoteIP       string `json:"uploadIp,omitempty"`
 	Comments       string `json:"comments"`
 
@@ -27,7 +28,8 @@ type Upload struct {
 	UploadToken string `json:"uploadToken,omitempty"`
 	User        string `json:"user,omitempty" gorm:"index:idx_upload_user"`
 	Token       string `json:"token,omitempty" gorm:"index:idx_upload_user_token"`
-	IsAdmin     bool   `json:"admin"`
+
+	IsAdmin bool `json:"admin" gorm:"-"`
 
 	Stream    bool `json:"stream"`
 	OneShot   bool `json:"oneShot"`
@@ -72,15 +74,19 @@ func (upload *Upload) GetFileByReference(ref string) (file *File) {
 	return nil
 }
 
-// Sanitize removes sensible information from
-// object. Used to hide information in API.
-func (upload *Upload) Sanitize() {
+// Sanitize clear some fields to hide sensible information from the API.
+func (upload *Upload) Sanitize(config *Configuration) {
 	upload.RemoteIP = ""
 	upload.Login = ""
 	upload.Password = ""
-	upload.UploadToken = ""
 	upload.User = ""
 	upload.Token = ""
+
+	if !upload.IsAdmin {
+		upload.UploadToken = ""
+	}
+
+	upload.DownloadDomain = config.DownloadDomain
 	for _, file := range upload.Files {
 		file.Sanitize()
 	}
@@ -109,78 +115,140 @@ func (upload *Upload) IsExpired() bool {
 	return false
 }
 
-// PrepareInsert upload for database insert ( check configuration and default values, generate upload and file IDs, ... )
-func (upload *Upload) PrepareInsert(config *Configuration) (err error) {
+// CreateUpload upload for database insert ( check configuration and default values, generate upload and file IDs, ... )
+func CreateUpload(config *Configuration, params *Upload) (upload *Upload, err error) {
+	upload = &Upload{}
 	upload.ID = GenerateRandomID(16)
 	upload.UploadToken = GenerateRandomID(32)
 
-	// Limit number of files per upload
-	if len(upload.Files) > config.MaxFilePerUpload {
-		return fmt.Errorf("too many files. maximum is %d", config.MaxFilePerUpload)
+	// Set user configurable parameters
+	err = upload.setParams(config, params)
+	if err != nil {
+		return nil, err
 	}
 
-	if config.NoAnonymousUploads && upload.User == "" {
-		return fmt.Errorf("anonymous uploads are disabled")
+	// Handle Basic Auth parameters
+	err = upload.setBasicAuth(config, params.Login, params.Password)
+	if err != nil {
+		return nil, err
 	}
 
-	if !config.Authentication && (upload.User != "" || upload.Token != "") {
-		return fmt.Errorf("authentication is disabled")
+	// Handle files
+	err = upload.setFiles(config, params.Files)
+	if err != nil {
+		return nil, err
 	}
 
+	// Handle TTL
+	err = upload.setTTL(config, params.TTL)
+	if err != nil {
+		return nil, err
+	}
+
+	return upload, nil
+}
+
+func (upload *Upload) setParams(config *Configuration, params *Upload) (err error) {
+	upload.OneShot = params.OneShot
 	if upload.OneShot && !config.OneShot {
 		return fmt.Errorf("one shot uploads are not enabled")
 	}
 
+	upload.Removable = params.Removable
 	if upload.Removable && !config.Removable {
 		return fmt.Errorf("removable uploads are not enabled")
 	}
 
+	upload.Stream = params.Stream
 	if upload.Stream && !config.Stream {
-		upload.OneShot = false
 		return fmt.Errorf("stream mode is not enabled")
 	}
 
-	if !config.ProtectedByPassword && (upload.Login != "" || upload.Password != "") {
-		upload.ProtectedByPassword = true
-		return fmt.Errorf("password protection is not enabled")
+	upload.Comments = params.Comments
+
+	return nil
+}
+
+func (upload *Upload) setFiles(config *Configuration, files []*File) (err error) {
+	// Limit number of files per upload
+	if len(files) > config.MaxFilePerUpload {
+		return fmt.Errorf("too many files. maximum is %d", config.MaxFilePerUpload)
 	}
 
-	// TTL = Time in second before the upload expiration
-	// 0 	-> No ttl specified : default value from configuration
-	// -1	-> No expiration : checking with configuration if that's ok
-	switch upload.TTL {
-	case 0:
-		upload.TTL = config.DefaultTTL
-	case -1:
-		if config.MaxTTL != -1 {
-			return fmt.Errorf("cannot set infinite ttl (maximum allowed is : %d)", config.MaxTTL)
-		}
-	default:
-		if upload.TTL <= 0 {
-			return fmt.Errorf("invalid ttl")
-		}
-		if config.MaxTTL > 0 && upload.TTL > config.MaxTTL {
-			return fmt.Errorf("invalid ttl. (maximum allowed is : %d)", config.MaxTTL)
-		}
-	}
-
-	if upload.TTL > 0 {
-		deadline := time.Now().Add(time.Duration(upload.TTL) * time.Second)
-		upload.ExpireAt = &deadline
-	}
-
-	for _, file := range upload.Files {
-		err = file.PrepareInsert(upload)
+	// Create and check files
+	for _, fileParams := range files {
+		file, err := CreateFile(config, upload, fileParams)
 		if err != nil {
 			return err
 		}
+		upload.Files = append(upload.Files, file)
 	}
 
 	return nil
 }
 
-// PrepareInsertForTests upload for database insert without config checks and override for testing purpose
-func (upload *Upload) PrepareInsertForTests() {
+func (upload *Upload) setBasicAuth(config *Configuration, login string, password string) (err error) {
+	if !config.ProtectedByPassword && (login != "" || password != "") {
+		return fmt.Errorf("password protection is not enabled")
+	}
+
+	if login != "" {
+		upload.Login = login
+	} else {
+		upload.Login = "plik"
+	}
+
+	if password == "" {
+		return nil
+	}
+
+	upload.ProtectedByPassword = true
+
+	// Save only the md5sum of this string to authenticate further requests
+	upload.Password, err = utils.Md5sum(EncodeAuthBasicHeader(login, password))
+	if err != nil {
+		return fmt.Errorf("unable to generate password hash : %s", err)
+	}
+
+	return nil
+}
+
+func (upload *Upload) setTTL(config *Configuration, TTL int) (err error) {
+	if TTL == 0 {
+		TTL = config.DefaultTTL
+	}
+
+	upload.TTL = TTL
+	upload.CreatedAt = time.Now()
+
+	// TTL = Time in second before the upload expiration
+	// 0 	-> No TTL specified : default value from configuration
+	// -1	-> No expiration : checking with configuration if that's ok
+	if upload.TTL == -1 {
+		if config.MaxTTL != -1 {
+			return fmt.Errorf("cannot set infinite TTL (maximum allowed is : %d)", config.MaxTTL)
+		}
+		return nil
+	}
+
+	if upload.TTL <= 0 {
+		return fmt.Errorf("invalid TTL")
+	}
+
+	if config.MaxTTL > 0 && upload.TTL > config.MaxTTL {
+		return fmt.Errorf("invalid TTL. (maximum allowed is : %d)", config.MaxTTL)
+	}
+
+	if upload.TTL != -1 {
+		deadline := upload.CreatedAt.Add(time.Duration(upload.TTL) * time.Second)
+		upload.ExpireAt = &deadline
+	}
+
+	return nil
+}
+
+// InitializeForTests initialize upload for database insert without config checks and override for testing purpose
+func (upload *Upload) InitializeForTests() {
 	if upload.ID == "" {
 		upload.ID = GenerateRandomID(16)
 	}

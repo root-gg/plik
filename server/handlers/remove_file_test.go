@@ -15,16 +15,15 @@ import (
 
 func TestRemoveFile(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
 	data := "data"
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	file1 := upload.NewFile()
 	file1.Name = "file1"
 	file1.Status = "uploaded"
 
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	err := createTestFile(ctx, file1, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file 1")
@@ -67,7 +66,7 @@ func TestRemoveFileNotAdmin(t *testing.T) {
 	file1 := upload.NewFile()
 	file1.Name = "file1"
 	file1.Status = "uploaded"
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	err := createTestFile(ctx, file1, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file 1")
@@ -88,15 +87,14 @@ func TestRemoveFileNotAdmin(t *testing.T) {
 
 func TestRemoveRemovedFile(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
 	data := "data"
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	file := upload.NewFile()
 	file.Name = "file1"
 	file.Status = common.FileRemoved
-	upload.PrepareInsertForTests()
+	upload.InitializeForTests()
 
 	err := createTestFile(ctx, file, bytes.NewBuffer([]byte(data)))
 	require.NoError(t, err, "unable to create test file 1")
@@ -167,9 +165,8 @@ func TestRemoveFileNoUpload(t *testing.T) {
 
 func TestRemoveFileNoFile(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	ctx.SetUpload(upload)
 
 	req, err := http.NewRequest("DELETE", "/file/uploadID/fileID/fileName", bytes.NewBuffer([]byte{}))

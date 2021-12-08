@@ -63,9 +63,8 @@ func getUploadRequest(t *testing.T, upload *common.Upload, file *common.File, re
 
 func TestAddFileWithID(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	file := upload.NewFile()
 	file.Name = "file"
 	createTestUpload(t, ctx, upload)
@@ -98,9 +97,8 @@ func TestAddFileWithID(t *testing.T) {
 
 func TestAddStreamFileWithID(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	upload.Stream = true
 	file := upload.NewFile()
 	file.Name = "file"
@@ -134,9 +132,8 @@ func TestAddStreamFileWithID(t *testing.T) {
 
 func TestAddFileWithoutID(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	createTestUpload(t, ctx, upload)
 	ctx.SetUpload(upload)
 
@@ -183,10 +180,9 @@ func TestAddFileWithoutUploadInContext(t *testing.T) {
 
 func TestAddFileNoUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
-	upload.PrepareInsertForTests()
+	upload := &common.Upload{IsAdmin: true}
+	upload.InitializeForTests()
 
 	name := "file"
 	reader, contentType, err := getMultipartFormData(name, bytes.NewBuffer([]byte(content)))
@@ -205,9 +201,8 @@ func TestAddFileNoUpload(t *testing.T) {
 
 func TestAddFileStatusUploading(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	file := upload.NewFile()
 	file.Name = "file name"
 	file.Status = common.FileUploading
@@ -226,9 +221,8 @@ func TestAddFileStatusUploading(t *testing.T) {
 
 func TestAddFileStatusUploaded(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	file := upload.NewFile()
 	file.Name = "file name"
 	file.Status = common.FileUploaded
@@ -247,9 +241,8 @@ func TestAddFileStatusUploaded(t *testing.T) {
 
 func TestAddFileStatusRemoved(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	file := upload.NewFile()
 	file.Name = "file name"
 	file.Status = common.FileRemoved
@@ -268,9 +261,8 @@ func TestAddFileStatusRemoved(t *testing.T) {
 
 func TestAddFileStatusDeleted(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	file := upload.NewFile()
 	file.Name = "file name"
 	file.Status = common.FileDeleted
@@ -290,7 +282,7 @@ func TestAddFileStatusDeleted(t *testing.T) {
 func TestAddFileNotAdmin(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: false}
 	createTestUpload(t, ctx, upload)
 
 	req, err := http.NewRequest("POST", "/file/uploadID", bytes.NewBuffer([]byte{}))
@@ -304,9 +296,8 @@ func TestAddFileNotAdmin(t *testing.T) {
 
 func TestAddFileNoMultipartForm(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	createTestUpload(t, ctx, upload)
 
 	req, err := http.NewRequest("POST", "/file/"+upload.ID, bytes.NewBuffer([]byte(content)))
@@ -321,9 +312,8 @@ func TestAddFileNoMultipartForm(t *testing.T) {
 func TestAddFileTooManyFiles(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetConfig().MaxFilePerUpload = 2
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 
 	for i := 0; i < 5; i++ {
 		upload.NewFile()
@@ -347,9 +337,8 @@ func TestAddFileTooManyFiles(t *testing.T) {
 
 func TestAddFileWithFilenameTooLong(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	file := upload.NewFile()
 	createTestUpload(t, ctx, upload)
 	ctx.SetFile(nil)
@@ -372,9 +361,8 @@ func TestAddFileWithFilenameTooLong(t *testing.T) {
 
 func TestAddFileWithInvalidFileName(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	file := upload.NewFile()
 	file.Name = "file name"
 	createTestUpload(t, ctx, upload)
@@ -392,9 +380,8 @@ func TestAddFileWithInvalidFileName(t *testing.T) {
 
 func TestAddFileWithEmptyName(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	file := upload.NewFile()
 	createTestUpload(t, ctx, upload)
 
@@ -411,9 +398,8 @@ func TestAddFileWithEmptyName(t *testing.T) {
 
 func TestAddFileWithInvalidFieldName(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	file := upload.NewFile()
 	createTestUpload(t, ctx, upload)
 
@@ -430,9 +416,8 @@ func TestAddFileWithInvalidFieldName(t *testing.T) {
 
 func TestAddFileWithNoFile(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	createTestUpload(t, ctx, upload)
 
 	buffer := new(bytes.Buffer)
@@ -454,9 +439,8 @@ func TestAddFileWithNoFile(t *testing.T) {
 
 func TestAddFileInvalidMultipartData(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	createTestUpload(t, ctx, upload)
 
 	req, err := http.NewRequest("POST", "/file/"+upload.ID, bytes.NewBuffer([]byte("invalid multipart data")))
@@ -514,10 +498,9 @@ func TestAddFileInvalidMultipartData(t *testing.T) {
 
 func TestAddFileQuick(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.SetUploadAdmin(true)
 	ctx.SetQuick(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	createTestUpload(t, ctx, upload)
 
 	name := "file"
@@ -552,10 +535,9 @@ func TestAddFileQuickDownloadDomain(t *testing.T) {
 	require.NoError(t, err, "config initialization error")
 
 	ctx := newTestingContext(config)
-	ctx.SetUploadAdmin(true)
 	ctx.SetQuick(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	createTestUpload(t, ctx, upload)
 
 	name := "file"
@@ -586,9 +568,8 @@ func TestAddFileQuickDownloadDomain(t *testing.T) {
 func TestAddFileTooBig(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetConfig().MaxFileSize = 5
-	ctx.SetUploadAdmin(true)
 
-	upload := &common.Upload{}
+	upload := &common.Upload{IsAdmin: true}
 	createTestUpload(t, ctx, upload)
 
 	name := "file"

@@ -47,6 +47,7 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 
 	if req.Method == "GET" && upload.OneShot {
 		// Update file status
+		// For streaming upload the status is set to deleted by the add_file handler
 		err := ctx.GetMetadataBackend().UpdateFileStatus(file, file.Status, common.FileRemoved)
 		if err != nil {
 			ctx.InternalServerError("unable to update file status", err)
@@ -75,7 +76,7 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	}
 
 	/* Additional header for disabling cache if the upload is OneShot */
-	if upload.OneShot { // If this is a one shot or stream upload we have to ensure it's downloaded only once.
+	if upload.OneShot || upload.Stream { // If this is a one shot or stream upload we have to ensure it's downloaded only once.
 		resp.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate") // HTTP 1.1
 		resp.Header().Set("Pragma", "no-cache")                                   // HTTP 1.0
 		resp.Header().Set("Expires", "0")                                         // Proxies
