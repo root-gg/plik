@@ -37,3 +37,5 @@ var plik = angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'conten
             return "fa fa-caret-right";
         }
     });
+
+new ClipboardJS('[data-clipboard]')
