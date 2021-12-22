@@ -210,7 +210,7 @@ func TestCreateInvalidRequestBody(t *testing.T) {
 type NeverEndingReader struct{}
 
 func (r *NeverEndingReader) Read(p []byte) (n int, err error) {
-	for i, _ := range p {
+	for i := range p {
 		p[i] = byte('x')
 	}
 	return len(p), nil
