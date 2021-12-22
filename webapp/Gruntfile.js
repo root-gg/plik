@@ -34,7 +34,8 @@ module.exports = function (grunt) {
                     'bower_components/filesize/lib/filesize.js',
                     'bower_components/zeroclipboard/dist/ZeroClipboard.js',
                     'bower_components/angular-contenteditable/angular-contenteditable.js',
-                    'bower_components/showdown/src/showdown.js'
+                    'bower_components/showdown/src/showdown.js',
+                    'bower_components/clipboard/dist/clipboard.js'
                 ],
                 dest: 'dist/js/vendor.js'
 
