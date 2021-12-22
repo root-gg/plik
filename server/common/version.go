@@ -16,7 +16,9 @@ var buildInfoString string
 var buildInfo *BuildInfo
 
 func init() {
-	buildInfo = &BuildInfo{}
+	buildInfo = &BuildInfo{
+		Version: "0.0.0",
+	}
 
 	if buildInfoString != "" {
 		jsonString, err := base64.StdEncoding.DecodeString(buildInfoString)
