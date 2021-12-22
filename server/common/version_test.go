@@ -32,12 +32,6 @@ func TestValidateVersionRegex(t *testing.T) {
 	validateVersion(t, "1.1-rc1", false)
 }
 
-func TestGetVersion(t *testing.T) {
-	version := GetVersion()
-	require.NotZero(t, version, "missing version")
-	validateVersion(t, version, true)
-}
-
 func TestGetBuildInfo(t *testing.T) {
 	buildInfo := GetBuildInfo()
 	require.NotNil(t, buildInfo, "missing build info")
@@ -56,5 +50,5 @@ func TestGetBuildInfoStringSanitize(t *testing.T) {
 	buildInfo := GetBuildInfo()
 	buildInfo.Sanitize()
 	v := buildInfo.String()
-	require.Equal(t, fmt.Sprintf("v%s", GetVersion()), v, "invalid build string")
+	require.Equal(t, fmt.Sprintf("v%s", buildInfo.Version), v, "invalid build string")
 }

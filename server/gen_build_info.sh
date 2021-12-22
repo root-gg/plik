@@ -11,7 +11,7 @@ if [[ ! -f "$FILE" ]]; then
     exit 1
 fi
 
-version=${VERSION:-$(cat "$FILE" | sed -n 's/^const version = "\(.*\)"/\1/p')}
+version=${VERSION:-$(git describe --tags --abbrev=0)}
 if [[ -z "$version" ]]; then
     echo "version not found"
     exit 1

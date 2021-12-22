@@ -34,7 +34,7 @@ func NewClient(url string) (c *Client) {
 
 	// Default values for X-ClientApp and X-ClientVersion HTTP Headers
 	c.ClientName = "plik_client"
-	c.ClientVersion = runtime.GOOS + "-" + runtime.GOARCH + "-" + common.GetVersion()
+	c.ClientVersion = runtime.GOOS + "-" + runtime.GOARCH + "-" + common.GetBuildInfo().Version
 
 	// Create a new default HTTP client. Override it if may you have more specific requirements
 	transport := &http.Transport{
