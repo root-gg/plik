@@ -10,20 +10,15 @@ import (
 	"github.com/jinzhu/copier"
 )
 
-const version = "1.3.2"
-
-// GetVersion return the current package version
-func GetVersion() string {
-	return version
-}
-
 // This variable content is meant to be passed the output of the gen_build_info.sh script at compile time using -ldflags
 var buildInfoString string
 
 var buildInfo *BuildInfo
 
 func init() {
-	buildInfo = &BuildInfo{}
+	buildInfo = &BuildInfo{
+		Version: "0.0.0",
+	}
 
 	if buildInfoString != "" {
 		jsonString, err := base64.StdEncoding.DecodeString(buildInfoString)
@@ -36,8 +31,6 @@ func init() {
 			panic(fmt.Errorf("Unable to parse build info json string : %s", err))
 		}
 	}
-
-	buildInfo.Version = GetVersion()
 }
 
 // BuildInfo export build related variables
