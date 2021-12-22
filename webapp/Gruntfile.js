@@ -31,7 +31,8 @@ module.exports = function (grunt) {
                     'bower_components/angular-markdown-directive/markdown.js',
                     'bower_components/underscore/underscore.js',
                     'bower_components/filesize/lib/filesize.js',
-                    'bower_components/showdown/src/showdown.js'
+                    'bower_components/showdown/src/showdown.js',
+                    'bower_components/clipboard/dist/clipboard.js'
                 ],
                 dest: 'dist/js/vendor.js'
 

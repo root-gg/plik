@@ -176,6 +176,9 @@
                         <div class="col-xs-12 col-sm-6 small file-name">
                             <div ng-repeat="file in upload.files | filter: {status: 'uploaded'}">
                                 <a href="{{getFileUrl(upload,file)}}">{{ file.fileName }}</a>
+                                <button style="background-color: transparent; border: none;" data-clipboard data-clipboard-text="{{getFileUrl(upload,file)}}">
+                                  <span class="glyphicon glyphicon-copy"></span>
+                                </button>
                         <span class="pull-right">
                             {{ humanReadableSize(file.fileSize) }}
                         </span>

@@ -118,6 +118,17 @@
                 </a>
             </div>
         </div>
+        <!-- COPY LINK BUTTON -->
+        <div class="tile menu" ng-if="mode == 'download' && somethingToDownload() && !upload.stream">
+            <div class="menu-item">
+                <div>
+                    <button type="button" class="btn btn-lg btn-primary btn-block"
+                        data-clipboard data-clipboard-text="{{getZipArchiveUrl()}}">
+                        <i class="glyphicon glyphicon-copy"></i> Copy to clipboard
+                    </button>
+                </div>
+            </div>
+        </div>
         <!-- ADD FILES BUTTON -->
         <div class="tile menu" ng-if="mode == 'download' && upload.admin && !upload.stream">
             <div class="menu-item">
@@ -245,6 +256,11 @@
                                         class="glyphicon glyphicon-cloud-download"></span><span
                                         class="hidden-xs hidden-sm"> Download</span></button>
                             </a>
+                            <!-- COPY -->
+                            <button title="Copy" type="button" class="btn btn-success btn-sm hidden-xs"
+                                    data-clipboard data-clipboard-text="{{getFileUrl(file,1)}}">
+                                <span class="glyphicon glyphicon-copy"></span>
+                            </button>
                             <!-- QR CODE -->
                             <button title="Display QRCode" type="button" class="btn btn-success btn-sm hidden-xs"
                                     ng-click="displayQRCodeFile(file)">
@@ -269,6 +285,10 @@
                     <div ng-repeat="file in files"
                          ng-show="isDownloadable(file)">
                         <a href="{{getFileUrl(file)}}"> {{getFileUrl(file)}}</a>
+                        <button style="background-color: transparent; border: none;"
+                            data-clipboard data-clipboard-text="{{getFileUrl(file)}}">
+                            <span class="glyphicon glyphicon-copy"></span>
+                        </button>
                     </div>
                 </div>
             </div>
