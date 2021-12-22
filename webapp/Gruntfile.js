@@ -28,12 +28,9 @@ module.exports = function (grunt) {
                     'bower_components/angular-sanitize/angular-sanitize.min.js',
                     'bower_components/angular-route/angular-route.js',
                     'bower_components/angular-bootstrap/ui-bootstrap-tpls.js',
-                    'bower_components/ng-clip/dest/ng-clip.min.js',
                     'bower_components/angular-markdown-directive/markdown.js',
                     'bower_components/underscore/underscore.js',
                     'bower_components/filesize/lib/filesize.js',
-                    'bower_components/zeroclipboard/dist/ZeroClipboard.js',
-                    'bower_components/angular-contenteditable/angular-contenteditable.js',
                     'bower_components/showdown/src/showdown.js'
                 ],
                 dest: 'dist/js/vendor.js'
