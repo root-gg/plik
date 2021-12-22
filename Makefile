@@ -72,7 +72,7 @@ lint:
 # Run fmt
 ###
 fmt:
-	@goimports -w -l -local "github.com/root-gg/plik" $(shell find . -type f -name '*.go' -not -path "./vendor/*")
+	@gofmt -w -s $(shell find . -type f -name '*.go' -not -path "./vendor/*" )
 
 ###
 # Run tests
