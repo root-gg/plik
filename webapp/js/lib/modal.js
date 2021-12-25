@@ -89,6 +89,26 @@ plik.controller('PasswordController', ['$scope',
         };
     }]);
 
+// HTTP basic auth credentials dialog controller
+plik.controller('PasteController', ['$scope', 'args',
+    function ($scope, args) {
+        // Ugly but it works
+        setTimeout(function () {
+            $("#text").focus();
+            var h = (document.documentElement.clientHeight * 70 / 100) + "px";
+            $("#text").css('height', h);
+        }, 100);
+
+        $scope.title = 'Pasted text :';
+        $scope.text = args.text
+
+        $scope.close = function (text) {
+            if (text.length) {
+                $scope.$close({text: text});
+            }
+        };
+    }]);
+
 // QRCode dialog controller
 plik.controller('QRCodeController', ['$scope', 'args',
     function ($scope, args) {

@@ -1,0 +1,20 @@
+
+<div class="modal-header">
+    <h1>{{title}}</h1>
+</div>
+<div class="modal-body">
+    <div class="row">
+        <div class="col-sm-11 col-sm-offset-1">
+            <form class="form-horizontal" ng-submit="close(text)">
+                <!-- needed for ng-submit to work -->
+                <input type="submit" id="submit" style="display:none"/>
+                <textarea id="text" ng-model="text" style="width:100%"></textarea>
+            </form>
+        </div>
+    </div>
+    <div id="paste-dialog-is-open" style="display:none"/>
+</div>
+<div class="modal-footer">
+    <button ng-click="$dismiss('cancel')" class="btn btn-danger">Cancel</button>
+    <button ng-click="close(text)" class="btn btn-primary">ok</button>
+</div>
