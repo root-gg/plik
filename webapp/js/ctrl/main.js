@@ -1,6 +1,6 @@
 // Main controller
-plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location', '$dialog',
-    function ($scope, $api, $config, $route, $location, $dialog) {
+plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location', '$dialog', '$timeout',
+    function ($scope, $api, $config, $route, $location, $dialog, $timeout) {
 
         $scope.sortField = 'metadata.fileName';
         $scope.sortOrder = false;
@@ -14,7 +14,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             .then(function (config) {
                 $scope.config = config;
                 $scope.setDefaultTTL();
-                if ( config.noAnonymousUploads && $scope.mode != 'download' ) {
+                if (config.noAnonymousUploads && $scope.mode != 'download') {
                     // Redirect to login page if user is not authenticated
                     $config.getUser()
                         .then(null, function (error) {
@@ -595,4 +595,29 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         };
 
         $scope.init();
+
+        // setup paste handler
+        window.addEventListener('paste', function (event) {
+            var clipboard = (event.clipboardData || window.clipboardData);
+
+            // If clipboard contains files
+            var files = clipboard.files
+            if (files.length) {
+                $timeout(function () {
+                    $scope.onFileSelect(files);
+                })
+                return
+            }
+
+            // If clipboard contains text
+            var text = clipboard.getData('text');
+            if (text) {
+                var blob = new Blob([text], {type: "text/plain;charset=utf-8"});
+                var file = new File([blob], 'paste.txt', {type: "text/plain;charset=utf-8"});
+                $timeout(function () {
+                    $scope.onFileSelect([file]);
+                })
+                return
+            }
+        })
     }]);
