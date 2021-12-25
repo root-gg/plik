@@ -47,7 +47,7 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	// Assign context parameters ( IP / user / token )
+	// Assign context parameters ( IP / user / token / TTL )
 	err = ctx.ConfigureUploadFromContext(upload)
 	if err != nil {
 		ctx.BadRequest("unable to create upload : %s", err)

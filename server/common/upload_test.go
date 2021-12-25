@@ -131,6 +131,7 @@ func TestCreateUpload(t *testing.T) {
 	params.IsAdmin = true
 	params.ProtectedByPassword = true
 	params.RemoteIP = "1.3.3.7"
+	params.TTL = 42
 	params.CreatedAt = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	deadline := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	params.ExpireAt = &deadline
@@ -152,6 +153,7 @@ func TestCreateUpload(t *testing.T) {
 	require.NotNil(t, upload)
 	require.NotEmpty(t, upload.ID, "missing upload id")
 	require.NotEqual(t, params.ID, upload.ID, "invalid upload id")
+	require.Equal(t, params.TTL, upload.TTL, "invalid upload ttl")
 	require.Emptyf(t, upload.RemoteIP, "invalid remote IP")
 	require.NotEqual(t, params.UploadToken, upload.UploadToken, "invalid upload token")
 	require.NotEqual(t, params.CreatedAt, upload.CreatedAt, "invalid created at")
@@ -225,67 +227,45 @@ func TestCreateUploadStreamWhenStreamIsDisabled(t *testing.T) {
 	require.Nil(t, upload)
 }
 
-func TestCreateUploadDefaultTTL(t *testing.T) {
-	config := NewConfiguration()
-	config.DefaultTTL = 60
+func TestSetTTL(t *testing.T) {
+	upload := &Upload{TTL: 60}
 
-	params := &Upload{TTL: 0}
+	err := upload.SetTTL(0, 0)
+	require.NoError(t, err, "unable to set ttl")
+	require.Equal(t, 60, upload.TTL, "invalid TTL")
 
-	upload, err := CreateUpload(config, params)
-	require.NoError(t, err)
-	require.NotNil(t, upload)
-	require.Equal(t, 60, upload.TTL)
-
-	require.NotNil(t, upload.CreatedAt)
-	require.True(t, upload.CreatedAt.After(time.Now().Add(-1*time.Second)))
-	require.True(t, upload.CreatedAt.Before(time.Now().Add(1*time.Second)))
-
-	require.NotNil(t, upload.ExpireAt)
-	require.True(t, upload.ExpireAt.After(time.Now().Add(59*time.Second)))
-	require.True(t, upload.ExpireAt.Before(time.Now().Add(61*time.Second)))
-}
-
-func TestCreateTTLTooLong(t *testing.T) {
-	config := NewConfiguration()
-	config.MaxTTL = 60
-
-	params := &Upload{TTL: 120}
-
-	upload, err := CreateUpload(config, params)
-	RequireError(t, err, "invalid TTL. (maximum allowed")
-	require.Nil(t, upload)
-}
-
-func TestCreateInvalidNegativeTTL(t *testing.T) {
-	config := NewConfiguration()
-
-	params := &Upload{TTL: -10}
-
-	upload, err := CreateUpload(config, params)
+	err = upload.SetTTL(0, 10)
 	RequireError(t, err, "invalid TTL")
-	require.Nil(t, upload)
 }
 
-func TestCreateInfiniteTTL(t *testing.T) {
-	config := NewConfiguration()
-	config.MaxTTL = -1
+func TestSetDefaultTTL(t *testing.T) {
+	upload := &Upload{TTL: 0}
 
-	params := &Upload{TTL: -1}
+	err := upload.SetTTL(60, 0)
+	require.NoError(t, err, "unable to set ttl")
+	require.Equal(t, 60, upload.TTL, "invalid TTL")
 
-	upload, err := CreateUpload(config, params)
-	require.NoError(t, err)
-	require.NotNil(t, upload)
-	require.Nil(t, upload.ExpireAt)
+	upload = &Upload{TTL: 0}
+	err = upload.SetTTL(0, 0)
+	require.NoError(t, err, "unable to set ttl")
+	require.Equal(t, 0, upload.TTL, "invalid TTL")
 }
 
-func TestCreateInvalidInfiniteTTL(t *testing.T) {
-	config := NewConfiguration()
+func TestSetTTLInfinite(t *testing.T) {
+	upload := &Upload{TTL: -1}
 
-	params := &Upload{TTL: -1}
+	err := upload.SetTTL(0, 0)
+	require.NoError(t, err, "unable to set ttl")
+	require.Equal(t, -1, upload.TTL, "invalid TTL")
 
-	upload, err := CreateUpload(config, params)
-	RequireError(t, err, "cannot set infinite TTL")
-	require.Nil(t, upload)
+	upload = &Upload{TTL: -1}
+	err = upload.SetTTL(0, -1)
+	require.NoError(t, err, "unable to set ttl")
+	require.Equal(t, -1, upload.TTL, "invalid TTL")
+
+	upload = &Upload{TTL: -1}
+	err = upload.SetTTL(0, 10)
+	RequireError(t, err, "infinite TTL")
 }
 
 func TestCreateWithPasswordWhenPasswordIsNotEnabled(t *testing.T) {

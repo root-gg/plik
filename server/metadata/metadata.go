@@ -3,6 +3,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"github.com/root-gg/plik/server/common"
 	"time"
 
 	"github.com/go-gormigrate/gormigrate/v2"
@@ -12,8 +13,6 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-
-	"github.com/root-gg/plik/server/common"
 )
 
 // Config metadata backend configuration
@@ -24,7 +23,8 @@ type Config struct {
 	MaxOpenConns       int
 	MaxIdleConns       int
 	Debug              bool
-	SlowQueryThreshold string
+	SlowQueryThreshold string // Duration string
+	disableSchemaInit  bool
 }
 
 // NewConfig instantiate a new default configuration
@@ -152,27 +152,24 @@ func NewBackend(config *Config, log *logger.Logger) (b *Backend, err error) {
 // Initialize the metadata backend.
 //  - Create or update the database schema if needed
 func (b *Backend) initializeDB() (err error) {
-	m := gormigrate.New(b.db, gormigrate.DefaultOptions, []*gormigrate.Migration{
-		// your migrations here
-	})
+	m := gormigrate.New(b.db, gormigrate.DefaultOptions, b.getMigrations())
 
-	m.InitSchema(func(tx *gorm.DB) error {
+	//Skip migration if initializing database for the first time
+	if !b.Config.DisableSchemaInit {
+		m.InitSchema(func(tx *gorm.DB) error {
+			b.log.Warningf("Initializing %s database", b.Config.Driver)
 
-		if b.Config.Driver == "mysql" {
-			// Enable foreign keys
-			tx = tx.Set("gorm:table_options", "ENGINE=InnoDB")
-		}
+			err := b.SetupTxForMigration(tx).AutoMigrate(
+				&common.Upload{},
+				&common.File{},
+				&common.User{},
+				&common.Token{},
+				&common.Setting{},
+			)
 
-		err := tx.AutoMigrate(
-			&common.Upload{},
-			&common.File{},
-			&common.User{},
-			&common.Token{},
-			&common.Setting{},
-		)
-
-		return err
-	})
+			return err
+		})
+	}
 
 	if err = m.Migrate(); err != nil {
 		return fmt.Errorf("could not migrate: %v", err)
@@ -217,4 +214,13 @@ func (b *Backend) Shutdown() (err error) {
 	}
 
 	return nil
+}
+
+func (b *Backend) SetupTxForMigration(tx *gorm.DB) *gorm.DB {
+	if b.Config.Driver == "mysql" {
+		// Enable foreign keys
+		return tx.Set("gorm:table_options", "ENGINE=InnoDB")
+	}
+
+	return tx
 }

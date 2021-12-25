@@ -63,6 +63,7 @@ func TestCreateUploadWithOptions(t *testing.T) {
 	uploadToCreate.ProtectedByPassword = true
 	uploadToCreate.Login = "foo"
 	uploadToCreate.Password = "bar"
+	uploadToCreate.TTL = 60
 
 	fileToUpload := &common.File{}
 	fileToUpload.Name = "file"
@@ -97,6 +98,7 @@ func TestCreateUploadWithOptions(t *testing.T) {
 	require.Equal(t, uploadToCreate.ProtectedByPassword, upload.ProtectedByPassword, "invalid upload protected by password status")
 	require.Equal(t, "", upload.Login, "invalid upload login")
 	require.Equal(t, "", upload.Password, "invalid upload password")
+	require.Equal(t, 60, upload.TTL, "invalid upload TTL")
 	require.Equal(t, len(uploadToCreate.Files), len(upload.Files), "invalid upload password")
 	require.True(t, upload.IsAdmin, "invalid upload admin status") // You are always admin of your own upload
 

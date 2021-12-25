@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/md5"
 	"fmt"
+	"github.com/dustin/go-humanize"
 	"io"
 	"net/http"
 
@@ -199,7 +200,6 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 //  - Compute md5sum
 func preprocessor(ctx *context.Context, file io.Reader, preprocessWriter io.WriteCloser, outputCh chan preprocessOutputReturn) {
 	log := ctx.GetLogger()
-	config := ctx.GetConfig()
 
 	var err error
 	var totalBytes int64
@@ -233,8 +233,8 @@ func preprocessor(ctx *context.Context, file io.Reader, preprocessWriter io.Writ
 		totalBytes += int64(bytesRead)
 
 		// Check upload max size limit
-		if int64(totalBytes) > config.MaxFileSize {
-			err = common.NewHTTPError(fmt.Sprintf("file too big (limit is set to %d bytes)", config.MaxFileSize), nil, http.StatusBadRequest)
+		if totalBytes > ctx.GetMaxFileSize() {
+			err = common.NewHTTPError(fmt.Sprintf("file too big (limit is set to %s)", humanize.Bytes(uint64(ctx.GetMaxFileSize()))), nil, http.StatusBadRequest)
 			break
 		}
 

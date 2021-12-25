@@ -139,12 +139,6 @@ func CreateUpload(config *Configuration, params *Upload) (upload *Upload, err er
 		return nil, err
 	}
 
-	// Handle TTL
-	err = upload.setTTL(config, params.TTL)
-	if err != nil {
-		return nil, err
-	}
-
 	return upload, nil
 }
 
@@ -164,6 +158,7 @@ func (upload *Upload) setParams(config *Configuration, params *Upload) (err erro
 		return fmt.Errorf("stream mode is not enabled")
 	}
 
+	upload.TTL = params.TTL
 	upload.Comments = params.Comments
 
 	return nil
@@ -213,33 +208,28 @@ func (upload *Upload) setBasicAuth(config *Configuration, login string, password
 	return nil
 }
 
-func (upload *Upload) setTTL(config *Configuration, TTL int) (err error) {
-	if TTL == 0 {
-		TTL = config.DefaultTTL
-	}
-
-	upload.TTL = TTL
+// SetTTL adjust TTL parameters accordingly to default and max TTL
+func (upload *Upload) SetTTL(defaultTTL int, maxTTL int) (err error) {
 	upload.CreatedAt = time.Now()
 
 	// TTL = Time in second before the upload expiration
+	// >0 	-> TTL specified
 	// 0 	-> No TTL specified : default value from configuration
-	// -1	-> No expiration : checking with configuration if that's ok
-	if upload.TTL == -1 {
-		if config.MaxTTL != -1 {
-			return fmt.Errorf("cannot set infinite TTL (maximum allowed is : %d)", config.MaxTTL)
+	// <0	-> No expiration
+	if upload.TTL == 0 {
+		upload.TTL = defaultTTL
+	}
+
+	if maxTTL > 0 {
+		if upload.TTL < 0 {
+			return fmt.Errorf("cannot set infinite TTL (maximum allowed is : %d)", maxTTL)
 		}
-		return nil
+		if upload.TTL > maxTTL {
+			return fmt.Errorf("invalid TTL. (maximum allowed is : %d)", maxTTL)
+		}
 	}
 
-	if upload.TTL <= 0 {
-		return fmt.Errorf("invalid TTL")
-	}
-
-	if config.MaxTTL > 0 && upload.TTL > config.MaxTTL {
-		return fmt.Errorf("invalid TTL. (maximum allowed is : %d)", config.MaxTTL)
-	}
-
-	if upload.TTL != -1 {
+	if upload.TTL > 0 {
 		deadline := upload.CreatedAt.Add(time.Duration(upload.TTL) * time.Second)
 		upload.ExpireAt = &deadline
 	}

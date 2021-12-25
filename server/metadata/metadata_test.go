@@ -90,6 +90,17 @@ func TestMetadata(t *testing.T) {
 	require.NoError(t, err, "close db error")
 }
 
+func TestMigrations(t *testing.T) {
+	b := newTestMetadataBackend()
+
+	testConfig := &Config{}
+	*testConfig = *metadataBackendConfig
+	testConfig.disableSchemaInit = true
+	b, err := NewBackend(testConfig, logger.NewLogger())
+	require.NoError(t, err, "unable to create metadata backend")
+	defer shutdownTestMetadataBackend(b)
+}
+
 func TestMetadataInvalidBackend(t *testing.T) {
 	metadataBackendConfig := &Config{Driver: "invalid"}
 	b, err := NewBackend(metadataBackendConfig, logger.NewLogger())

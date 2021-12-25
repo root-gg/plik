@@ -14,7 +14,7 @@ const ProviderOVH = "ovh"
 // ProviderLocal for authentication
 const ProviderLocal = "local"
 
-// User is a plik user
+// User is a Plik user
 type User struct {
 	ID       string `json:"id,omitempty"`
 	Provider string `json:"provider"`
@@ -23,6 +23,9 @@ type User struct {
 	Name     string `json:"name,omitempty"`
 	Email    string `json:"email,omitempty"`
 	IsAdmin  bool   `json:"admin"`
+
+	MaxFileSize int64 `json:"maxFileSize"`
+	MaxTTL      int   `json:"maxTTL"`
 
 	Tokens []*Token `json:"tokens,omitempty"`
 
