@@ -221,7 +221,7 @@ func (upload *Upload) SetTTL(defaultTTL int, maxTTL int) (err error) {
 	}
 
 	if maxTTL > 0 {
-		if upload.TTL < 0 {
+		if upload.TTL <= 0 {
 			return fmt.Errorf("cannot set infinite TTL (maximum allowed is : %d)", maxTTL)
 		}
 		if upload.TTL > maxTTL {

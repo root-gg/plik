@@ -155,7 +155,7 @@ func (b *Backend) initializeDB() (err error) {
 	m := gormigrate.New(b.db, gormigrate.DefaultOptions, b.getMigrations())
 
 	//Skip migration if initializing database for the first time
-	if !b.Config.DisableSchemaInit {
+	if !b.Config.disableSchemaInit {
 		m.InitSchema(func(tx *gorm.DB) error {
 			b.log.Warningf("Initializing %s database", b.Config.Driver)
 

@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/dustin/go-humanize"
 	"github.com/iancoleman/strcase"
+	str2duration "github.com/xhit/go-str2duration/v2"
 
 	"github.com/root-gg/logger"
 )
@@ -29,11 +31,14 @@ type Configuration struct {
 	ListenPort    int    `json:"-"`
 	Path          string `json:"-"`
 
-	MaxFileSize      int64 `json:"maxFileSize"`
-	MaxFilePerUpload int   `json:"maxFilePerUpload"`
+	MaxFileSizeStr   string `json:"-"`
+	MaxFileSize      int64  `json:"maxFileSize"`
+	MaxFilePerUpload int    `json:"maxFilePerUpload"`
 
-	DefaultTTL int `json:"defaultTTL"`
-	MaxTTL     int `json:"maxTTL"`
+	DefaultTTLStr string `json:"-"`
+	DefaultTTL    int    `json:"defaultTTL"`
+	MaxTTLStr     string `json:"-"`
+	MaxTTL        int    `json:"maxTTL"`
 
 	SslEnabled bool   `json:"-"`
 	SslCert    string `json:"-"`
@@ -183,6 +188,28 @@ func (config *Configuration) Initialize() (err error) {
 		}
 	}
 
+	if config.MaxFileSizeStr != "" {
+		maxFileSize, err := humanize.ParseBytes(config.MaxFileSizeStr)
+		if err != nil {
+			return err
+		}
+		config.MaxFileSize = int64(maxFileSize)
+	}
+
+	if config.DefaultTTLStr != "" {
+		config.DefaultTTL, err = ParseTTL(config.DefaultTTLStr)
+		if err != nil {
+			return err
+		}
+	}
+
+	if config.MaxTTLStr != "" {
+		config.MaxTTL, err = ParseTTL(config.MaxTTLStr)
+		if err != nil {
+			return err
+		}
+	}
+
 	if config.MaxTTL > 0 && config.DefaultTTL > 0 && config.MaxTTL < config.DefaultTTL {
 		return fmt.Errorf("DefaultTTL should not be more than MaxTTL")
 	}
@@ -327,4 +354,24 @@ func (config *Configuration) String() string {
 	}
 
 	return str
+}
+
+// ParseTTL string into a number of seconds
+func ParseTTL(TTL string) (int, error) {
+	// For backward compatibility input without units are in seconds
+	_, err := strconv.Atoi(TTL)
+	if err == nil {
+		TTL += "s"
+	}
+
+	duration, err := str2duration.ParseDuration(TTL)
+	if err != nil {
+		return 0, fmt.Errorf("unable to parse TTL : %s", err)
+	}
+
+	if duration < 0 {
+		return 0, nil
+	}
+
+	return int(duration.Seconds()), nil
 }

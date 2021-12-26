@@ -162,6 +162,9 @@ github.com/spf13/pflag
 ## explicit
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
+# github.com/xhit/go-str2duration/v2 v2.0.0
+## explicit
+github.com/xhit/go-str2duration/v2
 # go.opencensus.io v0.20.2
 ## explicit
 go.opencensus.io

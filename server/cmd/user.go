@@ -2,12 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"time"
-
 	"github.com/dustin/go-humanize"
 	"github.com/root-gg/utils"
 	"github.com/spf13/cobra"
+	"os"
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/server"
@@ -142,12 +140,12 @@ func createUser(cmd *cobra.Command, args []string) {
 	}
 
 	if userParams.maxTTL != "" {
-		maxTTL, err := time.ParseDuration(userParams.maxTTL)
+		maxTTL, err := common.ParseTTL(userParams.maxTTL)
 		if err != nil {
 			fmt.Printf("Unable to parse max-ttl\n")
 			os.Exit(1)
 		}
-		user.MaxTTL = int(maxTTL.Seconds())
+		user.MaxTTL = maxTTL
 	}
 
 	if userParams.password == "" {
@@ -252,12 +250,12 @@ func updateUser(cmd *cobra.Command, args []string) {
 	}
 
 	if userParams.maxTTL != "" {
-		maxTTL, err := time.ParseDuration(userParams.maxTTL)
+		maxTTL, err := common.ParseTTL(userParams.maxTTL)
 		if err != nil {
 			fmt.Printf("Unable to parse max-ttl : %s\n", err)
 			os.Exit(1)
 		}
-		user.MaxTTL = int(maxTTL.Seconds())
+		user.MaxTTL = maxTTL
 	}
 
 	if userParams.password != "" {
