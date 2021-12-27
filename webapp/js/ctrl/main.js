@@ -1,6 +1,7 @@
 // Main controller
-plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location', '$dialog',
-    function ($scope, $api, $config, $route, $location, $dialog) {
+pasteEventListener = null // Declare here to survive even when the scope is reloaded
+plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location', '$dialog', '$timeout',
+    function ($scope, $api, $config, $route, $location, $dialog, $timeout) {
 
         $scope.sortField = 'metadata.fileName';
         $scope.sortOrder = false;
@@ -14,7 +15,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             .then(function (config) {
                 $scope.config = config;
                 $scope.setDefaultTTL();
-                if ( config.noAnonymousUploads && $scope.mode != 'download' ) {
+                if (config.noAnonymousUploads && $scope.mode != 'download') {
                     // Redirect to login page if user is not authenticated
                     $config.getUser()
                         .then(null, function (error) {
@@ -595,4 +596,74 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         };
 
         $scope.init();
+
+        $scope.pasted = 0;
+        if (pasteEventListener) {
+            // Unregister previously registered paste event listener
+            window.removeEventListener('paste', pasteEventListener);
+        }
+
+        // Paste event handler
+        pasteEventListener = function (event) {
+            var clipboard = (event.clipboardData || window.clipboardData);
+
+            // If clipboard contains files
+            var files = clipboard.files
+            if (files.length) {
+                $timeout(function () {
+                    $scope.onFileSelect(files);
+                })
+                return
+            }
+
+            // If clipboard contains text
+            var text = clipboard.getData('text');
+            if (text) {
+                // Dismiss paste event if a paste dialog is already open
+                if (document.getElementById("paste-dialog-is-open")) {
+                    return
+                }
+
+                // Open a dialog to display/edit the pasted text
+                $dialog.openDialog({
+                    backdrop: true,
+                    backdropClick: true,
+                    templateUrl: 'partials/paste.html',
+                    controller: 'PasteController',
+                    size: 'lg', // large size
+                    resolve: {
+                        args: function () {
+                            return {
+                                text: text,
+                            };
+                        }
+                    }
+                }).result.then(
+                    function (result) {
+                        if (result.text) {
+
+                            // Increment filename for each successful paste
+                            var filename = 'paste.txt'
+                            if ($scope.pasted) {
+                                filename = 'paste.' + $scope.pasted + '.txt';
+                            }
+
+                            var blob = new Blob([result.text], {type: "text/plain;charset=utf-8"});
+                            var file = new File([blob], filename, {type: "text/plain;charset=utf-8"});
+
+                            $timeout(function () {
+                                $scope.onFileSelect([file]);
+                            })
+
+                            $scope.pasted++;
+                        }
+
+                    }, function () {
+                        // Avoid "Possibly unhandled rejection"
+                    });
+            }
+        };
+
+        // Register paste event listener
+        window.addEventListener('paste', pasteEventListener);
     }]);
