@@ -37,7 +37,7 @@ Plik is a scalable & friendly temporary file upload system (Wetransfer like) in 
 ##### From release
 To run plik, it's very simple :
 ```sh
-$ wget https://github.com/root-gg/plik/releases/download/1.3.2/plik-1.3.3-linux-amd64.tar.gz
+$ wget https://github.com/root-gg/plik/releases/download/1.3.3/plik-1.3.3-linux-amd64.tar.gz
 $ tar xzvf plik-1.3.3-linux-64bits.tar.gz
 $ cd plik-1.3.3/server
 $ ./plikd
