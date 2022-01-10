@@ -197,7 +197,7 @@
         <div class="row row-padding" ng-repeat="file in files | orderBy:sortField:sortOrder">
             <div class="col-sm-12" ng-if="isOk(file)">
                 <!-- TO UPLOAD -->
-                <div class="row row-padding tile file" ng-if="file.metadata.status == 'toUpload'">
+                <div class="row row-padding tile file" ng-if="file.status == 'toUpload'">
                     <!-- FILENAME COLUMN -->
                     <div class="col-xs-7">
                         <div class="file-flex">
@@ -220,26 +220,26 @@
                     </div>
                 </div>
                 <!-- UPLOADING / UPLOADED -->
-                <div class="row tile file" ng-if="file.metadata.status != 'toUpload'">
+                <div class="row tile file" ng-if="file.status != 'toUpload'">
                     <!-- FILENAME COLUMN -->
                     <div class="col-xs-7">
                         <div class="file-name" ng-click="file.showdetails = !file.showdetails">
                             <i class="{{file.showdetails|collapseClass}} hidden-xs"></i>
-                            {{file.metadata.fileName}}
+                            {{file.fileName}}
                         </div>
                         <div class="small hidden-xs" ng-show="file.showdetails">
-                            <strong>md5 :</strong> {{file.metadata.fileMd5}}<br/>
-                            <strong>type :</strong> {{file.metadata.fileType}}
+                            <strong>md5 :</strong> {{file.fileMd5}}<br/>
+                            <strong>type :</strong> {{file.fileType}}
                         </div>
                     </div>
                     <!-- SIZE COLUMN -->
                     <div class="col-xs-2 text-right">
-                        <span class="filesize">{{humanReadableSize(file.metadata.fileSize)}}</span>
+                        <span class="filesize">{{humanReadableSize(file.fileSize)}}</span>
                     </div>
                     <!-- ACTION COLUMN -->
                     <div class="col-xs-3 text-right">
                         <!-- PROGRESS BAR -->
-                        <div ng-show="file.metadata.status == 'uploading'" class="progress">
+                        <div ng-show="file.status == 'uploading'" class="progress">
                             <div class="progress-bar progress-bar-striped active" role="progressbar"
                                  aria-valuenow="{{file.progress}}" aria-valuemin="0" aria-valuemax="100"
                                  style="width: {{file.progress}}%; min-width:25px;">
@@ -247,7 +247,7 @@
                             </div>
                         </div>
                         <!-- DOWNLOAD BUTTONS -->
-                        <div ng-show="file.metadata.status == 'uploaded'">
+                        <div ng-show="file.status == 'uploaded'">
                             <a href="{{getFileUrl(file,1)}}">
                                 <button data-action="share" title="Download" type="button"
                                         class="btn btn-success btn-sm"><span
