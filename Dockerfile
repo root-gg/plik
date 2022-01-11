@@ -14,7 +14,7 @@ FROM plik-frontend-builder AS plik-frontend
 RUN make clean-frontend frontend
 
 ##################################################################################
-FROM golang:1.17.3-buster AS plik-builder
+FROM golang:1.17.6-buster AS plik-builder
 
 # Install needed binaries
 RUN apt-get update && apt-get install -y build-essential crossbuild-essential-armhf crossbuild-essential-armel crossbuild-essential-arm64 crossbuild-essential-i386
