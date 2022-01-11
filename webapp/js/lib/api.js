@@ -50,7 +50,7 @@ angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upl
         return promise.promise;
     };
 
-    // Get upload metadata
+    // Get upload
     api.getUpload = function (uploadId, uploadToken) {
         var url = api.base + '/upload/' + uploadId;
         return api.call(url, 'GET', {}, {}, uploadToken);
@@ -72,8 +72,8 @@ angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upl
     api.uploadFile = function (upload, file, progres_cb, basicAuth) {
         var mode = upload.stream ? "stream" : "file";
         var url;
-        if (file.metadata.id) {
-            url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
+        if (file.id) {
+            url = api.base + '/' + mode + '/' + upload.id + '/' + file.id + '/' + file.fileName;
         } else {
             // When adding file to an existing upload
             url = api.base + '/' + mode + '/' + upload.id;
@@ -84,7 +84,7 @@ angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upl
     // Remove a file
     api.removeFile = function (upload, file) {
         var mode = upload.stream ? "stream" : "file";
-        var url = api.base + '/' + mode + '/' + upload.id + '/' + file.metadata.id + '/' + file.metadata.fileName;
+        var url = api.base + '/' + mode + '/' + upload.id + '/' + file.id + '/' + file.fileName;
         return api.call(url, 'DELETE', {}, {}, upload.uploadToken);
     };
 
@@ -116,7 +116,7 @@ angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upl
         return api.call(url, 'GET', {limit: limit, after: cursor});
     };
 
-    // Get upload metadata
+    // Get user uploads
     api.getUserUploads = function (token, limit, cursor) {
         var url = api.base + '/me/uploads';
         return api.call(url, 'GET', {token: token, limit: limit, after: cursor});

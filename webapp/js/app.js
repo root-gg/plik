@@ -1,5 +1,5 @@
 // Plik app bootstrap and global configuration
-var plik = angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'contentEditable', 'btford.markdown'])
+var plik = angular.module('plik', ['ngRoute', 'api', 'config', 'dialog', 'paste', 'contentEditable', 'btford.markdown'])
     .config(function ($routeProvider) {
         $routeProvider
             .when('/', {controller: 'MainCtrl', templateUrl: 'partials/main.html', reloadOnSearch: false})

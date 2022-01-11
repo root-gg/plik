@@ -1,9 +1,8 @@
 // Main controller
-pasteEventListener = null // Declare here to survive even when the scope is reloaded
-plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location', '$dialog', '$timeout',
-    function ($scope, $api, $config, $route, $location, $dialog, $timeout) {
+plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location', '$dialog', '$timeout', '$paste',
+    function ($scope, $api, $config, $route, $location, $dialog, $timeout, $paste) {
 
-        $scope.sortField = 'metadata.fileName';
+        $scope.sortField = 'fileName';
         $scope.sortOrder = false;
 
         $scope.upload = {};
@@ -15,7 +14,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             .then(function (config) {
                 $scope.config = config;
                 $scope.setDefaultTTL();
-                if (config.noAnonymousUploads && $scope.mode != 'download') {
+                if (config.noAnonymousUploads && $scope.mode !== 'download') {
                     // Redirect to login page if user is not authenticated
                     $config.getUser()
                         .then(null, function (error) {
@@ -66,9 +65,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             $api.getUpload($scope.upload.id, $scope.upload.uploadToken)
                 .then(function (upload) {
                     _.extend($scope.upload, upload);
-                    $scope.files = _.map($scope.upload.files, function (file) {
-                        return {metadata: file};
-                    });
+                    $scope.files = $scope.upload.files;
 
                     // Redirect to home when all stream uploads are downloaded
                     if (!$scope.somethingOk()) {
@@ -108,7 +105,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 }
 
                 // Already added file names
-                var names = _.pluck($scope.files, 'name');
+                var names = _.pluck($scope.files, 'fileName');
 
                 // iPhone/iPad/iPod fix
                 // Apple mobile devices does not populate file name
@@ -140,8 +137,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 file.fileName = file.name;
                 file.fileSize = file.size;
                 file.fileType = file.type;
-
-                file.metadata = {status: "toUpload"};
+                file.status = "toUpload";
 
                 $scope.files.push(file);
             });
@@ -232,12 +228,12 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 $api.createUpload($scope.upload)
                     .then(function (upload) {
                         $scope.upload = upload;
-                        // Match file metadata using the reference
+                        // Match file using the reference
                         _.each($scope.upload.files, function (file) {
                             _.every($scope.files, function (f) {
                                 if (f.reference === file.reference) {
-                                    f.metadata = file;
-                                    f.metadata.status = "toUpload";
+                                    _.extend(f, file);
+                                    f.status = "toUpload";
                                     return false;
                                 }
                                 return true;
@@ -258,15 +254,15 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             if (!$scope.upload.id) return;
             $scope.mode = 'download';
             _.each($scope.files, function (file) {
-                if (!(file.metadata && file.metadata.status === "toUpload")) return;
+                if (file.status !== 'toUpload') return;
                 var progress = function (event) {
                     // Update progress bar callback
                     file.progress = parseInt(100.0 * event.loaded / event.total);
                 };
-                file.metadata.status = "uploading";
+                file.status = "uploading";
                 $api.uploadFile($scope.upload, file, progress, $scope.basicAuth)
-                    .then(function (metadata) {
-                        file.metadata = metadata;
+                    .then(function (result) {
+                        _.extend(file, result);
 
                         // Redirect to home whe params...n all stream uploads are downloaded
                         if (!$scope.somethingOk()) {
@@ -274,7 +270,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                         }
                     })
                     .then(null, function (error) {
-                        file.metadata.status = "toUpload";
+                        file.status = "toUpload";
                         $dialog.alert(error);
                     });
             });
@@ -316,7 +312,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     $api.removeFile($scope.upload, file)
                         .then(function () {
                             $scope.files = _.reject($scope.files, function (f) {
-                                return f.metadata.id === file.metadata.id;
+                                return f.id === file.id;
                             });
                             // Redirect to main page if no more files
                             if (!$scope.files.length) {
@@ -334,26 +330,26 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // Check if file is downloadable
         $scope.isDownloadable = function (file) {
             if ($scope.upload.stream) {
-                if (file.metadata.status === 'uploading') return true;
+                if (file.status === 'uploading') return true;
             } else {
-                if (file.metadata.status === 'uploaded') return true;
+                if (file.status === 'uploaded') return true;
             }
             return false;
         };
 
         // Check if file is in a error status
         $scope.isOk = function (file) {
-            if (file.metadata.status === 'toUpload') return true;
-            else if (file.metadata.status === 'uploading') return true;
-            else if (file.metadata.status === 'uploaded') return true;
-            else if ($scope.upload.stream && file.metadata.status === 'missing') return true;
+            if (file.status === 'toUpload') return true;
+            else if (file.status === 'uploading') return true;
+            else if (file.status === 'uploaded') return true;
+            else if ($scope.upload.stream && file.status === 'missing') return true;
             return false;
         };
 
         // Is there at least one file ready to be uploaded
         $scope.somethingToUpload = function () {
             return _.find($scope.files, function (file) {
-                if (file.metadata.status === "toUpload") return true;
+                if (file.status === "toUpload") return true;
             });
         };
 
@@ -401,8 +397,8 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
 
         // Return file download URL
         $scope.getFileUrl = function (file, dl) {
-            if (!file || !file.metadata) return;
-            return getFileUrl($scope.getMode(), $scope.upload.id, file.metadata.id, file.metadata.fileName, dl);
+            if (!file || !file.id || !file.fileName) return;
+            return getFileUrl($scope.getMode(), $scope.upload.id, file.id, file.fileName, dl);
         };
 
         // Return zip archive download URL
@@ -438,7 +434,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         $scope.displayQRCodeFile = function (file) {
             var url = $scope.getFileUrl(file, false);
             var qrcode = $scope.getQrCodeUrl(url, 400);
-            $scope.displayQRCode(file.metadata.fileName, url, qrcode);
+            $scope.displayQRCode(file.fileName, url, qrcode);
         };
 
         // Display QRCode dialog
@@ -595,75 +591,78 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             $route.reload();
         };
 
-        $scope.init();
+        // Register paste handler
+        $scope.registerPasteHandler = function () {
+            var pasteCallback = function (clipboard) {
+                // Dismiss paste event if we can't add files to the upload
+                if ($scope.mode === 'download' && !$scope.upload.admin) return;
 
-        $scope.pasted = 0;
-        if (pasteEventListener) {
-            // Unregister previously registered paste event listener
-            window.removeEventListener('paste', pasteEventListener);
-        }
+                // Dismiss paste event if a modal/dialog is already open
+                if (document.getElementsByClassName('modal-open').length > 0) return;
 
-        // Paste event handler
-        pasteEventListener = function (event) {
-            var clipboard = (event.clipboardData || window.clipboardData);
-
-            // If clipboard contains files
-            var files = clipboard.files
-            if (files.length) {
-                $timeout(function () {
-                    $scope.onFileSelect(files);
-                })
-                return
-            }
-
-            // If clipboard contains text
-            var text = clipboard.getData('text');
-            if (text) {
-                // Dismiss paste event if a paste dialog is already open
-                if (document.getElementById("paste-dialog-is-open")) {
+                // If clipboard contains files
+                var files = clipboard.files
+                if (files.length) {
+                    // Add the files
+                    $timeout(function () {
+                        $scope.onFileSelect(files);
+                    })
                     return
                 }
 
-                // Open a dialog to display/edit the pasted text
-                $dialog.openDialog({
-                    backdrop: true,
-                    backdropClick: true,
-                    templateUrl: 'partials/paste.html',
-                    controller: 'PasteController',
-                    size: 'lg', // large size
-                    resolve: {
-                        args: function () {
-                            return {
-                                text: text,
-                            };
+                // If clipboard contains text
+                var text = clipboard.getData('text');
+                if (text) {
+                    // Open a dialog to display/edit the pasted text
+                    $dialog.openDialog({
+                        backdrop: true,
+                        backdropClick: true,
+                        templateUrl: 'partials/paste.html',
+                        controller: 'PasteController',
+                        size: 'lg', // large size
+                        resolve: {
+                            args: function () {
+                                return {
+                                    text: text,
+                                };
+                            }
                         }
-                    }
-                }).result.then(
-                    function (result) {
-                        if (result.text) {
+                    }).result.then(
+                        function (result) {
+                            if (result.text) {
+                                var filename = 'paste.txt'
 
-                            // Increment filename for each successful paste
-                            var filename = 'paste.txt'
-                            if ($scope.pasted) {
-                                filename = 'paste.' + $scope.pasted + '.txt';
+                                // Increment filename if already present
+                                var names = _.pluck($scope.files, 'fileName');
+                                var i = 1;
+                                while (_.contains(names, filename)) {
+                                    filename = 'paste.' + i + '.txt';
+                                    i++;
+                                }
+
+                                // Create a file from the pasted text
+                                var blob = new Blob([result.text], {type: "text/plain;charset=utf-8"});
+                                var file = new File([blob], filename, {type: "text/plain;charset=utf-8"});
+
+                                // Add the file
+                                $timeout(function () {
+                                    $scope.onFileSelect([file]);
+                                })
                             }
 
-                            var blob = new Blob([result.text], {type: "text/plain;charset=utf-8"});
-                            var file = new File([blob], filename, {type: "text/plain;charset=utf-8"});
-
-                            $timeout(function () {
-                                $scope.onFileSelect([file]);
-                            })
-
-                            $scope.pasted++;
-                        }
-
-                    }, function () {
-                        // Avoid "Possibly unhandled rejection"
-                    });
+                        }, function () {
+                            // Avoid "Possibly unhandled rejection"
+                        });
+                }
             }
+
+            // Register paste callback to the paste service
+            $paste.register(pasteCallback);
+
+            // Unregister paste callback when route changes
+            $scope.$on('$routeChangeStart', $paste.unregister);
         };
 
-        // Register paste event listener
-        window.addEventListener('paste', pasteEventListener);
+        $scope.init();
+        $scope.registerPasteHandler();
     }]);
