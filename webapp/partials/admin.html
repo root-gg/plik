@@ -10,9 +10,9 @@
                 <p>{{version.goVersion}}</p>
 
                 <p>
-                    <span ng-class="'label label-' + (version.release ? 'success' : 'danger')">release</span>
+                    <span ng-class="'label label-' + (version.isRelease ? 'success' : 'danger')">release</span>
                     &nbsp;
-                    <span ng-class="'label label-' + (version.mint ? 'success' : 'danger')">mint</span>
+                    <span ng-class="'label label-' + (version.isMint ? 'success' : 'danger')">mint</span>
                 </p>
             </div>
         </div>
