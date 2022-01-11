@@ -214,7 +214,7 @@ func (ps *PlikServer) shutdown(timeout time.Duration) (err error) {
 
 func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	// Initialize middleware chain
-	stdChain := context.NewChain(middleware.Context(ps.setupContext), middleware.SourceIP, middleware.Log)
+	stdChain := context.NewChain(middleware.Context(ps.setupContext), middleware.SourceIP, middleware.Log, middleware.Recover)
 
 	// Get user from session cookie
 	authChain := stdChain.Append(middleware.Authenticate(false), middleware.Impersonate)
