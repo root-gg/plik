@@ -43,6 +43,9 @@ type Configuration struct {
 	DownloadDomain      string `json:"downloadDomain"`
 	EnhancedWebSecurity bool   `json:"-"`
 	AbuseContact        string `json:"abuseContact"`
+	WebappDirectory     string `json:"-"`
+	ClientsDirectory    string `json:"-"`
+	ChangelogDirectory  string `json:"-"`
 
 	SourceIPHeader  string   `json:"-"`
 	UploadWhitelist []string `json:"-"`
@@ -96,6 +99,10 @@ func NewConfiguration() (config *Configuration) {
 	config.OvhAPIEndpoint = "https://eu.api.ovh.com/1.0"
 
 	config.DataBackend = "file"
+
+	config.WebappDirectory = "../webapp/dist"
+	config.ClientsDirectory = "../clients"
+	config.ChangelogDirectory = "../changelog"
 
 	config.clean = true
 	return
