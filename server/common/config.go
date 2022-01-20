@@ -23,7 +23,7 @@ const envPrefix = "PLIKD_"
 type Configuration struct {
 	Debug         bool   `json:"-"`
 	DebugRequests bool   `json:"-"`
-	LogLevel      string `json:"-"` // DEPRECATED since 1.3
+	LogLevel      string `json:"-"`
 
 	ListenAddress string `json:"-"`
 	ListenPort    int    `json:"-"`
@@ -76,6 +76,7 @@ type Configuration struct {
 // object with default values
 func NewConfiguration() (config *Configuration) {
 	config = new(Configuration)
+	config.LogLevel = "INFO"
 
 	config.ListenAddress = "0.0.0.0"
 	config.ListenPort = 8080
@@ -192,7 +193,7 @@ func (config *Configuration) Initialize() (err error) {
 
 // NewLogger returns a new logger instance
 func (config *Configuration) NewLogger() (log *logger.Logger) {
-	level := "INFO"
+	level := config.LogLevel
 	if config.Debug {
 		level = "DEBUG"
 	}
