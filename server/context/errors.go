@@ -97,7 +97,7 @@ func (ctx *Context) Fail(message string, err error, status int) {
 	// Log message
 	if logger != nil {
 		if err != nil {
-			logger.Warning(logMessage)
+			logger.Critical(logMessage)
 		}
 	} else {
 		log.Println(logMessage)
