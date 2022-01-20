@@ -63,6 +63,7 @@ Options:
   --passphrase PASSPHRASE   [openssl] Passphrase or '-' to be prompted for a passphrase
   --recipient RECIPIENT     [pgp] Set recipient for pgp backend ( example : --recipient Bob )
   --secure-options OPTIONS  [openssl|pgp] Additional command line options
+  --insecure                (TLS) Do not verify the server's certificate chain and hostname
   --update                  Update client
   -q --quiet                Enable quiet mode
   -d --debug                Enable debug mode
@@ -102,6 +103,11 @@ Options:
 	client := plik.NewClient(config.URL)
 	client.Debug = config.Debug
 	client.ClientName = "plik_cli"
+
+	// Insecure TLS mode
+	if config.Insecure || arguments["--insecure"].(bool) {
+		client.Insecure()
+	}
 
 	// Display info
 	if arguments["--info"].(bool) {

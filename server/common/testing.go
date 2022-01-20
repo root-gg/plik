@@ -102,12 +102,11 @@ func StartAPIMockServerCustomPort(port int, next http.Handler) (shutdown func(),
 var httpClient *http.Client
 
 func getHTTPClient() *http.Client {
-	if httpClient != nil {
-		return httpClient
+	if httpClient == nil {
+		httpClient = &http.Client{Transport: &http.Transport{
+			Proxy:           http.ProxyFromEnvironment,
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
 	}
-	httpClient = &http.Client{Transport: &http.Transport{
-		Proxy:           http.ProxyFromEnvironment,
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
 	return httpClient
 }
 
