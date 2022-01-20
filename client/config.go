@@ -2,9 +2,7 @@ package main
 
 import (
 	"bytes"
-	"crypto/tls"
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -14,6 +12,7 @@ import (
 	"github.com/docopt/docopt-go"
 	"github.com/mitchellh/go-homedir"
 
+	"github.com/root-gg/plik/plik"
 	"github.com/root-gg/plik/server/common"
 )
 
@@ -39,6 +38,7 @@ type CliConfig struct {
 	AutoUpdate     bool
 	Token          string
 	DisableStdin   bool
+	Insecure       bool
 
 	filePaths        []string
 	filenameOverride string
@@ -140,7 +140,7 @@ func LoadConfig(opts docopt.Opts) (config *CliConfig, err error) {
 	}
 
 	// Try to HEAD the site to see if we have a redirection
-	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
+	client := plik.NewHTTPClient(true)
 	resp, err := client.Head(config.URL)
 	if err != nil {
 		return nil, err

@@ -36,14 +36,14 @@ func NewClient(url string) (c *Client) {
 	c.ClientName = "plik_client"
 	c.ClientVersion = runtime.GOOS + "-" + runtime.GOARCH + "-" + common.GetBuildInfo().Version
 
-	// Create a new default HTTP client. Override it if may you have more specific requirements
-	transport := &http.Transport{
-		Proxy:           http.ProxyFromEnvironment,
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
-
-	c.HTTPClient = &http.Client{Transport: transport}
+	c.HTTPClient = NewHTTPClient(false)
 
 	return c
+}
+
+// Insecure mode does not verify the server's certificate chain and host name
+func (c *Client) Insecure() {
+	c.HTTPClient = NewHTTPClient(true)
 }
 
 // NewUpload create a new Upload object with the client default upload params
@@ -165,4 +165,13 @@ func (c *Client) GetUploadProtectedByPassword(id string, login string, password 
 	upload.Password = password
 
 	return upload, nil
+}
+
+func NewHTTPClient(insecure bool) *http.Client {
+	return &http.Client{
+		Transport: &http.Transport{
+			Proxy:           http.ProxyFromEnvironment,
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure},
+		},
+	}
 }
