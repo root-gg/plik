@@ -38,8 +38,8 @@ Plik is a scalable & friendly temporary file upload system (Wetransfer like) in 
 To run plik, it's very simple :
 ```sh
 $ wget https://github.com/root-gg/plik/releases/download/1.3.4/plik-1.3.4-linux-amd64.tar.gz
-$ tar xzvf plik-1.3.4-linux-64bits.tar.gz
-$ cd plik-1.3.4/server
+$ tar xzvf plik-1.3.4-linux-amd64.tar.gz
+$ cd plik-1.3.4-linux-amd64/server
 $ ./plikd
 ```
 Et voilà ! You now have a fully functional instance of Plik running on http://127.0.0.1:8080.  
