@@ -181,7 +181,7 @@ func update(client *plik.Client, updateFlag bool) (err error) {
 
 	// Download new client
 	tmpPath := filepath.Dir(path) + "/" + "." + filepath.Base(path) + ".tmp"
-	tmpFile, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
+	tmpFile, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		return
 	}
