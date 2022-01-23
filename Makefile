@@ -103,6 +103,12 @@ release:
 	@releaser/release.sh
 
 ###
+# release and also push docker images to docker hub
+###
+release-and-push-to-docker-hub:
+	@PUSH_TO_DOCKER_HUB=true releaser/release.sh
+
+###
 # docker
 ###
 docker:
