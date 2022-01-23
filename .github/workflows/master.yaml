@@ -18,4 +18,4 @@ jobs:
         git fetch --prune --unshallow --tags
 
     - name: Run
-      run: make release-and-push-to-dcoker-hub
+      run: make release-and-push-to-docker-hub
