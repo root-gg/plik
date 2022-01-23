@@ -22,3 +22,6 @@ jobs:
 
     - name: Run test-backends
       run: make test-backends
+
+    - name: Run release
+      run: make release
