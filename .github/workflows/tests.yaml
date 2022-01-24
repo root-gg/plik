@@ -23,5 +23,9 @@ jobs:
     - name: Run test-backends
       run: make test-backends
 
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v1
+
     - name: Run release
       run: make release

@@ -1,7 +1,9 @@
 client/plik
 clients
+documentation
 release
 releases
+local
 server/plikd
 webapp/node_modules
 webapp/bower_components
@@ -11,3 +13,4 @@ webapp/dist
 **/plik.key
 **/files
 .idea
+.github

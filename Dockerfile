@@ -1,7 +1,5 @@
-ARG TARGET="amd64"
-
 ##################################################################################
-FROM node:12.15-alpine AS plik-frontend-builder
+FROM --platform=$BUILDPLATFORM node:12.15-alpine AS plik-frontend-builder
 
 # Install needed binaries
 RUN apk add --no-cache git make bash
@@ -10,13 +8,10 @@ RUN apk add --no-cache git make bash
 COPY Makefile .
 COPY webapp /webapp
 
-##################################################################################
-FROM plik-frontend-builder AS plik-frontend
-
 RUN make clean-frontend frontend
 
 ##################################################################################
-FROM golang:1.17.6-buster AS plik-builder
+FROM --platform=$BUILDPLATFORM golang:1.17.6-buster AS plik-builder
 
 # Install needed binaries
 RUN apt-get update && apt-get install -y build-essential crossbuild-essential-armhf crossbuild-essential-armel crossbuild-essential-arm64 crossbuild-essential-i386
@@ -25,27 +20,30 @@ RUN apt-get update && apt-get install -y build-essential crossbuild-essential-ar
 RUN mkdir -p /go/src/github.com/root-gg/plik
 WORKDIR /go/src/github.com/root-gg/plik
 
-# Add the source code ( see .dockerignore )
-COPY . .
-
 # Copy webapp build from previous stage
-COPY --from=plik-frontend /webapp/dist webapp/dist
-
-##################################################################################
-FROM plik-builder AS plik-releases
-
-LABEL plik-stage=releases
+COPY --from=plik-frontend-builder /webapp/dist webapp/dist
 
 ARG CLIENT_TARGETS=""
 ENV CLIENT_TARGETS=$CLIENT_TARGETS
 
-ARG TARGET
-ENV TARGETS=$TARGET
+ARG TARGETOS TARGETARCH TARGETVARIANT CC
+ENV TARGETOS=$TARGETOS
+ENV TARGETARCH=$TARGETARCH
+ENV TARGETVARIANT=$TARGETVARIANT
+ENV CC=$CC
+
+# Add the source code ( see .dockerignore )
+COPY . .
 
 RUN releaser/releaser.sh
 
 ##################################################################################
-FROM alpine:3.15 AS plik-base
+FROM scratch AS plik-release-archive
+
+COPY --from=plik-builder --chown=1000:1000 /go/src/github.com/root-gg/plik/plik-*.tar.gz /
+
+##################################################################################
+FROM alpine:3.15 AS plik-image
 
 RUN apk add --no-cache ca-certificates
 
@@ -62,13 +60,9 @@ RUN adduser \
     --uid "${UID}" \
     "${USER}"
 
+COPY --from=plik-builder --chown=1000:1000 /go/src/github.com/root-gg/plik/release /home/plik/
+
 EXPOSE 8080
 USER plik
 WORKDIR /home/plik/server
 CMD ./plikd
-
-##################################################################################
-FROM plik-base AS plik-release
-
-ARG TARGET
-COPY --from=plik-releases --chown=1000:1000 /go/src/github.com/root-gg/plik/releases/plik-*-linux-${TARGET} /home/plik/
