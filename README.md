@@ -29,10 +29,22 @@ Plik is a scalable & friendly temporary file upload system (Wetransfer like) in 
    - [plikSharp](https://github.com/iss0/plikSharp) : A .NET API client for Plik
    - [Filelink for Plik](https://gitlab.com/joendres/filelink-plik) : Thunderbird Addon to upload attachments to Plik
 
-### Version
-1.3.4
+### Content Table
+1. [Installation](#installation) 
+2. [Configuration](#configuration)
+3. [Data Backends](#data-backends)
+4. [Metadata Backends](#metadata-backends)
+5. [Client CLI](#cli-client)
+6. [Go Client](#go-client)
+7. [HTTP API](#api)
+8. [Admin CLI](#admin-cli)
+9. [Authentication](#authentication)
+10. [Security](#security)
+11. [Cross Compilation](#cross-compilation)
+12. [FAQ](#faq)
+13. [How To Contribute](#how-to-contribute)
 
-### Installation
+### Installation <a name="installation"></a>
 
 ##### From release
 To run plik, it's very simple :
@@ -46,21 +58,71 @@ Et voilà ! You now have a fully functional instance of Plik running on http://1
 You can edit server/plikd.cfg to adapt the configuration to your needs (ports, ssl, ttl, backend params,...)
 
 ##### From sources
-To compile plik from sources, you'll need golang and npm installed on your system.
+To compile plik from sources, you'll need golang and npm installed on your system
 
-First, get the project and libs via go get :
-```sh
-$ go get github.com/root-gg/plik/server
-$ cd $GOPATH/src/github.com/root-gg/plik/
-```
-
-Build everything and run it :
+Git clone and go get the project and simply run make :
 ```sh
 $ make
 $ cd server && ./plikd
 ```
 
-### Cli client
+##### Docker <a name="docker"></a>
+Plik comes with multiarch docker images built for linux amd64/i386/arm/arm64: 
+ - rootgg/plik:latest (lastest release)
+ - rootgg/plik:version (release)
+ - rootgg/plik:dev (lastet commit of master)
+
+See the [Plik Docker reference](documentation/docker.md)
+
+Plik also comes with some useful scripts to test backend in standalone docker instances :
+
+See the [Plik Docker backend testing](testing)
+
+### Configuration <a name="configuration"></a>
+
+The configuration is managed using a TOML file [plikd.cfg](server/plikd.cfg)
+
+###### Defining configuration parameters using environment variables
+
+One can specify configuration parameters using env variable with the configuration parameter in screaming snake case  
+```
+    PLIKD_DEBUG_REQUESTS=true ./plikd
+```
+
+For Arrays and config maps they must be provided in json format.
+Arrays are overridden but maps are merged
+
+```
+    PLIKD_DATA_BACKEND_CONFIG='{"Directory":"/var/files"}' ./plikd
+```
+
+### Data backends <a name="data-backends"></a>
+
+Plik is shipped with multiple data backend for uploaded files and metadata backend for the upload metadata.
+
+ - File databackend :
+
+Store uploaded files in a local or mounted file system directory.
+
+ - Openstack Swift databackend : http://docs.openstack.org/developer/swift/
+
+Openstack Swift is a highly available, distributed, eventually consistent object/blob store which supports Server Side Encryption  
+
+ - Amazon S3
+
+ - Google Cloud Storage
+
+### Metadata backends <a name="metadata-backends"></a>
+
+ - Sqlite3
+
+Suitable for standalone deployment.
+
+ - PostgreSQL / Mysql
+
+Suitable for distributed / High Availability deployment.
+
+### Cli client <a name="cli-client"></a>
 Plik is shipped with a powerful golang multiplatform cli client (downloadable in web interface) :  
 
 ```
@@ -121,36 +183,30 @@ When Authentication is used and NoAnonymousUploads are enabled you can quick upl
 curl --form 'file=@/path/to/file' --header 'X-PlikToken: xxxx-xxx-xxxx-xxxxx-xxxxxxxx' http://127.0.0.1:8080
 ```
 
-
 DownloadDomain configuration option must be set for this to properly work.
 
-### Available data backends
+### Go client <a name="go-client"></a>
 
-Plik is shipped with multiple data backend for uploaded files and metadata backend for the upload metadata.
+Plik now comes with a golang library above which the cli client is built
 
- - File databackend :
+See the [Plik library reference](plik/README.md)
 
-Store uploaded files in a local or mounted file system directory.
+### API <a name="api"></a>
+Plik server expose a HTTP API to manage uploads and get files :
 
- - Openstack Swift databackend : http://docs.openstack.org/developer/swift/
+See the [Plik API reference](documentation/api.md)
 
-Openstack Swift is a highly available, distributed, eventually consistent object/blob store which supports Server Side Encryption  
+### Admin CLI <a name="admin-cli"></a>
 
- - Amazon S3
+Using the ./plikd server binary it's possible to :
+  - create/list/delete local accounts
+  - create/list/delete user CLI tokens
+  - create/list/delete files and uploads
+  - import / export metadata
 
- - Google Cloud Storage
-
-### Available metadata backends
-
- - Sqlite3
-
-Suitable for standalone deployment.
-
- - PostgreSQL
-
-Suitable for distributed / High Availability deployment.
-
-### Authentication
+See help for more details
+   
+### Authentication <a name="authentication"></a>
 
 Plik can authenticate users using Local accounts or using Google or OVH APIs.
 
@@ -186,7 +242,7 @@ the command line client.
 Token = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 ```
 
-### Security
+### Security <a name="security"></a>
 Plik allow users to upload and serve any content as-is, but hosting untrusted HTML raises some well known security concerns.
 
 Plik will try to avoid HTML rendering by overriding Content-Type to "text-plain" instead of "text/html".
@@ -196,37 +252,29 @@ This will however break features like audio/video playback, pdf rendering so it'
   
 Along with that it is also strongly advised to serve uploaded files on a separate (sub-)domain to fight against phishing links and to protect Plik's session cookie with the DownloadDomain configuration parameter.  
 
-### API
-Plik server expose a HTTP API to manage uploads and get files :
+### Cross compilation <a name="cross-compilation"></a>
 
-See the [Plik API reference](documentation/api.md)
+All binary are now statically linked. Clients can be safely cross-compiled for all os/architectures as they do not rely on GCO (sqlite)
+Servers rely on CGO/sqlite need a cross-compilation ready environment.
 
-### Admin CLI
+ `make release` will build release archives for `amd64,i386,arm,arm64`
 
-Using the ./plikd server binary it's possible to :
-  - create/list/delete local accounts
-  - create/list/delete user CLI tokens
-  - create/list/delete files and uploads
-  - import / export metadata
+To build a release with only specific architectures of the client
+```
+    CLIENT_TARGETS="linux/amd64" releaser/release.sh
+```
 
-See help for more details
+To build only specific for only specific architectures
+```
+    TARGETS="linux/amd64" releaser/release.sh
+```
 
-### Docker
-Plik comes with a simple Dockerfile that allows you to run it in a container :
+To build with a specific cross compiler toolchain
+```
+    TARGETS="linux/arm/v6" CC=arm-linux-gnueabihf-gcc releaser/release.sh
+```
 
-See the [Plik Docker reference](documentation/docker.md)
-
-Plik also comes with some useful scripts to test backend in standalone docker instances :
-
-See the [Plik Docker backend testing](testing)
-
-### Go client
-
-Plik now comes with a golang library above which the cli client is built
-
-See the [Plik library reference](plik/README.md)
-
-### FAQ
+### FAQ <a name="faq"></a>
 
 * Why is stream mode broken in multiple instance deployement ?
 
@@ -335,7 +383,7 @@ scrot -s allow you to "Interactively select a window or rectangle with the mouse
 Plik will upload the screenshot and the url will be directly copied to your clipboard and displayed by xclip.
 The screenshot is then removed of your home directory to avoid garbage.
 
-* How to contribute to the project ?
+### How to contribute to the project ? <a name="how-to-contribute"></a>
 
 Contributions are welcome, feel free to open issues and/or submit pull requests.
 Please be sure to also run/update the test suite :
@@ -345,40 +393,4 @@ Please be sure to also run/update the test suite :
     make lint
     make test
     make test-backends
-```
-
-* Cross compilation
-
-All binary are now statically linked. Clients can be safely cross-compiled for all os/architectures as they do not rely on GCO (sqlite)
-Servers rely on CGO/sqlite need a cross-compilation ready environment.
-
- `make release` will build release archives for `amd64,i386,arm,arm64`
-
-To build a release with only specific architectures of the client
-```
-    CLIENT_TARGETS="linux/amd64" releaser/release.sh
-```
-
-To build only specific for only specific architectures
-```
-    TARGETS="linux/amd64" releaser/release.sh
-```
-
-To build with a specific cross compiler toolchain
-```
-    TARGETS="linux/arm/v6" CC=arm-linux-gnueabihf-gcc releaser/release.sh
-```
-
-* Defining configuration parameters using environment variables
-
-One can specify configuration parameters using env variable with the configuration parameter in screaming snake case  
-```
-    PLIKD_DEBUG_REQUESTS=true ./plikd
-```
-
-For Arrays and config maps they must be provided in json format.
-Arrays are overridden but maps are merged
-
-```
-    PLIKD_DATA_BACKEND_CONFIG='{"Directory":"/var/files"}' ./plikd
 ```
