@@ -60,7 +60,7 @@ You can edit server/plikd.cfg to adapt the configuration to your needs (ports, s
 ##### From sources
 To compile plik from sources, you'll need golang and npm installed on your system
 
-Git clone and go get the project and simply run make :
+Git clone or go get the project and simply run make :
 ```sh
 $ make
 $ cd server && ./plikd
@@ -68,9 +68,9 @@ $ cd server && ./plikd
 
 ##### Docker <a name="docker"></a>
 Plik comes with multiarch docker images built for linux amd64/i386/arm/arm64: 
- - rootgg/plik:latest (lastest release)
- - rootgg/plik:version (release)
- - rootgg/plik:dev (lastet commit of master)
+ - rootgg/plik:latest (latest release)
+ - rootgg/plik:{version} (release)
+ - rootgg/plik:dev (latest commit of master)
 
 See the [Plik Docker reference](documentation/docker.md)
 
