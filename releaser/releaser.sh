@@ -10,7 +10,6 @@ if [[ ! -d "webapp/dist" ]]; then
   exit 1
 fi
 
-
 RELEASE_VERSION=$(server/gen_build_info.sh version)
 
 # Default client targets
