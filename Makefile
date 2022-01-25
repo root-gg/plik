@@ -112,7 +112,7 @@ release:
 # Create release archives, build a multiarch Docker image and push to Docker Hub
 ###
 release-and-push-to-docker-hub:
-	@PUSH_TO_DOCKER_HUB=true @releaser/release.sh
+	@PUSH_TO_DOCKER_HUB=true releaser/release.sh
 
 ###
 # Remove server build files
