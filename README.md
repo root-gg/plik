@@ -349,27 +349,24 @@ Please be sure to also run/update the test suite :
 
 * Cross compilation
 
-All binary are now statically linked  
-Clients can be safely cross-compiled for all os/architectures as they do not rely on GCO (sqlite)
+All binary are now statically linked. Clients can be safely cross-compiled for all os/architectures as they do not rely on GCO (sqlite)
+Servers rely on CGO/sqlite need a cross-compilation ready environment.
+
+ `make release` will build release archives for `amd64,i386,arm,arm64`
+
+To build a release with only specific architectures of the client
 ```
-    GOOS=windows GOARCH=amd64 make client
+    CLIENT_TARGETS="linux/amd64" releaser/release.sh
 ```
 
-Servers rely on CGO/sqlite so we cross-compile it for Linux only using Docker.  
-The `make release` target will build a release package and Docker images for `amd64,i386,arm,arm64`
-
-If you want a more specific ARMv7 for hardware floating point build for example
-See : https://github.com/golang/go/wiki/GoArm
+To build only specific for only specific architectures
 ```
-    make release
-    docker run -it rootgg/plik-builder:latest /bin/bash
+    TARGETS="linux/amd64" releaser/release.sh
+```
 
-    GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc make server
-
-    file server/plikd
-    server/plikd: ELF 32-bit LSB executable, ARM, EABI5 version 1 (GNU/Linux), statically linked, for GNU/Linux 3.2.0, Go ...
-
-    Then either copy the binary from the docker or play with releaser/releaser.sh to generate a release archive
+To build with a specific cross compiler toolchain
+```
+    TARGETS="linux/arm/v6" CC=arm-linux-gnueabihf-gcc releaser/release.sh
 ```
 
 * Defining configuration parameters using environment variables

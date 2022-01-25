@@ -97,22 +97,22 @@ test-backends:
 	@testing/test_backends.sh
 
 ###
-# release
+# Build a docker image locally
+###
+docker:
+	@docker buildx build --progress=plain --load -t rootgg/plik:dev .
+
+###
+# Create release archives
 ###
 release:
 	@releaser/release.sh
 
 ###
-# release and also push docker images to docker hub
+# Create release archives, build a multiarch Docker image and push to Docker Hub
 ###
 release-and-push-to-docker-hub:
-	@PUSH_TO_DOCKER_HUB=true releaser/release.sh
-
-###
-# docker
-###
-docker:
-	@docker build -t rootgg/plik:dev --build-arg "TARGETS=amd64" --target="plik-amd64" .
+	@PUSH_TO_DOCKER_HUB=true @releaser/release.sh
 
 ###
 # Remove server build files
