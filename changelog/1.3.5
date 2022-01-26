@@ -1,0 +1,26 @@
+Plik 1.3.5
+
+Hi, today we're releasing Plik 1.3.5 !
+
+Here is the changelog :
+
+New :
+    - Multiarch Docker images builds for linux amd64,i386,arm,arm64 using Docker buildx
+        - rootgg/plik:latest    (latest release)
+        - rootgg/plik:{version} (release)
+        - rootgg/plik:dev       (latest commit on master)
+    - Server now log response status code and duration
+    - Server log level is configurable again
+    - Static content directories are now configurable (webapp, clients, changelog)
+
+Fix :
+    - Disable InsecureSkipVerify by default in the cli client
+    - Fix too permissive file permissions on cli client update
+    - Fix upload images from gallery in mobile browsers
+    - Fix paste when a modal is open
+    - Fix mint/release status in webapp admin view
+
+We are proud to announce that Plik code base has been successfully audited by https://secfault-security.com/.
+
+Faithfully,
+The plik team
