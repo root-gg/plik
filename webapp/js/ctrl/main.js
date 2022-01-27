@@ -601,7 +601,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 if (document.getElementsByClassName('modal-open').length > 0) return;
 
                 // If clipboard contains files
-                var files = clipboard.files
+                var files = _.clone(clipboard.files);
                 if (files.length) {
                     // Add the files
                     $timeout(function () {
