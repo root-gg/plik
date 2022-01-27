@@ -42,16 +42,12 @@ ab9b2c99da1f3e309cd3b12392b9084b5cafcca0325d7d47ff76f5b1e475d1b9
 Use this example file to set up your instance with all persistent data/metadata. All files, accounts and tokens will be persistent in this configuration.
 
 ```
-🪂 ➜  cd ~
-🪂 ➜  mkdir plik
-🪂 ➜  curl https://raw.githubusercontent.com/root-gg/plik/master/server/plikd.cfg # copy server configuration
-🪂 ➜  plik mkdir data # create directory to save files and/or metadata outside of the docker image
-🪂 ➜  plik chown 1000:1000 data # match UIDs with docker
-🪂 ➜  plik chown 1000:1000 plikd.cfg # match UIDs with docker
-total 12K
-drwxr-xr-x. 1 1000 1000    0 Jan 27 10:59 data
--rw-r--r--. 1 1000 1000  230 Jan 27 10:57 docker-compose.yml
--rw-r--r--. 1 1000 1000 4.6K Jan 27 10:59 plikd.cfg
+$  cd ~
+$ mkdir plik
+$ curl https://raw.githubusercontent.com/root-gg/plik/master/server/plikd.cfg # copy server configuration
+$  plik mkdir data # create directory to save files and/or metadata outside of the docker image
+$ plik chown 1000:1000 data # match UIDs with docker
+$ plik chown 1000:1000 plikd.cfg # match UIDs with docker
 ```
 
 Edit plikd.cfg to point the metadata and/or data to a mountpoint (/data in this example)
