@@ -8,6 +8,7 @@ on:
 jobs:  
   test:
     runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'root-gg' }}
     steps:
       
     - name: Check out code into the Go module directory
