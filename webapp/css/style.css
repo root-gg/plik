@@ -90,7 +90,6 @@ header a:hover, header a:visited, header a:link, header a:active {
 }
 
 footer {
-    position: absolute;
     bottom: 0;
     width: 100%;
     /* Set the fixed height of the footer here */
