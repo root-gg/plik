@@ -40,17 +40,18 @@ ab9b2c99da1f3e309cd3b12392b9084b5cafcca0325d7d47ff76f5b1e475d1b9
 ### Usage with docker-compose
 
 Use this example file to set up your instance with all persistent data/metadata. All files, accounts and tokens will be persistent in this configuration.
+Adjust directories to your like.
 
 ```
-$  cd ~
+$ cd ~
 $ mkdir plik
 $ curl https://raw.githubusercontent.com/root-gg/plik/master/server/plikd.cfg # copy server configuration
-$  plik mkdir data # create directory to save files and/or metadata outside of the docker image
+$ plik mkdir data # create directory to save files and/or metadata outside of the docker image
 $ plik chown 1000:1000 data # match UIDs with docker
 $ plik chown 1000:1000 plikd.cfg # match UIDs with docker
 ```
 
-Edit plikd.cfg to point the metadata and/or data to a mountpoint (/data in this example)
+Edit plikd.cfg to point the metadata and/or data to a mountpoint that you can match in docker-compose (/data in this example)
 ```
 DataBackend = "file"
 [DataBackendConfig]
@@ -75,3 +76,14 @@ services:
       - 8080:8080   
     restart: "unless-stopped"
 ```
+
+```
+$ docker-compose up
+Starting plik ... done
+Attaching to plik
+plik    | [01/27/2022 10:48:26][INFO    ] Starting plikd server v...
+plik    | [01/27/2022 10:48:26][INFO    ] Starting server at http://0.0.0.0:8080
+```
+
+Reach out on telegram or this thread if you need help or have any suggestion :
+https://github.com/root-gg/plik/issues/326
