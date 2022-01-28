@@ -1,4 +1,4 @@
-SHELL = /bin/bash
+SHELL = bash
 
 BUILD_INFO = $(shell server/gen_build_info.sh base64)
 BUILD_FLAG = -ldflags="-X github.com/root-gg/plik/server/common.buildInfoString=$(BUILD_INFO) -w -s -extldflags=-static"

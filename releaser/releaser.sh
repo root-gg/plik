@@ -1,8 +1,17 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
-make clean
+unamestr=$(uname)
+if [ "$unamestr" = 'FreeBSD' ]; then
+  MAKE="gmake"
+  TAR="gtar"
+else
+  MAKE="make"
+  TAR="tar"
+fi
+
+$MAKE clean
 
 # Assert frontend has been built already ( copied from previous docker stage )
 if [[ ! -d "webapp/dist" ]]; then
@@ -44,7 +53,7 @@ do
 
   echo "################################################"
   echo "Building Plik client for $TARGET to $CLIENT_PATH"
-  make --no-print-directory client
+  $MAKE --no-print-directory client
 
   mkdir -p "$CLIENT_DIR"
   cp client/plik "$CLIENT_PATH"
@@ -78,7 +87,7 @@ if [[ -z "$CC" ]]; then
   esac
 fi
 
-make --no-print-directory server
+$MAKE --no-print-directory server
 
 echo ""
 echo "Building Plik release v$RELEASE_VERSION $TARGETOS/$TARGETARCH$TARGETVARIANT"
@@ -104,5 +113,5 @@ echo ""
 echo "Building Plik release archive $RELEASE_ARCHIVE"
 echo ""
 
-tar czf $RELEASE_ARCHIVE --transform "s,^$RELEASE_DIR,$RELEASE," $RELEASE_DIR
-tar tf $RELEASE_ARCHIVE
+$TAR czf $RELEASE_ARCHIVE --transform "s,^$RELEASE_DIR,$RELEASE," $RELEASE_DIR
+$TAR tf $RELEASE_ARCHIVE
