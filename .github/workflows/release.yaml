@@ -1,4 +1,4 @@
-name: go_build
+name: release
 
 on:
   release:

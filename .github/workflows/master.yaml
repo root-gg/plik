@@ -1,4 +1,4 @@
-name: Build and release rootgg/plik:dev
+name: build
 
 on:
   push:
