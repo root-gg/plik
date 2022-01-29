@@ -268,3 +268,8 @@ func (upload *Upload) InitializeForTests() {
 		}
 	}
 }
+
+func (upload *Upload) UnmarshalBinary(data []byte) error {
+	fmt.Println("data")
+	panic("yo")
+}
