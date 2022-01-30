@@ -24,7 +24,10 @@ type Config struct {
 	MaxOpenConns       int
 	MaxIdleConns       int
 	Debug              bool
-	SlowQueryThreshold string
+	SlowQueryThreshold string // Duration string
+	noMigrations       bool   // For testing
+	migrationFilter    func([]*gormigrate.Migration) []*gormigrate.Migration
+	disableSchemaInit  bool // For testing
 }
 
 // NewConfig instantiate a new default configuration
@@ -131,13 +134,15 @@ func NewBackend(config *Config, log *logger.Logger) (b *Backend, err error) {
 		}
 	}
 
-	// Initialize database schema
-	err = b.initializeDB()
-	if err != nil {
-		if err := b.Shutdown(); err != nil {
-			b.db.Logger.Error(context.Background(), "Unable to shutdown metadata backend : %s", err)
+	if !b.Config.noMigrations {
+		// Initialize database schema
+		err = b.initializeSchema()
+		if err != nil {
+			if err := b.Shutdown(); err != nil {
+				b.db.Logger.Error(context.Background(), "Unable to shutdown metadata backend : %s", err)
+			}
+			return nil, fmt.Errorf("unable to initialize DB : %s", err)
 		}
-		return nil, fmt.Errorf("unable to initialize DB : %s", err)
 	}
 
 	// Adjust max idle/open connection pool size
@@ -151,34 +156,40 @@ func NewBackend(config *Config, log *logger.Logger) (b *Backend, err error) {
 
 // Initialize the metadata backend.
 //  - Create or update the database schema if needed
-func (b *Backend) initializeDB() (err error) {
-	m := gormigrate.New(b.db, gormigrate.DefaultOptions, []*gormigrate.Migration{
-		// your migrations here
-	})
+func (b *Backend) initializeSchema() (err error) {
+	m := gormigrate.New(b.db, gormigrate.DefaultOptions, b.getMigrations())
 
-	m.InitSchema(func(tx *gorm.DB) error {
+	if !b.Config.disableSchemaInit {
+		// Skip migrations if initializing database for the first time
+		m.InitSchema(func(tx *gorm.DB) error {
+			b.log.Warningf("Initializing %s database", b.Config.Driver)
 
-		if b.Config.Driver == "mysql" {
-			// Enable foreign keys
-			tx = tx.Set("gorm:table_options", "ENGINE=InnoDB")
-		}
+			err := b.setupTxForMigration(tx).AutoMigrate(
+				&common.Upload{},
+				&common.File{},
+				&common.User{},
+				&common.Token{},
+				&common.Setting{},
+			)
 
-		err := tx.AutoMigrate(
-			&common.Upload{},
-			&common.File{},
-			&common.User{},
-			&common.Token{},
-			&common.Setting{},
-		)
-
-		return err
-	})
+			return err
+		})
+	}
 
 	if err = m.Migrate(); err != nil {
 		return fmt.Errorf("could not migrate: %v", err)
 	}
 
 	return nil
+}
+
+func (b *Backend) setupTxForMigration(tx *gorm.DB) *gorm.DB {
+	if b.Config.Driver == "mysql" {
+		// Enable foreign keys and set utf8 charset
+		return tx.Set("gorm:table_options", "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4")
+	}
+
+	return tx
 }
 
 // Adjust max idle/open connection pool size
@@ -214,6 +225,39 @@ func (b *Backend) Shutdown() (err error) {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// Clean metadata database
+//  - Remove orphan files and tokens
+func (b *Backend) Clean() error {
+	return b.clean(b.db)
+}
+
+func (b *Backend) clean(tx *gorm.DB) error {
+	if !tx.Migrator().HasTable("uploads") {
+		// Empty database
+		return nil
+	}
+
+	b.log.Infof("Cleaning up SQL database")
+
+	result := tx.Exec("delete from files where upload_id not in (select id from uploads);")
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected > 0 {
+		b.log.Warningf("deleted %d orphan files", result.RowsAffected)
+	}
+
+	result = tx.Exec("delete from tokens where user_id not in (select id from users);")
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected > 0 {
+		b.log.Warningf("deleted %d orphan tokens", result.RowsAffected)
 	}
 
 	return nil

@@ -1,0 +1,208 @@
+-- MariaDB dump 10.19  Distrib 10.6.5-MariaDB, for debian-linux-gnu (x86_64)
+--
+-- Host: localhost    Database: plik
+-- ------------------------------------------------------
+-- Server version	10.6.5-MariaDB-1:10.6.5+maria~focal
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Table structure for table `files`
+--
+
+DROP TABLE IF EXISTS `files`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `files` (
+  `id` varchar(256) NOT NULL,
+  `upload_id` varchar(256) DEFAULT NULL,
+  `name` varchar(256) DEFAULT NULL,
+  `status` varchar(256) DEFAULT NULL,
+  `md5` varchar(256) DEFAULT NULL,
+  `type` varchar(256) DEFAULT NULL,
+  `size` bigint(20) DEFAULT NULL,
+  `reference` varchar(256) DEFAULT NULL,
+  `backend_details` varchar(256) DEFAULT NULL,
+  `created_at` datetime(3) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_uploads_files` (`upload_id`),
+  CONSTRAINT `fk_uploads_files` FOREIGN KEY (`upload_id`) REFERENCES `uploads` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `files`
+--
+
+LOCK TABLES `files` WRITE;
+/*!40000 ALTER TABLE `files` DISABLE KEYS */;
+INSERT INTO `files` VALUES ('FILE1XXXXXXXXXXX','UPLOAD1XXXXXXXXX','愛愛愛','','ccea80b85af4f156af9d4d3b94e91a5e','application/awesome',42,'1','{foo:\"bar\"}','2022-01-31 10:04:31.506'),('FILE2XXXXXXXXXXX','UPLOAD2XXXXXXXXX','filename','','','',0,'','','2022-01-31 10:04:31.509'),('FILE3XXXXXXXXXXX','UPLOAD3XXXXXXXXX','filename','','','',0,'','','2022-01-31 10:04:31.512');
+/*!40000 ALTER TABLE `files` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `migrations`
+--
+
+DROP TABLE IF EXISTS `migrations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `migrations` (
+  `id` varchar(255) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `migrations`
+--
+
+LOCK TABLES `migrations` WRITE;
+/*!40000 ALTER TABLE `migrations` DISABLE KEYS */;
+INSERT INTO `migrations` VALUES ('0000-cleaning'),('0001-initial'),('SCHEMA_INIT');
+/*!40000 ALTER TABLE `migrations` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `settings`
+--
+
+DROP TABLE IF EXISTS `settings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `settings` (
+  `key` varchar(256) NOT NULL,
+  `value` varchar(256) DEFAULT NULL,
+  PRIMARY KEY (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `settings`
+--
+
+LOCK TABLES `settings` WRITE;
+/*!40000 ALTER TABLE `settings` DISABLE KEYS */;
+INSERT INTO `settings` VALUES ('key1','val1');
+/*!40000 ALTER TABLE `settings` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `tokens`
+--
+
+DROP TABLE IF EXISTS `tokens`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `tokens` (
+  `token` varchar(256) NOT NULL,
+  `comment` varchar(256) DEFAULT NULL,
+  `user_id` varchar(256) DEFAULT NULL,
+  `created_at` datetime(3) DEFAULT NULL,
+  PRIMARY KEY (`token`),
+  KEY `fk_users_tokens` (`user_id`),
+  CONSTRAINT `fk_users_tokens` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `tokens`
+--
+
+LOCK TABLES `tokens` WRITE;
+/*!40000 ALTER TABLE `tokens` DISABLE KEYS */;
+INSERT INTO `tokens` VALUES ('8cbaeacd-6a3e-4636-4200-607a6e240688','user token','google:googleuser','2022-01-31 10:04:31.503'),('e78415ed-883e-4d0b-5d0e-fe2d03757520','admin token','local:admin','2022-01-31 10:04:31.499');
+/*!40000 ALTER TABLE `tokens` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `uploads`
+--
+
+DROP TABLE IF EXISTS `uploads`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `uploads` (
+  `id` varchar(256) NOT NULL,
+  `ttl` bigint(20) DEFAULT NULL,
+  `remote_ip` varchar(256) DEFAULT NULL,
+  `comments` varchar(256) DEFAULT NULL,
+  `upload_token` varchar(256) DEFAULT NULL,
+  `user` varchar(256) DEFAULT NULL,
+  `token` varchar(256) DEFAULT NULL,
+  `stream` tinyint(1) DEFAULT NULL,
+  `one_shot` tinyint(1) DEFAULT NULL,
+  `removable` tinyint(1) DEFAULT NULL,
+  `protected_by_password` tinyint(1) DEFAULT NULL,
+  `login` varchar(256) DEFAULT NULL,
+  `password` varchar(256) DEFAULT NULL,
+  `created_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `expire_at` datetime(3) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_upload_user` (`user`),
+  KEY `idx_upload_user_token` (`token`),
+  KEY `idx_upload_deleted_at` (`deleted_at`),
+  KEY `idx_upload_expire_at` (`expire_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `uploads`
+--
+
+LOCK TABLES `uploads` WRITE;
+/*!40000 ALTER TABLE `uploads` DISABLE KEYS */;
+INSERT INTO `uploads` VALUES ('UPLOAD1XXXXXXXXX',3600,'1.3.3.7','愛 الحب 사랑 αγάπη любовь प्यार Սեր माया','UPLOADTOKENXXXXXXXXXXXXXXXXXXXXX','','',0,1,1,0,'foo','bar','2000-01-01 01:00:00.000',NULL,'2000-01-01 02:00:00.000'),('UPLOAD2XXXXXXXXX',0,'','','UPLOADTOKENXXXXXXXXXXXXXXXXXXXXX','google:googleuser','',0,0,0,0,'','','2022-01-31 10:04:31.508',NULL,NULL),('UPLOAD3XXXXXXXXX',0,'','','UPLOADTOKENXXXXXXXXXXXXXXXXXXXXX','google:googleuser','8cbaeacd-6a3e-4636-4200-607a6e240688',0,0,0,0,'','','2022-01-31 10:04:31.512',NULL,NULL),('UPLOAD4XXXXXXXXX',0,'','','UPLOADTOKENXXXXXXXXXXXXXXXXXXXXX','','',0,0,0,0,'','','2022-01-31 10:04:31.514',NULL,NULL);
+/*!40000 ALTER TABLE `uploads` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `users`
+--
+
+DROP TABLE IF EXISTS `users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `users` (
+  `id` varchar(256) NOT NULL,
+  `provider` varchar(256) DEFAULT NULL,
+  `login` varchar(256) DEFAULT NULL,
+  `password` varchar(256) DEFAULT NULL,
+  `name` varchar(256) DEFAULT NULL,
+  `email` varchar(256) DEFAULT NULL,
+  `is_admin` tinyint(1) DEFAULT NULL,
+  `created_at` datetime(3) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `users`
+--
+
+LOCK TABLES `users` WRITE;
+/*!40000 ALTER TABLE `users` DISABLE KEYS */;
+INSERT INTO `users` VALUES ('google:googleuser','google','','','Plik User','user@root.gg',0,'2022-01-31 10:04:31.501'),('local:admin','local','admin','$2a$14$s103BdAMxYV96BunH9hefOEpXnmMzHBmif6tcsQHZkioFeoeHiuRu','Plik Admin','admin@root.gg',1,'2022-01-31 10:04:31.497');
+/*!40000 ALTER TABLE `users` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2022-01-31  9:04:31

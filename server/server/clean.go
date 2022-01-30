@@ -84,6 +84,13 @@ func (ps *PlikServer) Clean() {
 	if err != nil {
 		log.Warning(err.Error())
 	}
+
+	// 4 - clean metadata database
+
+	err = ps.metadataBackend.Clean()
+	if err != nil {
+		log.Warning(err.Error())
+	}
 }
 
 // PurgeDeletedFiles delete "removed" files from the data backend
