@@ -4,10 +4,11 @@ import (
 	"encoding/gob"
 	"fmt"
 	"github.com/golang/snappy"
-	"github.com/root-gg/plik/server/common"
-	"github.com/root-gg/utils"
 	"io"
 	"os"
+
+	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/utils"
 )
 
 // ImportOptions for metadata imports
@@ -50,10 +51,10 @@ func (i *importer) close() (err error) {
 
 // Import imports metadata from a compressed binary file
 func (b *Backend) Import(path string, options *ImportOptions) (err error) {
-	//path, err = fixGormV1ExportFormat(path)
-	//if err != nil {
-	//	return err
-	//}
+	path, err = fixGormV1ExportFormat(path)
+	if err != nil {
+		return err
+	}
 
 	i, err := newImporter(path)
 	if err != nil {

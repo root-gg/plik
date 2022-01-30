@@ -3,7 +3,6 @@ package common
 import (
 	"encoding/json"
 	"fmt"
-	"gorm.io/gorm"
 	"time"
 )
 
@@ -98,7 +97,7 @@ func MarshalUpload(upload *Upload, version int) (bytes []byte, err error) {
 	return nil, fmt.Errorf("invalid version %d", version)
 }
 
-// UploadGormV1 upload object compatible with Plik [1.3->1.3.2]
+//UploadGormV1 upload object compatible with Plik [1.3->1.3.2]
 type UploadGormV1 struct {
 	ID  string `json:"id"`
 	TTL int    `json:"ttl"`
@@ -154,7 +153,7 @@ func (v1 UploadGormV1) ToUpload() (upload *Upload) {
 
 	upload.CreatedAt = v1.CreatedAt
 	if v1.DeletedAt != nil {
-		upload.DeletedAt = gorm.DeletedAt{Time: *v1.DeletedAt, Valid: true}
+		//upload.DeletedAt = gorm.DeletedAt{Time: *v1.DeletedAt, Valid: true}
 	}
 	upload.ExpireAt = v1.ExpireAt
 

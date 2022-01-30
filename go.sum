@@ -296,6 +296,8 @@ github.com/prometheus/tsdb v0.7.1/go.mod h1:qhTCs0VvXwvX/y3TZrWD7rabWM+ijKTux40T
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
+github.com/root-gg/gob v0.0.0-20220130154842-4e4119b3db1c h1:j9a0QflL1grDJBT9nps1RytF0LrBHb6lt7zj5UDnMOk=
+github.com/root-gg/gob v0.0.0-20220130154842-4e4119b3db1c/go.mod h1:XSrIcV5VVEGOaj+6QMsyOgvcnWfybwsyS7nWsVUQQb4=
 github.com/root-gg/logger v0.0.0-20150501173826-5d9a47a35312 h1:gLYLMWhdoU02+VLbz4TUhsWZCMvNk3k92YZawb2QcxI=
 github.com/root-gg/logger v0.0.0-20150501173826-5d9a47a35312/go.mod h1:SZ5sf0POVtIvp+vNCGYwJp1/ZT6/nShOau6aVMGgtGU=
 github.com/root-gg/utils v0.0.0-20201113182430-4cef83d8cdcf h1:Qx8jlCUW4X3+W+k14GCr33IBh/jYt+kaV/AzZWrl4vk=

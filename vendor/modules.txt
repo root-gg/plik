@@ -144,6 +144,9 @@ github.com/pilagod/gorm-cursor-paginator/v2/internal/util
 github.com/pilagod/gorm-cursor-paginator/v2/paginator
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
+# github.com/root-gg/gob v0.0.0-20220130154842-4e4119b3db1c
+## explicit
+github.com/root-gg/gob
 # github.com/root-gg/logger v0.0.0-20150501173826-5d9a47a35312
 ## explicit
 github.com/root-gg/logger

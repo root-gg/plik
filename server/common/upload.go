@@ -3,11 +3,11 @@ package common
 import (
 	"crypto/rand"
 	"fmt"
+	"gorm.io/gorm"
 	"math/big"
 	"time"
 
 	"github.com/root-gg/utils"
-	"gorm.io/gorm"
 )
 
 var (
@@ -269,7 +269,7 @@ func (upload *Upload) InitializeForTests() {
 	}
 }
 
-func (upload *Upload) UnmarshalBinary(data []byte) error {
-	fmt.Println("data")
-	panic("yo")
-}
+//func (upload *Upload) GobDecode(data []byte) error {
+//	fmt.Println("data")
+//	panic("yo")
+//}

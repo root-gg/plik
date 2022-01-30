@@ -1,12 +1,14 @@
 package metadata
 
 import (
-	"encoding/gob"
 	"fmt"
-	"github.com/golang/snappy"
-	"github.com/root-gg/plik/server/common"
 	"io"
 	"os"
+
+	"github.com/golang/snappy"
+	"github.com/root-gg/gob"
+
+	"github.com/root-gg/plik/server/common"
 )
 
 type importerGormV1 struct {
@@ -28,12 +30,14 @@ func newImporterGormV1(path string) (i *importerGormV1, err error) {
 	i.decompressor = snappy.NewReader(i.reader)
 
 	// Gog decoder
-	gob.Register(&common.UploadGormV1{})
-	gob.Register(&common.FileGormV1{})
+	gob.Register(&common.Upload{})
+	gob.Register(&common.File{})
 	gob.Register(&common.User{})
 	gob.Register(&common.Token{})
 	gob.Register(&common.Setting{})
 	i.decoder = gob.NewDecoder(i.decompressor)
+	i.decoder.RegisterName("*common.Upload", &common.UploadGormV1{})
+	i.decoder.RegisterName("*common.File", &common.FileGormV1{})
 
 	return i, nil
 }
@@ -58,19 +62,12 @@ func (i *importerGormV1) export(path string) (err error) {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			if err.Error() == "gob: wrong type (gorm.DeletedAt) for received field Upload.DeletedAt" {
-
-			}
 			return err
 		}
 
 		switch obj.Type {
 		case metadataTypeUpload:
 			err := e.addUpload(obj.Object.(*common.UploadGormV1).ToUpload())
-			if err != nil {
-				return err
-			}
-			
 			if err != nil {
 				return err
 			} else {
@@ -80,19 +77,11 @@ func (i *importerGormV1) export(path string) (err error) {
 			err := e.addFile(obj.Object.(*common.FileGormV1).ToFile())
 			if err != nil {
 				return err
-			}
-
-			if err != nil {
-				return err
 			} else {
 				files++
 			}
 		case metadataTypeUser:
 			err := e.addUser(obj.Object.(*common.User))
-			if err != nil {
-				return err
-			}
-
 			if err != nil {
 				return err
 			} else {
@@ -102,23 +91,15 @@ func (i *importerGormV1) export(path string) (err error) {
 			err := e.addToken(obj.Object.(*common.Token))
 			if err != nil {
 				return err
-			}
-
-			if err != nil {
-				return err
 			} else {
-				uploads++
+				tokens++
 			}
 		case metadataTypeSetting:
 			err := e.addSetting(obj.Object.(*common.Setting))
 			if err != nil {
 				return err
-			}
-
-			if err != nil {
-				return err
 			} else {
-				uploads++
+				settings++
 			}
 		default:
 			return fmt.Errorf("invalid object type")
