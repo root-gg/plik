@@ -584,5 +584,5 @@ func TestAddFileTooBig(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	AddFile(ctx, rr, req)
 
-	context.TestBadRequest(t, rr, fmt.Sprintf("file too big (limit is set to %d bytes)", ctx.GetConfig().MaxFileSize))
+	context.TestBadRequest(t, rr, "file too big")
 }

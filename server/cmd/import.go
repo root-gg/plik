@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/root-gg/plik/server/metadata"
-
 	"github.com/spf13/cobra"
+
+	"github.com/root-gg/plik/server/metadata"
 )
 
 type importFlagParams struct {

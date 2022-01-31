@@ -2,23 +2,24 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-
-	"github.com/root-gg/plik/server/server"
-
+	"github.com/dustin/go-humanize"
 	"github.com/root-gg/utils"
 	"github.com/spf13/cobra"
+	"os"
 
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/server"
 )
 
 type userFlagParams struct {
-	provider string
-	login    string
-	name     string
-	password string
-	email    string
-	admin    bool
+	provider    string
+	login       string
+	name        string
+	password    string
+	email       string
+	admin       bool
+	maxFileSize string
+	maxTTL      string
 }
 
 var userParams = userFlagParams{}
@@ -75,12 +76,16 @@ func init() {
 	createUserCmd.Flags().StringVar(&userParams.name, "name", "", "user name")
 	createUserCmd.Flags().StringVar(&userParams.name, "email", "", "user email")
 	createUserCmd.Flags().StringVar(&userParams.password, "password", "", "user password")
+	createUserCmd.Flags().StringVar(&userParams.maxFileSize, "max-file-size", "", "user max file size")
+	createUserCmd.Flags().StringVar(&userParams.maxTTL, "max-ttl", "", "user max ttl")
 	createUserCmd.Flags().BoolVar(&userParams.admin, "admin", false, "user admin")
 
 	userCmd.AddCommand(updateUserCmd)
 	updateUserCmd.Flags().StringVar(&userParams.name, "name", "", "user name")
 	updateUserCmd.Flags().StringVar(&userParams.name, "email", "", "user email")
 	updateUserCmd.Flags().StringVar(&userParams.password, "password", "", "user password")
+	updateUserCmd.Flags().StringVar(&userParams.maxFileSize, "max-file-size", "", "user max file size")
+	updateUserCmd.Flags().StringVar(&userParams.maxTTL, "max-ttl", "", "user max ttl")
 	updateUserCmd.Flags().BoolVar(&userParams.admin, "admin", false, "user admin")
 
 	userCmd.AddCommand(listUsersCmd)
@@ -124,6 +129,24 @@ func createUser(cmd *cobra.Command, args []string) {
 	user.Name = userParams.name
 	user.Email = userParams.email
 	user.IsAdmin = userParams.admin
+
+	if userParams.maxFileSize != "" {
+		maxFileSize, err := humanize.ParseBytes(userParams.maxFileSize)
+		if err != nil {
+			fmt.Printf("Unable to parse max-file-size\n")
+			os.Exit(1)
+		}
+		user.MaxFileSize = int64(maxFileSize)
+	}
+
+	if userParams.maxTTL != "" {
+		maxTTL, err := common.ParseTTL(userParams.maxTTL)
+		if err != nil {
+			fmt.Printf("Unable to parse max-ttl\n")
+			os.Exit(1)
+		}
+		user.MaxTTL = maxTTL
+	}
 
 	if userParams.password == "" {
 		userParams.password = common.GenerateRandomID(32)
@@ -215,6 +238,24 @@ func updateUser(cmd *cobra.Command, args []string) {
 
 	if cmd.Flags().Changed("admin") {
 		user.IsAdmin = userParams.admin
+	}
+
+	if userParams.maxFileSize != "" {
+		maxFileSize, err := humanize.ParseBytes(userParams.maxFileSize)
+		if err != nil {
+			fmt.Printf("Unable to parse max-file-size\n")
+			os.Exit(1)
+		}
+		user.MaxFileSize = int64(maxFileSize)
+	}
+
+	if userParams.maxTTL != "" {
+		maxTTL, err := common.ParseTTL(userParams.maxTTL)
+		if err != nil {
+			fmt.Printf("Unable to parse max-ttl : %s\n", err)
+			os.Exit(1)
+		}
+		user.MaxTTL = maxTTL
 	}
 
 	if userParams.password != "" {

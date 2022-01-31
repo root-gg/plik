@@ -99,6 +99,27 @@ func (b *Backend) getMigrations() []*gormigrate.Migration {
 				b.log.Criticalf("Something went wrong. Please check database status manually")
 				return nil
 			},
+		}, {
+			ID: "0002-user-limits",
+			Migrate: func(tx *gorm.DB) error {
+				type User struct {
+					MaxFileSize int64 `json:"maxFileSize"`
+					MaxTTL      int   `json:"maxTTL"`
+				}
+
+				err := b.clean(tx)
+				if err != nil {
+					return err
+				}
+
+				b.log.Warning("Applying database migration 0002-user-limits")
+				return b.setupTxForMigration(tx).AutoMigrate(&User{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				// return tx.Migrator().DropTable("uploads", "files", "users", "tokens", "settings")
+				b.log.Criticalf("Something went wrong. Please check database status manually")
+				return nil
+			},
 		},
 	}
 

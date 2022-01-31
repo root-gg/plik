@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/root-gg/plik/server/common"
-
 	"github.com/root-gg/plik/server/context"
 )
 
@@ -17,14 +16,7 @@ func CreateUpload(ctx *context.Context, next http.Handler) http.Handler {
 		}
 
 		// Create upload with default params
-		upload, err := common.CreateUpload(ctx.GetConfig(), &common.Upload{})
-		if err != nil {
-			ctx.BadRequest("unable to create upload : %s", err)
-			return
-		}
-
-		// Assign context parameters ( IP / user / token )
-		err = ctx.ConfigureUploadFromContext(upload)
+		upload, err := ctx.CreateUpload(&common.Upload{})
 		if err != nil {
 			ctx.BadRequest("unable to create upload : %s", err)
 			return

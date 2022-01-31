@@ -37,6 +37,8 @@ func generateTestData(t *testing.T, b *Backend) {
 	admin.Password = "$2a$14$s103BdAMxYV96BunH9hefOEpXnmMzHBmif6tcsQHZkioFeoeHiuRu" // p@ssw0rd
 	admin.Name = "Plik Admin"
 	admin.Email = "admin@root.gg"
+	admin.MaxTTL = 86400 * 365
+	admin.MaxFileSize = 100 * 1e9
 	err = b.CreateUser(admin)
 	require.NoError(t, err, "unable to create admin user")
 
@@ -47,6 +49,7 @@ func generateTestData(t *testing.T, b *Backend) {
 	require.NoError(t, err, "unable to create admin token")
 
 	user := common.NewUser(common.ProviderGoogle, "googleuser")
+	user.Login = "user@root.gg"
 	user.Email = "user@root.gg"
 	user.Name = "Plik User"
 	err = b.CreateUser(user)
@@ -83,6 +86,7 @@ func generateTestData(t *testing.T, b *Backend) {
 	file.BackendDetails = "{foo:\"bar\"}"
 	file.Reference = "1"
 	file.Type = "application/awesome"
+	file.Status = common.FileUploaded
 
 	err = b.CreateUpload(upload)
 	require.NoError(t, err, "unable to save upload metadata")
