@@ -167,6 +167,7 @@ func (c *Client) GetUploadProtectedByPassword(id string, login string, password 
 	return upload, nil
 }
 
+// NewHTTPClient Create a new HTTP client with ProxyFromEnvironment and InsecureSkipVerify setup
 func NewHTTPClient(insecure bool) *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
