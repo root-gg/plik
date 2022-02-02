@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/root-gg/utils"
 	"os"
 
 	"github.com/dustin/go-humanize"
@@ -25,11 +26,18 @@ var fileCmd = &cobra.Command{
 	Short: "Manipulate files",
 }
 
-// listUsersCmd represents the "file list" command
+// listFilesCmd represents the "file list" command
 var listFilesCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List files",
 	Run:   listFiles,
+}
+
+// showFileCmd represents the "file show" command
+var showFileCmd = &cobra.Command{
+	Use:   "show",
+	Short: "show file info",
+	Run:   showFile,
 }
 
 // deleteFilesCmd represents the "file delete" command
@@ -49,6 +57,7 @@ func init() {
 	fileCmd.AddCommand(listFilesCmd)
 	listFilesCmd.Flags().BoolVar(&fileParams.human, "human", true, "human readable size")
 
+	fileCmd.AddCommand(showFileCmd)
 	fileCmd.AddCommand(deleteFilesCmd)
 }
 
@@ -96,6 +105,29 @@ func listFiles(cmd *cobra.Command, args []string) {
 		fmt.Printf("Unable to get files : %s\n", err)
 		os.Exit(1)
 	}
+}
+
+func showFile(cmd *cobra.Command, args []string) {
+	initializeMetadataBackend()
+
+	if fileParams.fileID == "" {
+		fmt.Println("Missing file id")
+		os.Exit(1)
+	}
+
+	file, err := metadataBackend.GetFile(fileParams.fileID)
+	if err != nil {
+		fmt.Printf("Unable to get file : %s\n", err)
+		os.Exit(1)
+	}
+	if file == nil {
+		fmt.Printf("File %s not found\n", fileParams.fileID)
+		os.Exit(1)
+	}
+
+	utils.Dump(file)
+	fmt.Printf("Upload URL : %s/#/?id=%s\n", config.GetServerURL(), file.UploadID)
+	fmt.Printf("File URL : %s/file/%s/%s/%s\n", config.GetServerURL(), file.UploadID, file.ID, file.Name)
 }
 
 func deleteFiles(cmd *cobra.Command, args []string) {
