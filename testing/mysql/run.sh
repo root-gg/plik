@@ -29,7 +29,7 @@ function start {
             -e MYSQL_PASSWORD="password" \
             --name "$DOCKER_NAME" "$DOCKER_IMAGE"
 
-        echo "waiting for mssql to start ..."
+        echo "waiting for mysql to start ..."
         sleep 30
         if ! status ; then
             echo "IMAGE IS NOT RUNNING"

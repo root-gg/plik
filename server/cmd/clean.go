@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"github.com/root-gg/plik/server/server"
-
 	"github.com/spf13/cobra"
+
+	"github.com/root-gg/plik/server/server"
 )
 
 // cleanCmd represents all clean command

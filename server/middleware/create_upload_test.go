@@ -15,6 +15,7 @@ import (
 func TestCreateUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().DefaultTTL = 60
 
 	ctx.SetSourceIP(net.ParseIP("1.2.3.4"))
 	ctx.SetUser(&common.User{ID: "user"})

@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/dustin/go-humanize"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
@@ -86,7 +88,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		}
 
 		// Create a new file object
-		file, err = common.CreateFile(config, upload, &common.File{Name: fileName})
+		file, err = ctx.CreateFile(upload, &common.File{Name: fileName})
 		if err != nil {
 			ctx.BadRequest("unable to create file : %s", err.Error())
 			return
@@ -199,7 +201,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 //  - Compute md5sum
 func preprocessor(ctx *context.Context, file io.Reader, preprocessWriter io.WriteCloser, outputCh chan preprocessOutputReturn) {
 	log := ctx.GetLogger()
-	config := ctx.GetConfig()
+	maxFileSize := ctx.GetMaxFileSize()
 
 	var err error
 	var totalBytes int64
@@ -233,8 +235,8 @@ func preprocessor(ctx *context.Context, file io.Reader, preprocessWriter io.Writ
 		totalBytes += int64(bytesRead)
 
 		// Check upload max size limit
-		if int64(totalBytes) > config.MaxFileSize {
-			err = common.NewHTTPError(fmt.Sprintf("file too big (limit is set to %d bytes)", config.MaxFileSize), nil, http.StatusBadRequest)
+		if totalBytes > maxFileSize {
+			err = common.NewHTTPError(fmt.Sprintf("file too big (limit is set to %s)", humanize.Bytes(uint64(maxFileSize))), nil, http.StatusBadRequest)
 			break
 		}
 

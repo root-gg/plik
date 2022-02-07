@@ -1,11 +1,10 @@
 package common
 
 import (
+	"github.com/root-gg/logger"
 	"net"
 	"os"
 	"testing"
-
-	"github.com/root-gg/logger"
 
 	"github.com/iancoleman/strcase"
 
@@ -52,7 +51,6 @@ func TestInitializeConfigUploadWhitelist(t *testing.T) {
 
 	err = config.Initialize()
 	RequireError(t, err, "failed to parse upload whitelist")
-
 }
 
 func TestIsWhitelisted(t *testing.T) {
@@ -119,6 +117,28 @@ func TestInitializeInfiniteMaxTTL(t *testing.T) {
 
 	err := config.Initialize()
 	require.NoError(t, err, "unable to initialize valid config")
+}
+
+func TestInitializeTTLString(t *testing.T) {
+	config := NewConfiguration()
+	config.DefaultTTLStr = "3d"
+	config.MaxTTLStr = "30d"
+
+	err := config.Initialize()
+	require.NoError(t, err, "unable to initialize valid config")
+
+	require.Equal(t, 3*86400, config.DefaultTTL, "invalid default TTL")
+	require.Equal(t, 30*86400, config.MaxTTL, "invalid max TTL")
+}
+
+func TestInitializeMaxFileSizeString(t *testing.T) {
+	config := NewConfiguration()
+	config.MaxFileSizeStr = "100 MB"
+
+	err := config.Initialize()
+	require.NoError(t, err, "unable to initialize valid config")
+
+	require.Equal(t, int64(100*1000*1000), config.MaxFileSize, "invalid max file size")
 }
 
 func TestDisableAutoClean(t *testing.T) {
@@ -214,4 +234,37 @@ func TestNewConfiguration_InitializeDebugCompat(t *testing.T) {
 	require.NoError(t, err, "initialize error")
 	require.True(t, config.Debug)
 	require.True(t, config.DebugRequests)
+}
+
+func TestParseTTL(t *testing.T) {
+	TTL, err := ParseTTL("60")
+	require.NoError(t, err, "parse ttl error")
+	require.Equal(t, 60, TTL)
+
+	TTL, err = ParseTTL("60s")
+	require.NoError(t, err, "parse ttl error")
+	require.Equal(t, 60, TTL)
+
+	TTL, err = ParseTTL("30d")
+	require.NoError(t, err, "parse ttl error")
+	require.Equal(t, 86400*30, TTL)
+
+	TTL, err = ParseTTL("720h")
+	require.NoError(t, err, "parse ttl error")
+	require.Equal(t, 3600*720, TTL)
+
+	TTL, err = ParseTTL("4w")
+	require.NoError(t, err, "parse ttl error")
+	require.Equal(t, 86400*28, TTL)
+
+	TTL, err = ParseTTL("-1")
+	require.NoError(t, err, "parse ttl error")
+	require.Equal(t, 0, TTL)
+
+	TTL, err = ParseTTL("-10d")
+	require.NoError(t, err, "parse ttl error")
+	require.Equal(t, 0, TTL)
+
+	TTL, err = ParseTTL("foo")
+	RequireError(t, err, "unable to parse TTL")
 }

@@ -33,6 +33,7 @@ require (
 	github.com/spf13/cobra v0.0.6-0.20200106181057-89c7ffb5129b
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.7.0
+	github.com/xhit/go-str2duration/v2 v2.0.0
 	go.opencensus.io v0.20.2 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a

@@ -1,64 +1,70 @@
 // Main controller
-plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location', '$dialog', '$timeout', '$paste',
-    function ($scope, $api, $config, $route, $location, $dialog, $timeout, $paste) {
+plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location', '$dialog', '$timeout', '$paste', '$q',
+    function ($scope, $api, $config, $route, $location, $dialog, $timeout, $paste, $q) {
+        var discard = function (e) {
+            // Avoid "Possibly unhandled rejection"
+        };
 
+        $scope.mode = 'upload';
         $scope.sortField = 'fileName';
         $scope.sortOrder = false;
+
+        $scope.user = null;
+        $scope.config = null;
 
         $scope.upload = {};
         $scope.files = [];
         $scope.password = false;
 
+        // File name checks
+        var fileNameMaxLength = 1024;
+        var invalidCharList = ['/', '#', '?', '%', '"'];
+
         // Get server config
+        $scope.configReady = $q.defer();
         $config.getConfig()
             .then(function (config) {
                 $scope.config = config;
                 $scope.setDefaultTTL();
-                if (config.noAnonymousUploads && $scope.mode !== 'download') {
-                    // Redirect to login page if user is not authenticated
-                    $config.getUser()
-                        .then(null, function (error) {
-                            if (error.status === 401 || error.status === 403) {
-                                $location.path('/login');
-                            } else {
-                                $dialog.alert(error);
-                            }
-                        });
-                }
+                $scope.configReady.resolve(true);
             })
             .then(null, function (error) {
-                $dialog.alert(error);
+                $dialog.alert(error).result.then($scope.mainpage);
             });
 
-        // File name checks
-        var fileNameMaxLength = 1024;
-        var invalidCharList = ['/', '#', '?', '%', '"'];
-        $scope.fileNameValidator = function (fileName) {
-            if (_.isUndefined(fileName)) return false;
-            if (fileName.length === 0 || fileName.length > fileNameMaxLength) return false;
-            return _.every(invalidCharList, function (char) {
-                return fileName.indexOf(char) === -1;
+        // Get user
+        $scope.userReady = $q.defer();
+        $config.getUser()
+            .then(function (user) {
+                $scope.user = user;
+            })
+            .then(null, function (error) {
+                if (error.status !== 401 && error.status !== 403) {
+                    $dialog.alert(error).result.then($scope.mainpage);
+                }
+            })
+            .finally(function () {
+                $scope.userReady.resolve(true);
             });
-        };
 
         // Initialize main controller
-        $scope.init = function () {
-            $scope.mode = 'upload';
+        $scope.loaded = $q.defer();
+        $scope.load = function () {
             // Display error from redirect if any
             var err = $location.search().err;
             if (!_.isUndefined(err)) {
                 var code = $location.search().errcode;
                 $dialog.alert({status: code, message: err}).result.then($scope.mainpage);
                 return;
-            } else {
-                // Load current upload id
-                $scope.load($location.search().id);
             }
-        };
 
-        // Load upload from id
-        $scope.load = function (id) {
-            if (!id) return;
+            // Load current upload id
+            var id = $location.search().id
+            if (!id) {
+                $scope.loaded.resolve(true);
+                return
+            }
+
             $scope.mode = 'download';
             $scope.upload.id = id;
             $scope.upload.uploadToken = $location.search().uploadToken;
@@ -71,10 +77,36 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     if (!$scope.somethingOk()) {
                         $scope.mainpage();
                     }
+
+                    $scope.loaded.resolve(true);
                 })
                 .then(null, function (error) {
-                    $dialog.alert(error).result.then($scope.mainpage);
+                    $dialog.alert(error).result.then($scope.mainpage).then($scope.mainpage);
                 });
+        };
+        $scope.load();
+
+        // whenReady ensure that the scope has been initialized especially :
+        // $scope.config, $scope.user, $scope.mode, $scope.upload, $scope.files, ...
+        $scope.ready = $q.all([$scope.configReady, $scope.userReady, $scope.loaded]);
+        function whenReady(f) {
+            $scope.ready.then(f, discard);
+        }
+
+        // Redirect to login page if user is not authenticated
+        whenReady(function () {
+            if ($scope.config.noAnonymousUploads && $scope.mode !== 'download' && !$scope.user) {
+                $location.path('/login');
+            }
+        });
+
+        //
+        $scope.fileNameValidator = function (fileName) {
+            if (_.isUndefined(fileName)) return false;
+            if (fileName.length === 0 || fileName.length > fileNameMaxLength) return false;
+            return _.every(invalidCharList, function (char) {
+                return fileName.indexOf(char) === -1;
+            });
         };
 
         // Reference is needed to match files ids
@@ -91,18 +123,26 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 || navigator.userAgent.match(/iPod/i);
         };
 
+        $scope.checkMaxFileSize = function (size) {
+            var maxFileSize = $scope.config.maxFileSize;
+            if ($scope.user && $scope.user.maxFileSize > 0) {
+                maxFileSize = $scope.user.maxFileSize;
+            }
+            if (maxFileSize && size > maxFileSize) {
+                $dialog.alert({
+                    status: 0,
+                    message: "File is too big : " + $scope.humanReadableSize(file.size),
+                    value: "Maximum allowed size is : " + $scope.humanReadableSize($scope.config.maxFileSize)
+                });
+                return;
+            }
+        }
+
         // Add a file to the upload list
         $scope.onFileSelect = function (files) {
             _.each(files, function (file) {
                 // Check file size
-                if ($scope.config.maxFileSize && file.size > $scope.config.maxFileSize) {
-                    $dialog.alert({
-                        status: 0,
-                        message: "File is too big : " + $scope.humanReadableSize(file.size),
-                        value: "Maximum allowed size is : " + $scope.humanReadableSize($scope.config.maxFileSize)
-                    });
-                    return;
-                }
+                $scope.checkMaxFileSize(file.size);
 
                 // Already added file names
                 var names = _.pluck($scope.files, 'fileName');
@@ -294,9 +334,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                         .then(null, function (error) {
                             $dialog.alert(error);
                         });
-                }, function () {
-                    // Avoid "Possibly unhandled rejection"
-                });
+                }, discard);
         };
 
         // Remove a file from the servers
@@ -322,9 +360,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                         .then(null, function (error) {
                             $dialog.alert(error);
                         })
-                }, function () {
-                    // Avoid "Possibly unhandled rejection"
-                });
+                }, discard);
         };
 
         // Check if file is downloadable
@@ -469,9 +505,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     $scope.upload.password = result.password;
                     $scope.basicAuth = btoa(result.login + ":" + result.password);
                     $scope.newUpload();
-                }, function () {
-                    // Avoid "Possibly unhandled rejection"
-                });
+                }, discard);
         };
 
         $scope.ttlUnits = ["days", "hours", "minutes"];
@@ -650,9 +684,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                                 })
                             }
 
-                        }, function () {
-                            // Avoid "Possibly unhandled rejection"
-                        });
+                        }, discard);
                 }
             }
 
@@ -663,6 +695,6 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             $scope.$on('$routeChangeStart', $paste.unregister);
         };
 
-        $scope.init();
         $scope.registerPasteHandler();
-    }]);
+    }
+]);

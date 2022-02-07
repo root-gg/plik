@@ -48,6 +48,7 @@ function run_tests {
 
     PLIKD_CONFIG="$ROOT/testing/$BACKEND/plikd.cfg"
     export PLIKD_CONFIG
+    export BACKEND
 
     if [[ -z "$TEST" ]]; then
         ( cd "$ROOT/plik" && GORACE="halt_on_error=1" go test -count=1 -race ./... )
