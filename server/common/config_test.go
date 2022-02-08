@@ -259,11 +259,11 @@ func TestParseTTL(t *testing.T) {
 
 	TTL, err = ParseTTL("-1")
 	require.NoError(t, err, "parse ttl error")
-	require.Equal(t, 0, TTL)
+	require.Equal(t, -1, TTL)
 
 	TTL, err = ParseTTL("-10d")
 	require.NoError(t, err, "parse ttl error")
-	require.Equal(t, 0, TTL)
+	require.Equal(t, -1, TTL)
 
 	TTL, err = ParseTTL("foo")
 	RequireError(t, err, "unable to parse TTL")

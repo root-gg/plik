@@ -25,7 +25,6 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         $config.getConfig()
             .then(function (config) {
                 $scope.config = config;
-                $scope.setDefaultTTL();
                 $scope.configReady.resolve(true);
             })
             .then(null, function (error) {
@@ -89,6 +88,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         // whenReady ensure that the scope has been initialized especially :
         // $scope.config, $scope.user, $scope.mode, $scope.upload, $scope.files, ...
         $scope.ready = $q.all([$scope.configReady, $scope.userReady, $scope.loaded]);
+
         function whenReady(f) {
             $scope.ready.then(f, discard);
         }
@@ -98,6 +98,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             if ($scope.config.noAnonymousUploads && $scope.mode !== 'download' && !$scope.user) {
                 $location.path('/login');
             }
+            $scope.setDefaultTTL();
         });
 
         //
@@ -571,15 +572,20 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
 
             // Invalid negative value
             if ($scope.ttlUnit !== 'never' && ttl < 0) ok = false;
+
             // Check against server side allowed maximum
-            if ($scope.config.maxTTL > 0 && ttl > $scope.config.maxTTL) ok = false;
+            maxTTL = $scope.config.maxTTL;
+            if ($scope.user && $scope.user.maxTTL !== 0) {
+                maxTTL = $scope.user.maxTTL;
+            }
+            if (maxTTL > 0 && ttl > maxTTL) ok = false;
 
             if (!ok) {
-                var maxTTL = $scope.getHumanReadableTTL($scope.config.maxTTL);
+                var maxTTL = $scope.getHumanReadableTTL(maxTTL);
                 $dialog.alert({
                     status: 0,
-                    message: "Invalid expiration delay : " + $scope.ttlValue + " " + $scope.ttlUnit,
-                    value: "Maximum expiration delay is : " + maxTTL[0] + " " + maxTTL[1]
+                    message: "Invalid expiration delay : " + $scope.ttlValue + " " + $scope.ttlUnit + ". " +
+                        "Maximum is : " + maxTTL[0] + " " + maxTTL[1],
                 });
                 $scope.setDefaultTTL();
             }
@@ -589,7 +595,11 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
 
         // Set TTL value to server defaultTTL
         $scope.setDefaultTTL = function () {
-            if ($scope.config.maxTTL === -1) {
+            maxTTL = $scope.config.maxTTL;
+            if ($scope.user && $scope.user.maxTTL !== 0) {
+                maxTTL = $scope.user.maxTTL;
+            }
+            if (maxTTL < 0) {
                 // Never expiring upload is allowed
                 $scope.ttlUnits = ["days", "hours", "minutes", "never"];
             }

@@ -378,7 +378,7 @@ func ParseTTL(TTL string) (int, error) {
 	}
 
 	if duration < 0 {
-		return 0, nil
+		return -1, nil
 	}
 
 	return int(duration.Seconds()), nil
