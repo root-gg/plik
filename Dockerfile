@@ -57,10 +57,14 @@ RUN adduser \
     --gecos "" \
     --home "/home/plik" \
     --shell "/bin/false" \
+    --ingroup root \
     --uid "${UID}" \
     "${USER}"
 
-COPY --from=plik-builder --chown=1000:1000 /go/src/github.com/root-gg/plik/release /home/plik/
+COPY --from=plik-builder --chown=1000:root /go/src/github.com/root-gg/plik/release /home/plik/
+
+RUN chgrp -R root /home/plik \
+ && chmod -R g+ws /home/plik
 
 EXPOSE 8080
 USER plik
