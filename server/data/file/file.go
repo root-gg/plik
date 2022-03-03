@@ -2,10 +2,10 @@ package file
 
 import (
 	"fmt"
+	"github.com/root-gg/utils"
 	"io"
 	"os"
-
-	"github.com/root-gg/utils"
+	"strings"
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data"
@@ -14,9 +14,10 @@ import (
 // Ensure File Data Backend implements data.Backend interface
 var _ data.Backend = (*Backend)(nil)
 
-// Config describes configuration for File Databackend
+// Config describes configuration for File data.Backend
 type Config struct {
-	Directory string
+	Directory                       string
+	HumanReadableDirectoryStructure bool
 }
 
 // NewConfig instantiate a new default configuration
@@ -109,56 +110,121 @@ func (b *Backend) RemoveFile(file *common.File) (err error) {
 	return nil
 }
 
-func (b *Backend) getPath(file *common.File) (dir string, path string, err error) {
+var errNoSuchFileOrDirectory = fmt.Errorf("no such file or directory")
+
+func (b *Backend) getDefaultPath(file *common.File) (dir string, path string, err error) {
 	// To avoid too many files in the same directory
 	// data directory is split in two levels the
 	// first level is the 2 first chars from the file id
 	// it gives 3844 possibilities reaching 65535 files per
 	// directory at ~250.000.000 files uploaded.
-
-	if file == nil || file.ID == "" || len(file.ID) < 3 || len(file.UploadID) < 3 {
-		return "", "", fmt.Errorf("file not initialized")
-	}
-
 	dir = fmt.Sprintf("%s/%s", b.Config.Directory, file.ID[:2])
 	path = fmt.Sprintf("%s/%s", dir, file.ID)
 
 	return dir, path, nil
 }
 
-var errNoSuchFileOrDirectory = fmt.Errorf("no such file or directory")
-
-func (b *Backend) getPathCompat(file *common.File) (dir string, path string, err error) {
-	dir, path, err = b.getPath(file)
-	if err != nil {
-		return "", "", err
-	}
-
-	// Check file
-
-	info, err := os.Stat(path)
-	if err == nil && !info.IsDir() {
-		return dir, path, nil
-	}
-	if !os.IsNotExist(err) {
-		return "", "", err
-	}
-
+func (b *Backend) getLegacyPath(file *common.File) (dir string, path string, err error) {
 	// For compatibility with <1.3 implementations
-
 	dir = fmt.Sprintf("%s/%s/%s", b.Config.Directory, file.UploadID[:2], file.UploadID)
 	path = fmt.Sprintf("%s/%s", dir, file.ID)
 
-	info, err = os.Stat(path)
+	return dir, path, nil
+}
+
+func (b *Backend) getHumanReadablePath(file *common.File) (dir string, path string, err error) {
+	// Alternative directory structure that is more easily browsable by humans
+	dir = fmt.Sprintf("%s/%s", b.Config.Directory, file.UploadID)
+
+	// Remove dangerous and special characters from the file name
+	filename := sanitizeFileName(file.Name)
+
+	path = fmt.Sprintf("%s/%s", dir, filename)
+	return dir, path, nil
+}
+
+func (b *Backend) getPath(file *common.File) (dir string, path string, err error) {
+	if file == nil || file.ID == "" || len(file.ID) < 3 || len(file.UploadID) < 3 || file.Name == "" {
+		return "", "", fmt.Errorf("file not initialized")
+	}
+
+	if b.Config.HumanReadableDirectoryStructure {
+		return b.getHumanReadablePath(file)
+	}
+
+	return b.getDefaultPath(file)
+}
+
+func checkFileExists(path string) (err error) {
+	info, err := os.Stat(path)
 	if err == nil {
 		if info.IsDir() {
-			return "", "", fmt.Errorf("file is a directory")
+			return fmt.Errorf("file is a directory")
 		}
-		return dir, path, nil
+		return nil
 	}
 	if !os.IsNotExist(err) {
+		return err
+	}
+
+	return errNoSuchFileOrDirectory
+}
+
+type pathResolver func(*common.File) (dir string, path string, err error)
+
+func (b *Backend) tryGetFile(resolver pathResolver, file *common.File) (dir string, path string, err error) {
+	dir, path, err = b.getHumanReadablePath(file)
+	if err != nil {
 		return "", "", err
+	}
+	err = checkFileExists(path)
+	if err == nil {
+		return dir, path, nil
+	} else {
+		return "", "", err
+	}
+}
+
+func (b *Backend) getPathCompat(file *common.File) (dir string, path string, err error) {
+	if file == nil || file.ID == "" || len(file.ID) < 3 || len(file.UploadID) < 3 || file.Name == "" {
+		return "", "", fmt.Errorf("file not initialized")
+	}
+
+	var pathResolvers []pathResolver
+	if b.Config.HumanReadableDirectoryStructure {
+		pathResolvers = []pathResolver{b.getHumanReadablePath, b.getDefaultPath, b.getLegacyPath}
+	} else {
+		pathResolvers = []pathResolver{b.getDefaultPath, b.getHumanReadablePath, b.getLegacyPath}
+	}
+
+	for _, pathResolver := range pathResolvers {
+		dir, path, err = pathResolver(file)
+		if err != nil {
+			return "", "", err
+		}
+
+		err = checkFileExists(path)
+		if err == nil {
+			return dir, path, nil
+		}
+		if err != errNoSuchFileOrDirectory {
+			return "", "", err
+		}
 	}
 
 	return "", "", errNoSuchFileOrDirectory
+}
+
+var invalid = []string{
+	"..", "/", "\\", "~",
+	"#", "%", "&", "*", "?", "$", "!", ":", ";", "@", "+", "|", "=",
+	"{", "}", "<", ">", "(", ")", "[", "]",
+	"'", "\"", "`", " ", "\t", "\r", "\n", "\\x00",
+}
+
+func sanitizeFileName(filename string) string {
+	for _, invalidString := range invalid {
+		filename = strings.ReplaceAll(filename, invalidString, "_")
+	}
+	return filename
 }

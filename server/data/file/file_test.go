@@ -66,6 +66,7 @@ func TestAddFileInvalidReader(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
+	file.Name = "test"
 	upload.InitializeForTests()
 
 	reader := common.NewErrorReader(errors.New("io error"))
@@ -80,6 +81,7 @@ func TestAddFile(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
+	file.Name = "test"
 	upload.InitializeForTests()
 
 	reader := bytes.NewBufferString("data")
@@ -104,6 +106,7 @@ func TestGetFileInvalidDirectory(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
+	file.Name = "test"
 	upload.InitializeForTests()
 
 	// null byte looks like a good invalid dirname value ^^
@@ -119,6 +122,7 @@ func TestGetFileMissingFile(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
+	file.Name = "test"
 	upload.InitializeForTests()
 
 	_, err := backend.GetFile(file)
@@ -132,6 +136,7 @@ func TestGetFile(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
+	file.Name = "test"
 	upload.InitializeForTests()
 
 	reader := bytes.NewBufferString("data")
@@ -146,12 +151,13 @@ func TestGetFile(t *testing.T) {
 	require.Equal(t, "data", string(read), "inavlid file content")
 }
 
-func TestGetFileCompathPath(t *testing.T) {
+func TestGetFileLegacyPath(t *testing.T) {
 	backend, clean := newBackend(t)
 	defer clean()
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
+	file.Name = "test"
 	upload.InitializeForTests()
 
 	reader := bytes.NewBufferString("data")
@@ -178,12 +184,157 @@ func TestGetFileCompathPath(t *testing.T) {
 	require.Equal(t, "data", string(read), "inavlid file content")
 }
 
+func TestHumanReadableDirectoryStructure(t *testing.T) {
+	backend, clean := newBackend(t)
+	backend.Config.HumanReadableDirectoryStructure = true
+	defer clean()
+
+	upload := &common.Upload{}
+	file := upload.NewFile()
+	file.Name = "test"
+	upload.InitializeForTests()
+
+	reader := bytes.NewBufferString("data")
+	err := backend.AddFile(file, reader)
+	require.NoError(t, err, "unable to add file")
+
+	_, path, err := backend.getPathCompat(file)
+	require.NoError(t, err, "unable to get file path")
+
+	fh, err := os.Open(path)
+	require.NoError(t, err, "unable to open file")
+	defer fh.Close()
+
+	read, err := ioutil.ReadAll(fh)
+	require.NoError(t, err, "unable to read file")
+	require.Equal(t, "data", string(read), "inavlid file content")
+
+	fileReader, err := backend.GetFile(file)
+	require.NoError(t, err, "unable to get file")
+
+	read, err = ioutil.ReadAll(fileReader)
+	require.NoError(t, err, "unable to read file")
+	require.Equal(t, "data", string(read), "inavlid file content")
+}
+
+func TestHumanReadableDirectoryStructureMigration(t *testing.T) {
+	backend, clean := newBackend(t)
+	backend.Config.HumanReadableDirectoryStructure = false
+	defer clean()
+
+	upload := &common.Upload{}
+	file := upload.NewFile()
+	file.Name = "test"
+	upload.InitializeForTests()
+
+	reader := bytes.NewBufferString("data")
+	err := backend.AddFile(file, reader)
+	require.NoError(t, err, "unable to add file")
+
+	_, path, err := backend.getPathCompat(file)
+	require.NoError(t, err, "unable to get file path")
+
+	fh, err := os.Open(path)
+	require.NoError(t, err, "unable to open file")
+	defer fh.Close()
+
+	read, err := ioutil.ReadAll(fh)
+	require.NoError(t, err, "unable to read file")
+	require.Equal(t, "data", string(read), "inavlid file content")
+
+	backend.Config.HumanReadableDirectoryStructure = true
+
+	_, path, err = backend.getPathCompat(file)
+	require.NoError(t, err, "unable to get file path")
+
+	fh2, err := os.Open(path)
+	require.NoError(t, err, "unable to open file")
+	defer fh2.Close()
+
+	read, err = ioutil.ReadAll(fh2)
+	require.NoError(t, err, "unable to read file")
+	require.Equal(t, "data", string(read), "inavlid file content")
+}
+
+func TestHumanReadableDirectoryStructureMigration2(t *testing.T) {
+	backend, clean := newBackend(t)
+	backend.Config.HumanReadableDirectoryStructure = true
+	defer clean()
+
+	upload := &common.Upload{}
+	file := upload.NewFile()
+	file.Name = "test"
+	upload.InitializeForTests()
+
+	reader := bytes.NewBufferString("data")
+	err := backend.AddFile(file, reader)
+	require.NoError(t, err, "unable to add file")
+
+	_, path, err := backend.getPathCompat(file)
+	require.NoError(t, err, "unable to get file path")
+
+	fh, err := os.Open(path)
+	require.NoError(t, err, "unable to open file")
+	defer fh.Close()
+
+	read, err := ioutil.ReadAll(fh)
+	require.NoError(t, err, "unable to read file")
+	require.Equal(t, "data", string(read), "inavlid file content")
+
+	backend.Config.HumanReadableDirectoryStructure = false
+
+	_, path, err = backend.getPathCompat(file)
+	require.NoError(t, err, "unable to get file path")
+
+	fh2, err := os.Open(path)
+	require.NoError(t, err, "unable to open file")
+	defer fh2.Close()
+
+	read, err = ioutil.ReadAll(fh2)
+	require.NoError(t, err, "unable to read file")
+	require.Equal(t, "data", string(read), "inavlid file content")
+}
+
+func TestHumanGetHumanReadablePath(t *testing.T) {
+	backend, clean := newBackend(t)
+	backend.Config.HumanReadableDirectoryStructure = true
+	defer clean()
+
+	backend.Config.Directory = "/root"
+	upload := &common.Upload{}
+	upload.ID = "uploadID"
+	file := upload.NewFile()
+	file.ID = "fileid"
+	file.Name = "test"
+
+	dir, path, err := backend.getPath(file)
+	require.NoError(t, err)
+	require.Equal(t, "/root/uploadID", dir)
+	require.Equal(t, "/root/uploadID/test", path)
+
+	file.Name = "../../../../passwd"
+	dir, path, err = backend.getPath(file)
+	require.NoError(t, err)
+	require.Equal(t, "/root/uploadID/________passwd", path)
+
+	file.Name = "..\\..\\hackme.dll"
+	dir, path, err = backend.getPath(file)
+	require.NoError(t, err)
+	require.Equal(t, "/root/uploadID/____hackme.dll", path)
+
+	file.Name = "~\\/\"'`<{[()]}>*=@+$|%#&!?:;"
+	dir, path, err = backend.getPath(file)
+	require.NoError(t, err)
+	require.Equal(t, "/root/uploadID/___________________________", path)
+}
+
 func TestRemoveFileInvalidDirectory(t *testing.T) {
 	backend, clean := newBackend(t)
 	defer clean()
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
+	file.Name = "test"
 	upload.InitializeForTests()
 
 	// null byte looks like a good invalid dirname value ^^
@@ -199,6 +350,7 @@ func TestRemoveFileMissingFile(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
+	file.Name = "test"
 	upload.InitializeForTests()
 
 	err := backend.RemoveFile(file)
@@ -211,6 +363,7 @@ func TestRemoveFile(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
+	file.Name = "test"
 	upload.InitializeForTests()
 
 	reader := bytes.NewBufferString("data")
@@ -240,6 +393,7 @@ func TestRemoveFileTwice(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
+	file.Name = "test"
 	upload.InitializeForTests()
 
 	reader := bytes.NewBufferString("data")
@@ -266,12 +420,13 @@ func TestRemoveFileTwice(t *testing.T) {
 	require.NoError(t, err, "unable to remove file")
 }
 
-func TestRemoveFileCompatPath(t *testing.T) {
+func TestRemoveFileLegacyPath(t *testing.T) {
 	backend, clean := newBackend(t)
 	defer clean()
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
+	file.Name = "test"
 	upload.InitializeForTests()
 
 	reader := bytes.NewBufferString("data")

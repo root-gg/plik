@@ -143,6 +143,7 @@ func TestDataBackend(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
+	file.Name = "test"
 	file.Status = common.FileUploaded
 	upload.InitializeForTests()
 
@@ -176,6 +177,7 @@ func TestClean(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
+	file.Name = "test"
 	file.Status = common.FileUploaded
 	upload.TTL = 1
 	deadline := time.Now().Add(-10 * time.Minute)
@@ -207,6 +209,7 @@ func TestCleanUploadingFiles(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
+	file.Name = "test"
 	file.Status = common.FileUploading
 	upload.TTL = 1
 	deadline := time.Now().Add(-10 * time.Minute)

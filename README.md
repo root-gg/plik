@@ -103,7 +103,9 @@ Plik is shipped with multiple data backend for uploaded files and metadata backe
 
  - File databackend :
 
-Store uploaded files in a local or mounted file system directory.
+Store uploaded files in a local or mounted file system directory.  
+By default, the directory structure is a bit obscure as it relies on database fileIDs for directory and file names.  
+There is now a `HumanReadableDirectoryStructure` configuration parameter that makes Plik rely on uploadID and actual file name.  
 
  - Openstack Swift databackend : http://docs.openstack.org/developer/swift/
 
