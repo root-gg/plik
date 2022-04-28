@@ -17,9 +17,10 @@ type Client struct {
 
 	Debug bool // Display HTTP request and response and other helpful debug data
 
-	URL           string // URL of the Plik server
-	ClientName    string // X-ClientApp HTTP Header setting
-	ClientVersion string // X-ClientVersion HTTP Header setting
+	URL             string // URL of the Plik server
+	ClientName      string // X-ClientApp HTTP Header setting
+	ClientVersion   string // X-ClientVersion HTTP Header setting
+	ClientUserAgent string // User-Agent HTTP Header setting
 
 	HTTPClient *http.Client // HTTP Client ot use to make the requests
 }
@@ -35,6 +36,7 @@ func NewClient(url string) (c *Client) {
 	// Default values for X-ClientApp and X-ClientVersion HTTP Headers
 	c.ClientName = "plik_client"
 	c.ClientVersion = runtime.GOOS + "-" + runtime.GOARCH + "-" + common.GetBuildInfo().Version
+	c.ClientUserAgent = c.ClientName + "/" + common.GetBuildInfo().Version
 
 	c.HTTPClient = NewHTTPClient(false)
 

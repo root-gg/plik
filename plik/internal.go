@@ -297,6 +297,9 @@ func (c *Client) MakeRequest(req *http.Request) (resp *http.Response, err error)
 	if c.ClientVersion != "" {
 		req.Header.Set("X-ClientVersion", c.ClientVersion)
 	}
+	if c.ClientUserAgent != "" {
+		req.Header.Set("User-Agent", c.ClientUserAgent)
+	}
 
 	// Log request
 	if c.Debug {
