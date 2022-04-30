@@ -44,7 +44,7 @@ client:
 ###
 clients:
 	# Only build clients
-	@TARGETS="skip" releaser/releaser.sh
+	@MAKEFILE_TARGET="clients" releaser/releaser.sh
 
 ###
 # Display build info

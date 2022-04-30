@@ -60,6 +60,11 @@ do
   md5sum "$CLIENT_PATH" | awk '{print $1}' > "$CLIENT_MD5"
 done
 
+# When called from Makefile clients target
+if [[ "$MAKEFILE_TARGET" == "clients" ]]; then
+  exit 0
+fi
+
 echo ""
 echo "Building Plik server v$RELEASE_VERSION $TARGETOS/$TARGETARCH$TARGETVARIANT"
 echo ""
