@@ -74,7 +74,7 @@ func (ctx *Context) Recover() {
 	}
 }
 
-var userAgents = []string{"wget", "curl", "python-urllib", "libwwww-perl", "php", "pycurl", "go-http-client"}
+var userAgents = []string{"wget", "curl", "python-urllib", "libwwww-perl", "php", "pycurl", "go-http-client", "plik_client"}
 
 // Fail is a helper to generate http error responses
 func (ctx *Context) Fail(message string, err error, status int) {
