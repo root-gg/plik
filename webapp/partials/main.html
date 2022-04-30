@@ -8,8 +8,7 @@
             <div class="menu-item" ng-show="isFeatureEnabled('one_shot')">
                 <label class="switch-input">
                     <input name="checkbox-destruct" type="checkbox" ng-model="upload.oneShot" ng-disabled="isFeatureForced('one_shot')">
-                    <i data-swoff-text="OFF" data-swon-text="ON"></i>
-                    Destruct after the first download
+                    <i data-swoff-text="OFF" data-swon-text="ON"></i> Destruct after the first download
                     <a tooltip-placement="right"
                        uib-tooltip="The files will be removed from the server right after the first download.">?</a>
                 </label>
@@ -42,6 +41,15 @@
                        uib-tooltip="Protect your upload with credentials. You will be prompted for them before the upload and before the download.">?</a>
                 </label>
             </div>
+            <!-- EXTEND TTL -->
+            <div class="menu-item" ng-show="isFeatureEnabled('extend_ttl')">
+                <label class="switch-input">
+                    <input name="checkbox-removable" type="checkbox" ng-model="upload.extend_ttl" ng-disabled="isFeatureForced('extend_ttl')">
+                    <i data-swoff-text="OFF" data-swon-text="ON"></i> Extend expiration date on access
+                    <a tooltip-placement="right"
+                       uib-tooltip="Extend upload expiration date by TTL when accessed.">?</a>
+                </label>
+            </div>
             <!-- COMMENTS -->
             <div class="menu-item" ng-show="isFeatureEnabled('comments')">
                 <label class="switch-input">
@@ -70,10 +78,12 @@
                             Files will be automatically removed in
                             <div style="display:inline-block;">
                                 <input class="form-control" style="width:60px;display:inline-block;" type="number"
-                                       ng-model="$parent.ttlValue" ng-show="ttlUnit != 'never'">
+                                       ng-model="$parent.ttlValue" ng-show="ttlUnit != 'never'"
+                                       ng-disabled="!isFeatureEnabled('set_ttl')">
                                 <select class="form-control" style="width:auto;display:inline-block;"
                                         ng-options="unit as unit for unit in ttlUnits"
-                                        ng-model="$parent.ttlUnit"></select>
+                                        ng-model="$parent.ttlUnit"
+                                        ng-disabled="!isFeatureEnabled('set_ttl')"></select>
                             </div>
                         </div>
                     </form>

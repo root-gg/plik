@@ -30,7 +30,7 @@ func (ctx *Context) CreateUpload(params *common.Upload) (upload *common.Upload, 
 	}
 
 	// Set TTL
-	err = ctx.setTTL(upload, params.TTL)
+	err = ctx.setTTL(upload, params)
 	if err != nil {
 		return nil, err
 	}
@@ -103,44 +103,57 @@ func (ctx *Context) setParams(upload *common.Upload, params *common.Upload) (err
 		upload.Comments = params.Comments
 	}
 
-	upload.TTL = params.TTL
-
 	return nil
 }
 
 // SetTTL adjust TTL parameters accordingly to default and max TTL
-func (ctx *Context) setTTL(upload *common.Upload, TTL int) (err error) {
+func (ctx *Context) setTTL(upload *common.Upload, params *common.Upload) (err error) {
 	config := ctx.GetConfig()
-	user := ctx.GetUser()
 
-	// TTL = Time in second before the upload expiration
-	// >0 	-> TTL specified
-	// 0 	-> No TTL specified : default value from configuration
-	// <0	-> No expiration
-	if TTL == 0 {
-		TTL = config.DefaultTTL
+	// When ExtendTTL is enabled the upload expiration date will be extended by TTL
+	// each time an upload file is downloaded
+	if params.ExtendTTL && config.FeatureExtendTTL == common.FeatureDisabled {
+		return fmt.Errorf("extend TTL is disabled")
+	} else if config.FeatureExtendTTL == common.FeatureForced {
+		upload.ExtendTTL = true
+	} else {
+		upload.ExtendTTL = params.ExtendTTL
 	}
 
-	maxTTL := config.MaxTTL
-	if user != nil && user.MaxTTL != 0 {
-		maxTTL = user.MaxTTL
-	}
+	if config.FeatureSetTTL == common.FeatureDisabled {
+		upload.TTL = config.DefaultTTL
+	} else {
+		TTL := params.TTL
+		// TTL = Time in second before the upload expiration
+		// >0 	-> TTL specified
+		// 0 	-> No TTL specified : default value from configuration
+		// <0	-> No expiration
+		if TTL == 0 {
+			TTL = config.DefaultTTL
+		}
 
-	if maxTTL > 0 {
-		if TTL <= 0 {
-			return fmt.Errorf("cannot set infinite TTL (maximum allowed is : %d)", maxTTL)
+		maxTTL := config.MaxTTL
+
+		// Override maxTTL with user specific limit
+		user := ctx.GetUser()
+		if user != nil && user.MaxTTL != 0 {
+			maxTTL = user.MaxTTL
 		}
-		if TTL > maxTTL {
-			return fmt.Errorf("invalid TTL. (maximum allowed is : %d)", maxTTL)
+
+		if maxTTL > 0 {
+			if TTL <= 0 {
+				return fmt.Errorf("cannot set infinite TTL (maximum allowed is : %d)", maxTTL)
+			}
+			if TTL > maxTTL {
+				return fmt.Errorf("invalid TTL. (maximum allowed is : %d)", maxTTL)
+			}
 		}
+
+		upload.TTL = TTL
 	}
 
 	upload.CreatedAt = time.Now()
-	upload.TTL = TTL
-	if upload.TTL > 0 {
-		deadline := upload.CreatedAt.Add(time.Duration(upload.TTL) * time.Second)
-		upload.ExpireAt = &deadline
-	}
+	upload.ExtendExpirationDate()
 
 	return nil
 }

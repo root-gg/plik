@@ -35,6 +35,7 @@ type CliConfig struct {
 	Login          string
 	Password       string
 	TTL            int
+	ExtendTTL      bool
 	AutoUpdate     bool
 	Token          string
 	DisableStdin   bool
@@ -72,7 +73,7 @@ func LoadConfigFromFile(path string) (*CliConfig, error) {
 	return config, nil
 }
 
-// LoadConfig creates a new default configuration and override it with .plikrc fike.
+// LoadConfig creates a new default configuration and override it with .plikrc file.
 // If .plikrc does not exist, ask domain, and create a new one in user HOMEDIR
 func LoadConfig(opts docopt.Opts) (config *CliConfig, err error) {
 	// Load config file from environment variable
@@ -169,6 +170,7 @@ func LoadConfig(opts docopt.Opts) (config *CliConfig, err error) {
 		config.OneShot = common.IsFeatureDefault(serverConfig.FeatureOneShot)
 		config.Removable = common.IsFeatureDefault(serverConfig.FeatureRemovable)
 		config.Stream = common.IsFeatureDefault(serverConfig.FeatureStream)
+		config.ExtendTTL = common.IsFeatureDefault(serverConfig.FeatureExtendTTL)
 
 		if serverConfig.FeatureAuthentication == common.FeatureForced {
 			fmt.Printf("Anonymous uploads are disabled on this server")
@@ -292,6 +294,10 @@ func (config *CliConfig) UnmarshalArgs(opts docopt.Opts) (err error) {
 			return fmt.Errorf("Invalid TTL %s", opts["--ttl"].(string))
 		}
 		config.TTL = ttl * mul
+	}
+
+	if opts["--extend-ttl"].(bool) {
+		config.ExtendTTL = true
 	}
 
 	// Enable archive mode ?

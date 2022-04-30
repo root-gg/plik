@@ -233,6 +233,38 @@ func Test_initializeFeaturePassword(t *testing.T) {
 	require.True(t, config.ProtectedByPassword)
 }
 
+func Test_initializeFeatureSetTTL(t *testing.T) {
+	config := NewConfiguration()
+	config.FeatureSetTTL = "invalid"
+	RequireError(t, config.initializeFeatureSetTTL(), "Invalid feature flag value")
+
+	config = NewConfiguration()
+	config.FeatureSetTTL = ""
+	require.NoError(t, config.initializeFeatureSetTTL())
+	require.Equal(t, FeatureEnabled, config.FeatureSetTTL)
+
+	config = NewConfiguration()
+	config.FeatureSetTTL = FeatureForced
+	require.NoError(t, config.initializeFeatureSetTTL())
+	require.Equal(t, FeatureForced, config.FeatureSetTTL)
+}
+
+func Test_initializeFeatureExtendTTL(t *testing.T) {
+	config := NewConfiguration()
+	config.FeatureExtendTTL = "invalid"
+	RequireError(t, config.initializeFeatureExtendTTL(), "Invalid feature flag value")
+
+	config = NewConfiguration()
+	config.FeatureExtendTTL = ""
+	require.NoError(t, config.initializeFeatureExtendTTL())
+	require.Equal(t, FeatureEnabled, config.FeatureExtendTTL)
+
+	config = NewConfiguration()
+	config.FeatureExtendTTL = FeatureForced
+	require.NoError(t, config.initializeFeatureExtendTTL())
+	require.Equal(t, FeatureForced, config.FeatureExtendTTL)
+}
+
 func Test_initializeFeatureFlags(t *testing.T) {
 	config := NewConfiguration()
 	require.NoError(t, config.initializeFeatureFlags())

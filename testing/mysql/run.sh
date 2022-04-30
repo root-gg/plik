@@ -21,12 +21,14 @@ function start {
     else
         pull_docker_image
 
+        # See https://github.com/docker-library/mysql/issues/579#issuecomment-519495808
         echo -e "\n - Starting $DOCKER_NAME\n"
         docker run -d -p "$DOCKER_PORT:3306" \
             -e MYSQL_ROOT_PASSWORD="password" \
             -e MYSQL_DATABASE="plik" \
             -e MYSQL_USER="plik" \
             -e MYSQL_PASSWORD="password" \
+            --ulimit nofile=262144:262144 \
             --name "$DOCKER_NAME" "$DOCKER_IMAGE"
 
         echo "waiting for mysql to start ..."

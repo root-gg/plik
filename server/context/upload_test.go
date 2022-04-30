@@ -301,18 +301,64 @@ func TestUpload_CommentsForced(t *testing.T) {
 	require.Equal(t, "comments", upload.Comments)
 }
 
+func TestUpload_ExtendTTLDisabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureExtendTTL = common.FeatureDisabled
+
+	upload, err := ctx.CreateUpload(&common.Upload{ExtendTTL: false})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.False(t, upload.ExtendTTL)
+
+	upload, err = ctx.CreateUpload(&common.Upload{ExtendTTL: true})
+	require.Errorf(t, err, "extend TTL is disabled")
+	require.Nil(t, upload)
+}
+
+func TestUpload_ExtendTTLEnabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureExtendTTL = common.FeatureEnabled
+
+	upload, err := ctx.CreateUpload(&common.Upload{ExtendTTL: false})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.False(t, upload.ExtendTTL)
+
+	upload, err = ctx.CreateUpload(&common.Upload{ExtendTTL: true})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.ExtendTTL)
+
+}
+
+func TestUpload_ExtendTTLForced(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureExtendTTL = common.FeatureForced
+
+	upload, err := ctx.CreateUpload(&common.Upload{ExtendTTL: false})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.ExtendTTL)
+
+	upload, err = ctx.CreateUpload(&common.Upload{ExtendTTL: true})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.ExtendTTL)
+}
+
 func TestCreateUpload(t *testing.T) {
 	ctx := newTestContext()
 	ctx.sourceIP = net.ParseIP("4.2.4.2")
+	ctx.config.FeatureExtendTTL = common.FeatureEnabled
 
 	params := &common.Upload{}
-
 	params.ID = "id"
 	params.UploadToken = "token"
 	params.IsAdmin = true
 	params.ProtectedByPassword = true
 	params.RemoteIP = "1.3.3.7"
 	params.TTL = 42
+	params.ExtendTTL = true
 	params.User = "h4x0r"
 	params.Token = "h4x0r_token"
 	params.CreatedAt = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -344,6 +390,7 @@ func TestCreateUpload(t *testing.T) {
 	require.NotEqual(t, params.UploadToken, upload.UploadToken, "invalid upload token")
 	require.NotEqual(t, params.CreatedAt, upload.CreatedAt, "invalid created at")
 	require.NotEqual(t, params.ExpireAt, upload.ExpireAt, "invalid expired at")
+	require.True(t, upload.ExtendTTL, "invalid extend TTL status")
 	require.False(t, upload.IsAdmin, "invalid admin status")
 	require.False(t, upload.ProtectedByPassword, "invalid protected by password status")
 	require.Equal(t, params.Comments, upload.Comments, "invalid upload comments")
@@ -365,6 +412,7 @@ func TestCreateUpload(t *testing.T) {
 
 func TestCreateUploadCtx(t *testing.T) {
 	ctx := newTestContext()
+	ctx.config.FeatureAuthentication = common.FeatureEnabled
 	ctx.user = &common.User{ID: "user"}
 	ctx.token = &common.Token{Token: "token"}
 
@@ -389,66 +437,105 @@ func TestUpload_TooManyFiles(t *testing.T) {
 }
 
 func TestSetTTL(t *testing.T) {
-	ctx := &Context{config: &common.Configuration{MaxTTL: 0}}
+	ctx := newTestContext()
+	ctx.config.MaxTTL = 0
 	upload, err := ctx.CreateUpload(&common.Upload{TTL: 60})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, 60, upload.TTL, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{MaxTTL: 10}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = 10
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: 60})
 	common.RequireError(t, err, "invalid TTL")
 	require.Nil(t, upload)
 }
 
+func TestSetTTLDisabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureSetTTL = common.FeatureDisabled
+	ctx.config.DefaultTTL = 10
+	upload, err := ctx.CreateUpload(&common.Upload{TTL: 60})
+	require.NoError(t, err, "unable to set ttl")
+	require.Equal(t, 10, upload.TTL, "invalid TTL")
+
+	ctx = newTestContext()
+	ctx.config.FeatureSetTTL = common.FeatureDisabled
+	ctx.config.DefaultTTL = 0
+	upload, err = ctx.CreateUpload(&common.Upload{TTL: 60})
+	require.NoError(t, err, "unable to set ttl")
+	require.Equal(t, 0, upload.TTL, "invalid TTL")
+}
+
 func TestSetDefaultTTL(t *testing.T) {
-	ctx := &Context{config: &common.Configuration{DefaultTTL: 60}}
+	ctx := newTestContext()
+	ctx.config.DefaultTTL = 60
 	upload, err := ctx.CreateUpload(&common.Upload{TTL: 0})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, 60, upload.TTL, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{DefaultTTL: 0}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = 0
+	ctx.config.DefaultTTL = 0
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: 0})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, 0, upload.TTL, "invalid TTL")
 }
 
 func TestSetTTLInfinite(t *testing.T) {
-	ctx := &Context{config: &common.Configuration{MaxTTL: 0}}
+	ctx := newTestContext()
+	ctx.config.MaxTTL = 0
 	upload, err := ctx.CreateUpload(&common.Upload{TTL: -1})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, -1, upload.TTL, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{MaxTTL: -1}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = -1
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: -1})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, -1, upload.TTL, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{MaxTTL: 10}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = 10
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: -1})
 	common.RequireError(t, err, "infinite TTL")
 }
 
 func TestSetTTLUser(t *testing.T) {
-	ctx := &Context{config: &common.Configuration{MaxTTL: 0, FeatureAuthentication: common.FeatureEnabled}, user: &common.User{MaxTTL: 0}}
+	ctx := newTestContext()
+	ctx.config.MaxTTL = 0
+	ctx.config.FeatureAuthentication = common.FeatureEnabled
+	ctx.user = &common.User{MaxTTL: 0}
 	upload, err := ctx.CreateUpload(&common.Upload{TTL: 60})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, 60, upload.TTL, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{MaxTTL: 10, FeatureAuthentication: common.FeatureEnabled}, user: &common.User{MaxTTL: 0}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = 10
+	ctx.config.FeatureAuthentication = common.FeatureEnabled
+	ctx.user = &common.User{MaxTTL: 0}
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: 60})
 	common.RequireError(t, err, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{MaxTTL: 10, FeatureAuthentication: common.FeatureEnabled}, user: &common.User{MaxTTL: 100}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = 10
+	ctx.config.FeatureAuthentication = common.FeatureEnabled
+	ctx.user = &common.User{MaxTTL: 100}
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: 60})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, 60, upload.TTL, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{MaxTTL: 10, FeatureAuthentication: common.FeatureEnabled}, user: &common.User{MaxTTL: -1}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = 10
+	ctx.config.FeatureAuthentication = common.FeatureEnabled
+	ctx.user = &common.User{MaxTTL: -1}
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: 60})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, 60, upload.TTL, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{MaxTTL: -1, FeatureAuthentication: common.FeatureEnabled}, user: &common.User{MaxTTL: 10}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = -1
+	ctx.config.FeatureAuthentication = common.FeatureEnabled
+	ctx.user = &common.User{MaxTTL: 10}
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: 60})
 	common.RequireError(t, err, "invalid TTL")
 }
@@ -496,6 +583,7 @@ func TestCreateWithFileTooBig(t *testing.T) {
 
 func TestCreateWithFileTooBigUser(t *testing.T) {
 	ctx := newTestContext()
+	ctx.config.FeatureAuthentication = common.FeatureEnabled
 	ctx.user = &common.User{MaxFileSize: 0}
 	ctx.config.MaxFileSize = 1024
 
