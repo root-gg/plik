@@ -55,12 +55,22 @@ type Configuration struct {
 	SourceIPHeader  string   `json:"-"`
 	UploadWhitelist []string `json:"-"`
 
-	Authentication       bool     `json:"authentication"`
-	NoAnonymousUploads   bool     `json:"noAnonymousUploads"`
-	OneShot              bool     `json:"oneShot"`
-	Removable            bool     `json:"removable"`
-	Stream               bool     `json:"stream"`
-	ProtectedByPassword  bool     `json:"protectedByPassword"`
+	// Feature Flags
+	FeatureAuthentication string `json:"feature_authentication"`
+	FeatureOneShot        string `json:"feature_one_shot"`
+	FeatureRemovable      string `json:"feature_removable"`
+	FeatureStream         string `json:"feature_stream"`
+	FeaturePassword       string `json:"feature_password"`
+	FeatureComments       string `json:"feature_comments"`
+
+	// Deprecated Feature Flags
+	Authentication      bool `json:"authentication"`      // Deprecated: >1.3.6
+	NoAnonymousUploads  bool `json:"noAnonymousUploads"`  // Deprecated: >1.3.6
+	OneShot             bool `json:"oneShot"`             // Deprecated: >1.3.6
+	Removable           bool `json:"removable"`           // Deprecated: >1.3.6
+	Stream              bool `json:"stream"`              // Deprecated: >1.3.6
+	ProtectedByPassword bool `json:"protectedByPassword"` // Deprecated: >1.3.6
+
 	GoogleAuthentication bool     `json:"googleAuthentication"`
 	GoogleAPISecret      string   `json:"-"`
 	GoogleAPIClientID    string   `json:"-"`
@@ -96,10 +106,11 @@ func NewConfiguration() (config *Configuration) {
 	config.DefaultTTL = 2592000 // 30 days
 	config.MaxTTL = 2592000     // 30 days
 
-	config.Stream = true
-	config.OneShot = true
-	config.Removable = true
-	config.ProtectedByPassword = true
+	config.FeatureAuthentication = FeatureEnabled
+	config.FeatureOneShot = FeatureEnabled
+	config.FeatureRemovable = FeatureEnabled
+	config.FeatureStream = FeatureEnabled
+	config.FeaturePassword = FeatureEnabled
 
 	config.OvhAPIEndpoint = "https://eu.api.ovh.com/1.0"
 
@@ -170,23 +181,13 @@ func (config *Configuration) Initialize() (err error) {
 		}
 	}
 
-	if config.GoogleAPIClientID != "" && config.GoogleAPISecret != "" {
-		config.GoogleAuthentication = true
-	} else {
-		config.GoogleAuthentication = false
+	err = config.initializeFeatureFlags()
+	if err != nil {
+		return err
 	}
 
-	if config.OvhAPIKey != "" && config.OvhAPISecret != "" {
-		config.OvhAuthentication = true
-	} else {
-		config.OvhAuthentication = false
-	}
-
-	if !config.Authentication {
-		config.NoAnonymousUploads = false
-		config.GoogleAuthentication = false
-		config.OvhAuthentication = false
-	}
+	config.GoogleAuthentication = config.FeatureAuthentication != FeatureDisabled && config.GoogleAPIClientID != "" && config.GoogleAPISecret != ""
+	config.OvhAuthentication = config.FeatureAuthentication != FeatureDisabled && config.OvhAPIKey != "" && config.OvhAPISecret != ""
 
 	if config.DownloadDomain != "" {
 		strings.Trim(config.DownloadDomain, "/ ")
@@ -316,33 +317,13 @@ func (config *Configuration) String() string {
 		str += fmt.Sprintf("Maximum upload TTL : unlimited\n")
 	}
 
-	if config.OneShot {
-		str += fmt.Sprintf("One shot upload : enabled\n")
-	} else {
-		str += fmt.Sprintf("One shot upload : disabled\n")
-	}
+	str += fmt.Sprintf("One shot upload : %s\n", config.FeatureOneShot)
+	str += fmt.Sprintf("Removable upload : %s\n", config.FeatureRemovable)
+	str += fmt.Sprintf("Streaming upload : %s\n", config.FeatureStream)
+	str += fmt.Sprintf("Upload password : %s\n", config.FeaturePassword)
 
-	if config.Removable {
-		str += fmt.Sprintf("Removable upload : enabled\n")
-	} else {
-		str += fmt.Sprintf("Removable upload : disabled\n")
-	}
-
-	if config.Stream {
-		str += fmt.Sprintf("Streaming upload : enabled\n")
-	} else {
-		str += fmt.Sprintf("Streaming upload : disabled\n")
-	}
-
-	if config.ProtectedByPassword {
-		str += fmt.Sprintf("Upload password : enabled\n")
-	} else {
-		str += fmt.Sprintf("Upload password : disabled\n")
-	}
-
-	if config.Authentication {
-		str += fmt.Sprintf("Authentication : enabled\n")
-
+	str += fmt.Sprintf("Authentication : %s\n", config.FeatureAuthentication)
+	if config.FeatureAuthentication != FeatureDisabled {
 		if config.GoogleAuthentication {
 			str += fmt.Sprintf("Google authentication : enabled\n")
 		} else {
@@ -357,8 +338,6 @@ func (config *Configuration) String() string {
 		} else {
 			str += fmt.Sprintf("OVH authentication : disabled\n")
 		}
-	} else {
-		str += fmt.Sprintf("Authentication : disabled\n")
 	}
 
 	return str

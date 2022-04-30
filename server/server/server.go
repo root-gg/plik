@@ -361,7 +361,7 @@ func (ps *PlikServer) WithStreamBackend(backend data.Backend) *PlikServer {
 
 // Initialize data backend from type found in configuration
 func (ps *PlikServer) initializeStreamBackend() (err error) {
-	if ps.streamBackend == nil && ps.config.Stream {
+	if ps.streamBackend == nil && ps.config.FeatureStream != common.FeatureDisabled {
 		ps.streamBackend = stream.NewBackend()
 	}
 
@@ -378,7 +378,7 @@ func (ps *PlikServer) WithAuthenticator(authenticator *common.SessionAuthenticat
 
 // Initialize the session authenticator
 func (ps *PlikServer) initializeAuthenticator() (err error) {
-	if ps.authenticator == nil && ps.config.Authentication {
+	if ps.authenticator == nil && ps.config.FeatureAuthentication != common.FeatureDisabled {
 		if ps.metadataBackend == nil {
 			return fmt.Errorf("metadata backend must be initialized before the authenticator")
 		}

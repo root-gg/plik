@@ -140,8 +140,9 @@ func LoadConfig(opts docopt.Opts) (config *CliConfig, err error) {
 	}
 
 	// Try to HEAD the site to see if we have a redirection
-	client := plik.NewHTTPClient(true)
-	resp, err := client.Head(config.URL)
+	client := plik.NewClient(config.URL)
+	client.Insecure()
+	resp, err := client.HTTPClient.Head(config.URL)
 	if err != nil {
 		return nil, err
 	}
@@ -157,6 +158,33 @@ func LoadConfig(opts docopt.Opts) (config *CliConfig, err error) {
 		}
 		if ok {
 			config.URL = strings.TrimSuffix(finalURL, "/")
+		}
+	}
+
+	// Try to get server config to sync default values
+	serverConfig, err := client.GetServerConfig()
+	if err != nil {
+		fmt.Printf("Unable to get server configuration : %s", err)
+	} else {
+		config.OneShot = common.IsFeatureDefault(serverConfig.FeatureOneShot)
+		config.Removable = common.IsFeatureDefault(serverConfig.FeatureRemovable)
+		config.Stream = common.IsFeatureDefault(serverConfig.FeatureStream)
+
+		if serverConfig.FeatureAuthentication == common.FeatureForced {
+			fmt.Printf("Anonymous uploads are disabled on this server")
+			fmt.Printf("Do you want to provide a user authentication token ? [Y/n] ")
+			ok, err := common.AskConfirmation(true)
+			if err != nil {
+				return nil, fmt.Errorf("Unable to ask for confirmation : %s", err)
+			}
+			if ok {
+				var token string
+				fmt.Println("Please enter a valid user token : ")
+				_, err = fmt.Scanf("%s", &token)
+				if err == nil {
+					config.Token = token
+				}
+			}
 		}
 	}
 

@@ -55,19 +55,21 @@ func (ctx *Context) setUser(upload *common.Upload) (err error) {
 	user := ctx.GetUser()
 	token := ctx.GetToken()
 
-	if user == nil {
-		if config.NoAnonymousUploads {
-			return fmt.Errorf("anonymous uploads are disabled")
-		}
-	} else {
-		if !config.Authentication {
-			return fmt.Errorf("authentication is disabled")
-		}
+	if config.FeatureAuthentication == common.FeatureForced && user == nil {
+		return fmt.Errorf("anonymous uploads are disabled")
+	}
+
+	if config.FeatureAuthentication == common.FeatureDisabled && user != nil {
+		return fmt.Errorf("authentication is disabled")
+	}
+
+	if user != nil {
 		upload.User = user.ID
 		if token != nil {
 			upload.Token = token.Token
 		}
 	}
+
 	return nil
 }
 
@@ -75,22 +77,33 @@ func (ctx *Context) setParams(upload *common.Upload, params *common.Upload) (err
 	config := ctx.GetConfig()
 
 	upload.OneShot = params.OneShot
-	if upload.OneShot && !config.OneShot {
-		return fmt.Errorf("one shot uploads are not enabled")
+	if upload.OneShot && config.FeatureOneShot == common.FeatureDisabled {
+		return fmt.Errorf("one shot uploads are disabled")
+	} else if !upload.OneShot && config.FeatureOneShot == common.FeatureForced {
+		upload.OneShot = true
 	}
 
 	upload.Removable = params.Removable
-	if upload.Removable && !config.Removable {
-		return fmt.Errorf("removable uploads are not enabled")
+	if upload.Removable && config.FeatureRemovable == common.FeatureDisabled {
+		return fmt.Errorf("removable uploads are disabled")
+	} else if !upload.Removable && config.FeatureRemovable == common.FeatureForced {
+		upload.Removable = true
 	}
 
 	upload.Stream = params.Stream
-	if upload.Stream && !config.Stream {
-		return fmt.Errorf("stream mode is not enabled")
+	if upload.Stream && config.FeatureStream == common.FeatureDisabled {
+		return fmt.Errorf("streaming uploads are disabled")
+	} else if !upload.Stream && config.FeatureStream == common.FeatureForced {
+		upload.Stream = true
+	}
+
+	if config.FeatureComments == common.FeatureDisabled {
+		upload.Comments = ""
+	} else {
+		upload.Comments = params.Comments
 	}
 
 	upload.TTL = params.TTL
-	upload.Comments = params.Comments
 
 	return nil
 }
@@ -134,18 +147,20 @@ func (ctx *Context) setTTL(upload *common.Upload, TTL int) (err error) {
 
 func (ctx *Context) setBasicAuth(upload *common.Upload, login string, password string) (err error) {
 	config := ctx.GetConfig()
-	if !config.ProtectedByPassword && (login != "" || password != "") {
-		return fmt.Errorf("password protection is not enabled")
+	if config.FeaturePassword == common.FeatureDisabled && password != "" {
+		return fmt.Errorf("upload password protection is disabled")
+	} else if config.FeaturePassword == common.FeatureForced && password == "" {
+		return fmt.Errorf("server only accept uploads protected by password")
+	}
+
+	if password == "" {
+		return nil
 	}
 
 	if login != "" {
 		upload.Login = login
 	} else {
 		upload.Login = "plik"
-	}
-
-	if password == "" {
-		return nil
 	}
 
 	upload.ProtectedByPassword = true

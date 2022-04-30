@@ -50,8 +50,6 @@ func TestCreateUploadWithoutOptions(t *testing.T) {
 
 func TestCreateUploadWithOptions(t *testing.T) {
 	config := common.NewConfiguration()
-	config.Authentication = true
-
 	ctx := newTestingContext(config)
 
 	uploadToCreate := &common.Upload{}
@@ -148,7 +146,7 @@ func TestCreateWithForbiddenOptions(t *testing.T) {
 
 func TestCreateUploadInvalidParameters(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().OneShot = false
+	ctx.GetConfig().FeatureOneShot = common.FeatureDisabled
 
 	uploadToCreate := &common.Upload{OneShot: true}
 	reqBody, err := json.Marshal(uploadToCreate)
@@ -160,12 +158,12 @@ func TestCreateUploadInvalidParameters(t *testing.T) {
 	rr := ctx.NewRecorder(req)
 	CreateUpload(ctx, rr, req)
 
-	context.TestBadRequest(t, rr, "one shot uploads are not enabled")
+	context.TestBadRequest(t, rr, "one shot uploads are disabled")
 }
 
 func TestCreateWithoutAnonymousUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().NoAnonymousUploads = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureForced
 
 	uploadToCreate := &common.Upload{}
 	reqBody, err := json.Marshal(uploadToCreate)

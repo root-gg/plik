@@ -22,7 +22,7 @@ import (
 func TestOVHLogin(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 
@@ -98,7 +98,7 @@ func TestOVHLogin(t *testing.T) {
 func TestOVHLoginInvalidOVHResponse(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 
@@ -124,7 +124,7 @@ func TestOVHLoginInvalidOVHResponse(t *testing.T) {
 func TestOVHLoginInvalidOVHResponse2(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 
@@ -151,7 +151,7 @@ func TestOVHLoginInvalidOVHResponse2(t *testing.T) {
 func TestOVHLoginAuthDisabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = false
+	ctx.GetConfig().FeatureAuthentication = common.FeatureDisabled
 	ctx.GetConfig().OvhAuthentication = false
 
 	req, err := http.NewRequest("GET", "/auth/ovh/login", bytes.NewBuffer([]byte{}))
@@ -167,7 +167,7 @@ func TestOVHLoginAuthDisabled(t *testing.T) {
 func TestOVHLoginOVHAuthDisabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().OvhAuthentication = false
 
 	req, err := http.NewRequest("GET", "/auth/ovh/login", bytes.NewBuffer([]byte{}))
@@ -184,7 +184,7 @@ func TestOVHLoginOVHAuthDisabled(t *testing.T) {
 func TestOVHLoginMissingReferer(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().OvhAuthentication = true
 
 	req, err := http.NewRequest("GET", "/auth/ovh/login", bytes.NewBuffer([]byte{}))
@@ -199,7 +199,7 @@ func TestOVHLoginMissingReferer(t *testing.T) {
 func TestOVHCallback(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
@@ -289,7 +289,7 @@ func TestOVHCallbackCreateUser(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetWhitelisted(true)
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
@@ -376,7 +376,7 @@ func TestOVHCallbackCreateUserNotWhitelisted(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetWhitelisted(false)
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
@@ -435,7 +435,7 @@ func TestOVHCallbackCreateUserNotWhitelisted(t *testing.T) {
 func TestOVHCallbackAuthDisabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = false
+	ctx.GetConfig().FeatureAuthentication = common.FeatureDisabled
 
 	req, err := http.NewRequest("GET", "/auth/ovh/callback", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -449,7 +449,7 @@ func TestOVHCallbackAuthDisabled(t *testing.T) {
 func TestOVHCallbackMissingOvhAPIConfigParam(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 
 	req, err := http.NewRequest("GET", "/auth/ovh/callback", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -462,7 +462,7 @@ func TestOVHCallbackMissingOvhAPIConfigParam(t *testing.T) {
 func TestOVHCallbackMissingOvhSessionCookie(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
@@ -480,7 +480,7 @@ func TestOVHCallbackMissingOvhSessionCookie(t *testing.T) {
 func TestOVHCallbackMissingSessionString(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
@@ -513,7 +513,7 @@ func TestOVHCallbackMissingSessionString(t *testing.T) {
 func TestOVHCallbackMissingOvhApiEndpoint(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
@@ -545,7 +545,7 @@ func TestOVHCallbackMissingOvhApiEndpoint(t *testing.T) {
 func TestOVHCallbackMissingOvhApi(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
@@ -577,7 +577,7 @@ func TestOVHCallbackMissingOvhApi(t *testing.T) {
 func TestOVHCallbackInvalidOvhSessionCookie(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
@@ -604,7 +604,7 @@ func TestOVHCallbackInvalidOvhSessionCookie(t *testing.T) {
 func TestOVHCallbackInvalidOvhApiResponse(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 	ctx.GetConfig().OvhAPIKey = "ovh_api_key"
@@ -645,7 +645,7 @@ func TestOVHCallbackInvalidOvhApiResponse(t *testing.T) {
 func TestOVHCallbackInvalidOvhApiResponseJson(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().OvhAuthentication = true
 	ctx.GetConfig().OvhAPIEndpoint = "http://127.0.0.1:" + strconv.Itoa(common.APIMockServerDefaultPort)
 	ctx.GetConfig().OvhAPIKey = "ovh_api_key"

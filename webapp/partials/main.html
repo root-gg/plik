@@ -5,9 +5,9 @@
         <!-- UPLOAD MENU -->
         <div class="tile menu" ng-if="mode == 'upload'">
             <!-- ONE SHOT -->
-            <div class="menu-item" ng-show="config.oneShot">
+            <div class="menu-item" ng-show="isFeatureEnabled('one_shot')">
                 <label class="switch-input">
-                    <input name="checkbox-destruct" type="checkbox" ng-model="upload.oneShot">
+                    <input name="checkbox-destruct" type="checkbox" ng-model="upload.oneShot" ng-disabled="isFeatureForced('one_shot')">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i>
                     Destruct after the first download
                     <a tooltip-placement="right"
@@ -15,37 +15,37 @@
                 </label>
             </div>
             <!-- STREAMING -->
-            <div class="menu-item" ng-show="config.stream">
+            <div class="menu-item" ng-show="isFeatureEnabled('stream')">
                 <label class="switch-input">
-                    <input name="checkbox-destruct" type="checkbox" ng-model="upload.stream">
+                    <input name="checkbox-destruct" type="checkbox" ng-model="upload.stream" ng-disabled="isFeatureForced('stream')">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i> Streaming
                     <a tooltip-placement="right"
                        uib-tooltip="The files will not be stored on the server. Upload will begin when the remote user starts downloading.">?</a>
                 </label>
             </div>
             <!-- REMOVABLE -->
-            <div class="menu-item" ng-show="config.removable">
+            <div class="menu-item" ng-show="isFeatureEnabled('removable')">
                 <label class="switch-input">
-                    <input name="checkbox-removable" type="checkbox" ng-model="upload.removable">
+                    <input name="checkbox-removable" type="checkbox" ng-model="upload.removable" ng-disabled="isFeatureForced('removable')">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i> Removable
                     <a tooltip-placement="right"
                        uib-tooltip="Allow manual removal of the uploaded files from the server at any moment.">?</a>
                 </label>
             </div>
             <!-- PASSWORD -->
-            <div class="menu-item" ng-show="config.protectedByPassword">
+            <div class="menu-item" ng-show="isFeatureEnabled('password')">
                 <label class="switch-input">
                     <input name="checkbox-password" type="checkbox" ng-model="$parent.password"
-                           ng-change="upload.password = ''">
+                           ng-change="upload.password = ''" ng-disabled="isFeatureForced('password')">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i> Password
                     <a tooltip-placement="right"
                        uib-tooltip="Protect your upload with credentials. You will be prompted for them before the upload and before the download.">?</a>
                 </label>
             </div>
             <!-- COMMENTS -->
-            <div class="menu-item">
+            <div class="menu-item" ng-show="isFeatureEnabled('comments')">
                 <label class="switch-input">
-                    <input name="checkbox-comments" type="checkbox" ng-model="enableComments">
+                    <input name="checkbox-comments" type="checkbox" ng-model="enableComments" ng-disabled="isFeatureForced('comments')">
                     <i data-swoff-text="OFF" data-swon-text="ON"></i> Comments (<a
                         href="https://daringfireball.net/projects/markdown/syntax" target="_blank">Markdown</a>)
                     <a tooltip-placement="right"

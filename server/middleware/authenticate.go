@@ -13,7 +13,7 @@ func Authenticate(allowToken bool) context.Middleware {
 		return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 			config := ctx.GetConfig()
 
-			if config.Authentication {
+			if config.FeatureAuthentication != common.FeatureDisabled {
 				if allowToken {
 					// Get user from token header
 					tokenHeader := req.Header.Get("X-PlikToken")

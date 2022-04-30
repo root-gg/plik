@@ -59,7 +59,7 @@ func decodeOVHResponse(resp *http.Response) ([]byte, error) {
 func OvhLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 	config := ctx.GetConfig()
 
-	if !config.Authentication {
+	if config.FeatureAuthentication == common.FeatureDisabled {
 		ctx.BadRequest("authentication is disabled")
 		return
 	}
@@ -151,7 +151,7 @@ func OvhCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	// Remove temporary OVH auth session cookie
 	cleanOvhAuthSessionCookie(resp)
 
-	if !config.Authentication {
+	if config.FeatureAuthentication == common.FeatureDisabled {
 		ctx.BadRequest("authentication is disabled")
 		return
 	}

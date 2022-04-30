@@ -15,16 +15,39 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         $scope.upload = {};
         $scope.files = [];
         $scope.password = false;
+        $scope.enableComments = false;
 
         // File name checks
         var fileNameMaxLength = 1024;
         var invalidCharList = ['/', '#', '?', '%', '"'];
+
+        $scope.isFeatureEnabled = function(feature_name) {
+            var value = $scope.config["feature_" + feature_name]
+            return value !== "disabled"
+        }
+
+        $scope.isFeatureDefault = function(feature_name) {
+            var value = $scope.config["feature_" + feature_name]
+            return value === "default" || value === "forced"
+        }
+
+        $scope.isFeatureForced = function(feature_name) {
+            var value = $scope.config["feature_" + feature_name]
+            return value === "forced"
+        }
 
         // Get server config
         $scope.configReady = $q.defer();
         $config.getConfig()
             .then(function (config) {
                 $scope.config = config;
+
+                $scope.upload.oneShot = $scope.isFeatureDefault("one_shot")
+                $scope.upload.removable = $scope.isFeatureDefault("removable")
+                $scope.upload.stream = $scope.isFeatureDefault("stream")
+                $scope.password = $scope.isFeatureDefault("password")
+                $scope.enableComments = $scope.isFeatureDefault("comments")
+
                 $scope.configReady.resolve(true);
             })
             .then(null, function (error) {
@@ -90,12 +113,12 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         $scope.ready = $q.all([$scope.configReady, $scope.userReady, $scope.loaded]);
 
         function whenReady(f) {
-            $scope.ready.then(f, discard);
+            $scope.ready.then($timeout(f), discard);
         }
 
         // Redirect to login page if user is not authenticated
         whenReady(function () {
-            if ($scope.config.noAnonymousUploads && $scope.mode !== 'download' && !$scope.user) {
+            if ($scope.isFeatureForced("authentication") && $scope.mode !== 'download' && !$scope.user) {
                 $location.path('/login');
             }
             $scope.setDefaultTTL();

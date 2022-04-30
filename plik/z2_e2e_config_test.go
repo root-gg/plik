@@ -88,8 +88,7 @@ func TestAnonymousUploadDisabled(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)
 
-	ps.GetConfig().Authentication = true
-	ps.GetConfig().NoAnonymousUploads = true
+	ps.GetConfig().FeatureAuthentication = common.FeatureForced
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -167,7 +166,7 @@ func TestPasswordDisabled(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)
 
-	ps.GetConfig().ProtectedByPassword = false
+	ps.GetConfig().FeaturePassword = common.FeatureDisabled
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -177,14 +176,14 @@ func TestPasswordDisabled(t *testing.T) {
 	upload.Password = "password"
 	err = upload.Create()
 	require.Error(t, err, "unable to create upload")
-	require.Contains(t, err.Error(), "password protection is not enabled", "invalid error")
+	require.Contains(t, err.Error(), "upload password protection is disabled", "invalid error")
 }
 
 func TestOneShotDisabled(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)
 
-	ps.GetConfig().OneShot = false
+	ps.GetConfig().FeatureOneShot = common.FeatureDisabled
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -193,14 +192,14 @@ func TestOneShotDisabled(t *testing.T) {
 	upload.OneShot = true
 	err = upload.Create()
 	require.Error(t, err, "unable to create upload")
-	require.Contains(t, err.Error(), "one shot uploads are not enabled", "invalid error")
+	require.Contains(t, err.Error(), "one shot uploads are disabled", "invalid error")
 }
 
 func TestRemovableDisabled(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)
 
-	ps.GetConfig().Removable = false
+	ps.GetConfig().FeatureRemovable = common.FeatureDisabled
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
@@ -209,7 +208,7 @@ func TestRemovableDisabled(t *testing.T) {
 	upload.Removable = true
 	err = upload.Create()
 	require.Error(t, err, "unable to create upload")
-	require.Contains(t, err.Error(), "removable uploads are not enabled", "invalid error")
+	require.Contains(t, err.Error(), "removable uploads are disabled", "invalid error")
 }
 
 func TestDownloadDomain(t *testing.T) {
