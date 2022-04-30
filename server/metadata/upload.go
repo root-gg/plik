@@ -15,6 +15,11 @@ func (b *Backend) CreateUpload(upload *common.Upload) (err error) {
 	return b.db.Create(upload).Error
 }
 
+// UpdateUploadExpirationDate updates an upload expiration date in DB
+func (b *Backend) UpdateUploadExpirationDate(upload *common.Upload) (err error) {
+	return b.db.Model(upload).Update("expire_at", upload.ExpireAt).Error
+}
+
 // GetUpload return an upload from the DB ( return nil and no error if not found )
 func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 	upload = &common.Upload{}

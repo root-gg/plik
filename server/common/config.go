@@ -62,6 +62,8 @@ type Configuration struct {
 	FeatureStream         string `json:"feature_stream"`
 	FeaturePassword       string `json:"feature_password"`
 	FeatureComments       string `json:"feature_comments"`
+	FeatureSetTTL         string `json:"feature_set_ttl"`
+	FeatureExtendTTL      string `json:"feature_extend_ttl"`
 
 	// Deprecated Feature Flags
 	Authentication      bool `json:"authentication"`      // Deprecated: >1.3.6
@@ -106,11 +108,14 @@ func NewConfiguration() (config *Configuration) {
 	config.DefaultTTL = 2592000 // 30 days
 	config.MaxTTL = 2592000     // 30 days
 
-	config.FeatureAuthentication = FeatureEnabled
+	config.FeatureAuthentication = FeatureDisabled
 	config.FeatureOneShot = FeatureEnabled
 	config.FeatureRemovable = FeatureEnabled
 	config.FeatureStream = FeatureEnabled
 	config.FeaturePassword = FeatureEnabled
+	config.FeatureComments = FeatureEnabled
+	config.FeatureSetTTL = FeatureEnabled
+	config.FeatureExtendTTL = FeatureDisabled
 
 	config.OvhAPIEndpoint = "https://eu.api.ovh.com/1.0"
 
@@ -219,7 +224,7 @@ func (config *Configuration) Initialize() (err error) {
 		}
 	}
 
-	if config.MaxTTL > 0 && config.DefaultTTL > 0 && config.MaxTTL < config.DefaultTTL {
+	if config.MaxTTL > 0 && config.DefaultTTL > config.MaxTTL {
 		return fmt.Errorf("DefaultTTL should not be more than MaxTTL")
 	}
 
@@ -321,6 +326,9 @@ func (config *Configuration) String() string {
 	str += fmt.Sprintf("Removable upload : %s\n", config.FeatureRemovable)
 	str += fmt.Sprintf("Streaming upload : %s\n", config.FeatureStream)
 	str += fmt.Sprintf("Upload password : %s\n", config.FeaturePassword)
+	str += fmt.Sprintf("Upload comments : %s\n", config.FeatureComments)
+	str += fmt.Sprintf("Upload set TTL : %s\n", config.FeatureSetTTL)
+	str += fmt.Sprintf("Upload extend TTL : %s\n", config.FeatureExtendTTL)
 
 	str += fmt.Sprintf("Authentication : %s\n", config.FeatureAuthentication)
 	if config.FeatureAuthentication != FeatureDisabled {

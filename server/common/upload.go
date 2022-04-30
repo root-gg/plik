@@ -14,8 +14,9 @@ var (
 
 // Upload object
 type Upload struct {
-	ID  string `json:"id"`
-	TTL int    `json:"ttl"`
+	ID        string `json:"id"`
+	TTL       int    `json:"ttl"`
+	ExtendTTL bool   `json:"extend_ttl"`
 
 	DownloadDomain string `json:"downloadDomain" gorm:"-"`
 	RemoteIP       string `json:"uploadIp,omitempty"`
@@ -121,6 +122,14 @@ func GenerateRandomID(length int) string {
 	return string(b)
 }
 
+// ExtendExpirationDate extends the upload expiration date by TTL
+func (upload *Upload) ExtendExpirationDate() {
+	if upload.TTL > 0 {
+		deadline := time.Now().Add(time.Duration(upload.TTL) * time.Second)
+		upload.ExpireAt = &deadline
+	}
+}
+
 // IsExpired check if the upload is expired
 func (upload *Upload) IsExpired() bool {
 	if upload.ExpireAt != nil {
@@ -137,10 +146,7 @@ func (upload *Upload) InitializeForTests() {
 		upload.GenerateID()
 	}
 
-	if upload.ExpireAt == nil && upload.TTL > 0 {
-		deadline := time.Now().Add(time.Duration(upload.TTL) * time.Second)
-		upload.ExpireAt = &deadline
-	}
+	upload.ExtendExpirationDate()
 
 	for _, file := range upload.Files {
 		if file.ID == "" {

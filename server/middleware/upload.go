@@ -123,6 +123,16 @@ func Upload(ctx *context.Context, next http.Handler) http.Handler {
 			}
 		}
 
+		// Extend upload expiration date by TTL each time an upload is directly accessed
+		if upload.ExtendTTL {
+			upload.ExtendExpirationDate()
+			err := ctx.GetMetadataBackend().UpdateUploadExpirationDate(upload)
+			if err != nil {
+				ctx.InternalServerError("unable to extend upload expiration date", err)
+				return
+			}
+		}
+
 		next.ServeHTTP(resp, req)
 	})
 }

@@ -45,6 +45,8 @@ func (config *Configuration) initializeFeatureFlags() error {
 		config.initializeFeatureRemovable,
 		config.initializeFeatureStream,
 		config.initializeFeaturePassword,
+		config.initializeFeatureSetTTL,
+		config.initializeFeatureExtendTTL,
 	}
 
 	for _, initialization := range initializations {
@@ -163,6 +165,32 @@ func (config *Configuration) initializeFeaturePassword() error {
 
 	// Set legacy feature flag for backward compatibility
 	config.ProtectedByPassword = IsFeatureAvailable(config.FeaturePassword)
+
+	return nil
+}
+
+func (config *Configuration) initializeFeatureSetTTL() error {
+	if config.FeatureSetTTL == "" {
+		config.FeatureSetTTL = FeatureEnabled
+	}
+
+	err := ValidateFeatureFlag(config.FeatureSetTTL)
+	if err != nil {
+		return fmt.Errorf("Invalid value for FeatureSetTTL : %s", err)
+	}
+
+	return nil
+}
+
+func (config *Configuration) initializeFeatureExtendTTL() error {
+	if config.FeatureExtendTTL == "" {
+		config.FeatureExtendTTL = FeatureEnabled
+	}
+
+	err := ValidateFeatureFlag(config.FeatureExtendTTL)
+	if err != nil {
+		return fmt.Errorf("Invalid value for FeatureExtendTTL : %s", err)
+	}
 
 	return nil
 }

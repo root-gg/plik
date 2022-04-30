@@ -99,3 +99,22 @@ func TestUpload_IsExpired(t *testing.T) {
 	upload.ExpireAt = &deadline
 	require.True(t, upload.IsExpired())
 }
+
+func TestUpload_ExtendExpirationDate(t *testing.T) {
+	upload := &Upload{}
+	upload.TTL = 1
+
+	upload.ExtendExpirationDate()
+	require.NotNil(t, upload.ExpireAt)
+
+	require.False(t, upload.IsExpired())
+	time.Sleep(time.Second)
+	require.True(t, upload.IsExpired())
+
+	upload.ExtendExpirationDate()
+	require.NotNil(t, upload.ExpireAt)
+
+	require.False(t, upload.IsExpired())
+	time.Sleep(time.Second)
+	require.True(t, upload.IsExpired())
+}

@@ -97,6 +97,69 @@ func TestUploadExpired(t *testing.T) {
 	context.TestNotFound(t, rr, "upload "+upload.ID+" has expired")
 }
 
+func TestUploadExtendTTL(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	ctx.GetConfig().FeatureExtendTTL = common.FeatureEnabled
+
+	upload := &common.Upload{}
+	upload.ExtendTTL = true
+	upload.TTL = 1
+	upload.InitializeForTests()
+
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
+	require.NoError(t, err, "Unable to create upload")
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	// Fake gorilla/mux vars
+	vars := map[string]string{
+		"uploadID": upload.ID,
+	}
+
+	for i := 0; i < 4; i++ {
+		req = mux.SetURLVars(req, vars)
+		rr := ctx.NewRecorder(req)
+		Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	time.Sleep(time.Second)
+
+	req = mux.SetURLVars(req, vars)
+	rr := ctx.NewRecorder(req)
+	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	context.TestNotFound(t, rr, "upload "+upload.ID+" has expired")
+}
+
+func TestUploadExtendTTLExpiredUpload(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	ctx.GetConfig().FeatureExtendTTL = common.FeatureEnabled
+
+	upload := &common.Upload{}
+	upload.ExtendTTL = true
+	upload.InitializeForTests()
+	deadline := time.Now().Add(-10 * time.Minute)
+	upload.ExpireAt = &deadline
+
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
+	require.NoError(t, err, "Unable to create upload")
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	// Fake gorilla/mux vars
+	vars := map[string]string{
+		"uploadID": upload.ID,
+	}
+	req = mux.SetURLVars(req, vars)
+
+	rr := ctx.NewRecorder(req)
+	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
+
+	context.TestNotFound(t, rr, "upload "+upload.ID+" has expired")
+}
+
 func TestUploadToken(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
