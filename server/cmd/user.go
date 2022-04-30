@@ -74,7 +74,7 @@ func init() {
 
 	userCmd.AddCommand(createUserCmd)
 	createUserCmd.Flags().StringVar(&userParams.name, "name", "", "user name")
-	createUserCmd.Flags().StringVar(&userParams.name, "email", "", "user email")
+	createUserCmd.Flags().StringVar(&userParams.email, "email", "", "user email")
 	createUserCmd.Flags().StringVar(&userParams.password, "password", "", "user password")
 	createUserCmd.Flags().StringVar(&userParams.maxFileSize, "max-file-size", "", "user max file size")
 	createUserCmd.Flags().StringVar(&userParams.maxTTL, "max-ttl", "", "user max ttl")
@@ -82,7 +82,7 @@ func init() {
 
 	userCmd.AddCommand(updateUserCmd)
 	updateUserCmd.Flags().StringVar(&userParams.name, "name", "", "user name")
-	updateUserCmd.Flags().StringVar(&userParams.name, "email", "", "user email")
+	updateUserCmd.Flags().StringVar(&userParams.email, "email", "", "user email")
 	updateUserCmd.Flags().StringVar(&userParams.password, "password", "", "user password")
 	updateUserCmd.Flags().StringVar(&userParams.maxFileSize, "max-file-size", "", "user max file size")
 	updateUserCmd.Flags().StringVar(&userParams.maxTTL, "max-ttl", "", "user max ttl")
