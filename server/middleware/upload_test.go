@@ -97,6 +97,69 @@ func TestUploadExpired(t *testing.T) {
 	context.TestNotFound(t, rr, "upload "+upload.ID+" has expired")
 }
 
+func TestUploadExtendTTL(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	ctx.GetConfig().FeatureExtendTTL = common.FeatureEnabled
+
+	upload := &common.Upload{}
+	upload.ExtendTTL = true
+	upload.TTL = 1
+	upload.InitializeForTests()
+
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
+	require.NoError(t, err, "Unable to create upload")
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	// Fake gorilla/mux vars
+	vars := map[string]string{
+		"uploadID": upload.ID,
+	}
+
+	for i := 0; i < 4; i++ {
+		req = mux.SetURLVars(req, vars)
+		rr := ctx.NewRecorder(req)
+		Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	time.Sleep(time.Second)
+
+	req = mux.SetURLVars(req, vars)
+	rr := ctx.NewRecorder(req)
+	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	context.TestNotFound(t, rr, "upload "+upload.ID+" has expired")
+}
+
+func TestUploadExtendTTLExpiredUpload(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	ctx.GetConfig().FeatureExtendTTL = common.FeatureEnabled
+
+	upload := &common.Upload{}
+	upload.ExtendTTL = true
+	upload.InitializeForTests()
+	deadline := time.Now().Add(-10 * time.Minute)
+	upload.ExpireAt = &deadline
+
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
+	require.NoError(t, err, "Unable to create upload")
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	// Fake gorilla/mux vars
+	vars := map[string]string{
+		"uploadID": upload.ID,
+	}
+	req = mux.SetURLVars(req, vars)
+
+	rr := ctx.NewRecorder(req)
+	Upload(ctx, common.DummyHandler).ServeHTTP(rr, req)
+
+	context.TestNotFound(t, rr, "upload "+upload.ID+" has expired")
+}
+
 func TestUploadToken(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
@@ -129,7 +192,7 @@ func TestUploadToken(t *testing.T) {
 
 func TestUploadUser(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 
 	user := &common.User{}
 	user.ID = "user"
@@ -162,7 +225,7 @@ func TestUploadUser(t *testing.T) {
 
 func TestUploadUserToken(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 
 	token := common.NewToken()
 	ctx.SetToken(token)
@@ -194,7 +257,7 @@ func TestUploadUserToken(t *testing.T) {
 
 func TestUploadUserAdmin(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 
 	user := &common.User{}
 	user.ID = "user"
@@ -228,7 +291,7 @@ func TestUploadUserAdmin(t *testing.T) {
 
 func TestUploadPasswordMissingHeader(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 
 	upload := &common.Upload{}
 	upload.ProtectedByPassword = true
@@ -254,7 +317,7 @@ func TestUploadPasswordMissingHeader(t *testing.T) {
 
 func TestUploadPasswordInvalidHeader(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 
 	upload := &common.Upload{}
 	upload.ProtectedByPassword = true
@@ -282,7 +345,7 @@ func TestUploadPasswordInvalidHeader(t *testing.T) {
 
 func TestUploadPasswordInvalidScheme(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 
 	upload := &common.Upload{}
 	upload.ProtectedByPassword = true
@@ -310,7 +373,7 @@ func TestUploadPasswordInvalidScheme(t *testing.T) {
 
 func TestUploadPasswordInvalidPassword(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 
 	upload := &common.Upload{}
 	upload.ProtectedByPassword = true
@@ -338,7 +401,7 @@ func TestUploadPasswordInvalidPassword(t *testing.T) {
 
 func TestUploadPassword(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 
 	var err error
 

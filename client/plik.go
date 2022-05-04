@@ -42,9 +42,10 @@ Usage:
 
 Options:
   -o, --oneshot             Enable OneShot ( Each file will be deleted on first download )
-  -r, --removable           Enable Removable upload ( Each file can be deleted by anyone at anymoment )
+  -r, --removable           Enable Removable upload ( Each file can be deleted by anyone at any moment )
   -S, --stream              Enable Streaming ( It will block until remote user starts downloading )
   -t, --ttl TTL             Time before expiration (Upload will be removed in m|h|d)
+  --extend-ttl              Extend upload expiration date by TTL when accessed
   -n, --name NAME           Set file name when piping from STDIN
   --stdin                   Enable pipe from stdin explicitly when DisableStdin is set in .plikrc
   --server SERVER           Overrides server url
@@ -154,6 +155,7 @@ Options:
 	upload := client.NewUpload()
 	upload.Token = config.Token
 	upload.TTL = config.TTL
+	upload.ExtendTTL = config.ExtendTTL
 	upload.Stream = config.Stream
 	upload.OneShot = config.OneShot
 	upload.Removable = config.Removable

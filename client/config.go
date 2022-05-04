@@ -35,6 +35,7 @@ type CliConfig struct {
 	Login          string
 	Password       string
 	TTL            int
+	ExtendTTL      bool
 	AutoUpdate     bool
 	Token          string
 	DisableStdin   bool
@@ -72,7 +73,7 @@ func LoadConfigFromFile(path string) (*CliConfig, error) {
 	return config, nil
 }
 
-// LoadConfig creates a new default configuration and override it with .plikrc fike.
+// LoadConfig creates a new default configuration and override it with .plikrc file.
 // If .plikrc does not exist, ask domain, and create a new one in user HOMEDIR
 func LoadConfig(opts docopt.Opts) (config *CliConfig, err error) {
 	// Load config file from environment variable
@@ -140,8 +141,9 @@ func LoadConfig(opts docopt.Opts) (config *CliConfig, err error) {
 	}
 
 	// Try to HEAD the site to see if we have a redirection
-	client := plik.NewHTTPClient(true)
-	resp, err := client.Head(config.URL)
+	client := plik.NewClient(config.URL)
+	client.Insecure()
+	resp, err := client.HTTPClient.Head(config.URL)
 	if err != nil {
 		return nil, err
 	}
@@ -157,6 +159,34 @@ func LoadConfig(opts docopt.Opts) (config *CliConfig, err error) {
 		}
 		if ok {
 			config.URL = strings.TrimSuffix(finalURL, "/")
+		}
+	}
+
+	// Try to get server config to sync default values
+	serverConfig, err := client.GetServerConfig()
+	if err != nil {
+		fmt.Printf("Unable to get server configuration : %s", err)
+	} else {
+		config.OneShot = common.IsFeatureDefault(serverConfig.FeatureOneShot)
+		config.Removable = common.IsFeatureDefault(serverConfig.FeatureRemovable)
+		config.Stream = common.IsFeatureDefault(serverConfig.FeatureStream)
+		config.ExtendTTL = common.IsFeatureDefault(serverConfig.FeatureExtendTTL)
+
+		if serverConfig.FeatureAuthentication == common.FeatureForced {
+			fmt.Printf("Anonymous uploads are disabled on this server")
+			fmt.Printf("Do you want to provide a user authentication token ? [Y/n] ")
+			ok, err := common.AskConfirmation(true)
+			if err != nil {
+				return nil, fmt.Errorf("Unable to ask for confirmation : %s", err)
+			}
+			if ok {
+				var token string
+				fmt.Println("Please enter a valid user token : ")
+				_, err = fmt.Scanf("%s", &token)
+				if err == nil {
+					config.Token = token
+				}
+			}
 		}
 	}
 
@@ -264,6 +294,10 @@ func (config *CliConfig) UnmarshalArgs(opts docopt.Opts) (err error) {
 			return fmt.Errorf("Invalid TTL %s", opts["--ttl"].(string))
 		}
 		config.TTL = ttl * mul
+	}
+
+	if opts["--extend-ttl"].(bool) {
+		config.ExtendTTL = true
 	}
 
 	// Enable archive mode ?

@@ -1,8 +1,8 @@
 package context
 
 import (
+	"github.com/root-gg/utils"
 	"net"
-	"strconv"
 	"testing"
 	"time"
 
@@ -11,72 +11,360 @@ import (
 	"github.com/root-gg/plik/server/common"
 )
 
-func TestUpload_TooManyFiles(t *testing.T) {
+func TestUpload_AuthenticationDisabled(t *testing.T) {
 	ctx := newTestContext()
-	ctx.config.MaxFilePerUpload = 1
+	ctx.config.FeatureAuthentication = common.FeatureDisabled
 
-	params := &common.Upload{}
-	params.NewFile()
-	params.NewFile()
+	upload, err := ctx.CreateUpload(&common.Upload{})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.Empty(t, upload.User)
+
+	ctx.user = &common.User{ID: "user"}
+	upload, err = ctx.CreateUpload(&common.Upload{})
+	require.Errorf(t, err, "authentication is disabled")
+	require.Nil(t, upload)
+}
+
+func TestUpload_AuthenticationEnabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureAuthentication = common.FeatureEnabled
+
+	upload, err := ctx.CreateUpload(&common.Upload{})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.Empty(t, upload.User)
+
+	ctx.user = &common.User{ID: "user"}
+	upload, err = ctx.CreateUpload(&common.Upload{})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.Equal(t, ctx.user.ID, upload.User)
+
+}
+
+func TestUpload_AuthenticationForced(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureAuthentication = common.FeatureForced
+
+	upload, err := ctx.CreateUpload(&common.Upload{})
+	require.Errorf(t, err, "anonymous uploads are disabled")
+	require.Nil(t, upload)
+
+	ctx.user = &common.User{ID: "user"}
+	upload, err = ctx.CreateUpload(&common.Upload{})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.Equal(t, ctx.user.ID, upload.User)
+}
+
+func TestUpload_OneShotDisabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureOneShot = common.FeatureDisabled
+
+	upload, err := ctx.CreateUpload(&common.Upload{OneShot: false})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.False(t, upload.OneShot)
+
+	upload, err = ctx.CreateUpload(&common.Upload{OneShot: true})
+	require.Errorf(t, err, "one shot uploads are disabled")
+	require.Nil(t, upload)
+}
+
+func TestUpload_OneShotEnabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureOneShot = common.FeatureEnabled
+
+	upload, err := ctx.CreateUpload(&common.Upload{OneShot: false})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.False(t, upload.OneShot)
+
+	upload, err = ctx.CreateUpload(&common.Upload{OneShot: true})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.OneShot)
+
+}
+
+func TestUpload_OneShotForced(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureOneShot = common.FeatureForced
+
+	upload, err := ctx.CreateUpload(&common.Upload{OneShot: false})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.OneShot)
+
+	upload, err = ctx.CreateUpload(&common.Upload{OneShot: true})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.OneShot)
+}
+
+func TestUpload_RemovableDisabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureRemovable = common.FeatureDisabled
+
+	upload, err := ctx.CreateUpload(&common.Upload{Removable: false})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.False(t, upload.Removable)
+
+	upload, err = ctx.CreateUpload(&common.Upload{Removable: true})
+	require.Errorf(t, err, "removable uploads are disabled")
+	require.Nil(t, upload)
+}
+
+func TestUpload_RemovableEnabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureRemovable = common.FeatureEnabled
+
+	upload, err := ctx.CreateUpload(&common.Upload{Removable: false})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.False(t, upload.Removable)
+
+	upload, err = ctx.CreateUpload(&common.Upload{Removable: true})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.Removable)
+
+}
+
+func TestUpload_RemovableForced(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureRemovable = common.FeatureForced
+
+	upload, err := ctx.CreateUpload(&common.Upload{Removable: false})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.Removable)
+
+	upload, err = ctx.CreateUpload(&common.Upload{Removable: true})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.Removable)
+}
+
+func TestUpload_StreamDisabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureStream = common.FeatureDisabled
+
+	upload, err := ctx.CreateUpload(&common.Upload{Stream: false})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.False(t, upload.Stream)
+
+	upload, err = ctx.CreateUpload(&common.Upload{Stream: true})
+	require.Errorf(t, err, "streaming uploads are disabled")
+	require.Nil(t, upload)
+}
+
+func TestUpload_StreamEnabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureStream = common.FeatureEnabled
+
+	upload, err := ctx.CreateUpload(&common.Upload{Stream: false})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.False(t, upload.Stream)
+
+	upload, err = ctx.CreateUpload(&common.Upload{Stream: true})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.Stream)
+
+}
+
+func TestUpload_StreamForced(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureStream = common.FeatureForced
+
+	upload, err := ctx.CreateUpload(&common.Upload{Stream: false})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.Stream)
+
+	upload, err = ctx.CreateUpload(&common.Upload{Stream: true})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.Stream)
+}
+
+func TestUpload_PasswordDisabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeaturePassword = common.FeatureDisabled
+
+	upload, err := ctx.CreateUpload(&common.Upload{Password: ""})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.False(t, upload.ProtectedByPassword)
+
+	upload, err = ctx.CreateUpload(&common.Upload{Password: "password"})
+	require.Errorf(t, err, "upload password protection is disabled")
+	require.Nil(t, upload)
+}
+
+func TestUpload_PasswordEnabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeaturePassword = common.FeatureEnabled
+
+	upload, err := ctx.CreateUpload(&common.Upload{Password: ""})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.False(t, upload.ProtectedByPassword)
+
+	upload, err = ctx.CreateUpload(&common.Upload{Login: "login", Password: "password"})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.ProtectedByPassword)
+
+	md5sum, err := utils.Md5sum(common.EncodeAuthBasicHeader("login", "password"))
+	require.NoError(t, err)
+
+	require.Equal(t, "login", upload.Login)
+	require.Equal(t, md5sum, upload.Password)
+}
+
+func TestUpload_PasswordForced(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeaturePassword = common.FeatureForced
+
+	upload, err := ctx.CreateUpload(&common.Upload{Password: ""})
+	require.Errorf(t, err, "server only accept uploads protected by password")
+	require.Nil(t, upload)
+
+	upload, err = ctx.CreateUpload(&common.Upload{Password: "password"})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.ProtectedByPassword)
+}
+
+func TestUpload_PasswordDefaultLogin(t *testing.T) {
+	ctx := newTestContext()
+
+	params := &common.Upload{Password: "bar"}
 
 	upload, err := ctx.CreateUpload(params)
-	require.Errorf(t, err, "too many files")
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.Equal(t, "plik", upload.Login)
+	require.NotEqual(t, params.Password, upload.Password)
+	require.True(t, upload.ProtectedByPassword)
+}
+
+func TestUpload_CommentsDisabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureComments = common.FeatureDisabled
+
+	upload, err := ctx.CreateUpload(&common.Upload{Comments: ""})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.Empty(t, upload.Comments)
+
+	upload, err = ctx.CreateUpload(&common.Upload{Comments: "comments"})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.Empty(t, upload.Comments)
+}
+
+func TestUpload_CommentsEnabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureComments = common.FeatureEnabled
+
+	upload, err := ctx.CreateUpload(&common.Upload{Comments: ""})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.Empty(t, upload.Comments)
+
+	upload, err = ctx.CreateUpload(&common.Upload{Comments: "comments"})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.Equal(t, "comments", upload.Comments)
+
+}
+
+func TestUpload_CommentsForced(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureComments = common.FeatureForced
+
+	upload, err := ctx.CreateUpload(&common.Upload{Comments: ""})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.Empty(t, upload.Comments)
+
+	upload, err = ctx.CreateUpload(&common.Upload{Comments: "comments"})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.Equal(t, "comments", upload.Comments)
+}
+
+func TestUpload_ExtendTTLDisabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureExtendTTL = common.FeatureDisabled
+
+	upload, err := ctx.CreateUpload(&common.Upload{ExtendTTL: false})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.False(t, upload.ExtendTTL)
+
+	upload, err = ctx.CreateUpload(&common.Upload{ExtendTTL: true})
+	require.Errorf(t, err, "extend TTL is disabled")
 	require.Nil(t, upload)
 }
 
-func TestUpload_NoOneShot(t *testing.T) {
+func TestUpload_ExtendTTLEnabled(t *testing.T) {
 	ctx := newTestContext()
-	ctx.config.OneShot = false
+	ctx.config.FeatureExtendTTL = common.FeatureEnabled
 
-	upload, err := ctx.CreateUpload(&common.Upload{OneShot: true})
-	require.Errorf(t, err, "one shot uploads are are not enabled")
-	require.Nil(t, upload)
+	upload, err := ctx.CreateUpload(&common.Upload{ExtendTTL: false})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.False(t, upload.ExtendTTL)
+
+	upload, err = ctx.CreateUpload(&common.Upload{ExtendTTL: true})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.ExtendTTL)
+
 }
 
-func TestUpload_NoRemovable(t *testing.T) {
+func TestUpload_ExtendTTLForced(t *testing.T) {
 	ctx := newTestContext()
-	ctx.config.Removable = false
+	ctx.config.FeatureExtendTTL = common.FeatureForced
 
-	upload, err := ctx.CreateUpload(&common.Upload{Removable: true})
-	require.Errorf(t, err, "removable uploads are are not enabled")
-	require.Nil(t, upload)
-}
+	upload, err := ctx.CreateUpload(&common.Upload{ExtendTTL: false})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.ExtendTTL)
 
-func TestUpload_NoStream(t *testing.T) {
-	ctx := newTestContext()
-	ctx.config.Stream = false
-
-	upload, err := ctx.CreateUpload(&common.Upload{Stream: true})
-	require.Errorf(t, err, "streaming uploads are are not enabled")
-	require.Nil(t, upload)
-}
-
-func TestUpload_NoBasicAuth(t *testing.T) {
-	ctx := newTestContext()
-	ctx.config.ProtectedByPassword = false
-
-	upload, err := ctx.CreateUpload(&common.Upload{Login: "login", Password: "password"})
-	require.Errorf(t, err, "basic auth uploads are disabled")
-	require.Nil(t, upload)
+	upload, err = ctx.CreateUpload(&common.Upload{ExtendTTL: true})
+	require.NoError(t, err)
+	require.NotNil(t, upload)
+	require.True(t, upload.ExtendTTL)
 }
 
 func TestCreateUpload(t *testing.T) {
 	ctx := newTestContext()
 	ctx.sourceIP = net.ParseIP("4.2.4.2")
+	ctx.config.FeatureExtendTTL = common.FeatureEnabled
 
 	params := &common.Upload{}
-
 	params.ID = "id"
 	params.UploadToken = "token"
 	params.IsAdmin = true
 	params.ProtectedByPassword = true
 	params.RemoteIP = "1.3.3.7"
 	params.TTL = 42
+	params.ExtendTTL = true
 	params.User = "h4x0r"
 	params.Token = "h4x0r_token"
 	params.CreatedAt = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	deadline := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	params.ExpireAt = &deadline
+	params.Comments = "comment"
 
 	file := params.NewFile()
 	file.Name = "name"
@@ -102,10 +390,12 @@ func TestCreateUpload(t *testing.T) {
 	require.NotEqual(t, params.UploadToken, upload.UploadToken, "invalid upload token")
 	require.NotEqual(t, params.CreatedAt, upload.CreatedAt, "invalid created at")
 	require.NotEqual(t, params.ExpireAt, upload.ExpireAt, "invalid expired at")
+	require.True(t, upload.ExtendTTL, "invalid extend TTL status")
 	require.False(t, upload.IsAdmin, "invalid admin status")
 	require.False(t, upload.ProtectedByPassword, "invalid protected by password status")
-	require.Len(t, upload.Files, 1, "invalid file count")
+	require.Equal(t, params.Comments, upload.Comments, "invalid upload comments")
 
+	require.Len(t, upload.Files, 1, "invalid file count")
 	require.NotEmpty(t, upload.Files[0].ID, "empty file id")
 	require.NotEqual(t, file.ID, upload.Files[0].ID, "invalid file id")
 	require.Equal(t, upload.ID, upload.Files[0].UploadID, "invalid file id")
@@ -122,7 +412,7 @@ func TestCreateUpload(t *testing.T) {
 
 func TestCreateUploadCtx(t *testing.T) {
 	ctx := newTestContext()
-	ctx.config.Authentication = true
+	ctx.config.FeatureAuthentication = common.FeatureEnabled
 	ctx.user = &common.User{ID: "user"}
 	ctx.token = &common.Token{Token: "token"}
 
@@ -133,144 +423,121 @@ func TestCreateUploadCtx(t *testing.T) {
 	require.Equal(t, ctx.token.Token, upload.Token, "invalid token")
 }
 
-func TestCreateUploadAuthenticationDisabled(t *testing.T) {
+func TestUpload_TooManyFiles(t *testing.T) {
 	ctx := newTestContext()
-	ctx.user = &common.User{ID: "user"}
-	ctx.token = &common.Token{Token: "token"}
-
-	upload, err := ctx.CreateUpload(&common.Upload{})
-	common.RequireError(t, err, "authentication is disabled")
-	require.Nil(t, upload)
-}
-
-func TestCreateUploadNoAnonymousUpload(t *testing.T) {
-	ctx := newTestContext()
-	ctx.config.NoAnonymousUploads = true
-
-	upload, err := ctx.CreateUpload(&common.Upload{})
-	common.RequireError(t, err, "anonymous uploads are disabled")
-	require.Nil(t, upload)
-}
-
-func TestCreateUploadTooManyFiles(t *testing.T) {
-	ctx := newTestContext()
-	ctx.config.MaxFilePerUpload = 2
+	ctx.config.MaxFilePerUpload = 1
 
 	params := &common.Upload{}
-
-	for i := 0; i < 10; i++ {
-		fileToUpload := &common.File{}
-		fileToUpload.Reference = strconv.Itoa(i)
-		params.Files = append(params.Files, fileToUpload)
-	}
+	params.NewFile()
+	params.NewFile()
 
 	upload, err := ctx.CreateUpload(params)
-
-	common.RequireError(t, err, "too many files")
+	require.Errorf(t, err, "too many files")
 	require.Nil(t, upload)
 }
 
 func TestSetTTL(t *testing.T) {
-	ctx := &Context{config: &common.Configuration{MaxTTL: 0}}
+	ctx := newTestContext()
+	ctx.config.MaxTTL = 0
 	upload, err := ctx.CreateUpload(&common.Upload{TTL: 60})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, 60, upload.TTL, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{MaxTTL: 10}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = 10
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: 60})
 	common.RequireError(t, err, "invalid TTL")
 	require.Nil(t, upload)
 }
 
+func TestSetTTLDisabled(t *testing.T) {
+	ctx := newTestContext()
+	ctx.config.FeatureSetTTL = common.FeatureDisabled
+	ctx.config.DefaultTTL = 10
+	upload, err := ctx.CreateUpload(&common.Upload{TTL: 60})
+	require.NoError(t, err, "unable to set ttl")
+	require.Equal(t, 10, upload.TTL, "invalid TTL")
+
+	ctx = newTestContext()
+	ctx.config.FeatureSetTTL = common.FeatureDisabled
+	ctx.config.DefaultTTL = 0
+	upload, err = ctx.CreateUpload(&common.Upload{TTL: 60})
+	require.NoError(t, err, "unable to set ttl")
+	require.Equal(t, 0, upload.TTL, "invalid TTL")
+}
+
 func TestSetDefaultTTL(t *testing.T) {
-	ctx := &Context{config: &common.Configuration{DefaultTTL: 60}}
+	ctx := newTestContext()
+	ctx.config.DefaultTTL = 60
 	upload, err := ctx.CreateUpload(&common.Upload{TTL: 0})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, 60, upload.TTL, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{DefaultTTL: 0}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = 0
+	ctx.config.DefaultTTL = 0
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: 0})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, 0, upload.TTL, "invalid TTL")
 }
 
 func TestSetTTLInfinite(t *testing.T) {
-	ctx := &Context{config: &common.Configuration{MaxTTL: 0}}
+	ctx := newTestContext()
+	ctx.config.MaxTTL = 0
 	upload, err := ctx.CreateUpload(&common.Upload{TTL: -1})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, -1, upload.TTL, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{MaxTTL: -1}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = -1
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: -1})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, -1, upload.TTL, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{MaxTTL: 10}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = 10
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: -1})
 	common.RequireError(t, err, "infinite TTL")
 }
 
 func TestSetTTLUser(t *testing.T) {
-	ctx := &Context{config: &common.Configuration{MaxTTL: 0, Authentication: true}, user: &common.User{MaxTTL: 0}}
+	ctx := newTestContext()
+	ctx.config.MaxTTL = 0
+	ctx.config.FeatureAuthentication = common.FeatureEnabled
+	ctx.user = &common.User{MaxTTL: 0}
 	upload, err := ctx.CreateUpload(&common.Upload{TTL: 60})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, 60, upload.TTL, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{MaxTTL: 10, Authentication: true}, user: &common.User{MaxTTL: 0}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = 10
+	ctx.config.FeatureAuthentication = common.FeatureEnabled
+	ctx.user = &common.User{MaxTTL: 0}
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: 60})
 	common.RequireError(t, err, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{MaxTTL: 10, Authentication: true}, user: &common.User{MaxTTL: 100}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = 10
+	ctx.config.FeatureAuthentication = common.FeatureEnabled
+	ctx.user = &common.User{MaxTTL: 100}
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: 60})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, 60, upload.TTL, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{MaxTTL: 10, Authentication: true}, user: &common.User{MaxTTL: -1}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = 10
+	ctx.config.FeatureAuthentication = common.FeatureEnabled
+	ctx.user = &common.User{MaxTTL: -1}
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: 60})
 	require.NoError(t, err, "unable to set ttl")
 	require.Equal(t, 60, upload.TTL, "invalid TTL")
 
-	ctx = &Context{config: &common.Configuration{MaxTTL: -1, Authentication: true}, user: &common.User{MaxTTL: 10}}
+	ctx = newTestContext()
+	ctx.config.MaxTTL = -1
+	ctx.config.FeatureAuthentication = common.FeatureEnabled
+	ctx.user = &common.User{MaxTTL: 10}
 	upload, err = ctx.CreateUpload(&common.Upload{TTL: 60})
 	common.RequireError(t, err, "invalid TTL")
-}
-
-func TestCreateWithPasswordWhenPasswordIsNotEnabled(t *testing.T) {
-	ctx := newTestContext()
-	ctx.config.ProtectedByPassword = false
-
-	params := &common.Upload{Login: "foo", Password: "bar"}
-
-	upload, err := ctx.CreateUpload(params)
-	common.RequireError(t, err, "password protection is not enabled")
-	require.Nil(t, upload)
-}
-
-func TestCreateWithBasicAuth(t *testing.T) {
-	ctx := newTestContext()
-
-	params := &common.Upload{Login: "foo", Password: "bar"}
-
-	upload, err := ctx.CreateUpload(params)
-	require.NoError(t, err)
-	require.NotNil(t, upload)
-	require.Equal(t, params.Login, upload.Login)
-	require.NotEqual(t, params.Password, upload.Password)
-	require.True(t, upload.ProtectedByPassword)
-}
-
-func TestCreateWithBasicAuthDefaultLogin(t *testing.T) {
-	ctx := newTestContext()
-
-	params := &common.Upload{Password: "bar"}
-
-	upload, err := ctx.CreateUpload(params)
-	require.NoError(t, err)
-	require.NotNil(t, upload)
-	require.Equal(t, "plik", upload.Login)
-	require.NotEqual(t, params.Password, upload.Password)
-	require.True(t, upload.ProtectedByPassword)
-
 }
 
 func TestCreateMissingFilename(t *testing.T) {
@@ -316,7 +583,7 @@ func TestCreateWithFileTooBig(t *testing.T) {
 
 func TestCreateWithFileTooBigUser(t *testing.T) {
 	ctx := newTestContext()
-	ctx.config.Authentication = true
+	ctx.config.FeatureAuthentication = common.FeatureEnabled
 	ctx.user = &common.User{MaxFileSize: 0}
 	ctx.config.MaxFileSize = 1024
 

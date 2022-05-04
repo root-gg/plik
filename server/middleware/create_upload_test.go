@@ -14,7 +14,7 @@ import (
 
 func TestCreateUpload(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().DefaultTTL = 60
 
 	ctx.SetSourceIP(net.ParseIP("1.2.3.4"))
@@ -45,7 +45,7 @@ func TestCreateUpload(t *testing.T) {
 
 func TestCreateUploadNotWhitelisted(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.SetWhitelisted(false)
 
 	ctx.SetSourceIP(net.ParseIP("1.2.3.4"))
@@ -62,7 +62,7 @@ func TestCreateUploadNotWhitelisted(t *testing.T) {
 
 func TestCreateUploadInvalidContext(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
-	ctx.GetConfig().NoAnonymousUploads = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureForced
 
 	ctx.SetSourceIP(net.ParseIP("1.2.3.4"))
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})

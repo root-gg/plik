@@ -94,7 +94,7 @@ func init() {
 }
 
 func createUser(cmd *cobra.Command, args []string) {
-	if !config.Authentication {
+	if config.FeatureAuthentication == common.FeatureDisabled {
 		fmt.Println("Authentication is disabled !")
 		os.Exit(1)
 	}
@@ -168,7 +168,7 @@ func createUser(cmd *cobra.Command, args []string) {
 }
 
 func showUser(cmd *cobra.Command, args []string) {
-	if !config.Authentication {
+	if config.FeatureAuthentication == common.FeatureDisabled {
 		fmt.Println("Authentication is disabled !")
 		os.Exit(1)
 	}
@@ -200,7 +200,7 @@ func showUser(cmd *cobra.Command, args []string) {
 }
 
 func updateUser(cmd *cobra.Command, args []string) {
-	if !config.Authentication {
+	if config.FeatureAuthentication == common.FeatureDisabled {
 		fmt.Println("Authentication is disabled !")
 		os.Exit(1)
 	}
@@ -277,7 +277,7 @@ func updateUser(cmd *cobra.Command, args []string) {
 }
 
 func listUsers(cmd *cobra.Command, args []string) {
-	if !config.Authentication {
+	if config.FeatureAuthentication == common.FeatureDisabled {
 		fmt.Println("Authentication is disabled !")
 		os.Exit(1)
 	}
@@ -299,7 +299,7 @@ func listUsers(cmd *cobra.Command, args []string) {
 }
 
 func deleteUser(cmd *cobra.Command, args []string) {
-	if !config.Authentication {
+	if config.FeatureAuthentication == common.FeatureDisabled {
 		fmt.Println("Authentication is disabled !")
 		os.Exit(1)
 	}

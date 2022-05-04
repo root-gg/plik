@@ -19,7 +19,7 @@ type LoginParams struct {
 func LocalLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 	config := ctx.GetConfig()
 
-	if !config.Authentication {
+	if config.FeatureAuthentication == common.FeatureDisabled {
 		ctx.BadRequest("authentication is disabled")
 		return
 	}

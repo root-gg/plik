@@ -62,7 +62,7 @@ func init() {
 }
 
 func createToken(cmd *cobra.Command, args []string) {
-	if !config.Authentication {
+	if config.FeatureAuthentication == common.FeatureDisabled {
 		fmt.Println("Authentication is disabled !")
 		os.Exit(1)
 	}
@@ -106,7 +106,7 @@ func createToken(cmd *cobra.Command, args []string) {
 }
 
 func listTokens(cmd *cobra.Command, args []string) {
-	if !config.Authentication {
+	if config.FeatureAuthentication == common.FeatureDisabled {
 		fmt.Println("Authentication is disabled !")
 		os.Exit(1)
 	}
@@ -139,7 +139,7 @@ func listTokens(cmd *cobra.Command, args []string) {
 }
 
 func deleteToken(cmd *cobra.Command, args []string) {
-	if !config.Authentication {
+	if config.FeatureAuthentication == common.FeatureDisabled {
 		fmt.Println("Authentication is disabled !")
 		os.Exit(1)
 	}

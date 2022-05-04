@@ -22,7 +22,7 @@ var googleEndpointContextKey = "google_endpoint"
 func GoogleLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 	config := ctx.GetConfig()
 
-	if !config.Authentication {
+	if config.FeatureAuthentication == common.FeatureDisabled {
 		ctx.BadRequest("authentication is disabled")
 		return
 	}
@@ -73,7 +73,7 @@ func GoogleLogin(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 func GoogleCallback(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 	config := ctx.GetConfig()
 
-	if !config.Authentication {
+	if config.FeatureAuthentication == common.FeatureDisabled {
 		ctx.BadRequest("authentication is disabled")
 		return
 	}

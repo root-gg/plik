@@ -95,7 +95,6 @@ func (b *Backend) getMigrations() []*gormigrate.Migration {
 				return b.setupTxForMigration(tx).AutoMigrate(&Upload{}, &File{}, &User{}, &Token{}, &Setting{})
 			},
 			Rollback: func(tx *gorm.DB) error {
-				// return tx.Migrator().DropTable("uploads", "files", "users", "tokens", "settings")
 				b.log.Criticalf("Something went wrong. Please check database status manually")
 				return nil
 			},
@@ -116,7 +115,25 @@ func (b *Backend) getMigrations() []*gormigrate.Migration {
 				return b.setupTxForMigration(tx).AutoMigrate(&User{})
 			},
 			Rollback: func(tx *gorm.DB) error {
-				// return tx.Migrator().DropTable("uploads", "files", "users", "tokens", "settings")
+				b.log.Criticalf("Something went wrong. Please check database status manually")
+				return nil
+			},
+		}, {
+			ID: "0003-extend-ttl",
+			Migrate: func(tx *gorm.DB) error {
+				type Upload struct {
+					ExtendTTL bool `json:"extend_ttl"`
+				}
+
+				err := b.clean(tx)
+				if err != nil {
+					return err
+				}
+
+				b.log.Warning("Applying database migration 0003-extend-ttl")
+				return b.setupTxForMigration(tx).AutoMigrate(&Upload{})
+			},
+			Rollback: func(tx *gorm.DB) error {
 				b.log.Criticalf("Something went wrong. Please check database status manually")
 				return nil
 			},

@@ -29,7 +29,7 @@ var oauth2TestEndpoint = oauth2.Endpoint{
 func TestGoogleLogin(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_app_id"
 	ctx.GetConfig().GoogleAPISecret = "google_app_secret"
@@ -81,7 +81,7 @@ func TestGoogleLogin(t *testing.T) {
 func TestGoogleLoginAuthDisabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = false
+	ctx.GetConfig().FeatureAuthentication = common.FeatureDisabled
 	ctx.GetConfig().GoogleAuthentication = false
 
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
@@ -96,7 +96,7 @@ func TestGoogleLoginAuthDisabled(t *testing.T) {
 func TestGoogleLoginGoogleAuthDisabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().GoogleAuthentication = false
 
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
@@ -113,7 +113,7 @@ func TestGoogleLoginGoogleAuthDisabled(t *testing.T) {
 func TestGoogleLoginMissingReferer(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().GoogleAuthentication = true
 
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
@@ -128,7 +128,7 @@ func TestGoogleLoginMissingReferer(t *testing.T) {
 func TestGoogleCallback(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
 	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
@@ -224,7 +224,7 @@ func TestGoogleCallback(t *testing.T) {
 func TestGoogleCallbackAuthDisabled(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = false
+	ctx.GetConfig().FeatureAuthentication = common.FeatureDisabled
 
 	req, err := http.NewRequest("GET", "/auth/google/callback", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -240,7 +240,7 @@ func TestGoogleCallbackAuthDisabled(t *testing.T) {
 func TestGoogleCallbackMissingGoogleAuthParams(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 
 	req, err := http.NewRequest("GET", "/auth/google/login", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
@@ -256,7 +256,7 @@ func TestGoogleCallbackMissingGoogleAuthParams(t *testing.T) {
 func TestGoogleCallbackMissingCode(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
 	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
@@ -273,7 +273,7 @@ func TestGoogleCallbackMissingCode(t *testing.T) {
 func TestGoogleCallbackMissingState(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
 	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
@@ -290,7 +290,7 @@ func TestGoogleCallbackMissingState(t *testing.T) {
 func TestGoogleCallbackInvalidState(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
 	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
@@ -307,7 +307,7 @@ func TestGoogleCallbackInvalidState(t *testing.T) {
 func TestGoogleCallbackExpiredState(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
 	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
@@ -332,7 +332,7 @@ func TestGoogleCallbackExpiredState(t *testing.T) {
 func TestGoogleCallbackInvalidStateExpirationDate(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
 	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
@@ -357,7 +357,7 @@ func TestGoogleCallbackInvalidStateExpirationDate(t *testing.T) {
 func TestGoogleCallbackMissingStateExpirationDate(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
 	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
@@ -381,7 +381,7 @@ func TestGoogleCallbackMissingStateExpirationDate(t *testing.T) {
 func TestGoogleCallbackMissingOrigin(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
 	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
@@ -406,7 +406,7 @@ func TestGoogleCallbackMissingOrigin(t *testing.T) {
 func TestGoogleCallbackInvalidRedirectURL(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
 	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
@@ -432,7 +432,7 @@ func TestGoogleCallbackInvalidRedirectURL(t *testing.T) {
 func TestGoogleCallbackNoApi(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
 	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
@@ -459,7 +459,7 @@ func TestGoogleCallbackNoApi(t *testing.T) {
 func TestGoogleCallbackCreateUser(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
 	ctx.GetConfig().GoogleAPISecret = "google_api_secret"
@@ -553,7 +553,7 @@ func TestGoogleCallbackCreateUserNotWhitelisted(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.SetWhitelisted(false)
 
-	ctx.GetConfig().Authentication = true
+	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
 	ctx.GetConfig().GoogleAuthentication = true
 	ctx.GetConfig().GoogleAPIClientID = "google_api_client_id"
 	ctx.GetConfig().GoogleAPISecret = "google_api_secret"

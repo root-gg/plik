@@ -25,8 +25,7 @@ func TestTokenAuthentication(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)
 
-	ps.GetConfig().Authentication = true
-	ps.GetConfig().NoAnonymousUploads = true
+	ps.GetConfig().FeatureAuthentication = common.FeatureForced
 
 	user := common.NewUser("ovh", "gg1-ovh")
 	t1 := user.NewToken()
@@ -57,8 +56,7 @@ func TestTokenMultipleToken(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)
 
-	ps.GetConfig().Authentication = true
-	ps.GetConfig().NoAnonymousUploads = true
+	ps.GetConfig().FeatureAuthentication = common.FeatureForced
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start Plik server")
@@ -116,8 +114,7 @@ func TestTokenMultipleTokenAdmin(t *testing.T) {
 	defer shutdown(ps)
 
 	uid := "ovh:gg3-ovh"
-	ps.GetConfig().Authentication = true
-	ps.GetConfig().NoAnonymousUploads = true
+	ps.GetConfig().FeatureAuthentication = common.FeatureForced
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start Plik server")

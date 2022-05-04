@@ -444,3 +444,32 @@ func TestBackend_ForEachUploadUnscoped(t *testing.T) {
 	require.NoError(t, err, "for each upload error : %s", err)
 	require.Equal(t, 2, count, "invalid upload count")
 }
+
+func TestBackend_UpdateUploadExpirationDate(t *testing.T) {
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	upload := &common.Upload{}
+	upload.TTL = 1
+	createUpload(t, b, upload)
+
+	upload, err := b.GetUpload(upload.ID)
+	require.NoError(t, err)
+	require.NotNil(t, upload.ExpireAt)
+
+	require.False(t, upload.IsExpired())
+	time.Sleep(time.Second)
+	require.True(t, upload.IsExpired())
+
+	upload.ExtendExpirationDate()
+	err = b.UpdateUploadExpirationDate(upload)
+	require.NoError(t, err)
+
+	upload, err = b.GetUpload(upload.ID)
+	require.NoError(t, err)
+	require.NotNil(t, upload.ExpireAt)
+
+	require.False(t, upload.IsExpired())
+	time.Sleep(time.Second)
+	require.True(t, upload.IsExpired())
+}

@@ -50,6 +50,7 @@ echo -n "Start Plik server : "
 
 PLIKD_CONFIG=${PLIKD_CONFIG-../server/plikd.cfg}
 echo "PLIKD_CONFIG=$PLIKD_CONFIG"
+export PLIKD_FEATURE_EXTEND_TTL="enabled"
 
 (cd server && ./plikd --config $PLIKD_CONFIG > $SERVER_LOG 2>&1) >/dev/null 2>&1 &
 
@@ -388,6 +389,17 @@ before
 cp $SPECIMEN $TMPDIR/upload/FILE1
 upload --ttl 3600 && uploadOpts
 echo "$UPLOAD_OPTS" | grep '"ttl": 3600' >/dev/null 2>/dev/null
+
+echo "OK"
+
+#---------------------------------------------
+
+echo -n " - extend ttl : "
+
+before
+cp $SPECIMEN $TMPDIR/upload/FILE1
+upload --extend-ttl && uploadOpts
+echo "$UPLOAD_OPTS" | grep '"extend_ttl": true' >/dev/null 2>/dev/null
 
 echo "OK"
 

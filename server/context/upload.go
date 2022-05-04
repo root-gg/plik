@@ -30,7 +30,7 @@ func (ctx *Context) CreateUpload(params *common.Upload) (upload *common.Upload, 
 	}
 
 	// Set TTL
-	err = ctx.setTTL(upload, params.TTL)
+	err = ctx.setTTL(upload, params)
 	if err != nil {
 		return nil, err
 	}
@@ -55,19 +55,21 @@ func (ctx *Context) setUser(upload *common.Upload) (err error) {
 	user := ctx.GetUser()
 	token := ctx.GetToken()
 
-	if user == nil {
-		if config.NoAnonymousUploads {
-			return fmt.Errorf("anonymous uploads are disabled")
-		}
-	} else {
-		if !config.Authentication {
-			return fmt.Errorf("authentication is disabled")
-		}
+	if config.FeatureAuthentication == common.FeatureForced && user == nil {
+		return fmt.Errorf("anonymous uploads are disabled")
+	}
+
+	if config.FeatureAuthentication == common.FeatureDisabled && user != nil {
+		return fmt.Errorf("authentication is disabled")
+	}
+
+	if user != nil {
 		upload.User = user.ID
 		if token != nil {
 			upload.Token = token.Token
 		}
 	}
+
 	return nil
 }
 
@@ -75,77 +77,103 @@ func (ctx *Context) setParams(upload *common.Upload, params *common.Upload) (err
 	config := ctx.GetConfig()
 
 	upload.OneShot = params.OneShot
-	if upload.OneShot && !config.OneShot {
-		return fmt.Errorf("one shot uploads are not enabled")
+	if upload.OneShot && config.FeatureOneShot == common.FeatureDisabled {
+		return fmt.Errorf("one shot uploads are disabled")
+	} else if !upload.OneShot && config.FeatureOneShot == common.FeatureForced {
+		upload.OneShot = true
 	}
 
 	upload.Removable = params.Removable
-	if upload.Removable && !config.Removable {
-		return fmt.Errorf("removable uploads are not enabled")
+	if upload.Removable && config.FeatureRemovable == common.FeatureDisabled {
+		return fmt.Errorf("removable uploads are disabled")
+	} else if !upload.Removable && config.FeatureRemovable == common.FeatureForced {
+		upload.Removable = true
 	}
 
 	upload.Stream = params.Stream
-	if upload.Stream && !config.Stream {
-		return fmt.Errorf("stream mode is not enabled")
+	if upload.Stream && config.FeatureStream == common.FeatureDisabled {
+		return fmt.Errorf("streaming uploads are disabled")
+	} else if !upload.Stream && config.FeatureStream == common.FeatureForced {
+		upload.Stream = true
 	}
 
-	upload.TTL = params.TTL
-	upload.Comments = params.Comments
+	if config.FeatureComments == common.FeatureDisabled {
+		upload.Comments = ""
+	} else {
+		upload.Comments = params.Comments
+	}
 
 	return nil
 }
 
 // SetTTL adjust TTL parameters accordingly to default and max TTL
-func (ctx *Context) setTTL(upload *common.Upload, TTL int) (err error) {
+func (ctx *Context) setTTL(upload *common.Upload, params *common.Upload) (err error) {
 	config := ctx.GetConfig()
-	user := ctx.GetUser()
 
-	// TTL = Time in second before the upload expiration
-	// >0 	-> TTL specified
-	// 0 	-> No TTL specified : default value from configuration
-	// <0	-> No expiration
-	if TTL == 0 {
-		TTL = config.DefaultTTL
+	// When ExtendTTL is enabled the upload expiration date will be extended by TTL
+	// each time an upload file is downloaded
+	if params.ExtendTTL && config.FeatureExtendTTL == common.FeatureDisabled {
+		return fmt.Errorf("extend TTL is disabled")
+	} else if config.FeatureExtendTTL == common.FeatureForced {
+		upload.ExtendTTL = true
+	} else {
+		upload.ExtendTTL = params.ExtendTTL
 	}
 
-	maxTTL := config.MaxTTL
-	if user != nil && user.MaxTTL != 0 {
-		maxTTL = user.MaxTTL
-	}
+	if config.FeatureSetTTL == common.FeatureDisabled {
+		upload.TTL = config.DefaultTTL
+	} else {
+		TTL := params.TTL
+		// TTL = Time in second before the upload expiration
+		// >0 	-> TTL specified
+		// 0 	-> No TTL specified : default value from configuration
+		// <0	-> No expiration
+		if TTL == 0 {
+			TTL = config.DefaultTTL
+		}
 
-	if maxTTL > 0 {
-		if TTL <= 0 {
-			return fmt.Errorf("cannot set infinite TTL (maximum allowed is : %d)", maxTTL)
+		maxTTL := config.MaxTTL
+
+		// Override maxTTL with user specific limit
+		user := ctx.GetUser()
+		if user != nil && user.MaxTTL != 0 {
+			maxTTL = user.MaxTTL
 		}
-		if TTL > maxTTL {
-			return fmt.Errorf("invalid TTL. (maximum allowed is : %d)", maxTTL)
+
+		if maxTTL > 0 {
+			if TTL <= 0 {
+				return fmt.Errorf("cannot set infinite TTL (maximum allowed is : %d)", maxTTL)
+			}
+			if TTL > maxTTL {
+				return fmt.Errorf("invalid TTL. (maximum allowed is : %d)", maxTTL)
+			}
 		}
+
+		upload.TTL = TTL
 	}
 
 	upload.CreatedAt = time.Now()
-	upload.TTL = TTL
-	if upload.TTL > 0 {
-		deadline := upload.CreatedAt.Add(time.Duration(upload.TTL) * time.Second)
-		upload.ExpireAt = &deadline
-	}
+	upload.ExtendExpirationDate()
 
 	return nil
 }
 
 func (ctx *Context) setBasicAuth(upload *common.Upload, login string, password string) (err error) {
 	config := ctx.GetConfig()
-	if !config.ProtectedByPassword && (login != "" || password != "") {
-		return fmt.Errorf("password protection is not enabled")
+	if config.FeaturePassword == common.FeatureDisabled && password != "" {
+		return fmt.Errorf("upload password protection is disabled")
+	} else if config.FeaturePassword == common.FeatureForced && password == "" {
+		return fmt.Errorf("server only accept uploads protected by password")
+	}
+
+	if password == "" {
+		return nil
 	}
 
 	if login != "" {
 		upload.Login = login
 	} else {
 		upload.Login = "plik"
-	}
-
-	if password == "" {
-		return nil
 	}
 
 	upload.ProtectedByPassword = true

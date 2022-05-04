@@ -164,15 +164,8 @@ func TestString(t *testing.T) {
 	require.NotEmpty(t, config.String())
 
 	config.DownloadDomain = "download.domain"
-	config.OneShot = false
-	config.Removable = false
-	config.Stream = false
-	config.ProtectedByPassword = false
 	config.DefaultTTL = -1
 	config.MaxTTL = -1
-	require.NotEmpty(t, config.String())
-
-	config.Authentication = true
 	require.NotEmpty(t, config.String())
 
 	config.GoogleAuthentication = true

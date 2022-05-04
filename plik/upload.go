@@ -17,8 +17,9 @@ type UploadParams struct {
 	OneShot   bool // Force deletion of the file from the server after the first download
 	Removable bool // Allow upload and upload files to be removed from the server at any time
 
-	TTL      int    // Time in second before automatic deletion of the file from the server
-	Comments string // Arbitrary comment to attach to the upload ( the web interface support markdown language )
+	TTL       int    // Time in second before automatic deletion of the file from the server
+	ExtendTTL bool   // Extend upload expiration date by TTL when accessed
+	Comments  string // Arbitrary comment to attach to the upload ( the web interface support markdown language )
 
 	Token string // Authentication token to link an upload to a Plik user
 
@@ -57,6 +58,7 @@ func newUploadFromMetadata(client *Client, uploadMetadata *common.Upload) (uploa
 	upload.OneShot = uploadMetadata.OneShot
 	upload.Removable = uploadMetadata.Removable
 	upload.TTL = uploadMetadata.TTL
+	upload.ExtendTTL = uploadMetadata.ExtendTTL
 	upload.Comments = uploadMetadata.Comments
 	upload.metadata = uploadMetadata
 
@@ -121,6 +123,7 @@ func (upload *Upload) getParams() (params *common.Upload) {
 	params.OneShot = upload.OneShot
 	params.Removable = upload.Removable
 	params.TTL = upload.TTL
+	params.ExtendTTL = upload.ExtendTTL
 	params.Comments = upload.Comments
 	params.Token = upload.Token
 	params.Login = upload.Login

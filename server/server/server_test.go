@@ -178,9 +178,9 @@ func TestClean(t *testing.T) {
 	file := upload.NewFile()
 	file.Status = common.FileUploaded
 	upload.TTL = 1
+	upload.InitializeForTests()
 	deadline := time.Now().Add(-10 * time.Minute)
 	upload.ExpireAt = &deadline
-	upload.InitializeForTests()
 
 	require.True(t, upload.IsExpired(), "upload should be expired")
 
@@ -209,9 +209,9 @@ func TestCleanUploadingFiles(t *testing.T) {
 	file := upload.NewFile()
 	file.Status = common.FileUploading
 	upload.TTL = 1
+	upload.InitializeForTests()
 	deadline := time.Now().Add(-10 * time.Minute)
 	upload.ExpireAt = &deadline
-	upload.InitializeForTests()
 
 	require.True(t, upload.IsExpired(), "upload should be expired")
 
@@ -245,9 +245,9 @@ func TestAutoClean(t *testing.T) {
 
 	upload := &common.Upload{}
 	upload.TTL = 1
+	upload.InitializeForTests()
 	deadline := time.Now().Add(-10 * time.Minute)
 	upload.ExpireAt = &deadline
-	upload.InitializeForTests()
 
 	require.True(t, upload.IsExpired(), "upload should be expired")
 
