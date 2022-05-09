@@ -2,7 +2,7 @@ package common
 
 import (
 	"fmt"
-	"github.com/root-gg/utils"
+	"strings"
 )
 
 // FeatureDisabled feature is always off
@@ -19,13 +19,17 @@ const FeatureForced = "forced"
 
 // ValidateFeatureFlag validates a feature flag string value
 func ValidateFeatureFlag(value string) (err error) {
-	possibleValues := []string{FeatureDisabled, FeatureEnabled, FeatureDefault, FeatureForced}
+	return ValidateCustomFeatureFlag(value, []string{FeatureDisabled, FeatureEnabled, FeatureDefault, FeatureForced})
+}
+
+// ValidateCustomFeatureFlag validates a feature flag string value against a list of possible values
+func ValidateCustomFeatureFlag(value string, possibleValues []string) (err error) {
 	for _, possibleValue := range possibleValues {
 		if value == possibleValue {
 			return nil
 		}
 	}
-	return fmt.Errorf("Invalid feature flag value. Expecting : %s|%s|%s|%s", utils.ToInterfaceArray(possibleValues)...)
+	return fmt.Errorf("Invalid feature flag value. Expecting : %s", strings.Join(possibleValues, "|"))
 }
 
 // IsFeatureAvailable return true is the feature is available
@@ -47,6 +51,8 @@ func (config *Configuration) initializeFeatureFlags() error {
 		config.initializeFeaturePassword,
 		config.initializeFeatureSetTTL,
 		config.initializeFeatureExtendTTL,
+		config.initializeFeatureGithub,
+		config.initializeFeatureClients,
 	}
 
 	for _, initialization := range initializations {
@@ -190,6 +196,32 @@ func (config *Configuration) initializeFeatureExtendTTL() error {
 	err := ValidateFeatureFlag(config.FeatureExtendTTL)
 	if err != nil {
 		return fmt.Errorf("Invalid value for FeatureExtendTTL : %s", err)
+	}
+
+	return nil
+}
+
+func (config *Configuration) initializeFeatureClients() error {
+	if config.FeatureClients == "" {
+		config.FeatureClients = FeatureEnabled
+	}
+
+	err := ValidateCustomFeatureFlag(config.FeatureClients, []string{FeatureDisabled, FeatureEnabled})
+	if err != nil {
+		return fmt.Errorf("Invalid value for FeatureClients : %s", err)
+	}
+
+	return nil
+}
+
+func (config *Configuration) initializeFeatureGithub() error {
+	if config.FeatureGithub == "" {
+		config.FeatureGithub = FeatureEnabled
+	}
+
+	err := ValidateCustomFeatureFlag(config.FeatureGithub, []string{FeatureDisabled, FeatureEnabled})
+	if err != nil {
+		return fmt.Errorf("Invalid value for FeatureGithub : %s", err)
 	}
 
 	return nil

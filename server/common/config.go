@@ -64,6 +64,8 @@ type Configuration struct {
 	FeatureComments       string `json:"feature_comments"`
 	FeatureSetTTL         string `json:"feature_set_ttl"`
 	FeatureExtendTTL      string `json:"feature_extend_ttl"`
+	FeatureClients        string `json:"feature_clients"`
+	FeatureGithub         string `json:"feature_github"`
 
 	// Deprecated Feature Flags
 	Authentication      bool `json:"authentication"`      // Deprecated: >1.3.6

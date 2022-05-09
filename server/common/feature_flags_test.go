@@ -265,6 +265,54 @@ func Test_initializeFeatureExtendTTL(t *testing.T) {
 	require.Equal(t, FeatureForced, config.FeatureExtendTTL)
 }
 
+func Test_initializeFeatureClients(t *testing.T) {
+	config := NewConfiguration()
+	config.FeatureClients = "invalid"
+	RequireError(t, config.initializeFeatureClients(), "Invalid feature flag value")
+
+	config = NewConfiguration()
+	config.FeatureClients = ""
+	require.NoError(t, config.initializeFeatureClients())
+	require.Equal(t, FeatureEnabled, config.FeatureClients)
+
+	config = NewConfiguration()
+	config.FeatureClients = FeatureDisabled
+	require.NoError(t, config.initializeFeatureClients())
+	require.Equal(t, FeatureDisabled, config.FeatureClients)
+
+	config = NewConfiguration()
+	config.FeatureClients = FeatureForced
+	RequireError(t, config.initializeFeatureClients(), "Invalid feature flag value")
+
+	config = NewConfiguration()
+	config.FeatureClients = FeatureDefault
+	RequireError(t, config.initializeFeatureClients(), "Invalid feature flag value")
+}
+
+func Test_initializeFeatureGithub(t *testing.T) {
+	config := NewConfiguration()
+	config.FeatureGithub = "invalid"
+	RequireError(t, config.initializeFeatureGithub(), "Invalid feature flag value")
+
+	config = NewConfiguration()
+	config.FeatureGithub = ""
+	require.NoError(t, config.initializeFeatureGithub())
+	require.Equal(t, FeatureEnabled, config.FeatureGithub)
+
+	config = NewConfiguration()
+	config.FeatureGithub = FeatureDisabled
+	require.NoError(t, config.initializeFeatureGithub())
+	require.Equal(t, FeatureDisabled, config.FeatureGithub)
+
+	config = NewConfiguration()
+	config.FeatureGithub = FeatureForced
+	RequireError(t, config.initializeFeatureGithub(), "Invalid feature flag value")
+
+	config = NewConfiguration()
+	config.FeatureClients = FeatureDefault
+	RequireError(t, config.initializeFeatureClients(), "Invalid feature flag value")
+}
+
 func Test_initializeFeatureFlags(t *testing.T) {
 	config := NewConfiguration()
 	require.NoError(t, config.initializeFeatureFlags())
