@@ -20,6 +20,11 @@ plik.controller('MenuCtrl', ['$rootScope', '$scope', '$config',
                 });
         });
 
+        $scope.isFeatureEnabled = function(feature_name) {
+            var value = $scope.config["feature_" + feature_name]
+            return value && value !== "disabled"
+        }
+
         // Get user from session
         $config.getUser()
             .then(function (user) {

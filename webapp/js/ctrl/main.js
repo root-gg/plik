@@ -23,7 +23,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
 
         $scope.isFeatureEnabled = function(feature_name) {
             var value = $scope.config["feature_" + feature_name]
-            return value !== "disabled"
+            return value && value !== "disabled"
         }
 
         $scope.isFeatureDefault = function(feature_name) {
