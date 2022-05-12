@@ -84,7 +84,7 @@ func checkDownloadDomain(ctx *context.Context) bool {
 	resp := ctx.GetResp()
 
 	if config.GetDownloadDomain() != nil {
-		if req.Host != config.GetDownloadDomain().Host {
+		if req.Host != config.GetDownloadDomain().Host && !config.IsDownloadDomainAlias(req.Host) {
 			downloadURL := fmt.Sprintf("%s://%s%s",
 				config.GetDownloadDomain().Scheme,
 				config.GetDownloadDomain().Host,
