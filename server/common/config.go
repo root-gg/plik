@@ -44,14 +44,15 @@ type Configuration struct {
 	SslCert    string `json:"-"`
 	SslKey     string `json:"-"`
 
-	NoWebInterface      bool   `json:"-"`
-	DownloadDomain      string `json:"downloadDomain"`
-	EnhancedWebSecurity bool   `json:"-"`
-	SessionTimeout      string `json:"-"`
-	AbuseContact        string `json:"abuseContact"`
-	WebappDirectory     string `json:"-"`
-	ClientsDirectory    string `json:"-"`
-	ChangelogDirectory  string `json:"-"`
+	NoWebInterface      bool     `json:"-"`
+	DownloadDomain      string   `json:"downloadDomain"`
+	DownloadDomainAlias []string `json:"downloadDomainAlias"`
+	EnhancedWebSecurity bool     `json:"-"`
+	SessionTimeout      string   `json:"-"`
+	AbuseContact        string   `json:"abuseContact"`
+	WebappDirectory     string   `json:"-"`
+	ClientsDirectory    string   `json:"-"`
+	ChangelogDirectory  string   `json:"-"`
 
 	SourceIPHeader  string   `json:"-"`
 	UploadWhitelist []string `json:"-"`
@@ -90,10 +91,11 @@ type Configuration struct {
 	DataBackend       string                 `json:"-"`
 	DataBackendConfig map[string]interface{} `json:"-"`
 
-	downloadDomainURL *url.URL
-	uploadWhitelist   []*net.IPNet
-	clean             bool
-	sessionTimeout    int
+	downloadDomainURL      *url.URL
+	downloadDomainURLAlias []*url.URL
+	uploadWhitelist        []*net.IPNet
+	clean                  bool
+	sessionTimeout         int
 }
 
 // NewConfiguration creates a new configuration
@@ -205,6 +207,14 @@ func (config *Configuration) Initialize() (err error) {
 		if config.downloadDomainURL, err = url.Parse(config.DownloadDomain); err != nil {
 			return fmt.Errorf("invalid download domain URL %s : %s", config.DownloadDomain, err)
 		}
+
+		for _, domainAlias := range config.DownloadDomainAlias {
+			if domainAlias, err := url.Parse(domainAlias); err != nil {
+				return fmt.Errorf("invalid download domain URL %s : %s", domainAlias, err)
+			} else {
+				config.downloadDomainURLAlias = append(config.downloadDomainURLAlias, domainAlias)
+			}
+		}
 	}
 
 	if config.MaxFileSizeStr != "" {
@@ -261,6 +271,22 @@ func (config *Configuration) GetUploadWhitelist() []*net.IPNet {
 // GetDownloadDomain return the parsed download domain URL
 func (config *Configuration) GetDownloadDomain() *url.URL {
 	return config.downloadDomainURL
+}
+
+// IsDownloadDomainAlias return weather or not the host in the config domain alias
+func (config *Configuration) IsDownloadDomainAlias(host string) bool {
+	if len(config.downloadDomainURLAlias) == 0 {
+		return false
+	}
+
+	// Check if the host in the config domain alias
+	for _, urlAlias := range config.downloadDomainURLAlias {
+		if urlAlias.Host == host {
+			return true
+		}
+	}
+
+	return false
 }
 
 // AutoClean enable or disables the periodical upload cleaning goroutine.
@@ -331,6 +357,9 @@ func (config *Configuration) String() string {
 	str := ""
 	if config.DownloadDomain != "" {
 		str += fmt.Sprintf("Download domain : %s\n", config.DownloadDomain)
+		if len(config.DownloadDomainAlias) > 0 {
+			str += fmt.Sprintf("Download domain alias: %v\n", config.DownloadDomainAlias)
+		}
 	}
 
 	str += fmt.Sprintf("Maximum file size : %s\n", humanize.Bytes(uint64(config.MaxFileSize)))
