@@ -641,6 +641,11 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             }
         };
 
+        // Display the admin URL link only if the upload token is available and already present in the url
+        $scope.displayAdminUrlLink = function () {
+            return $scope.upload.uploadToken && !$location.search().uploadToken;
+        }
+
         // Add upload token in url so one can add/remove files later
         $scope.setAdminUrl = function () {
             $location.search('uploadToken', $scope.upload.uploadToken);

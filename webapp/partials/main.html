@@ -102,7 +102,7 @@
             </div>
         </div>
         <!-- DOWNLOAD MENU -->
-        <div class="tile menu" ng-if="mode == 'download' && somethingToDownload()">
+        <div class="tile menu" ng-if="mode == 'download'">
             <!-- QR CODE -->
             <div class="text-center hidden-xs hidden-sm" ng-click="displayQRCodeUpload()">
                 <p><img ng-src="{{getQrCodeUploadUrl(200)}}" alt="QR Code"/></p>
@@ -111,7 +111,7 @@
             <div class="menu-item" ng-show="upload.ttl != 0">
                 <p class="text-center">This upload will {{ getExpirationDate() }}</p>
             </div>
-            <div class="menu-item text-center" ng-if="upload.uploadToken">
+            <div class="menu-item text-center" ng-if="displayAdminUrlLink()">
                 <a href="" class="small" ng-click="setAdminUrl()"
                    tooltip-placement="bottom" uib-tooltip="Allow adding and removing files to an upload after its creation.">
                     Admin url
