@@ -11,6 +11,15 @@ import (
 	"github.com/root-gg/plik/server/context"
 )
 
+func getTestSessionAuthenticator() *common.SessionAuthenticator {
+	return &common.SessionAuthenticator{
+		SignatureKey:   "secret_key",
+		SecureCookies:  true,
+		SessionTimeout: 3600,
+		Path:           "/",
+	}
+}
+
 func TestAuthenticateTokenNoUser(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
@@ -55,7 +64,7 @@ func TestAuthenticateToken(t *testing.T) {
 func TestAuthenticateInvalidSessionCookie(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
-	ctx.SetAuthenticator(&common.SessionAuthenticator{SignatureKey: "secret_key"})
+	ctx.SetAuthenticator(getTestSessionAuthenticator())
 
 	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
@@ -74,7 +83,7 @@ func TestAuthenticateInvalidSessionCookie(t *testing.T) {
 func TestAuthenticateMissingXSRFHeader(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
-	ctx.SetAuthenticator(&common.SessionAuthenticator{SignatureKey: "secret_key"})
+	ctx.SetAuthenticator(getTestSessionAuthenticator())
 
 	user := common.NewUser(common.ProviderLocal, "user")
 
@@ -95,7 +104,7 @@ func TestAuthenticateMissingXSRFHeader(t *testing.T) {
 func TestAuthenticateInvalidXSRFHeader(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
-	ctx.SetAuthenticator(&common.SessionAuthenticator{SignatureKey: "secret_key"})
+	ctx.SetAuthenticator(getTestSessionAuthenticator())
 
 	user := common.NewUser(common.ProviderLocal, "user")
 
@@ -118,7 +127,7 @@ func TestAuthenticateInvalidXSRFHeader(t *testing.T) {
 func TestAuthenticateNoUser(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
-	ctx.SetAuthenticator(&common.SessionAuthenticator{SignatureKey: "secret_key"})
+	ctx.SetAuthenticator(getTestSessionAuthenticator())
 
 	user := common.NewUser(common.ProviderLocal, "user")
 
@@ -139,7 +148,7 @@ func TestAuthenticateNoUser(t *testing.T) {
 func TestAuthenticate(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
-	ctx.SetAuthenticator(&common.SessionAuthenticator{SignatureKey: "secret_key"})
+	ctx.SetAuthenticator(getTestSessionAuthenticator())
 
 	user := common.NewUser(common.ProviderLocal, "user")
 
@@ -163,7 +172,7 @@ func TestAuthenticate(t *testing.T) {
 func TestAuthenticateAdminUser(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 	ctx.GetConfig().FeatureAuthentication = common.FeatureEnabled
-	ctx.SetAuthenticator(&common.SessionAuthenticator{SignatureKey: "secret_key"})
+	ctx.SetAuthenticator(getTestSessionAuthenticator())
 
 	user := common.NewUser(common.ProviderLocal, "user")
 	user.IsAdmin = true

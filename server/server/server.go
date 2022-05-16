@@ -401,7 +401,13 @@ func (ps *PlikServer) initializeAuthenticator() (err error) {
 				}
 			}
 
-			ps.authenticator = &common.SessionAuthenticator{SignatureKey: setting.Value, SecureCookies: ps.config.EnhancedWebSecurity}
+			ps.authenticator = &common.SessionAuthenticator{
+				SignatureKey:   setting.Value,
+				SecureCookies:  ps.config.EnhancedWebSecurity,
+				SessionTimeout: ps.config.GetSessionTimeout(),
+				Path:           ps.config.GetPath(),
+			}
+
 			return nil
 		}
 	}
