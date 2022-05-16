@@ -22,18 +22,21 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         var invalidCharList = ['/', '#', '?', '%', '"'];
 
         $scope.isFeatureEnabled = function(feature_name) {
-            var value = $scope.config["feature_" + feature_name]
-            return value && value !== "disabled"
+            if (!$scope.config) return false;
+            var value = $scope.config["feature_" + feature_name];
+            return value && value !== "disabled";
         }
 
         $scope.isFeatureDefault = function(feature_name) {
-            var value = $scope.config["feature_" + feature_name]
-            return value === "default" || value === "forced"
+            if (!$scope.config) return false;
+            var value = $scope.config["feature_" + feature_name];
+            return value === "default" || value === "forced";
         }
 
         $scope.isFeatureForced = function(feature_name) {
-            var value = $scope.config["feature_" + feature_name]
-            return value === "forced"
+            if (!$scope.config) return false;
+            var value = $scope.config["feature_" + feature_name];
+            return value === "forced";
         }
 
         // Get server config

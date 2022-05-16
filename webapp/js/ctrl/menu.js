@@ -1,6 +1,5 @@
 plik.controller('MenuCtrl', ['$rootScope', '$scope', '$config',
     function ($rootScope, $scope, $config) {
-
         // Get server config
         $config.getConfig()
             .then(function (config) {
@@ -21,6 +20,7 @@ plik.controller('MenuCtrl', ['$rootScope', '$scope', '$config',
         });
 
         $scope.isFeatureEnabled = function(feature_name) {
+            if (!$scope.config) return false;
             var value = $scope.config["feature_" + feature_name]
             return value && value !== "disabled"
         }
