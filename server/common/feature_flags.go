@@ -204,7 +204,7 @@ func (config *Configuration) initializeFeatureSetTTL() error {
 
 func (config *Configuration) initializeFeatureExtendTTL() error {
 	if config.FeatureExtendTTL == "" {
-		config.FeatureExtendTTL = FeatureEnabled
+		config.FeatureExtendTTL = FeatureDisabled
 	}
 
 	err := ValidateFeatureFlag(config.FeatureExtendTTL)

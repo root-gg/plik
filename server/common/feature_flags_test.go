@@ -273,7 +273,7 @@ func Test_initializeFeatureExtendTTL(t *testing.T) {
 	config = NewConfiguration()
 	config.FeatureExtendTTL = ""
 	require.NoError(t, config.initializeFeatureExtendTTL())
-	require.Equal(t, FeatureEnabled, config.FeatureExtendTTL)
+	require.Equal(t, FeatureDisabled, config.FeatureExtendTTL)
 
 	config = NewConfiguration()
 	config.FeatureExtendTTL = FeatureForced
