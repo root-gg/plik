@@ -90,6 +90,9 @@ plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location
                 return;
             }
 
+            // Don't let users impersonate themselves even if harmless
+            if ($scope.original_user.id ===  user.id) return;
+
             $scope.setFakeUser(user);
 
             // Dummy try to double check that we can get the user
