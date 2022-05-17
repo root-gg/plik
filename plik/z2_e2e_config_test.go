@@ -2,6 +2,7 @@ package plik
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -211,23 +212,57 @@ func TestRemovableDisabled(t *testing.T) {
 	require.Contains(t, err.Error(), "removable uploads are disabled", "invalid error")
 }
 
-func TestDownloadDomain(t *testing.T) {
+func TestValidDownloadDomain(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)
 
-	ps.GetConfig().DownloadDomain = "http://127.0.0.1:13425"
+	ps.GetConfig().DownloadDomain = fmt.Sprintf("http://%s:%d", ps.GetConfig().ListenAddress, ps.GetConfig().ListenPort)
 	err := ps.GetConfig().Initialize()
 	require.NoError(t, err, "unable to initialize config")
 
 	err = start(ps)
 	require.NoError(t, err, "unable to start plik server")
 
-	handler := http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		resp.WriteHeader(http.StatusInternalServerError)
-		resp.Write([]byte("error_ok"))
-	})
-	cancel, err := common.StartAPIMockServerCustomPort(13425, handler)
-	defer cancel()
+	upload, file, err := pc.UploadReader("filename", bytes.NewBufferString("data"))
+	require.NoError(t, err, "unable to create upload")
+	require.NotNil(t, upload.Metadata(), "upload has not been created")
+	require.Equal(t, ps.GetConfig().DownloadDomain, upload.Metadata().DownloadDomain, "invalid upload ttl")
+
+	_, err = file.Download()
+	require.NoError(t, err, "unable to download file")
+}
+
+func TestDownloadDomainAlias(t *testing.T) {
+	ps, pc := newPlikServerAndClient()
+	defer shutdown(ps)
+
+	ps.GetConfig().DownloadDomain = fmt.Sprintf("https://plik.root.gg")
+	ps.GetConfig().DownloadDomainAlias = []string{fmt.Sprintf("http://%s:%d", ps.GetConfig().ListenAddress, ps.GetConfig().ListenPort)}
+	err := ps.GetConfig().Initialize()
+	require.NoError(t, err, "unable to initialize config")
+
+	err = start(ps)
+	require.NoError(t, err, "unable to start plik server")
+
+	upload, file, err := pc.UploadReader("filename", bytes.NewBufferString("data"))
+	require.NoError(t, err, "unable to create upload")
+	require.NotNil(t, upload.Metadata(), "upload has not been created")
+	require.Equal(t, ps.GetConfig().DownloadDomain, upload.Metadata().DownloadDomain, "invalid upload ttl")
+
+	_, err = file.Download()
+	require.NoError(t, err, "unable to download file")
+}
+
+func TestInvalidDownloadDomain(t *testing.T) {
+	ps, pc := newPlikServerAndClient()
+	defer shutdown(ps)
+
+	ps.GetConfig().DownloadDomain = fmt.Sprintf("https://plik.root.gg")
+	err := ps.GetConfig().Initialize()
+	require.NoError(t, err, "unable to initialize config")
+
+	err = start(ps)
+	require.NoError(t, err, "unable to start plik server")
 
 	upload, file, err := pc.UploadReader("filename", bytes.NewBufferString("data"))
 	require.NoError(t, err, "unable to create upload")
@@ -236,7 +271,7 @@ func TestDownloadDomain(t *testing.T) {
 
 	_, err = file.Download()
 	require.Error(t, err, "unable to download file")
-	require.Contains(t, err.Error(), "error_ok", "invalid error")
+	require.Contains(t, err.Error(), "Invalid download domain")
 }
 
 func TestUploadWhitelistOK(t *testing.T) {

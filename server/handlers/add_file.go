@@ -180,7 +180,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	file.Sanitize()
 
 	if ctx.IsQuick() {
-		// Print the file url in the response.
+		// Do our best to print the file url in the response.
 		var url string
 		if ctx.GetConfig().GetDownloadDomain() != nil {
 			url = ctx.GetConfig().GetDownloadDomain().String()

@@ -150,10 +150,11 @@ func TestGetArchiveInvalidDownloadDomain(t *testing.T) {
 
 	req, err := http.NewRequest("GET", "/archive/", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
+	req.Host = "invalid.domain"
 
 	rr := ctx.NewRecorder(req)
 	GetArchive(ctx, rr, req)
-	require.Equal(t, 301, rr.Code, "handler returned wrong status code")
+	context.TestBadRequest(t, rr, "Invalid download domain invalid.domain")
 }
 
 func TestGetArchiveMissingUpload(t *testing.T) {
