@@ -47,6 +47,7 @@ type Configuration struct {
 	NoWebInterface      bool   `json:"-"`
 	DownloadDomain      string `json:"downloadDomain"`
 	EnhancedWebSecurity bool   `json:"-"`
+	SessionTimeout      string `json:"-"`
 	AbuseContact        string `json:"abuseContact"`
 	WebappDirectory     string `json:"-"`
 	ClientsDirectory    string `json:"-"`
@@ -92,6 +93,7 @@ type Configuration struct {
 	downloadDomainURL *url.URL
 	uploadWhitelist   []*net.IPNet
 	clean             bool
+	sessionTimeout    int
 }
 
 // NewConfiguration creates a new configuration
@@ -103,6 +105,7 @@ func NewConfiguration() (config *Configuration) {
 	config.ListenAddress = "0.0.0.0"
 	config.ListenPort = 8080
 	config.EnhancedWebSecurity = false
+	config.SessionTimeout = "365d"
 
 	config.MaxFileSize = 10000000000 // 10GB
 	config.MaxFilePerUpload = 1000
@@ -230,6 +233,14 @@ func (config *Configuration) Initialize() (err error) {
 		return fmt.Errorf("DefaultTTL should not be more than MaxTTL")
 	}
 
+	config.sessionTimeout, err = ParseTTL(config.SessionTimeout)
+	if err != nil {
+		return fmt.Errorf("unable to parse SessionTimeout : %s", err)
+	}
+	if config.sessionTimeout <= 0 {
+		return fmt.Errorf("invalid negative or zero value for SessionTimeout")
+	}
+
 	return nil
 }
 
@@ -301,6 +312,19 @@ func (config *Configuration) GetServerURL() *url.URL {
 	URL.Path = config.Path
 
 	return URL
+}
+
+// GetPath return the web API/UI root path
+func (config *Configuration) GetPath() string {
+	if config.Path == "" {
+		return "/"
+	}
+	return config.Path
+}
+
+// GetSessionTimeout return parsed session timeout
+func (config *Configuration) GetSessionTimeout() int {
+	return config.sessionTimeout
 }
 
 func (config *Configuration) String() string {

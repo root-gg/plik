@@ -261,3 +261,40 @@ func TestParseTTL(t *testing.T) {
 	TTL, err = ParseTTL("foo")
 	RequireError(t, err, "unable to parse TTL")
 }
+
+func TestConfiguration_GetSessionTimeout(t *testing.T) {
+	config := NewConfiguration()
+	require.Equal(t, 0, config.GetSessionTimeout())
+
+	err := config.Initialize()
+	require.NoError(t, err)
+	require.Equal(t, 365*24*60*60, config.GetSessionTimeout())
+
+	config = NewConfiguration()
+	config.SessionTimeout = "30d"
+	err = config.Initialize()
+	require.NoError(t, err)
+	require.Equal(t, 30*24*60*60, config.GetSessionTimeout())
+
+	config = NewConfiguration()
+	config.SessionTimeout = ""
+	err = config.Initialize()
+	RequireError(t, err, "unable to parse SessionTimeout")
+
+	config = NewConfiguration()
+	config.SessionTimeout = "-1"
+	err = config.Initialize()
+	RequireError(t, err, "invalid negative or zero value for SessionTimeout")
+
+	config = NewConfiguration()
+	config.SessionTimeout = "azerty"
+	err = config.Initialize()
+	RequireError(t, err, "unable to parse SessionTimeout")
+}
+
+func TestConfiguration_GetPath(t *testing.T) {
+	config := NewConfiguration()
+	require.Equal(t, "/", config.GetPath())
+	config.Path = "/path"
+	require.Equal(t, "/path", config.GetPath())
+}

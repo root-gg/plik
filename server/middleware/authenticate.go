@@ -47,7 +47,7 @@ func Authenticate(allowToken bool) context.Middleware {
 					}
 				}
 
-				sessionCookie, err := req.Cookie("plik-session")
+				sessionCookie, err := req.Cookie(common.SessionCookieName)
 				if err == nil && sessionCookie != nil {
 					// Parse session cookie
 					uid, xsrf, err := ctx.GetAuthenticator().ParseSessionCookie(sessionCookie.Value)

@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -10,8 +11,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const sessionCookieName = "plik-session"
-const xsrfCookieName = "plik-xsrf"
+const SessionCookieName = "plik-session"
+const XsrfCookieName = "plik-xsrf"
 
 // GenerateAuthenticationSignatureKey create an new random key
 func GenerateAuthenticationSignatureKey() (s *Setting) {
@@ -24,8 +25,10 @@ func GenerateAuthenticationSignatureKey() (s *Setting) {
 
 // SessionAuthenticator to generate and authenticate session cookies
 type SessionAuthenticator struct {
-	SignatureKey  string
-	SecureCookies bool
+	SignatureKey   string
+	SecureCookies  bool
+	SessionTimeout int
+	Path           string
 }
 
 // GenAuthCookies generate a sign a jwt session cookie to authenticate a user
@@ -41,6 +44,9 @@ func (sa *SessionAuthenticator) GenAuthCookies(user *User) (sessionCookie *http.
 	}
 	session.Claims.(jwt.MapClaims)["xsrf"] = xsrfToken.String()
 
+	// Session cookie creation date
+	session.Claims.(jwt.MapClaims)["created_at"] = strconv.FormatInt(time.Now().Unix(), 10)
+
 	sessionString, err := session.SignedString([]byte(sa.SignatureKey))
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to sign session cookie : %s", err)
@@ -49,18 +55,18 @@ func (sa *SessionAuthenticator) GenAuthCookies(user *User) (sessionCookie *http.
 	// Store session jwt in secure cookie
 	sessionCookie = &http.Cookie{}
 	sessionCookie.HttpOnly = true
-	sessionCookie.Name = sessionCookieName
+	sessionCookie.Name = SessionCookieName
 	sessionCookie.Value = sessionString
-	sessionCookie.MaxAge = int(time.Now().Add(10 * 365 * 24 * time.Hour).Unix())
-	sessionCookie.Path = "/"
+	sessionCookie.MaxAge = sa.SessionTimeout
+	sessionCookie.Path = sa.Path
 
 	// Store xsrf token cookie
 	xsrfCookie = &http.Cookie{}
 	xsrfCookie.HttpOnly = false
-	xsrfCookie.Name = xsrfCookieName
+	xsrfCookie.Name = XsrfCookieName
 	xsrfCookie.Value = xsrfToken.String()
-	xsrfCookie.MaxAge = int(time.Now().Add(10 * 365 * 24 * time.Hour).Unix())
-	xsrfCookie.Path = "/"
+	xsrfCookie.MaxAge = sa.SessionTimeout
+	xsrfCookie.Path = sa.Path
 
 	if sa.SecureCookies {
 		sessionCookie.Secure = true
@@ -89,7 +95,7 @@ func (sa *SessionAuthenticator) ParseSessionCookie(value string) (uid string, xs
 	if ok {
 		uid, ok = userValue.(string)
 		if !ok || uid == "" {
-			return "", "", fmt.Errorf("missing user from session cookie")
+			return "", "", fmt.Errorf("invalid user from session cookie")
 		}
 	} else {
 		return "", "", fmt.Errorf("missing user from session cookie")
@@ -100,10 +106,30 @@ func (sa *SessionAuthenticator) ParseSessionCookie(value string) (uid string, xs
 	if ok {
 		xsrf, ok = xsrfValue.(string)
 		if !ok || uid == "" {
-			return "", "", fmt.Errorf("missing xsrf token from session cookie")
+			return "", "", fmt.Errorf("invalid xsrf token from session cookie")
 		}
 	} else {
 		return "", "", fmt.Errorf("missing xsrf token from session cookie")
+	}
+
+	// Check that the session didn't expire yet.
+	// It's better to not trust MaxAge too much as it's based on client time
+	// This also allows invalidating too old sessions when rolling out the feature and when the configuration is updated
+	createdAtValue, ok := session.Claims.(jwt.MapClaims)["created_at"]
+	if ok {
+		createdAtStrValue, ok := createdAtValue.(string)
+		if !ok || createdAtValue == "" {
+			return "", "", fmt.Errorf("invalid creation date from session cookie")
+		}
+		createdAt, err := strconv.ParseInt(createdAtStrValue, 10, 64)
+		if err != nil {
+			return "", "", fmt.Errorf("unable to parse creation date from session cookie")
+		}
+		if time.Now().After(time.Unix(createdAt, 0).Add(time.Duration(sa.SessionTimeout) * time.Second)) {
+			return "", "", fmt.Errorf("session timeout")
+		}
+	} else {
+		return "", "", fmt.Errorf("missing creation date from session cookie")
 	}
 
 	return uid, xsrf, nil
@@ -121,18 +147,18 @@ func (sa *SessionAuthenticator) Logout() (sessionCookie *http.Cookie, xsrfCookie
 	// Delete session cookie
 	sessionCookie = &http.Cookie{}
 	sessionCookie.HttpOnly = true
-	sessionCookie.Name = sessionCookieName
+	sessionCookie.Name = SessionCookieName
 	sessionCookie.Value = ""
 	sessionCookie.MaxAge = -1
-	sessionCookie.Path = "/"
+	sessionCookie.Path = sa.Path
 
 	// Store xsrf token cookie
 	xsrfCookie = &http.Cookie{}
 	xsrfCookie.HttpOnly = false
-	xsrfCookie.Name = xsrfCookieName
+	xsrfCookie.Name = XsrfCookieName
 	xsrfCookie.Value = ""
 	xsrfCookie.MaxAge = -1
-	xsrfCookie.Path = "/"
+	xsrfCookie.Path = sa.Path
 
 	if sa.SecureCookies {
 		sessionCookie.Secure = true
