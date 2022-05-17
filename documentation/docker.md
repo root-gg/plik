@@ -67,7 +67,7 @@ Create a docker-compose.yml file with the following content
 version: "2"
 services:
   plik:
-    image: rootgg/plik:1.3.5
+    image: rootgg/plik:latest
     container_name: plik
     volumes:
       - /home/{user}/plik/plikd.cfg:/home/plik/server/plikd.cfg

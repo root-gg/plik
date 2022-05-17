@@ -1,0 +1,64 @@
+Plik 1.3.6
+
+Hi, today we're releasing Plik 1.3.6 !
+
+Here is the changelog :
+
+Breaking :
+    - Add authentication session timeout (#423)
+        Configurable in plikd.cfg with SessionTimeout parameter (default: 365d)
+        /!\ this will reset all existing authentication sessions /!\
+    - Add download domain aliases (@d-w-x)
+        Allow to configure several valid DownloadDomain, useful for CDN or to setup alternative internal/local domains
+        /!\ Plik no longer redirect request with invalid download domain to the configured DownloadDomain automatically /!\
+        /!\ This avoids that users can be tricked to believe that the file is not hosted on another domain /!\
+
+New :
+    - Introducing feature flags
+        A new way to customize Plik features with more flexibility in plikd.cfg
+          - disabled : feature is always off
+          - enabled  : feature is opt-in
+          - default  : feature is opt-out
+          - forced   : feature is always on
+        Feature flags replace existing configuration parameters like :
+          - OneShot => FeatureOneShot (default: enabled)
+          - Removable => FeatureRemovable (default: enabled)
+          - Stream => FeatureStream (default: enabled)
+          - ProtectedByPassword => FeaturePassword (default: enabled)
+          - Authentication => FeatureAuthentication (default: disabled)
+          - NoAnonymousUploads => FeatureAuthentication = "forced"
+        No breaking change configuration sill fallbacks to old parameters if the associated feature flag is not defined
+    - New feature flag FeatureComments (default: enabled)
+        Allow or prevent users to specify upload comments
+    - New feature flag FeatureSetTTL (default: enabled)
+        Allow or prevent user to specify upload TTL. When disabled the upload TTL is always set to DefaultTTL, users have no control over it.
+    - New feature flag ExtendTTL (default: disabled)
+        Allow or prevent users to create uploads that automatically extend their expiration date by their specified TTL when accessed
+    - New feature flag FeatureClients (default: enabled)
+        Display or hide the Clients download link in the web UI
+    - New feature flag FeatureGithub (default: enabled)
+        Display or hide the Github source code link in the web UI
+    - Set user specific MaxTTL/MaxFileSize with the plikd user command line
+        ./plikd user update --login plik_user --max-file-size 100GB --max-ttl 0
+    - New config parameter DefaultTTLStr / MaxTTLStr to specify DefaultTTL in a human-readable format (default: 30d)
+        Fallbacks to the former DefaultTTL / MaxTTL parameters if not defined
+    - New config parameter MaxFileSizeStr to specify MaxFileSize in a human-readable format (default: 10GB)
+        Fallbacks to the former MaxFileSize parameters if not defined
+    - Add file show command
+    - Allow to use custom User-Agent in client library (@pjakuszew)
+    - Change default basic auth user from 'plik' to 'user' in Webapp
+    - Remove root.gg branding in index.html meta description (@cubox)
+    - Add FreeBSD support for compilation (@cubox)
+
+Fix :
+    - Fix QR code display on empty uploads
+    - Fix Makefile clients target
+    - Fix user management cmd email parameter
+    - Fix footer position
+    - Fix image paste in Firefox
+    - Don't let admin users impersonate themselves
+
+\o/ Plik is now an AWESOME GO project (https://github.com/avelino/awesome-go) \o/
+
+Faithfully,
+The plik team
