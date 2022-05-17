@@ -78,21 +78,12 @@ func GetQrCode(ctx *context.Context, resp http.ResponseWriter, req *http.Request
 
 // If a download domain is specified verify that the request comes from this specific domain
 func checkDownloadDomain(ctx *context.Context) bool {
-	log := ctx.GetLogger()
 	config := ctx.GetConfig()
 	req := ctx.GetReq()
-	resp := ctx.GetResp()
 
-	if config.GetDownloadDomain() != nil {
-		if req.Host != config.GetDownloadDomain().Host && !config.IsDownloadDomainAlias(req.Host) {
-			downloadURL := fmt.Sprintf("%s://%s%s",
-				config.GetDownloadDomain().Scheme,
-				config.GetDownloadDomain().Host,
-				req.RequestURI)
-			log.Warningf("invalid download domain %s, expected %s", req.Host, config.GetDownloadDomain().Host)
-			http.Redirect(resp, req, downloadURL, http.StatusMovedPermanently)
-			return false
-		}
+	if !config.IsValidDownloadDomain(req.Host) {
+		ctx.BadRequest("Invalid download domain %s", req.Host)
+		return false
 	}
 
 	return true

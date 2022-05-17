@@ -298,3 +298,34 @@ func TestConfiguration_GetPath(t *testing.T) {
 	config.Path = "/path"
 	require.Equal(t, "/path", config.GetPath())
 }
+
+func TestConfiguration_IsValidDownloadDomain(t *testing.T) {
+	config := NewConfiguration()
+	err := config.Initialize()
+	require.NoError(t, err)
+
+	require.Nil(t, config.downloadDomainURL)
+	require.True(t, config.IsValidDownloadDomain("plik.root.gg"))
+	require.True(t, config.IsValidDownloadDomain("invalid.domain"))
+
+	config = NewConfiguration()
+	config.DownloadDomain = "https://plik.root.gg"
+	err = config.Initialize()
+	require.NoError(t, err)
+
+	require.NotNil(t, config.downloadDomainURL)
+	require.True(t, config.IsValidDownloadDomain("plik.root.gg"))
+	require.False(t, config.IsValidDownloadDomain("invalid.domain"))
+
+	config = NewConfiguration()
+	config.DownloadDomain = "https://plik.root.gg"
+	config.DownloadDomainAlias = []string{"https://dl.root.gg"}
+	err = config.Initialize()
+	require.NoError(t, err)
+
+	require.NotNil(t, config.downloadDomainURL)
+	require.NotEmpty(t, config.downloadDomainURLAlias)
+	require.True(t, config.IsValidDownloadDomain("plik.root.gg"))
+	require.True(t, config.IsValidDownloadDomain("dl.root.gg"))
+	require.False(t, config.IsValidDownloadDomain("invalid.domain"))
+}

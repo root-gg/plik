@@ -233,3 +233,32 @@ func TestGetRedirectionURLWithPath(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "https://plik.root.gg/path/callback", redirectURL)
 }
+
+func TestCheckDownloadDomain(t *testing.T) {
+	config := common.NewConfiguration()
+	config.DownloadDomain = "https://plik.root.gg"
+	config.DownloadDomainAlias = []string{"https://dl.root.gg"}
+	require.NoError(t, config.Initialize())
+
+	ctx := newTestingContext(config)
+
+	req, err := http.NewRequest("GET", "/files/my.file", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	ctx.SetReq(req)
+
+	req.Host = "plik.root.gg"
+	rr := ctx.NewRecorder(req)
+	checkDownloadDomain(ctx)
+	context.TestOK(t, rr)
+
+	req.Host = "dl.root.gg"
+	rr = ctx.NewRecorder(req)
+	checkDownloadDomain(ctx)
+	context.TestOK(t, rr)
+
+	req.Host = "invalid.domain"
+	rr = ctx.NewRecorder(req)
+	checkDownloadDomain(ctx)
+	context.TestBadRequest(t, rr, "Invalid download domain invalid.domain")
+}

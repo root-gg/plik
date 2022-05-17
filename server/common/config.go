@@ -273,13 +273,17 @@ func (config *Configuration) GetDownloadDomain() *url.URL {
 	return config.downloadDomainURL
 }
 
-// IsDownloadDomainAlias return weather or not the host in the config domain alias
-func (config *Configuration) IsDownloadDomainAlias(host string) bool {
-	if len(config.downloadDomainURLAlias) == 0 {
-		return false
+// IsValidDownloadDomain return weather or not the host is a valid download domain
+func (config *Configuration) IsValidDownloadDomain(host string) bool {
+	if config.downloadDomainURL == nil {
+		return true
 	}
 
-	// Check if the host in the config domain alias
+	if config.downloadDomainURL.Host == host {
+		return true
+	}
+
+	// Check if the host is in the config domain alias
 	for _, urlAlias := range config.downloadDomainURLAlias {
 		if urlAlias.Host == host {
 			return true
