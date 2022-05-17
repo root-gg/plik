@@ -158,18 +158,19 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             if (maxFileSize && size > maxFileSize) {
                 $dialog.alert({
                     status: 0,
-                    message: "File is too big : " + $scope.humanReadableSize(file.size),
+                    message: "File is too big : " + $scope.humanReadableSize(size),
                     value: "Maximum allowed size is : " + $scope.humanReadableSize($scope.config.maxFileSize)
                 });
-                return;
+                return false;
             }
+            return true;
         }
 
         // Add a file to the upload list
         $scope.onFileSelect = function (files) {
             _.each(files, function (file) {
                 // Check file size
-                $scope.checkMaxFileSize(file.size);
+                if (!$scope.checkMaxFileSize(file.size)) return;
 
                 // Already added file names
                 var names = _.pluck($scope.files, 'fileName');
