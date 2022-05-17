@@ -233,6 +233,22 @@ func Test_initializeFeaturePassword(t *testing.T) {
 	require.True(t, config.ProtectedByPassword)
 }
 
+func Test_initializeFeatureComments(t *testing.T) {
+	config := NewConfiguration()
+	config.FeatureComments = "invalid"
+	RequireError(t, config.initializeFeatureComments(), "Invalid feature flag value")
+
+	config = NewConfiguration()
+	config.FeatureComments = ""
+	require.NoError(t, config.initializeFeatureComments())
+	require.Equal(t, FeatureEnabled, config.FeatureComments)
+
+	config = NewConfiguration()
+	config.FeatureComments = FeatureForced
+	require.NoError(t, config.initializeFeatureComments())
+	require.Equal(t, FeatureForced, config.FeatureComments)
+}
+
 func Test_initializeFeatureSetTTL(t *testing.T) {
 	config := NewConfiguration()
 	config.FeatureSetTTL = "invalid"

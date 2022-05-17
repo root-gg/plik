@@ -115,14 +115,12 @@ func NewConfiguration() (config *Configuration) {
 	config.DefaultTTL = 2592000 // 30 days
 	config.MaxTTL = 2592000     // 30 days
 
-	config.FeatureAuthentication = FeatureDisabled
-	config.FeatureOneShot = FeatureEnabled
-	config.FeatureRemovable = FeatureEnabled
-	config.FeatureStream = FeatureEnabled
-	config.FeaturePassword = FeatureEnabled
-	config.FeatureComments = FeatureEnabled
-	config.FeatureSetTTL = FeatureEnabled
-	config.FeatureExtendTTL = FeatureDisabled
+	// Deprecated feature flags default values to ensure backward compatibility <1.3.6
+	// New FeatureFlags default values are defined in feature_flags.go initialization functions
+	config.OneShot = true
+	config.Removable = true
+	config.Stream = true
+	config.ProtectedByPassword = true
 
 	config.OvhAPIEndpoint = "https://eu.api.ovh.com/1.0"
 

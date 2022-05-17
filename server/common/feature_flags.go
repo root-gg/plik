@@ -49,6 +49,7 @@ func (config *Configuration) initializeFeatureFlags() error {
 		config.initializeFeatureRemovable,
 		config.initializeFeatureStream,
 		config.initializeFeaturePassword,
+		config.initializeFeatureComments,
 		config.initializeFeatureSetTTL,
 		config.initializeFeatureExtendTTL,
 		config.initializeFeatureGithub,
@@ -171,6 +172,19 @@ func (config *Configuration) initializeFeaturePassword() error {
 
 	// Set legacy feature flag for backward compatibility
 	config.ProtectedByPassword = IsFeatureAvailable(config.FeaturePassword)
+
+	return nil
+}
+
+func (config *Configuration) initializeFeatureComments() error {
+	if config.FeatureComments == "" {
+		config.FeatureComments = FeatureEnabled
+	}
+
+	err := ValidateFeatureFlag(config.FeatureComments)
+	if err != nil {
+		return fmt.Errorf("Invalid value for FeatureComments : %s", err)
+	}
 
 	return nil
 }
