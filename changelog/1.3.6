@@ -27,12 +27,12 @@ New :
           - ProtectedByPassword => FeaturePassword (default: enabled)
           - Authentication => FeatureAuthentication (default: disabled)
           - NoAnonymousUploads => FeatureAuthentication = "forced"
-        No breaking change configuration sill fallbacks to old parameters if the associated feature flag is not defined
+        No breaking change as configuration sill fallbacks to old parameters if the associated feature flag is not defined
     - New feature flag FeatureComments (default: enabled)
         Allow or prevent users to specify upload comments
     - New feature flag FeatureSetTTL (default: enabled)
         Allow or prevent user to specify upload TTL. When disabled the upload TTL is always set to DefaultTTL, users have no control over it.
-    - New feature flag ExtendTTL (default: disabled)
+    - New feature flag FeatureExtendTTL (default: disabled)
         Allow or prevent users to create uploads that automatically extend their expiration date by their specified TTL when accessed
     - New feature flag FeatureClients (default: enabled)
         Display or hide the Clients download link in the web UI
