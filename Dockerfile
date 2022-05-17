@@ -1,5 +1,5 @@
 ##################################################################################
-FROM --platform=$BUILDPLATFORM node:12.15-alpine AS plik-frontend-builder
+FROM --platform=$BUILDPLATFORM node:18-alpine AS plik-frontend-builder
 
 # Install needed binaries
 RUN apk add --no-cache git make bash
@@ -11,7 +11,7 @@ COPY webapp /webapp
 RUN make clean-frontend frontend
 
 ##################################################################################
-FROM --platform=$BUILDPLATFORM golang:1.17.6-buster AS plik-builder
+FROM --platform=$BUILDPLATFORM golang:1.18-buster AS plik-builder
 
 # Install needed binaries
 RUN apt-get update && apt-get install -y build-essential crossbuild-essential-armhf crossbuild-essential-armel crossbuild-essential-arm64 crossbuild-essential-i386
