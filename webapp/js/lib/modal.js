@@ -79,7 +79,7 @@ plik.controller('PasswordController', ['$scope',
         }, 100);
 
         $scope.title = 'Please fill credentials !';
-        $scope.login = 'plik';
+        $scope.login = 'user';
         $scope.password = '';
 
         $scope.close = function (login, password) {
