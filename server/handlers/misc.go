@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"image/png"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -74,6 +75,11 @@ func GetQrCode(ctx *context.Context, resp http.ResponseWriter, req *http.Request
 		ctx.InternalServerError("unable to encore png : %s", err)
 		return
 	}
+}
+
+// Health is a handler to check for service health
+func Health(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	_, _ = io.WriteString(resp, "ok\n")
 }
 
 // If a download domain is specified verify that the request comes from this specific domain

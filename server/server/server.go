@@ -213,22 +213,27 @@ func (ps *PlikServer) shutdown(timeout time.Duration) (err error) {
 }
 
 func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
-	// Initialize middleware chain
-	stdChain := context.NewChain(middleware.Context(ps.setupContext), middleware.SourceIP, middleware.Log, middleware.Recover)
 
-	// Get user from session cookie
+	// An empty chain just initializing context
+	emptyChain := context.NewChain(middleware.Context(ps.setupContext))
+
+	// The base middleware chain
+	stdChain := emptyChain.Append(middleware.SourceIP, middleware.Log, middleware.Recover)
+
+	// A chain that authenticates user from session cookies
 	authChain := stdChain.Append(middleware.Authenticate(false), middleware.Impersonate)
 
-	// Parse paging queries
-	pagingChain := authChain.Append(middleware.Paginate)
-
-	// Get user from session cookie or X-PlikToken header
+	// A Chain that authenticates user from session cookie or X-PlikToken header
 	tokenChain := stdChain.Append(middleware.Authenticate(true), middleware.Impersonate)
 
-	// Redirect on error for webapp
+	// A chain that parses paging queries
+	pagingChain := authChain.Append(middleware.Paginate)
+
+	// Chains that redirect on error for webapp
 	stdChainWithRedirect := context.NewChain(middleware.RedirectOnFailure).AppendChain(stdChain)
 	authChainWithRedirect := context.NewChain(middleware.RedirectOnFailure).AppendChain(tokenChain)
 
+	// Chain that fetches the requested upload and file metadata
 	getFileChain := context.NewChain(middleware.Upload, middleware.File)
 
 	// HTTP Api routes configuration
@@ -240,10 +245,10 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	router.Handle("/upload/{uploadID}", authChain.Append(middleware.Upload).Then(handlers.GetUpload)).Methods("GET")
 	router.Handle("/upload/{uploadID}", tokenChain.Append(middleware.Upload).Then(handlers.RemoveUpload)).Methods("DELETE")
 	router.Handle("/file/{uploadID}", tokenChain.Append(middleware.Upload).Then(handlers.AddFile)).Methods("POST")
-	router.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
-	router.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.RemoveFile)).Methods("DELETE")
+	router.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.AppendChain(getFileChain).Then(handlers.AddFile)).Methods("POST")
+	router.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.AppendChain(getFileChain).Then(handlers.RemoveFile)).Methods("DELETE")
 	router.Handle("/file/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
-	router.Handle("/stream/{uploadID}/{fileID}/{filename}", tokenChain.Append(middleware.Upload, middleware.File).Then(handlers.AddFile)).Methods("POST")
+	router.Handle("/stream/{uploadID}/{fileID}/{filename}", tokenChain.AppendChain(getFileChain).Then(handlers.AddFile)).Methods("POST")
 	router.Handle("/stream/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
 	router.Handle("/archive/{uploadID}/{filename}", authChainWithRedirect.Append(middleware.Upload).Then(handlers.GetArchive)).Methods("HEAD", "GET")
 	router.Handle("/auth/google/login", authChain.Then(handlers.GoogleLogin)).Methods("GET")
@@ -263,6 +268,7 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	router.Handle("/stats", authChain.Then(handlers.GetServerStatistics)).Methods("GET")
 	router.Handle("/users", pagingChain.Then(handlers.GetUsers)).Methods("GET")
 	router.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
+	router.Handle("/health", emptyChain.Then(handlers.Health)).Methods("GET")
 
 	if !ps.config.NoWebInterface {
 

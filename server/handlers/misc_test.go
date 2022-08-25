@@ -245,8 +245,6 @@ func TestCheckDownloadDomain(t *testing.T) {
 	req, err := http.NewRequest("GET", "/files/my.file", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")
 
-	ctx.SetReq(req)
-
 	req.Host = "plik.root.gg"
 	rr := ctx.NewRecorder(req)
 	checkDownloadDomain(ctx)
@@ -261,4 +259,17 @@ func TestCheckDownloadDomain(t *testing.T) {
 	rr = ctx.NewRecorder(req)
 	checkDownloadDomain(ctx)
 	context.TestBadRequest(t, rr, "Invalid download domain invalid.domain")
+}
+
+func TestHealth(t *testing.T) {
+	config := common.NewConfiguration()
+	require.NoError(t, config.Initialize())
+
+	req, err := http.NewRequest("GET", "/health", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+
+	ctx := newTestingContext(config)
+	rr := ctx.NewRecorder(req)
+	Health(ctx, rr, req)
+	context.TestOK(t, rr)
 }

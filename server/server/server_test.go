@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -105,14 +106,10 @@ func TestStartShutdownPlikServer(t *testing.T) {
 }
 
 func TestNewPlikServerNoHTTPSCertificates(t *testing.T) {
-	ps := NewPlikServer(common.NewConfiguration())
-	ps.config.ListenAddress = "127.0.0.1"
-	ps.config.ListenPort = 44142
-	ps.config.AutoClean(false)
-	ps.config.DataBackend = "testing"
+	ps := newPlikServer()
+	defer ps.ShutdownNow()
 
 	ps.config.SslEnabled = true
-
 	err := ps.Start()
 	require.Error(t, err, "unable to start plik server without ssl certificates")
 }
@@ -168,6 +165,25 @@ func TestDataBackend(t *testing.T) {
 
 	err = getTestFile(t, ps, file, content)
 	require.Error(t, err, "able to get removed file")
+}
+
+func TestHealth(t *testing.T) {
+	ps := newPlikServer()
+	defer ps.ShutdownNow()
+
+	err := ps.Start()
+	require.NoError(t, err, "unable to start plik server")
+
+	resp, err := http.Get(ps.config.GetServerURL().String() + "/health")
+	require.NoError(t, err, "unable to create HTTP request")
+
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	require.NoError(t, err, "unable to read HTTP response body")
+
+	require.Equal(t, "ok\n", string(body))
 }
 
 func TestClean(t *testing.T) {
