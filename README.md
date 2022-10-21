@@ -79,6 +79,10 @@ Plik also comes with some useful scripts to test backend in standalone docker in
 
 See the [Plik Docker backend testing](testing)
 
+##### Ansible <a name="ansible"></a>
+
+A community [ansible role](https://galaxy.ansible.com/abarrak/plik_ansible_role) is available as another installation option.
+
 ### Configuration <a name="configuration"></a>
 
 The configuration is managed using a TOML file [plikd.cfg](server/plikd.cfg)
