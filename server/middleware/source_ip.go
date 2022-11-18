@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/root-gg/plik/server/context"
 )
@@ -25,6 +26,8 @@ func SourceIP(ctx *context.Context, next http.Handler) http.Handler {
 				ctx.InternalServerError("unable to parse source IP address", err)
 				return
 			}
+			// remvoes zone part in case of "host%zone"
+			sourceIPstr, _, _ = strings.Cut(sourceIPstr, "%")
 		}
 
 		// Parse source IP address

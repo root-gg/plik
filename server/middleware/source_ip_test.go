@@ -43,7 +43,7 @@ func TestSourceIP(t *testing.T) {
 
 	req, err := http.NewRequest("GET", "url", &bytes.Buffer{})
 	require.NoError(t, err, "unable to create new request")
-	req.RemoteAddr = "1.1.1.1:1111"
+	req.RemoteAddr = "1.1.1.1%eth0:1111"
 
 	rr := ctx.NewRecorder(req)
 	SourceIP(ctx, common.DummyHandler).ServeHTTP(rr, req)
