@@ -146,7 +146,7 @@ Options:
   --password PASSWD         Protect the upload with login:password ( if omitted default login is "plik" )
   -a                        Archive upload using default archive params ( see ~/.plikrc )
   --archive MODE            Archive upload using specified archive backend : tar|zip
-  --compress MODE           [tar] Compression codec : gzip|bzip2|xz|lzip|lzma|lzop|compress|no
+  --compress MODE           [gzip] Compression codec : gzip|bzip2|xz|lzip|lzma|lzop|compress|no
   --archive-options OPTIONS [tar|zip] Additional command line options
   -s                        Encrypt upload usnig default encrypt params ( see ~/.plikrc )
   --not-secure              Do not encrypt upload regardless of ~/.plikrc configurations
