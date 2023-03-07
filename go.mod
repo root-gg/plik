@@ -35,7 +35,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/xhit/go-str2duration/v2 v2.0.0
 	go.opencensus.io v0.20.2 // indirect
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+	golang.org/x/crypto v0.1.0
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a
 	google.golang.org/api v0.3.3-0.20190418015003-33b7e862cd15
 	google.golang.org/appengine v1.5.0 // indirect
