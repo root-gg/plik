@@ -647,8 +647,8 @@ echo "OK"
 echo -n " - openssl custom cipher : "
 before
 cp $SPECIMEN $TMPDIR/upload/FILE1
-echo "foobar" | upload -s --cipher blowfish && download && check
-grep 'openssl.*blowfish' $CLIENT_LOG >/dev/null 2>/dev/null
+echo "foobar" | upload -s --cipher aes-128-cbc && download && check
+grep 'openssl.*aes-128-cbc' $CLIENT_LOG >/dev/null 2>/dev/null
 echo "OK"
 
 #---------------------------------------------
