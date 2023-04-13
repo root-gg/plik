@@ -20,7 +20,7 @@ Plik is a scalable & friendly temporary file upload system (Wetransfer like) in 
    - Stream : Files are streamed from the uploader to the downloader (nothing stored server side)  
    - Removable : Give the ability to the uploader to remove files at any time
    - TTL : Custom expiration date
-   - Password : Protect upload with login/pasgisword (Auth Basic)
+   - Password : Protect upload with login/password (Auth Basic)
    - Comments : Add custom message (in Markdown format)
    - User authentication : Local / Google / OVH
    - Upload restriction : Source IP / Token
