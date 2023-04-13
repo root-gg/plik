@@ -1,5 +1,5 @@
 ##################################################################################
-FROM --platform=$BUILDPLATFORM node:18-alpine AS plik-frontend-builder
+FROM --platform=$BUILDPLATFORM node:19-alpine AS plik-frontend-builder
 
 # Install needed binaries
 RUN apk add --no-cache git make bash
@@ -11,7 +11,7 @@ COPY webapp /webapp
 RUN make clean-frontend frontend
 
 ##################################################################################
-FROM --platform=$BUILDPLATFORM golang:1.18-buster AS plik-builder
+FROM --platform=$BUILDPLATFORM golang:1.20-bullseye AS plik-builder
 
 # Install needed binaries
 RUN apt-get update && apt-get install -y build-essential crossbuild-essential-armhf crossbuild-essential-armel crossbuild-essential-arm64 crossbuild-essential-i386
@@ -43,7 +43,7 @@ FROM scratch AS plik-release-archive
 COPY --from=plik-builder --chown=1000:1000 /go/src/github.com/root-gg/plik/plik-*.tar.gz /
 
 ##################################################################################
-FROM alpine:3.15 AS plik-image
+FROM alpine:3.17 AS plik-image
 
 RUN apk add --no-cache ca-certificates
 
