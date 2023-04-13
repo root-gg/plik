@@ -155,7 +155,7 @@ func NewBackend(config *Config, log *logger.Logger) (b *Backend, err error) {
 }
 
 // Initialize the metadata backend.
-//  - Create or update the database schema if needed
+//   - Create or update the database schema if needed
 func (b *Backend) initializeSchema() (err error) {
 	m := gormigrate.New(b.db, gormigrate.DefaultOptions, b.getMigrations())
 
@@ -231,7 +231,7 @@ func (b *Backend) Shutdown() (err error) {
 }
 
 // Clean metadata database
-//  - Remove orphan files and tokens
+//   - Remove orphan files and tokens
 func (b *Backend) Clean() error {
 	return b.clean(b.db)
 }

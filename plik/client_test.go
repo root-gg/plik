@@ -354,6 +354,8 @@ func TestRemoveFileNotFound(t *testing.T) {
 
 	upload := &common.Upload{}
 	file := upload.NewFile()
+	file.Name = "filename"
+
 	upload.InitializeForTests()
 	err = pc.removeFile(upload, file)
 	common.RequireError(t, err, "not found")
@@ -408,6 +410,10 @@ func TestDeleteUploadNotFound(t *testing.T) {
 	common.RequireError(t, err, "not found")
 
 	upload2 := pc.NewUpload()
+	err = upload2.Create()
+	require.NoError(t, err)
+	err = upload2.Delete()
+	require.NoError(t, err)
 	err = upload2.Delete()
 	common.RequireError(t, err, "not found")
 }

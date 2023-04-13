@@ -166,8 +166,8 @@ func (upload *Upload) ID() string {
 // ready ensure that only one upload occurs ( like sync.Once )
 // the first call to Create() will proceed ( abort false ) and must close the done channel once done
 // subsequent calls to Create() will abort ( abort true ) and must :
-//  - wait on the done channel for the former Create() call to complete ( if not nil )
-//  - return the error in upload.err
+//   - wait on the done channel for the former Create() call to complete ( if not nil )
+//   - return the error in upload.err
 func (upload *Upload) ready() (done chan struct{}, abort bool) {
 	upload.lock.Lock()
 	defer upload.lock.Unlock()

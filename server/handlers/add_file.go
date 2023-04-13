@@ -196,9 +196,9 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	}
 }
 
-//  - Guess content type
-//  - Compute/Limit upload size
-//  - Compute md5sum
+// - Guess content type
+// - Compute/Limit upload size
+// - Compute md5sum
 func preprocessor(ctx *context.Context, file io.Reader, preprocessWriter io.WriteCloser, outputCh chan preprocessOutputReturn) {
 	log := ctx.GetLogger()
 	maxFileSize := ctx.GetMaxFileSize()

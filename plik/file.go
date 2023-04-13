@@ -114,8 +114,8 @@ func (file *File) Error() error {
 // ready ensure that only one upload occurs ( like sync.Once )
 // the first call to Upload() will proceed ( abort false ) and must close the done channel once done
 // subsequent calls to Upload() will abort ( abort true ) and must :
-//  - wait on the done channel for the former Upload() call to complete ( if not nil )
-//  - return the error in upload.err
+//   - wait on the done channel for the former Upload() call to complete ( if not nil )
+//   - return the error in upload.err
 func (file *File) ready() (done chan struct{}, abort bool) {
 	file.lock.Lock()
 	defer file.lock.Unlock()

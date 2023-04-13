@@ -268,7 +268,6 @@ func (c *Client) removeFile(uploadParams *common.Upload, fileParams *common.File
 // removeUpload remove the remote upload and all the associated files from the server
 func (c *Client) removeUpload(uploadParams *common.Upload) (err error) {
 	URL := c.URL + "/upload/" + uploadParams.ID
-
 	req, err := c.UploadRequest(uploadParams, "DELETE", URL, nil)
 	if err != nil {
 		return err
@@ -285,9 +284,9 @@ func (c *Client) removeUpload(uploadParams *common.Upload) (err error) {
 }
 
 // MakeRequest perform an HTTP request to a Plik Server HTTP API.
-//  - Manage request header X-ClientApp and X-ClientVersion
-//  - Log the request and response if the client is in Debug mode
-//  - Parsing response error to Go error
+//   - Manage request header X-ClientApp and X-ClientVersion
+//   - Log the request and response if the client is in Debug mode
+//   - Parsing response error to Go error
 func (c *Client) MakeRequest(req *http.Request) (resp *http.Response, err error) {
 
 	// Set client version headers

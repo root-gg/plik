@@ -107,8 +107,8 @@ func TestTokenMultipleToken(t *testing.T) {
 	require.NoError(t, err, "unable to remove file")
 }
 
-//An admin user authenticated with a token should not have more power than a classical user authenticated with a token
-//This is to lower the impact of the leak of an Admin user token
+// An admin user authenticated with a token should not have more power than a classical user authenticated with a token
+// This is to lower the impact of the leak of an Admin user token
 func TestTokenMultipleTokenAdmin(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)

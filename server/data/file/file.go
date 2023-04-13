@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-
-	"github.com/root-gg/utils"
+	"path/filepath"
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data"
+	"github.com/root-gg/utils"
 )
 
 // Ensure File Data Backend implements data.Backend interface
@@ -105,6 +105,9 @@ func (b *Backend) RemoveFile(file *common.File) (err error) {
 	if err != nil {
 		return fmt.Errorf("unable to remove %s : %s", path, err)
 	}
+
+	// Remove parent directory if empty
+	go func() { _ = os.Remove(filepath.Dir(path)) }()
 
 	return nil
 }
