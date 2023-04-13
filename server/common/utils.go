@@ -10,7 +10,7 @@ import (
 	"github.com/root-gg/utils"
 )
 
-//Ensure HTTPError implements error
+// Ensure HTTPError implements error
 var _ error = (*HTTPError)(nil)
 
 // HTTPError allows to return an error and a HTTP status code

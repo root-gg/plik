@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"io"
 	"io/ioutil"
 	"os"
 	"testing"
-
-	"github.com/stretchr/testify/require"
+	"time"
 
 	"github.com/root-gg/plik/server/common"
 )
@@ -225,13 +225,22 @@ func TestRemoveFile(t *testing.T) {
 
 	read, err := ioutil.ReadAll(fh)
 	require.NoError(t, err, "unable to read file")
-	require.Equal(t, "data", string(read), "inavlid file content")
+	require.Equal(t, "data", string(read), "invalid file content")
 
 	err = backend.RemoveFile(file)
 	require.NoError(t, err, "unable to remove file")
 
 	_, err = os.Open(path)
 	require.Error(t, err, "able to open removed file")
+
+	// Parent directory removal is asynchronous
+	time.Sleep(100 * time.Millisecond)
+
+	// Read the contents of the file directory
+	entries, err := ioutil.ReadDir(backend.Config.Directory)
+	require.NoError(t, err, "unable to list files")
+	require.Equal(t, 0, len(entries), "parent directory has not been cleaned")
+
 }
 
 func TestRemoveFileTwice(t *testing.T) {

@@ -174,8 +174,12 @@ func TestHealth(t *testing.T) {
 	err := ps.Start()
 	require.NoError(t, err, "unable to start plik server")
 
+	// Wait for server to start. Proper way is to reimplement ListenAndServe and ListenAndServeTLS
+	// so that ps.Start() only return once Listen has been called and the server is ready to accept connections
+	time.Sleep(100 * time.Millisecond)
+
 	resp, err := http.Get(ps.config.GetServerURL().String() + "/health")
-	require.NoError(t, err, "unable to create HTTP request")
+	require.NoError(t, err, "unable to make HTTP request")
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 

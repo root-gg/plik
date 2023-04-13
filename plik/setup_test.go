@@ -20,9 +20,7 @@ import (
 	"github.com/root-gg/plik/server/server"
 )
 
-//
 // /!\ Backends ARE NOT automatically cleared between tests /!\
-//
 var dataBackend data.Backend
 
 // Default metadata backend config
@@ -110,9 +108,7 @@ func TestMain(m *testing.M) {
 	code = m.Run()
 }
 
-//
 // /!\ Backends ARE NOT automatically cleared between tests /!\
-//
 func newPlikServerAndClient() (ps *server.PlikServer, pc *Client) {
 	config := common.NewConfiguration()
 	config.ListenAddress = "127.0.0.1"
@@ -133,9 +129,7 @@ func newPlikServerAndClient() (ps *server.PlikServer, pc *Client) {
 	return ps, pc
 }
 
-//
 // /!\ Backends ARE NOT automatically cleared between tests /!\
-//
 func start(ps *server.PlikServer) (err error) {
 	//common.CheckHTTPServer(ps.GetConfig().ListenPort)
 	//if err == nil {
@@ -155,9 +149,7 @@ func start(ps *server.PlikServer) (err error) {
 	return nil
 }
 
-//
 // /!\ Backends ARE NOT automatically cleared between tests /!\
-//
 func shutdown(ps *server.PlikServer) {
 	err := ps.ShutdownNow()
 	if err != nil {

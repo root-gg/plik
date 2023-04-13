@@ -124,8 +124,8 @@ func (b *Backend) RemoveExpiredUploads() (removed int, err error) {
 }
 
 // DeleteRemovedUploads delete upload and file metadata from the database once :
-//  - The upload has been removed (soft delete) either manually or because it expired
-//  - All the upload files have been deleted from the data backend (status Deleted)
+//   - The upload has been removed (soft delete) either manually or because it expired
+//   - All the upload files have been deleted from the data backend (status Deleted)
 func (b *Backend) DeleteRemovedUploads() (removed int, err error) {
 	b.log.Infof("Purging deleted uploads")
 
@@ -243,8 +243,9 @@ func (b *Backend) ForEachUploadUnscoped(f func(upload *common.Upload) error) (er
 }
 
 // Deleted upload files can only have two status :
-//  - Removed meaning that the file should not be served anymore but still has to be deleted from the server
-//  - Deleted meaning that the file has been removed from the server
+//   - Removed meaning that the file should not be served anymore but still has to be deleted from the server
+//   - Deleted meaning that the file has been removed from the server
+//
 // An upload can only safely be purged (hard deleted) once all its files have been deleted
 func (b *Backend) removeUploadFiles(tx *gorm.DB, uploadID string) (err error) {
 
