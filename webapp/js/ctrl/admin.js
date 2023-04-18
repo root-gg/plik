@@ -2,6 +2,8 @@
 plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location',
     function ($scope, $api, $config, $dialog, $location) {
 
+        $scope.config = {}
+
         // Get server config
         $config.config
             .then(function (config) {
@@ -9,6 +11,8 @@ plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location
                 if (!config.authentication) {
                     $location.path('/');
                 }
+
+                $scope.config = config;
 
                 // Get authenticated user
                 $config.getOriginalUser()
@@ -115,11 +119,38 @@ plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location
             $scope.fake_user = user;
         };
 
+        $scope.getUserMaxFileSize = function (user) {
+            if (user.maxFileSize > 0) {
+                return $scope.humanReadableSize(user.maxFileSize);
+            }
+            if ($scope.config.maxFileSize > 0) {
+                return $scope.humanReadableSize($scope.config.maxFileSize);
+            }
+            return "unlimited"
+        };
+
+        $scope.getUserMaxTTL = function (user) {
+            if (user.maxTTL > 0) {
+                return $scope.humanReadableTTL(user.maxTTL);
+            }
+            if ($scope.config.maxTTL > 0) {
+                return $scope.humanReadableTTL($scope.config.maxTTL);
+            }
+            return "unlimited"
+        };
+
         // Compute human readable size
         // TODO This should be global as we also use it in other controllers
         $scope.humanReadableSize = function (size) {
             if (_.isUndefined(size)) return;
             return filesize(size, {base: 2});
+        };
+
+        // Compute human readable TTL
+        // TODO This should be global as we also use it in other controllers
+        $scope.humanReadableTTL = function (ttl) {
+            if (_.isUndefined(ttl)) return;
+            return (ttl / 86400) + " days";
         };
 
         $scope.displayStats();

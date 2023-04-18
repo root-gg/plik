@@ -42,6 +42,23 @@
                     <div class="tile panel panel-body main">
                         <div class="row center-block text-center">
                             <p>
+                                Max File Size : {{humanReadableSize(config.maxFileSize)}}
+                            </p>
+                            <p>
+                                Default TTL : {{humanReadableTTL(config.defaultTTL)}}
+                            </p>
+                            <p>
+                                Max TTL : {{humanReadableTTL(config.maxTTL)}}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-sm-12 col-centered">
+                    <div class="tile panel panel-body main">
+                        <div class="row center-block text-center">
+                            <p>
                                 Users : {{stats.users}}
                             </p>
                             <p>
@@ -63,52 +80,6 @@
                     </div>
                 </div>
             </div>
-            <!--<div class="row">
-                <div class="col-sm-6">
-                    <div class="tile panel panel-body main">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th scope="col">File type</th>
-                                    <th scope="col">Count</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr ng-repeat="stat in stats.fileTypeByCount">
-                                    <td>
-                                        {{stat.type}}
-                                    </td>
-                                    <td>
-                                        {{stat.total}}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="col-sm-6">
-                    <div class="tile panel panel-body main">
-                        <table class="table">
-                            <thead>
-                            <tr>
-                                <th scope="col">File type</th>
-                                <th scope="col">Size</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            <tr ng-repeat="stat in stats.fileTypeBySize">
-                                <td>
-                                {{stat.type}}
-                                </td>
-                                <td>
-                                {{humanReadableSize(stat.total)}}
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>-->
         </div>
         <!-- USERS -->
         <div class="row" ng-if="display=='users'">
@@ -122,7 +93,7 @@
 
                             <div class="col-xs-10 col-sm-8 col-md-6 col-xs-offset-1 col-sm-offset-2 col-md-offset-3 text-center">
                                 <div class="input-group">
-                                    <!-- CREATE TOKEN BUTTON -->
+                                    <!-- CANCEL IMPERSONATE BUTTON -->
                                     <div class="input-group-btn">
                                         <button title="Browse" type="button" class="btn btn-danger"
                                                 ng-click="impersonate()">
@@ -138,13 +109,15 @@
                         <div class="tile panel panel-body main text-center" ng-repeat="user in users">
                             <div class="row">
                                 <div class="col-sm-3">
-                                    {{::user.login}}
+                                    {{user.login}}
                                 </div>
                                 <div class="col-sm-3 hidden-md hidden-sm hidden-xs">
-                                    {{::user.name}}
+                                    {{user.name}}<br/>
+                                    {{user.email}}
                                 </div>
                                 <div class="col-sm-3 file-name">
-                                    {{::user.email}}
+                                    max file size : {{getUserMaxFileSize(user)}}<br/>
+                                    max TTL : {{getUserMaxTTL(user)}}
                                 </div>
                                 <div class="col-sm-3">
                                     <button title="Impersonate" type="button" class="btn btn-success"
