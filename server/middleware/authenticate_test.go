@@ -193,3 +193,69 @@ func TestAuthenticateAdminUser(t *testing.T) {
 	require.Equal(t, user.ID, ctx.GetUser().ID, "invalid user from context")
 	require.True(t, ctx.IsAdmin(), "context is not admin")
 }
+
+func TestAuthenticatedOnly_OK(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	user := common.NewUser(common.ProviderLocal, "user")
+	ctx.SetUser(user)
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	AuthenticatedOnly(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
+}
+
+func TestAuthenticatedOnly_NoUser(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	AuthenticatedOnly(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	require.Equal(t, http.StatusUnauthorized, rr.Code, "invalid handler response status code")
+}
+
+func TestAdminOnly_OK(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	user := common.NewUser(common.ProviderLocal, "user")
+	user.IsAdmin = true
+	ctx.SetUser(user)
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	AdminOnly(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
+	require.Equal(t, user.ID, ctx.GetUser().ID, "invalid user from context")
+}
+
+func TestAdminOnly_NoUser(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	AdminOnly(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	require.Equal(t, http.StatusUnauthorized, rr.Code, "invalid handler response status code")
+}
+
+func TestAdminOnly_NotAdmin(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	user := common.NewUser(common.ProviderLocal, "user")
+	ctx.SetUser(user)
+
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	AdminOnly(ctx, common.DummyHandler).ServeHTTP(rr, req)
+	require.Equal(t, http.StatusForbidden, rr.Code, "invalid handler response status code")
+}

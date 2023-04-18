@@ -226,12 +226,15 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	// A Chain that authenticates user from session cookie or X-PlikToken header
 	tokenChain := stdChain.Append(middleware.Authenticate(true), middleware.Impersonate)
 
-	// A chain that parses paging queries
-	pagingChain := authChain.Append(middleware.Paginate)
+	// A Chain that only allows authenticated users
+	authenticatedChain := authChain.Append(middleware.AuthenticatedOnly)
+
+	// A chain that only allows authenticated admin users
+	adminChain := stdChain.Append(middleware.Authenticate(false), middleware.AdminOnly)
 
 	// Chains that redirect on error for webapp
 	stdChainWithRedirect := context.NewChain(middleware.RedirectOnFailure).AppendChain(stdChain)
-	authChainWithRedirect := context.NewChain(middleware.RedirectOnFailure).AppendChain(tokenChain)
+	tokenChainWithRedirect := context.NewChain(middleware.RedirectOnFailure).AppendChain(tokenChain)
 
 	// Chain that fetches the requested upload and file metadata
 	getFileChain := context.NewChain(middleware.Upload, middleware.File)
@@ -239,36 +242,41 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	// HTTP Api routes configuration
 	router := mux.NewRouter()
 	router.Handle("/", tokenChain.Append(middleware.CreateUpload).Then(handlers.AddFile)).Methods("POST")
+
 	router.Handle("/config", stdChain.Then(handlers.GetConfiguration)).Methods("GET")
 	router.Handle("/version", stdChain.Then(handlers.GetVersion)).Methods("GET")
+	router.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
+	router.Handle("/health", emptyChain.Then(handlers.Health)).Methods("GET")
+
 	router.Handle("/upload", tokenChain.Then(handlers.CreateUpload)).Methods("POST")
-	router.Handle("/upload/{uploadID}", authChain.Append(middleware.Upload).Then(handlers.GetUpload)).Methods("GET")
+	router.Handle("/upload/{uploadID}", tokenChain.Append(middleware.Upload).Then(handlers.GetUpload)).Methods("GET")
 	router.Handle("/upload/{uploadID}", tokenChain.Append(middleware.Upload).Then(handlers.RemoveUpload)).Methods("DELETE")
 	router.Handle("/file/{uploadID}", tokenChain.Append(middleware.Upload).Then(handlers.AddFile)).Methods("POST")
 	router.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.AppendChain(getFileChain).Then(handlers.AddFile)).Methods("POST")
 	router.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChain.AppendChain(getFileChain).Then(handlers.RemoveFile)).Methods("DELETE")
-	router.Handle("/file/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
+	router.Handle("/file/{uploadID}/{fileID}/{filename}", tokenChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
 	router.Handle("/stream/{uploadID}/{fileID}/{filename}", tokenChain.AppendChain(getFileChain).Then(handlers.AddFile)).Methods("POST")
-	router.Handle("/stream/{uploadID}/{fileID}/{filename}", authChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
-	router.Handle("/archive/{uploadID}/{filename}", authChainWithRedirect.Append(middleware.Upload).Then(handlers.GetArchive)).Methods("HEAD", "GET")
+	router.Handle("/stream/{uploadID}/{fileID}/{filename}", tokenChainWithRedirect.AppendChain(getFileChain).Then(handlers.GetFile)).Methods("HEAD", "GET")
+	router.Handle("/archive/{uploadID}/{filename}", tokenChainWithRedirect.Append(middleware.Upload).Then(handlers.GetArchive)).Methods("HEAD", "GET")
+
 	router.Handle("/auth/google/login", authChain.Then(handlers.GoogleLogin)).Methods("GET")
 	router.Handle("/auth/google/callback", stdChainWithRedirect.Then(handlers.GoogleCallback)).Methods("GET")
 	router.Handle("/auth/ovh/login", authChain.Then(handlers.OvhLogin)).Methods("GET")
 	router.Handle("/auth/ovh/callback", stdChainWithRedirect.Then(handlers.OvhCallback)).Methods("GET")
 	router.Handle("/auth/local/login", authChain.Then(handlers.LocalLogin)).Methods("POST")
-	router.Handle("/auth/logout", authChain.Then(handlers.Logout)).Methods("GET")
-	router.Handle("/me", authChain.Then(handlers.UserInfo)).Methods("GET")
-	router.Handle("/me", authChain.Then(handlers.DeleteAccount)).Methods("DELETE")
-	router.Handle("/me/token", pagingChain.Then(handlers.GetUserTokens)).Methods("GET")
-	router.Handle("/me/token", authChain.Then(handlers.CreateToken)).Methods("POST")
-	router.Handle("/me/token/{token}", authChain.Then(handlers.RevokeToken)).Methods("DELETE")
-	router.Handle("/me/uploads", pagingChain.Then(handlers.GetUserUploads)).Methods("GET")
-	router.Handle("/me/uploads", authChain.Then(handlers.RemoveUserUploads)).Methods("DELETE")
-	router.Handle("/me/stats", authChain.Then(handlers.GetUserStatistics)).Methods("GET")
-	router.Handle("/stats", authChain.Then(handlers.GetServerStatistics)).Methods("GET")
-	router.Handle("/users", pagingChain.Then(handlers.GetUsers)).Methods("GET")
-	router.Handle("/qrcode", stdChain.Then(handlers.GetQrCode)).Methods("GET")
-	router.Handle("/health", emptyChain.Then(handlers.Health)).Methods("GET")
+	router.Handle("/auth/logout", stdChain.Then(handlers.Logout)).Methods("GET")
+
+	router.Handle("/me", authenticatedChain.Then(handlers.UserInfo)).Methods("GET")
+	router.Handle("/me", authenticatedChain.Then(handlers.DeleteAccount)).Methods("DELETE")
+	router.Handle("/me/token", authenticatedChain.Append(middleware.Paginate).Then(handlers.GetUserTokens)).Methods("GET")
+	router.Handle("/me/token", authenticatedChain.Then(handlers.CreateToken)).Methods("POST")
+	router.Handle("/me/token/{token}", authenticatedChain.Then(handlers.RevokeToken)).Methods("DELETE")
+	router.Handle("/me/uploads", authenticatedChain.Append(middleware.Paginate).Then(handlers.GetUserUploads)).Methods("GET")
+	router.Handle("/me/uploads", authenticatedChain.Then(handlers.RemoveUserUploads)).Methods("DELETE")
+	router.Handle("/me/stats", authenticatedChain.Then(handlers.GetUserStatistics)).Methods("GET")
+
+	router.Handle("/stats", adminChain.Then(handlers.GetServerStatistics)).Methods("GET")
+	router.Handle("/users", adminChain.Append(middleware.Paginate).Then(handlers.GetUsers)).Methods("GET")
 
 	if !ps.config.NoWebInterface {
 
