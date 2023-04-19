@@ -99,7 +99,7 @@ plik.controller('PasteController', ['$scope', 'args',
             $("#text").css('height', h);
         }, 100);
 
-        $scope.title = 'Pasted text :';
+        $scope.title = 'Enter text :';
         $scope.text = args.text
 
         $scope.close = function (text) {

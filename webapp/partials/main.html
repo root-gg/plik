@@ -140,7 +140,7 @@
             </div>
         </div>
         <!-- ADD FILES BUTTON -->
-        <div class="tile menu" ng-if="mode == 'download' && upload.admin && !upload.stream">
+        <div class="tile menu" ng-if="okToAddFiles()">
             <div class="menu-item">
                 <div id="drop-zone-download"
                      ngf-select="onFileSelect($files)"
@@ -152,6 +152,14 @@
                         <i class="fa fa-file"></i> Add files
                     </button>
                 </div>
+            </div>
+        </div>
+        <!-- ADD TEXT BUTTON -->
+        <div class="tile menu" ng-if="okToAddFiles()">
+            <div class="menu-item">
+                <button type="button" class="btn btn-lg btn-primary btn-block" ng-click="openTextDialog('')">
+                    <i class="fa fa-pencil"></i> Add text
+                </button>
             </div>
         </div>
         <!-- UPLOAD BUTTON -->

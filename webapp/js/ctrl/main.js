@@ -21,19 +21,19 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         var fileNameMaxLength = 1024;
         var invalidCharList = ['/', '#', '?', '%', '"'];
 
-        $scope.isFeatureEnabled = function(feature_name) {
+        $scope.isFeatureEnabled = function (feature_name) {
             if (!$scope.config) return false;
             var value = $scope.config["feature_" + feature_name];
             return value && value !== "disabled";
         }
 
-        $scope.isFeatureDefault = function(feature_name) {
+        $scope.isFeatureDefault = function (feature_name) {
             if (!$scope.config) return false;
             var value = $scope.config["feature_" + feature_name];
             return value === "default" || value === "forced";
         }
 
-        $scope.isFeatureForced = function(feature_name) {
+        $scope.isFeatureForced = function (feature_name) {
             if (!$scope.config) return false;
             var value = $scope.config["feature_" + feature_name];
             return value === "forced";
@@ -431,6 +431,14 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             });
         };
 
+        // Is it possible to add files to the upload
+        $scope.okToAddFiles = function () {
+            if ($scope.mode === "upload") return true;
+            if ($scope.upload.stream) return false;
+            return $scope.upload.admin;
+        }
+
+
         // Compute human readable size
         $scope.humanReadableSize = function (size) {
             if (_.isUndefined(size)) return;
@@ -667,71 +675,76 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             $route.reload();
         };
 
-        // Register paste handler
-        $scope.registerPasteHandler = function () {
-            var pasteCallback = function (clipboard) {
-                // Dismiss paste event if we can't add files to the upload
-                if ($scope.mode === 'download' && !$scope.upload.admin) return;
+        // Called on paste event
+        $scope.pasteCallback = function (clipboard) {
+            // Dismiss paste event if we can't add files to the upload
+            if (!$scope.okToAddFiles()) return;
 
-                // Dismiss paste event if a modal/dialog is already open
-                if (document.getElementsByClassName('modal-open').length > 0) return;
+            // Dismiss paste event if a modal/dialog is already open
+            if (document.getElementsByClassName('modal-open').length > 0) return;
 
-                // If clipboard contains files
-                var files = _.clone(clipboard.files);
-                if (files.length) {
-                    // Add the files
-                    $timeout(function () {
-                        $scope.onFileSelect(files);
-                    })
-                    return
-                }
-
-                // If clipboard contains text
-                var text = clipboard.getData('text');
-                if (text) {
-                    // Open a dialog to display/edit the pasted text
-                    $dialog.openDialog({
-                        backdrop: true,
-                        backdropClick: true,
-                        templateUrl: 'partials/paste.html',
-                        controller: 'PasteController',
-                        size: 'lg', // large size
-                        resolve: {
-                            args: function () {
-                                return {
-                                    text: text,
-                                };
-                            }
-                        }
-                    }).result.then(
-                        function (result) {
-                            if (result.text) {
-                                var filename = 'paste.txt'
-
-                                // Increment filename if already present
-                                var names = _.pluck($scope.files, 'fileName');
-                                var i = 1;
-                                while (_.contains(names, filename)) {
-                                    filename = 'paste.' + i + '.txt';
-                                    i++;
-                                }
-
-                                // Create a file from the pasted text
-                                var blob = new Blob([result.text], {type: "text/plain;charset=utf-8"});
-                                var file = new File([blob], filename, {type: "text/plain;charset=utf-8"});
-
-                                // Add the file
-                                $timeout(function () {
-                                    $scope.onFileSelect([file]);
-                                })
-                            }
-
-                        }, discard);
-                }
+            // If clipboard contains files
+            var files = _.clone(clipboard.files);
+            if (files.length) {
+                // Add the files
+                $timeout(function () {
+                    $scope.onFileSelect(files);
+                })
+                return
             }
 
+            // If clipboard contains text
+            var text = clipboard.getData('text');
+            if (text) {
+                $scope.openTextDialog(text);
+            }
+        };
+
+        $scope.openTextDialog = function(text) {
+            // Open a dialog to entenr text
+            $dialog.openDialog({
+                backdrop: true,
+                backdropClick: true,
+                templateUrl: 'partials/paste.html',
+                controller: 'PasteController',
+                size: 'lg', // large size
+                resolve: {
+                    args: function () {
+                        return {
+                            text: text,
+                        };
+                    }
+                }
+            }).result.then(
+                function (result) {
+                    if (result.text) {
+                        var filename = 'paste.txt'
+
+                        // Increment filename if already present
+                        var names = _.pluck($scope.files, 'fileName');
+                        var i = 1;
+                        while (_.contains(names, filename)) {
+                            filename = 'paste.' + i + '.txt';
+                            i++;
+                        }
+
+                        // Create a file from the pasted text
+                        var blob = new Blob([result.text], {type: "text/plain;charset=utf-8"});
+                        var file = new File([blob], filename, {type: "text/plain;charset=utf-8"});
+
+                        // Add the file
+                        $timeout(function () {
+                            $scope.onFileSelect([file]);
+                        })
+                    }
+
+                }, discard);
+        }
+
+        // Register paste handler
+        $scope.registerPasteHandler = function () {
             // Register paste callback to the paste service
-            $paste.register(pasteCallback);
+            $paste.register($scope.pasteCallback);
 
             // Unregister paste callback when route changes
             $scope.$on('$routeChangeStart', $paste.unregister);
