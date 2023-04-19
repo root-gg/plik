@@ -91,7 +91,7 @@ func TestAddFileWithID(t *testing.T) {
 	require.Equal(t, file.Name, fileResult.Name, "invalid file name")
 	require.Equal(t, common.FileUploaded, fileResult.Status, "invalid file status")
 	require.Equal(t, contentMD5, fileResult.Md5, "invalid file md5")
-	require.Equal(t, "application/octet-stream", fileResult.Type, "invalid file type")
+	require.Equal(t, "text/plain; charset=utf-8", fileResult.Type, "invalid file type")
 	require.Equal(t, int64(len(content)), fileResult.Size, "invalid file size")
 }
 
@@ -126,7 +126,7 @@ func TestAddStreamFileWithID(t *testing.T) {
 	require.Equal(t, file.Name, fileResult.Name, "invalid file name")
 	require.Equal(t, common.FileDeleted, fileResult.Status, "invalid file status")
 	require.Equal(t, contentMD5, fileResult.Md5, "invalid file md5")
-	require.Equal(t, "application/octet-stream", fileResult.Type, "invalid file type")
+	require.Equal(t, "text/plain; charset=utf-8", fileResult.Type, "invalid file type")
 	require.Equal(t, int64(len(content)), fileResult.Size, "invalid file size")
 }
 
@@ -162,7 +162,7 @@ func TestAddFileWithoutID(t *testing.T) {
 	require.Equal(t, contentMD5, fileResult.Md5, "invalid file md5")
 	require.Equal(t, name, fileResult.Name, "invalid file name")
 	require.Equal(t, common.FileUploaded, fileResult.Status, "invalid file status")
-	require.Equal(t, "application/octet-stream", fileResult.Type, "invalid file type")
+	require.Equal(t, "text/plain; charset=utf-8", fileResult.Type, "invalid file type")
 	require.Equal(t, int64(len(content)), fileResult.Size, "invalid file size")
 }
 
