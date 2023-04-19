@@ -228,7 +228,7 @@ func preprocessor(ctx *context.Context, file io.Reader, preprocessWriter io.Writ
 
 		// Detect the content-type using the 512 first bytes
 		if totalBytes == 0 {
-			mimeType = http.DetectContentType(buf)
+			mimeType = http.DetectContentType(buf[:bytesRead])
 		}
 
 		// Increment size

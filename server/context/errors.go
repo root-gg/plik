@@ -98,6 +98,10 @@ func (ctx *Context) Fail(message string, err error, status int) {
 	if logger != nil {
 		if err != nil {
 			logger.Critical(logMessage)
+		} else {
+			if ctx.GetConfig().Debug {
+				logger.Debug(logMessage)
+			}
 		}
 	} else {
 		log.Println(logMessage)
