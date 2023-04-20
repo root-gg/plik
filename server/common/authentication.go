@@ -11,10 +11,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// SessionCookieName Cookie key
 const SessionCookieName = "plik-session"
-const XsrfCookieName = "plik-xsrf"
 
-// GenerateAuthenticationSignatureKey create an new random key
+// XSRFCookieName Cookie key
+const XSRFCookieName = "plik-xsrf"
+
+// GenerateAuthenticationSignatureKey create a new random key
 func GenerateAuthenticationSignatureKey() (s *Setting) {
 	key := GenerateRandomID(64)
 	return &Setting{
@@ -63,7 +66,7 @@ func (sa *SessionAuthenticator) GenAuthCookies(user *User) (sessionCookie *http.
 	// Store xsrf token cookie
 	xsrfCookie = &http.Cookie{}
 	xsrfCookie.HttpOnly = false
-	xsrfCookie.Name = XsrfCookieName
+	xsrfCookie.Name = XSRFCookieName
 	xsrfCookie.Value = xsrfToken.String()
 	xsrfCookie.MaxAge = sa.SessionTimeout
 	xsrfCookie.Path = sa.Path
@@ -155,7 +158,7 @@ func (sa *SessionAuthenticator) Logout() (sessionCookie *http.Cookie, xsrfCookie
 	// Store xsrf token cookie
 	xsrfCookie = &http.Cookie{}
 	xsrfCookie.HttpOnly = false
-	xsrfCookie.Name = XsrfCookieName
+	xsrfCookie.Name = XSRFCookieName
 	xsrfCookie.Value = ""
 	xsrfCookie.MaxAge = -1
 	xsrfCookie.Path = sa.Path

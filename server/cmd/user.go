@@ -124,11 +124,13 @@ func createUser(cmd *cobra.Command, args []string) {
 	}
 
 	// Create user
-	user = common.NewUser(userParams.provider, userParams.login)
-	user.Login = userParams.login
-	user.Name = userParams.name
-	user.Email = userParams.email
-	user.IsAdmin = userParams.admin
+	params := &common.User{
+		Provider: userParams.provider,
+		Login:    userParams.login,
+		Name:     userParams.name,
+		Email:    userParams.email,
+		IsAdmin:  userParams.admin,
+	}
 
 	if userParams.maxFileSize != "" {
 		maxFileSize, err := humanize.ParseBytes(userParams.maxFileSize)
@@ -136,7 +138,7 @@ func createUser(cmd *cobra.Command, args []string) {
 			fmt.Printf("Unable to parse max-file-size\n")
 			os.Exit(1)
 		}
-		user.MaxFileSize = int64(maxFileSize)
+		params.MaxFileSize = int64(maxFileSize)
 	}
 
 	if userParams.maxTTL != "" {
@@ -145,24 +147,24 @@ func createUser(cmd *cobra.Command, args []string) {
 			fmt.Printf("Unable to parse max-ttl\n")
 			os.Exit(1)
 		}
-		user.MaxTTL = maxTTL
+		params.MaxTTL = maxTTL
 	}
 
-	if userParams.password == "" {
+	if userParams.provider == common.ProviderLocal && userParams.password == "" {
 		userParams.password = common.GenerateRandomID(32)
 		fmt.Printf("Generated password for user %s is %s\n", userParams.login, userParams.password)
+		params.Password = userParams.password
 	}
 
-	hash, err := common.HashPassword(userParams.password)
+	user, err = common.CreateUserFromParams(params)
 	if err != nil {
-		fmt.Printf("Unable to hash password : %s\n", err)
+		fmt.Printf("unable to create user : %s\n", err)
 		os.Exit(1)
 	}
-	user.Password = hash
 
 	err = metadataBackend.CreateUser(user)
 	if err != nil {
-		fmt.Printf("Unable to create user : %s\n", err)
+		fmt.Printf("Unable to save user : %s\n", err)
 		os.Exit(1)
 	}
 }
@@ -228,25 +230,36 @@ func updateUser(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	params := &common.User{}
 	if userParams.name != "" {
-		user.Name = userParams.name
+		params.Name = userParams.name
+	} else {
+		params.Name = user.Name
 	}
 
 	if userParams.email != "" {
-		user.Email = userParams.email
+		params.Email = userParams.email
+	} else {
+		params.Email = user.Email
 	}
 
 	if cmd.Flags().Changed("admin") {
-		user.IsAdmin = userParams.admin
+		params.IsAdmin = userParams.admin
+	} else {
+		params.IsAdmin = user.IsAdmin
 	}
 
-	if userParams.maxFileSize != "" {
+	if userParams.maxFileSize == "-1" {
+		params.MaxFileSize = -1
+	} else if userParams.maxFileSize != "" {
 		maxFileSize, err := humanize.ParseBytes(userParams.maxFileSize)
 		if err != nil {
 			fmt.Printf("Unable to parse max-file-size\n")
 			os.Exit(1)
 		}
-		user.MaxFileSize = int64(maxFileSize)
+		params.MaxFileSize = int64(maxFileSize)
+	} else {
+		params.MaxFileSize = user.MaxFileSize
 	}
 
 	if userParams.maxTTL != "" {
@@ -255,16 +268,19 @@ func updateUser(cmd *cobra.Command, args []string) {
 			fmt.Printf("Unable to parse max-ttl : %s\n", err)
 			os.Exit(1)
 		}
-		user.MaxTTL = maxTTL
+		params.MaxTTL = maxTTL
+	} else {
+		params.MaxTTL = user.MaxTTL
 	}
 
 	if userParams.password != "" {
-		hash, err := common.HashPassword(userParams.password)
-		if err != nil {
-			fmt.Printf("Unable to hash password : %s\n", err)
-			os.Exit(1)
-		}
-		user.Password = hash
+		params.Password = userParams.password
+	}
+
+	err = common.UpdateUser(user, params)
+	if err != nil {
+		fmt.Printf("Unable to update user : %s\n", err)
+		os.Exit(1)
 	}
 
 	err = metadataBackend.UpdateUser(user)

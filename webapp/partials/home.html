@@ -8,8 +8,8 @@
             <!-- USER INFO -->
             <div class="menu-item text-center">
                 <p>{{user.login}}</p>
-
                 <p>{{user.name}}</p>
+                <p ng-if="user.admin"><span class="label label-success">admin</span></p>
             </div>
             <p>&nbsp;</p>
             <!-- USER STATS -->
@@ -26,6 +26,14 @@
             <div class="menu-item">
                 <button type="button" class="btn btn-lg btn-primary btn-block" ng-click="mainpage()">
                     <i class="fa fa-upload"></i> Upload files
+                </button>
+            </div>
+        </div>
+        <!-- EDIT ACCOUNT BUTTON -->
+        <div class="tile menu" ng-if="!fake_user">
+            <div class="menu-item">
+                <button type="button" class="btn btn-lg btn-primary btn-block" ng-click="editAccount()">
+                    <i class="fa fa-pencil"></i> Edit account
                 </button>
             </div>
         </div>

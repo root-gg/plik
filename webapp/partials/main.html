@@ -78,7 +78,7 @@
                             Files will be automatically removed in
                             <div style="display:inline-block;">
                                 <input class="form-control" style="width:60px;display:inline-block;" type="number"
-                                       ng-model="$parent.ttlValue" ng-show="ttlUnit != 'never'"
+                                       ng-model="$parent.ttlValue" ng-show="ttlUnit != 'unlimited'"
                                        ng-disabled="!isFeatureEnabled('set_ttl')">
                                 <select class="form-control" style="width:auto;display:inline-block;"
                                         ng-options="unit as unit for unit in ttlUnits"

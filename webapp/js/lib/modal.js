@@ -3,7 +3,7 @@ angular.module('dialog', ['ui.bootstrap']).factory('$dialog', function ($uibModa
 
     var module = {};
 
-    // Define error partial here so we can display a connection error
+    // Define error partial here, so we can display a connection error
     // without having to load the template from the server
     var alertTemplate = '<div class="modal-header">' + "\n";
     alertTemplate += '<h1>{{title}}</h1>' + "\n";

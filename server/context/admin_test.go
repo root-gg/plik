@@ -17,4 +17,13 @@ func TestContext_IsAdmin(t *testing.T) {
 
 	ctx.user.IsAdmin = true
 	require.True(t, ctx.IsAdmin())
+
+	ctx.originalUser = &common.User{}
+	require.False(t, ctx.IsAdmin())
+
+	ctx.originalUser.IsAdmin = true
+	require.True(t, ctx.IsAdmin())
+
+	ctx.user.IsAdmin = false
+	require.True(t, ctx.IsAdmin())
 }

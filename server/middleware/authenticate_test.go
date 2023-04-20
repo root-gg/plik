@@ -165,7 +165,7 @@ func TestAuthenticate(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 	Authenticate(false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
-	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
+	context.TestOK(t, rr)
 	require.Equal(t, user.ID, ctx.GetUser().ID, "invalid user from context")
 }
 
@@ -189,7 +189,7 @@ func TestAuthenticateAdminUser(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 	Authenticate(false)(ctx, common.DummyHandler).ServeHTTP(rr, req)
-	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
+	context.TestOK(t, rr)
 	require.Equal(t, user.ID, ctx.GetUser().ID, "invalid user from context")
 	require.True(t, ctx.IsAdmin(), "context is not admin")
 }
@@ -205,7 +205,7 @@ func TestAuthenticatedOnly_OK(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 	AuthenticatedOnly(ctx, common.DummyHandler).ServeHTTP(rr, req)
-	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
+	context.TestOK(t, rr)
 }
 
 func TestAuthenticatedOnly_NoUser(t *testing.T) {
@@ -216,7 +216,7 @@ func TestAuthenticatedOnly_NoUser(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 	AuthenticatedOnly(ctx, common.DummyHandler).ServeHTTP(rr, req)
-	require.Equal(t, http.StatusUnauthorized, rr.Code, "invalid handler response status code")
+	context.TestUnauthorized(t, rr, "please login first")
 }
 
 func TestAdminOnly_OK(t *testing.T) {
@@ -231,7 +231,7 @@ func TestAdminOnly_OK(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 	AdminOnly(ctx, common.DummyHandler).ServeHTTP(rr, req)
-	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
+	context.TestOK(t, rr)
 	require.Equal(t, user.ID, ctx.GetUser().ID, "invalid user from context")
 }
 
@@ -243,7 +243,7 @@ func TestAdminOnly_NoUser(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 	AdminOnly(ctx, common.DummyHandler).ServeHTTP(rr, req)
-	require.Equal(t, http.StatusUnauthorized, rr.Code, "invalid handler response status code")
+	context.TestUnauthorized(t, rr, "please login first")
 }
 
 func TestAdminOnly_NotAdmin(t *testing.T) {
@@ -257,5 +257,5 @@ func TestAdminOnly_NotAdmin(t *testing.T) {
 
 	rr := ctx.NewRecorder(req)
 	AdminOnly(ctx, common.DummyHandler).ServeHTTP(rr, req)
-	require.Equal(t, http.StatusForbidden, rr.Code, "invalid handler response status code")
+	context.TestForbidden(t, rr, "you need administrator privileges")
 }

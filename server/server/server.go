@@ -238,6 +238,7 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 
 	// Chain that fetches the requested upload and file metadata
 	getFileChain := context.NewChain(middleware.Upload, middleware.File)
+	userChain := authenticatedChain.Append(middleware.User)
 
 	// HTTP Api routes configuration
 	router := mux.NewRouter()
@@ -275,8 +276,13 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	router.Handle("/me/uploads", authenticatedChain.Then(handlers.RemoveUserUploads)).Methods("DELETE")
 	router.Handle("/me/stats", authenticatedChain.Then(handlers.GetUserStatistics)).Methods("GET")
 
+	router.Handle("/user/{userID}", userChain.Then(handlers.UserInfo)).Methods("GET")
+	router.Handle("/user/{userID}", userChain.Then(handlers.UpdateUser)).Methods("POST")
+	router.Handle("/user/{userID}", userChain.Then(handlers.DeleteAccount)).Methods("DELETE")
+
 	router.Handle("/stats", adminChain.Then(handlers.GetServerStatistics)).Methods("GET")
 	router.Handle("/users", adminChain.Append(middleware.Paginate).Then(handlers.GetUsers)).Methods("GET")
+	router.Handle("/user", adminChain.Then(handlers.CreateUser)).Methods("POST")
 
 	if !ps.config.NoWebInterface {
 

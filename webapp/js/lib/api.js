@@ -110,6 +110,24 @@ angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upl
         return api.call(url, 'GET');
     };
 
+    // Create user
+    api.createUser = function (user) {
+        var url = api.base + '/user';
+        return api.call(url, 'POST', {}, user);
+    };
+
+    // Update user
+    api.updateUser = function (user) {
+        var url = api.base + '/user/' + user.id;
+        return api.call(url, 'POST', {}, user);
+    };
+
+    // Create user
+    api.deleteUser = function (user) {
+        var url = api.base + '/user/' + user.id;
+        return api.call(url, 'DELETE');
+    };
+
     // Get user statistics
     api.getUserTokens = function (limit, cursor) {
         var url = api.base + '/me/token';

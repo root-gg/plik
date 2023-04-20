@@ -74,3 +74,59 @@ func (user *User) String() string {
 	}
 	return str
 }
+
+// CreateUserFromParams return a user object ready to be inserted in the metadata backend
+func CreateUserFromParams(userParams *User) (user *User, err error) {
+	if !IsValidProvider(userParams.Provider) {
+		return nil, fmt.Errorf("invalid provider")
+	}
+
+	if len(userParams.Login) < 4 {
+		return nil, fmt.Errorf("login is too short (min 4 chars)")
+	}
+
+	user = NewUser(userParams.Provider, userParams.Login)
+	user.Login = userParams.Login
+	user.Name = userParams.Name
+	user.Email = userParams.Email
+	user.IsAdmin = userParams.IsAdmin
+	user.MaxFileSize = userParams.MaxFileSize
+	user.MaxTTL = userParams.MaxTTL
+
+	if user.Provider == ProviderLocal {
+		if len(userParams.Password) < 8 {
+			return nil, fmt.Errorf("password is too short (min 8 chars)")
+		}
+
+		hash, err := HashPassword(userParams.Password)
+		if err != nil {
+			return nil, fmt.Errorf("unable to hash password : %s\n", err)
+		}
+		user.Password = hash
+	}
+
+	return user, nil
+}
+
+// UpdateUser update a user object with the params
+//   - prevent to update provider, user ID or login
+//   - only update password if a new one is provided
+func UpdateUser(user *User, userParams *User) (err error) {
+	if user.Provider == ProviderLocal && len(userParams.Password) > 0 {
+		if len(userParams.Password) < 8 {
+			return fmt.Errorf("password is too short (min 8 chars)")
+		}
+		hash, err := HashPassword(userParams.Password)
+		if err != nil {
+			return fmt.Errorf("unable to hash password : %s", err)
+		}
+		user.Password = hash
+	}
+
+	user.Name = userParams.Name
+	user.Email = userParams.Email
+	user.IsAdmin = userParams.IsAdmin
+	user.MaxFileSize = userParams.MaxFileSize
+	user.MaxTTL = userParams.MaxTTL
+	return nil
+}

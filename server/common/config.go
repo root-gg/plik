@@ -207,11 +207,11 @@ func (config *Configuration) Initialize() (err error) {
 		}
 
 		for _, domainAlias := range config.DownloadDomainAlias {
-			if domainAlias, err := url.Parse(domainAlias); err != nil {
+			domainAlias, err := url.Parse(domainAlias)
+			if err != nil {
 				return fmt.Errorf("invalid download domain URL %s : %s", domainAlias, err)
-			} else {
-				config.downloadDomainURLAlias = append(config.downloadDomainURLAlias, domainAlias)
 			}
+			config.downloadDomainURLAlias = append(config.downloadDomainURLAlias, domainAlias)
 		}
 	}
 

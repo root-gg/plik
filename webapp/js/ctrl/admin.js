@@ -84,6 +84,84 @@ plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location
                 });
         };
 
+        // Display create user dialog
+        $scope.createUser = function () {
+            $dialog.openDialog({
+                backdrop: true,
+                backdropClick: true,
+                templateUrl: 'partials/user.html',
+                controller: 'UserController',
+                resolve: {
+                    args: function () { return {}; }
+                }
+            }).result.then(
+                function (result) {
+                    if (result.user) {
+                        $api.createUser(result.user)
+                            .then(function (user) {
+                                $scope.displayUsers();
+                            })
+                            .then(null, function (error) {
+                                $dialog.alert(error);
+                            });
+                    } else if (result.error) {
+                        $dialog.alert(result.error);
+                    }
+                }, function () {
+                    // Avoid "Possibly unhandled rejection"
+                });
+        };
+
+        // Display edit user dialog
+        $scope.editUser = function (user) {
+            $dialog.openDialog({
+                backdrop: true,
+                backdropClick: true,
+                templateUrl: 'partials/user.html',
+                controller: 'UserController',
+                resolve: {
+                    args: function () { return { user : user }; }
+                }
+            }).result.then(
+                function (result) {
+                    if (result.user) {
+                        $api.updateUser(result.user)
+                            .then(function (user) {
+                                $scope.displayUsers();
+                            })
+                            .then(null, function (error) {
+                                $dialog.alert(error);
+                            });
+                    } else if (result.error) {
+                        $dialog.alert(result.error);
+                    }
+                }, function () {
+                    // Avoid "Possibly unhandled rejection"
+                });
+        };
+
+        // Display edit user dialog
+        $scope.deleteUser = function (user) {
+            $dialog.alert({
+                title: "Really ?",
+                message: "This will remove " + user.provider + " user " + user.login + " from the server",
+                confirm: true
+            }).result.then(
+                function () {
+                    $api.deleteUser(user)
+                        .then(function () {
+                            $scope.users = _.reject($scope.users, function (u) {
+                                return u.id === user.id;
+                            });
+                        })
+                        .then(null, function (error) {
+                            $dialog.alert(error);
+                        });
+                }, function () {
+                    // Avoid "Possibly unhandled rejection"
+                });
+        };
+
         // This functionality allows an admin to browse another user account
         // In order to delete it or delete some uploads if needed
         $scope.impersonate = function (user) {
@@ -99,7 +177,7 @@ plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location
 
             $scope.setFakeUser(user);
 
-            // Dummy try to double check that we can get the user
+            // Dummy try to double-check that we can get the user
             $api.getUser()
                 .then(function () {
                     // Success
@@ -123,35 +201,24 @@ plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location
             if (user.maxFileSize > 0) {
                 return $scope.humanReadableSize(user.maxFileSize);
             }
-            if ($scope.config.maxFileSize > 0) {
-                return $scope.humanReadableSize($scope.config.maxFileSize);
+            if (user.maxFileSize === 0 && $scope.config.maxFileSize > 0) {
+                return "default";
             }
             return "unlimited"
         };
 
         $scope.getUserMaxTTL = function (user) {
             if (user.maxTTL > 0) {
-                return $scope.humanReadableTTL(user.maxTTL);
+                return getHumanReadableTTLString(user.maxTTL)
             }
-            if ($scope.config.maxTTL > 0) {
-                return $scope.humanReadableTTL($scope.config.maxTTL);
+            if (user.maxTTL === 0 && $scope.config.maxTTL > 0) {
+                return "default";
             }
             return "unlimited"
         };
 
-        // Compute human readable size
-        // TODO This should be global as we also use it in other controllers
-        $scope.humanReadableSize = function (size) {
-            if (_.isUndefined(size)) return;
-            return filesize(size, {base: 2});
-        };
-
-        // Compute human readable TTL
-        // TODO This should be global as we also use it in other controllers
-        $scope.humanReadableTTL = function (ttl) {
-            if (_.isUndefined(ttl)) return;
-            return (ttl / 86400) + " days";
-        };
+        $scope.getHumanReadableTTLString = getHumanReadableTTLString;
+        $scope.humanReadableSize = getHumanReadableSize;
 
         $scope.displayStats();
 

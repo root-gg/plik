@@ -158,8 +158,8 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             if (maxFileSize && size > maxFileSize) {
                 $dialog.alert({
                     status: 0,
-                    message: "File is too big : " + $scope.humanReadableSize(size),
-                    value: "Maximum allowed size is : " + $scope.humanReadableSize($scope.config.maxFileSize)
+                    message: "File is too big : " + getHumanReadableSize(size),
+                    value: "Maximum allowed size is : " + getHumanReadableSize($scope.config.maxFileSize)
                 });
                 return false;
             }
@@ -256,7 +256,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             } else {
                 // Get TTL value
                 if (!$scope.checkTTL()) return;
-                $scope.upload.ttl = $scope.getTTL();
+                $scope.upload.ttl = getTTL($scope.ttlValue, $scope.ttlUnit);
                 // HTTP basic auth prompt dialog
                 if ($scope.password && !($scope.upload.login && $scope.upload.password)) {
                     $scope.getPassword();
@@ -440,10 +440,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
 
 
         // Compute human readable size
-        $scope.humanReadableSize = function (size) {
-            if (_.isUndefined(size)) return;
-            return filesize(size, {base: 2});
-        };
+        $scope.humanReadableSize = getHumanReadableSize;
 
         $scope.getMode = function () {
             return $scope.upload.stream ? "stream" : "file";
@@ -548,75 +545,31 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         $scope.ttlUnit = "days";
         $scope.ttlValue = 30;
 
-        // Change ttl unit
-        $scope.switchTimeUnit = function () {
-            var index = (_.indexOf($scope.ttl.units, $scope.ttl.unit) + 1) % $scope.ttl.units.length;
-            $scope.ttl.unit = $scope.ttl.units[index];
-        };
-
-        // Return TTL value in seconds
-        $scope.getTTL = function () {
-            var ttl = $scope.ttlValue;
-            if (ttl > 0) {
-                if ($scope.ttlUnit === "minutes") {
-                    ttl = ttl * 60;
-                } else if ($scope.ttlUnit === "hours") {
-                    ttl = ttl * 3600;
-                } else if ($scope.ttlUnit === "days") {
-                    ttl = ttl * 86400;
-                }
-            } else {
-                ttl = -1;
-            }
-            return ttl;
-        };
-
-        // Return TTL unit and value
-        $scope.getHumanReadableTTL = function (ttl) {
-            var value, unit;
-            if (ttl === -1) {
-                value = -1;
-                unit = "never"
-            } else if (ttl < 3600) {
-                value = Math.round(ttl / 60);
-                unit = "minutes"
-            } else if (ttl < 86400) {
-                value = Math.round(ttl / 3600);
-                unit = "hours"
-            } else if (ttl >= 86400) {
-                value = Math.round(ttl / 86400);
-                unit = "days"
-            } else {
-                value = 0;
-                unit = "invalid";
-            }
-            return [value, unit];
-        };
-
         // Check TTL value
         $scope.checkTTL = function () {
             var ok = true;
 
-            // Fix never value
-            if ($scope.ttlUnit === 'never') {
+            // Fix unlimited value
+            if ($scope.ttlUnit === 'unlimited') {
                 $scope.ttlValue = -1;
             }
 
             // Get TTL in seconds
-            var ttl = $scope.getTTL();
+            var ttl = getTTL($scope.ttlValue, $scope.ttlUnit);
 
             // Invalid negative value
-            if ($scope.ttlUnit !== 'never' && ttl < 0) ok = false;
+            if ($scope.ttlUnit !== 'unlimited' && ttl < 0) ok = false;
 
             // Check against server side allowed maximum
             maxTTL = $scope.config.maxTTL;
             if ($scope.user && $scope.user.maxTTL !== 0) {
                 maxTTL = $scope.user.maxTTL;
             }
+
             if (maxTTL > 0 && ttl > maxTTL) ok = false;
 
             if (!ok) {
-                var maxTTL = $scope.getHumanReadableTTL(maxTTL);
+                var maxTTL = getHumanReadableTTL(maxTTL);
                 $dialog.alert({
                     status: 0,
                     message: "Invalid expiration delay : " + $scope.ttlValue + " " + $scope.ttlUnit + ". " +
@@ -636,9 +589,13 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             }
             if (maxTTL < 0) {
                 // Never expiring upload is allowed
-                $scope.ttlUnits = ["days", "hours", "minutes", "never"];
+                $scope.ttlUnits = ["days", "hours", "minutes", "unlimited"];
             }
-            var ttl = $scope.getHumanReadableTTL($scope.config.defaultTTL);
+            if ($scope.user.maxTTL > 0 && $scope.config.defaultTTL > $scope.user.maxTTL) {
+                // If user maxTTL is less than defaultTTL then set to user maxTTL to avoid error on upload
+                $scope.config.defaultTTL = $scope.user.maxTTL;
+            }
+            var ttl = getHumanReadableTTL($scope.config.defaultTTL);
             $scope.ttlValue = ttl[0];
             $scope.ttlUnit = ttl[1];
         };
@@ -700,8 +657,8 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             }
         };
 
-        $scope.openTextDialog = function(text) {
-            // Open a dialog to entenr text
+        $scope.openTextDialog = function (text) {
+            // Open a dialog to enter text
             $dialog.openDialog({
                 backdrop: true,
                 backdropClick: true,

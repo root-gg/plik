@@ -21,6 +21,7 @@ my $struct = [
 	'upload', '*common.Upload', {},
 	'file', '*common.File', {},
 	'user', '*common.User', {},
+	'originalUser', '*common.User', { internal => 1 },
 	'token', '*common.Token', {},
 
 	'isWhitelisted', '*bool', { internal => 1 },

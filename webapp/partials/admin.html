@@ -32,6 +32,14 @@
                 </button>
             </div>
         </div>
+        <!-- CREATE USER BUTTON -->
+        <div class="tile menu">
+            <div class="menu-item">
+                <button type="button" class="btn btn-lg btn-primary btn-block" ng-click="createUser()">
+                    <i class="fa fa-users"></i> Create User
+                </button>
+            </div>
+        </div>
     </div>
     <!-- MAIN -->
     <div class="col-sm-9">
@@ -45,10 +53,10 @@
                                 Max File Size : {{humanReadableSize(config.maxFileSize)}}
                             </p>
                             <p>
-                                Default TTL : {{humanReadableTTL(config.defaultTTL)}}
+                                Default TTL : {{getHumanReadableTTLString(config.defaultTTL)}}
                             </p>
                             <p>
-                                Max TTL : {{humanReadableTTL(config.maxTTL)}}
+                                Max TTL : {{getHumanReadableTTLString(config.maxTTL)}}
                             </p>
                         </div>
                     </div>
@@ -109,7 +117,9 @@
                         <div class="tile panel panel-body main text-center" ng-repeat="user in users">
                             <div class="row">
                                 <div class="col-sm-3">
-                                    {{user.login}}
+                                    {{user.login}}<br/>
+                                    ({{user.provider}})<br/>
+                                    <p ng-if="user.admin"><span class="label label-success">admin</span></p>
                                 </div>
                                 <div class="col-sm-3 hidden-md hidden-sm hidden-xs">
                                     {{user.name}}<br/>
@@ -124,6 +134,16 @@
                                             ng-click="impersonate(user)" ng-disabled="user.id === original_user.id">
                                         <i class="glyphicon glyphicon-ok"></i>
                                         <span class="hidden-xs hidden-sm hidden-md"> Impersonate</span>
+                                    </button>
+                                    <button title="Edit" type="button" class="btn btn-info"
+                                            ng-click="editUser(user)">
+                                        <i class="glyphicon glyphicon-pencil"></i>
+                                        <span class="hidden-xs hidden-sm hidden-md"> Edit</span>
+                                    </button>
+                                    <button title="Edit" type="button" class="btn btn-danger"
+                                            ng-click="deleteUser(user)">
+                                        <i class="glyphicon glyphicon-remove"></i>
+                                        <span class="hidden-xs hidden-sm hidden-md"> Delete</span>
                                     </button>
                                 </div>
                             </div>
