@@ -26,6 +26,7 @@ Plik is a scalable & friendly temporary file upload system (Wetransfer like) in 
    - Upload restriction : Source IP / Token
    - Administrator CLI and web UI
    - Server side encryption (with S3 data backend)
+   - Multiarch build and docker images
    - [ShareX](https://getsharex.com/) Uploader : Directly integrated into ShareX
    - [plikSharp](https://github.com/iss0/plikSharp) : A .NET API client for Plik
    - [Filelink for Plik](https://gitlab.com/joendres/filelink-plik) : Thunderbird Addon to upload attachments to Plik
