@@ -21,19 +21,19 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         var fileNameMaxLength = 1024;
         var invalidCharList = ['/', '#', '?', '%', '"'];
 
-        $scope.isFeatureEnabled = function(feature_name) {
+        $scope.isFeatureEnabled = function (feature_name) {
             if (!$scope.config) return false;
             var value = $scope.config["feature_" + feature_name];
             return value && value !== "disabled";
         }
 
-        $scope.isFeatureDefault = function(feature_name) {
+        $scope.isFeatureDefault = function (feature_name) {
             if (!$scope.config) return false;
             var value = $scope.config["feature_" + feature_name];
             return value === "default" || value === "forced";
         }
 
-        $scope.isFeatureForced = function(feature_name) {
+        $scope.isFeatureForced = function (feature_name) {
             if (!$scope.config) return false;
             var value = $scope.config["feature_" + feature_name];
             return value === "forced";
@@ -158,8 +158,8 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             if (maxFileSize && size > maxFileSize) {
                 $dialog.alert({
                     status: 0,
-                    message: "File is too big : " + $scope.humanReadableSize(size),
-                    value: "Maximum allowed size is : " + $scope.humanReadableSize($scope.config.maxFileSize)
+                    message: "File is too big : " + getHumanReadableSize(size),
+                    value: "Maximum allowed size is : " + getHumanReadableSize($scope.config.maxFileSize)
                 });
                 return false;
             }
@@ -256,7 +256,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             } else {
                 // Get TTL value
                 if (!$scope.checkTTL()) return;
-                $scope.upload.ttl = $scope.getTTL();
+                $scope.upload.ttl = getTTL($scope.ttlValue, $scope.ttlUnit);
                 // HTTP basic auth prompt dialog
                 if ($scope.password && !($scope.upload.login && $scope.upload.password)) {
                     $scope.getPassword();
@@ -431,11 +431,16 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             });
         };
 
+        // Is it possible to add files to the upload
+        $scope.okToAddFiles = function () {
+            if ($scope.mode === "upload") return true;
+            if ($scope.upload.stream) return false;
+            return $scope.upload.admin;
+        }
+
+
         // Compute human readable size
-        $scope.humanReadableSize = function (size) {
-            if (_.isUndefined(size)) return;
-            return filesize(size, {base: 2});
-        };
+        $scope.humanReadableSize = getHumanReadableSize;
 
         $scope.getMode = function () {
             return $scope.upload.stream ? "stream" : "file";
@@ -540,75 +545,31 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
         $scope.ttlUnit = "days";
         $scope.ttlValue = 30;
 
-        // Change ttl unit
-        $scope.switchTimeUnit = function () {
-            var index = (_.indexOf($scope.ttl.units, $scope.ttl.unit) + 1) % $scope.ttl.units.length;
-            $scope.ttl.unit = $scope.ttl.units[index];
-        };
-
-        // Return TTL value in seconds
-        $scope.getTTL = function () {
-            var ttl = $scope.ttlValue;
-            if (ttl > 0) {
-                if ($scope.ttlUnit === "minutes") {
-                    ttl = ttl * 60;
-                } else if ($scope.ttlUnit === "hours") {
-                    ttl = ttl * 3600;
-                } else if ($scope.ttlUnit === "days") {
-                    ttl = ttl * 86400;
-                }
-            } else {
-                ttl = -1;
-            }
-            return ttl;
-        };
-
-        // Return TTL unit and value
-        $scope.getHumanReadableTTL = function (ttl) {
-            var value, unit;
-            if (ttl === -1) {
-                value = -1;
-                unit = "never"
-            } else if (ttl < 3600) {
-                value = Math.round(ttl / 60);
-                unit = "minutes"
-            } else if (ttl < 86400) {
-                value = Math.round(ttl / 3600);
-                unit = "hours"
-            } else if (ttl >= 86400) {
-                value = Math.round(ttl / 86400);
-                unit = "days"
-            } else {
-                value = 0;
-                unit = "invalid";
-            }
-            return [value, unit];
-        };
-
         // Check TTL value
         $scope.checkTTL = function () {
             var ok = true;
 
-            // Fix never value
-            if ($scope.ttlUnit === 'never') {
+            // Fix unlimited value
+            if ($scope.ttlUnit === 'unlimited') {
                 $scope.ttlValue = -1;
             }
 
             // Get TTL in seconds
-            var ttl = $scope.getTTL();
+            var ttl = getTTL($scope.ttlValue, $scope.ttlUnit);
 
             // Invalid negative value
-            if ($scope.ttlUnit !== 'never' && ttl < 0) ok = false;
+            if ($scope.ttlUnit !== 'unlimited' && ttl < 0) ok = false;
 
             // Check against server side allowed maximum
             maxTTL = $scope.config.maxTTL;
             if ($scope.user && $scope.user.maxTTL !== 0) {
                 maxTTL = $scope.user.maxTTL;
             }
+
             if (maxTTL > 0 && ttl > maxTTL) ok = false;
 
             if (!ok) {
-                var maxTTL = $scope.getHumanReadableTTL(maxTTL);
+                var maxTTL = getHumanReadableTTL(maxTTL);
                 $dialog.alert({
                     status: 0,
                     message: "Invalid expiration delay : " + $scope.ttlValue + " " + $scope.ttlUnit + ". " +
@@ -628,9 +589,13 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             }
             if (maxTTL < 0) {
                 // Never expiring upload is allowed
-                $scope.ttlUnits = ["days", "hours", "minutes", "never"];
+                $scope.ttlUnits = ["days", "hours", "minutes", "unlimited"];
             }
-            var ttl = $scope.getHumanReadableTTL($scope.config.defaultTTL);
+            if ($scope.user.maxTTL > 0 && $scope.config.defaultTTL > $scope.user.maxTTL) {
+                // If user maxTTL is less than defaultTTL then set to user maxTTL to avoid error on upload
+                $scope.config.defaultTTL = $scope.user.maxTTL;
+            }
+            var ttl = getHumanReadableTTL($scope.config.defaultTTL);
             $scope.ttlValue = ttl[0];
             $scope.ttlUnit = ttl[1];
         };
@@ -667,71 +632,76 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             $route.reload();
         };
 
-        // Register paste handler
-        $scope.registerPasteHandler = function () {
-            var pasteCallback = function (clipboard) {
-                // Dismiss paste event if we can't add files to the upload
-                if ($scope.mode === 'download' && !$scope.upload.admin) return;
+        // Called on paste event
+        $scope.pasteCallback = function (clipboard) {
+            // Dismiss paste event if we can't add files to the upload
+            if (!$scope.okToAddFiles()) return;
 
-                // Dismiss paste event if a modal/dialog is already open
-                if (document.getElementsByClassName('modal-open').length > 0) return;
+            // Dismiss paste event if a modal/dialog is already open
+            if (document.getElementsByClassName('modal-open').length > 0) return;
 
-                // If clipboard contains files
-                var files = _.clone(clipboard.files);
-                if (files.length) {
-                    // Add the files
-                    $timeout(function () {
-                        $scope.onFileSelect(files);
-                    })
-                    return
-                }
-
-                // If clipboard contains text
-                var text = clipboard.getData('text');
-                if (text) {
-                    // Open a dialog to display/edit the pasted text
-                    $dialog.openDialog({
-                        backdrop: true,
-                        backdropClick: true,
-                        templateUrl: 'partials/paste.html',
-                        controller: 'PasteController',
-                        size: 'lg', // large size
-                        resolve: {
-                            args: function () {
-                                return {
-                                    text: text,
-                                };
-                            }
-                        }
-                    }).result.then(
-                        function (result) {
-                            if (result.text) {
-                                var filename = 'paste.txt'
-
-                                // Increment filename if already present
-                                var names = _.pluck($scope.files, 'fileName');
-                                var i = 1;
-                                while (_.contains(names, filename)) {
-                                    filename = 'paste.' + i + '.txt';
-                                    i++;
-                                }
-
-                                // Create a file from the pasted text
-                                var blob = new Blob([result.text], {type: "text/plain;charset=utf-8"});
-                                var file = new File([blob], filename, {type: "text/plain;charset=utf-8"});
-
-                                // Add the file
-                                $timeout(function () {
-                                    $scope.onFileSelect([file]);
-                                })
-                            }
-
-                        }, discard);
-                }
+            // If clipboard contains files
+            var files = _.clone(clipboard.files);
+            if (files.length) {
+                // Add the files
+                $timeout(function () {
+                    $scope.onFileSelect(files);
+                })
+                return
             }
 
+            // If clipboard contains text
+            var text = clipboard.getData('text');
+            if (text) {
+                $scope.openTextDialog(text);
+            }
+        };
+
+        $scope.openTextDialog = function (text) {
+            // Open a dialog to enter text
+            $dialog.openDialog({
+                backdrop: true,
+                backdropClick: true,
+                templateUrl: 'partials/paste.html',
+                controller: 'PasteController',
+                size: 'lg', // large size
+                resolve: {
+                    args: function () {
+                        return {
+                            text: text,
+                        };
+                    }
+                }
+            }).result.then(
+                function (result) {
+                    if (result.text) {
+                        var filename = 'paste.txt'
+
+                        // Increment filename if already present
+                        var names = _.pluck($scope.files, 'fileName');
+                        var i = 1;
+                        while (_.contains(names, filename)) {
+                            filename = 'paste.' + i + '.txt';
+                            i++;
+                        }
+
+                        // Create a file from the pasted text
+                        var blob = new Blob([result.text], {type: "text/plain;charset=utf-8"});
+                        var file = new File([blob], filename, {type: "text/plain;charset=utf-8"});
+
+                        // Add the file
+                        $timeout(function () {
+                            $scope.onFileSelect([file]);
+                        })
+                    }
+
+                }, discard);
+        }
+
+        // Register paste handler
+        $scope.registerPasteHandler = function () {
             // Register paste callback to the paste service
-            $paste.register(pasteCallback);
+            $paste.register($scope.pasteCallback);
 
             // Unregister paste callback when route changes
             $scope.$on('$routeChangeStart', $paste.unregister);

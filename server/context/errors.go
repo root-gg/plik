@@ -2,6 +2,7 @@ package context
 
 import (
 	"fmt"
+	"github.com/root-gg/plik/server/common"
 	"log"
 	"net/http"
 	"runtime/debug"
@@ -75,6 +76,15 @@ func (ctx *Context) Recover() {
 }
 
 var userAgents = []string{"wget", "curl", "python-urllib", "libwwww-perl", "php", "pycurl", "go-http-client", "plik_client"}
+
+// Error handles common.HttpError
+func (ctx *Context) Error(err error) {
+	if httpError, ok := err.(*common.HTTPError); ok {
+		ctx.Fail(httpError.Message, httpError.Err, httpError.StatusCode)
+	} else {
+		ctx.InternalServerError("unexpected error", err)
+	}
+}
 
 // Fail is a helper to generate http error responses
 func (ctx *Context) Fail(message string, err error, status int) {

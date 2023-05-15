@@ -34,6 +34,7 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
                 $scope.getUploads();
                 $scope.getTokens();
                 $scope.getUserStats();
+                $scope.fake_user = $api.fake_user;
             })
                 .then(null, function (error) {
                     if (error.status === 401 || error.status === 403) {
@@ -208,6 +209,33 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
             );
         };
 
+        // Edit user
+        $scope.editAccount = function () {
+            $dialog.openDialog({
+                backdrop: true,
+                backdropClick: true,
+                templateUrl: 'partials/user.html',
+                controller: 'UserController',
+                resolve: {
+                    args: function () { return { user : $scope.user }; }
+                }
+            }).result.then(
+                function (result) {
+                    if (result.user) {
+                        $api.updateUser(result.user)
+                            .then(function (user) {
+                            })
+                            .then(null, function (error) {
+                                $dialog.alert(error);
+                            });
+                    } else if (result.error) {
+                        $dialog.alert(result.error);
+                    }
+                }, function () {
+                    // Avoid "Possibly unhandled rejection"
+                });
+        };
+
         // Get upload url
         $scope.getUploadUrl = function (upload) {
             return $api.base + '/#/?id=' + upload.id;
@@ -219,10 +247,7 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
         };
 
         // Compute human readable size
-        $scope.humanReadableSize = function (size) {
-            if (_.isUndefined(size)) return;
-            return filesize(size, {base: 2});
-        };
+        $scope.humanReadableSize = getHumanReadableSize;
 
         // Redirect to main page
         $scope.mainpage = function () {

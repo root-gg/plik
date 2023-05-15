@@ -11,7 +11,7 @@ import (
 // GetUsers return users
 func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 
-	// Check authorization
+	// Double check authorization
 	if !ctx.IsAdmin() {
 		ctx.Forbidden("you need administrator privileges")
 		return
@@ -33,7 +33,7 @@ func GetUsers(ctx *context.Context, resp http.ResponseWriter, req *http.Request)
 // GetServerStatistics return the server statistics
 func GetServerStatistics(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 
-	// Check authorization
+	// Double check authorization
 	if !ctx.IsAdmin() {
 		ctx.Forbidden("you need administrator privileges")
 		return

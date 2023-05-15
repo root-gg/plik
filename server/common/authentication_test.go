@@ -56,7 +56,7 @@ func TestLogout(t *testing.T) {
 		if cookie.Name == SessionCookieName {
 			sessionCookie = cookie
 		}
-		if cookie.Name == XsrfCookieName {
+		if cookie.Name == XSRFCookieName {
 			xsrfCookie = cookie
 		}
 	}
