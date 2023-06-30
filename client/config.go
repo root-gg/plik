@@ -70,6 +70,9 @@ func LoadConfigFromFile(path string) (*CliConfig, error) {
 		return nil, fmt.Errorf("Failed to deserialize ~/.plickrc : %s", err)
 	}
 
+	// Sanitize URL
+	config.URL = strings.TrimSuffix(config.URL, "/")
+
 	return config, nil
 }
 
