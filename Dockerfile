@@ -1,5 +1,5 @@
 ##################################################################################
-FROM --platform=$BUILDPLATFORM node:19-alpine AS plik-frontend-builder
+FROM --platform=$BUILDPLATFORM node:20-alpine AS plik-frontend-builder
 
 # Install needed binaries
 RUN apk add --no-cache git make bash
@@ -43,7 +43,7 @@ FROM scratch AS plik-release-archive
 COPY --from=plik-builder --chown=1000:1000 /go/src/github.com/root-gg/plik/plik-*.tar.gz /
 
 ##################################################################################
-FROM alpine:3.17 AS plik-image
+FROM alpine:3.18 AS plik-image
 
 RUN apk add --no-cache ca-certificates
 
