@@ -235,7 +235,7 @@ func preprocessor(ctx *context.Context, file io.Reader, preprocessWriter io.Writ
 		totalBytes += int64(bytesRead)
 
 		// Check upload max size limit
-		if totalBytes > maxFileSize {
+		if maxFileSize > 0 && totalBytes > maxFileSize {
 			err = common.NewHTTPError(fmt.Sprintf("file too big (limit is set to %s)", humanize.Bytes(uint64(maxFileSize))), nil, http.StatusBadRequest)
 			break
 		}
