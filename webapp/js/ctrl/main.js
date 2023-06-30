@@ -99,9 +99,9 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                     $scope.files = $scope.upload.files;
 
                     // Redirect to home when all stream uploads are downloaded
-                    if (!$scope.somethingOk()) {
-                        $scope.mainpage();
-                    }
+                    //if (!$scope.somethingOk()) {
+                    //    $scope.mainpage();
+                    //}
 
                     $scope.loaded.resolve(true);
                 })
@@ -113,21 +113,21 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
 
         // whenReady ensure that the scope has been initialized especially :
         // $scope.config, $scope.user, $scope.mode, $scope.upload, $scope.files, ...
-        $scope.ready = $q.all([$scope.configReady, $scope.userReady, $scope.loaded]);
+        $scope.ready = $q.all([$scope.configReady.promise, $scope.userReady.promise, $scope.loaded.promise]);
 
         function whenReady(f) {
-            $scope.ready.then($timeout(f), discard);
+            $scope.ready.then(f, discard);
         }
 
         // Redirect to login page if user is not authenticated
         whenReady(function () {
-            if ($scope.isFeatureForced("authentication") && $scope.mode !== 'download' && !$scope.user) {
+            if ($scope.isFeatureForced("authentication") && $scope.mode === 'upload' && !($scope.user || $scope.uploadToken)) {
                 $location.path('/login');
             }
             $scope.setDefaultTTL();
         });
 
-        //
+        // Validate that file name is valid
         $scope.fileNameValidator = function (fileName) {
             if (_.isUndefined(fileName)) return false;
             if (fileName.length === 0 || fileName.length > fileNameMaxLength) return false;
@@ -591,7 +591,7 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
                 // Never expiring upload is allowed
                 $scope.ttlUnits = ["days", "hours", "minutes", "unlimited"];
             }
-            if ($scope.user.maxTTL > 0 && $scope.config.defaultTTL > $scope.user.maxTTL) {
+            if ($scope.user && $scope.user.maxTTL > 0 && $scope.config.defaultTTL > $scope.user.maxTTL) {
                 // If user maxTTL is less than defaultTTL then set to user maxTTL to avoid error on upload
                 $scope.config.defaultTTL = $scope.user.maxTTL;
             }
