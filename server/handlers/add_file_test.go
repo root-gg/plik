@@ -586,3 +586,25 @@ func TestAddFileTooBig(t *testing.T) {
 
 	context.TestBadRequest(t, rr, "file too big")
 }
+
+func TestAddFileUnlimitedSize(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	ctx.GetConfig().MaxFileSize = -1
+
+	upload := &common.Upload{IsAdmin: true}
+	createTestUpload(t, ctx, upload)
+
+	name := "file"
+	reader, contentType, err := getMultipartFormData(name, bytes.NewBuffer([]byte(content)))
+	require.NoError(t, err, "unable get multipart form data")
+
+	req, err := http.NewRequest("POST", "/file/"+upload.ID, reader)
+	require.NoError(t, err, "unable to create new request")
+
+	req.Header.Set("Content-Type", contentType)
+
+	rr := ctx.NewRecorder(req)
+	AddFile(ctx, rr, req)
+
+	context.TestOK(t, rr)
+}
