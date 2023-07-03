@@ -19,6 +19,7 @@ type userFlagParams struct {
 	email       string
 	admin       bool
 	maxFileSize string
+	maxUserSize string
 	maxTTL      string
 }
 
@@ -77,6 +78,7 @@ func init() {
 	createUserCmd.Flags().StringVar(&userParams.email, "email", "", "user email")
 	createUserCmd.Flags().StringVar(&userParams.password, "password", "", "user password")
 	createUserCmd.Flags().StringVar(&userParams.maxFileSize, "max-file-size", "", "user max file size")
+	createUserCmd.Flags().StringVar(&userParams.maxUserSize, "max-user-size", "", "user max user size")
 	createUserCmd.Flags().StringVar(&userParams.maxTTL, "max-ttl", "", "user max ttl")
 	createUserCmd.Flags().BoolVar(&userParams.admin, "admin", false, "user admin")
 
@@ -85,6 +87,7 @@ func init() {
 	updateUserCmd.Flags().StringVar(&userParams.email, "email", "", "user email")
 	updateUserCmd.Flags().StringVar(&userParams.password, "password", "", "user password")
 	updateUserCmd.Flags().StringVar(&userParams.maxFileSize, "max-file-size", "", "user max file size")
+	updateUserCmd.Flags().StringVar(&userParams.maxUserSize, "max-user-size", "", "user max user size")
 	updateUserCmd.Flags().StringVar(&userParams.maxTTL, "max-ttl", "", "user max ttl")
 	updateUserCmd.Flags().BoolVar(&userParams.admin, "admin", false, "user admin")
 
@@ -132,13 +135,26 @@ func createUser(cmd *cobra.Command, args []string) {
 		IsAdmin:  userParams.admin,
 	}
 
-	if userParams.maxFileSize != "" {
+	if userParams.maxFileSize == "-1" {
+		params.MaxFileSize = -1
+	} else if userParams.maxFileSize != "" {
 		maxFileSize, err := humanize.ParseBytes(userParams.maxFileSize)
 		if err != nil {
 			fmt.Printf("Unable to parse max-file-size\n")
 			os.Exit(1)
 		}
 		params.MaxFileSize = int64(maxFileSize)
+	}
+
+	if userParams.maxUserSize == "-1" {
+		params.MaxUserSize = -1
+	} else if userParams.maxUserSize != "" {
+		maxUserSize, err := humanize.ParseBytes(userParams.maxUserSize)
+		if err != nil {
+			fmt.Printf("Unable to parse max-user-size\n")
+			os.Exit(1)
+		}
+		params.MaxUserSize = int64(maxUserSize)
 	}
 
 	if userParams.maxTTL != "" {
@@ -260,6 +276,19 @@ func updateUser(cmd *cobra.Command, args []string) {
 		params.MaxFileSize = int64(maxFileSize)
 	} else {
 		params.MaxFileSize = user.MaxFileSize
+	}
+
+	if userParams.maxUserSize == "-1" {
+		params.MaxUserSize = -1
+	} else if userParams.maxUserSize != "" {
+		maxUserSize, err := humanize.ParseBytes(userParams.maxUserSize)
+		if err != nil {
+			fmt.Printf("Unable to parse max-user-size\n")
+			os.Exit(1)
+		}
+		params.MaxUserSize = int64(maxUserSize)
+	} else {
+		params.MaxUserSize = user.MaxUserSize
 	}
 
 	if userParams.maxTTL != "" {

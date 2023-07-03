@@ -2,6 +2,8 @@ package context
 
 import (
 	"fmt"
+	"github.com/root-gg/logger"
+	"github.com/root-gg/plik/server/metadata"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -82,4 +84,29 @@ func TestPanic(t *testing.T, resp *httptest.ResponseRecorder, message string, ha
 		}
 	}()
 	handler()
+}
+
+// Setup metadata backend
+var metadataBackendConfig = &metadata.Config{Driver: "sqlite3", ConnectionString: "/tmp/plik.test.db", EraseFirst: true, Debug: false}
+
+func newTestMetadataBackend() *metadata.Backend {
+	b, err := metadata.NewBackend(metadataBackendConfig, logger.NewLogger())
+	if err != nil {
+		panic(fmt.Sprintf("unable to create metadata backend : %s", err))
+	}
+
+	return b
+}
+
+func shutdownTestMetadataBackend(b *metadata.Backend) {
+	err := b.Shutdown()
+	if err != nil {
+		fmt.Printf("Unable to shutdown metadata backend : %s\n", err)
+	}
+}
+
+func setupNewMetadataBackend(ctx *Context) (cancel func()) {
+	meta := newTestMetadataBackend()
+	ctx.SetMetadataBackend(meta)
+	return func() { shutdownTestMetadataBackend(meta) }
 }

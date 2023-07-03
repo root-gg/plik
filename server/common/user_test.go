@@ -46,6 +46,7 @@ func TestCreateUserFromParams(t *testing.T) {
 		Name:        "user",
 		MaxFileSize: 1234,
 		MaxTTL:      1234,
+		MaxUserSize: 1234,
 		IsAdmin:     true,
 	}
 
@@ -59,6 +60,7 @@ func TestCreateUserFromParams(t *testing.T) {
 	require.Equal(t, userOK.Name, user.Name)
 	require.Equal(t, userOK.Email, user.Email)
 	require.Equal(t, userOK.MaxFileSize, user.MaxFileSize)
+	require.Equal(t, userOK.MaxUserSize, user.MaxUserSize)
 	require.Equal(t, userOK.MaxTTL, user.MaxTTL)
 	require.Equal(t, userOK.IsAdmin, user.IsAdmin)
 
@@ -102,6 +104,7 @@ func TestUpdateUser(t *testing.T) {
 		Email:       "user@root.gg",
 		Name:        "user",
 		MaxFileSize: 1234,
+		MaxUserSize: 1234,
 		MaxTTL:      1234,
 		IsAdmin:     true,
 	}
@@ -113,6 +116,7 @@ func TestUpdateUser(t *testing.T) {
 	params.Email = "updated@root.gg"
 	params.Name = "updated"
 	params.MaxFileSize = 0
+	params.MaxUserSize = 0
 	params.MaxTTL = 0
 	params.IsAdmin = false
 
@@ -127,6 +131,7 @@ func TestUpdateUser(t *testing.T) {
 	require.Equal(t, params.Name, user.Name)
 	require.Equal(t, params.Email, user.Email)
 	require.Equal(t, params.MaxFileSize, user.MaxFileSize)
+	require.Equal(t, params.MaxUserSize, user.MaxUserSize)
 	require.Equal(t, params.MaxTTL, user.MaxTTL)
 	require.Equal(t, params.IsAdmin, user.IsAdmin)
 

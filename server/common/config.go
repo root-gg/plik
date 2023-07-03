@@ -33,6 +33,8 @@ type Configuration struct {
 
 	MaxFileSizeStr   string `json:"-"`
 	MaxFileSize      int64  `json:"maxFileSize"`
+	MaxUserSizeStr   string `json:"-"`
+	MaxUserSize      int64  `json:"maxUserSize"`
 	MaxFilePerUpload int    `json:"maxFilePerUpload"`
 
 	DefaultTTLStr string `json:"-"`
@@ -110,6 +112,7 @@ func NewConfiguration() (config *Configuration) {
 	config.SessionTimeout = "365d"
 
 	config.MaxFileSize = 10000000000 // 10GB
+	config.MaxUserSize = -1          // Default max size per user ( -1 for unlimited)
 	config.MaxFilePerUpload = 1000
 
 	config.DefaultTTL = 2592000 // 30 days
@@ -215,12 +218,24 @@ func (config *Configuration) Initialize() (err error) {
 		}
 	}
 
-	if config.MaxFileSizeStr != "" {
+	if config.MaxFileSizeStr == "unlimited" || config.MaxFileSizeStr == "-1" {
+		config.MaxFileSize = int64(-1)
+	} else if config.MaxFileSizeStr != "" {
 		maxFileSize, err := humanize.ParseBytes(config.MaxFileSizeStr)
 		if err != nil {
 			return err
 		}
 		config.MaxFileSize = int64(maxFileSize)
+	}
+
+	if config.MaxUserSizeStr == "unlimited" || config.MaxUserSizeStr == "-1" {
+		config.MaxUserSize = int64(-1)
+	} else if config.MaxUserSizeStr != "" {
+		maxUserSize, err := humanize.ParseBytes(config.MaxUserSizeStr)
+		if err != nil {
+			return err
+		}
+		config.MaxUserSize = int64(maxUserSize)
 	}
 
 	if config.DefaultTTLStr != "" {

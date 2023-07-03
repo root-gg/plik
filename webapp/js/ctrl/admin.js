@@ -207,6 +207,16 @@ plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location
             return "unlimited"
         };
 
+        $scope.getUserMaxUserSize = function (user) {
+            if (user.maxUserSize > 0) {
+                return $scope.humanReadableSize(user.maxUserSize);
+            }
+            if (user.maxUserSize === 0 && $scope.config.maxUserSize > 0) {
+                return "default";
+            }
+            return "unlimited"
+        };
+        
         $scope.getUserMaxTTL = function (user) {
             if (user.maxTTL > 0) {
                 return getHumanReadableTTLString(user.maxTTL)

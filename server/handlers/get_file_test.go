@@ -104,7 +104,7 @@ func TestGetOneShotFile(t *testing.T) {
 
 	f, err := ctx.GetMetadataBackend().GetFile(file.ID)
 	require.NoError(t, err, "unable to get file metadata")
-	require.Equal(t, common.FileRemoved, f.Status, "invalid file status")
+	require.Equal(t, common.FileDeleted, f.Status, "invalid file status")
 }
 
 func TestGetStreamingFile(t *testing.T) {

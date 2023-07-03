@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -39,6 +40,7 @@ func generateTestData(t *testing.T, b *Backend) {
 	admin.Email = "admin@root.gg"
 	admin.MaxTTL = 86400 * 365
 	admin.MaxFileSize = 100 * 1e9
+	admin.MaxUserSize = 100 * 1e9
 	err = b.CreateUser(admin)
 	require.NoError(t, err, "unable to create admin user")
 
@@ -265,7 +267,7 @@ func PgSQLDump(metadataBackendConfig *Config) (dump string, err error) {
 }
 
 // Generate a MySQL dump from the testing/test-backends.sh docker image
-func MySQLDump(metadataBackendConfig *Config) (dump string, err error) {
+func MySQLDump(metadataBackendConfig *Config, dbType string) (dump string, err error) {
 	fmt.Println("Generate mysql dump")
 
 	// plik:password@tcp(127.0.0.1:2606)/plik?charset=utf8mb4&parseTime=True&loc=Local
@@ -282,11 +284,20 @@ func MySQLDump(metadataBackendConfig *Config) (dump string, err error) {
 
 	docker := "plik." + getTestBackend()
 
+	var backupTool string
+	if dbType == "mysql" {
+		backupTool = "mysqldump"
+	} else if dbType == "mariadb" {
+		backupTool = "mariadb-dump"
+	} else {
+		return "", errors.New("invalid db type")
+	}
+
 	var cmd *exec.Cmd
 	if docker != "" {
-		cmd = exec.Command("docker", "exec", docker, "mysqldump")
+		cmd = exec.Command("docker", "exec", docker, backupTool)
 	} else {
-		cmd = exec.Command("mysqldump")
+		cmd = exec.Command(backupTool)
 	}
 
 	if u.User != nil {
@@ -366,8 +377,11 @@ func TestGenerateSQLDump(t *testing.T) {
 	case "postgres":
 		dump, err = PgSQLDump(metadataBackendConfig)
 		require.NoError(t, err, "unable to generate pgsql dump")
-	case "mariadb", "mysql":
-		dump, err = MySQLDump(metadataBackendConfig)
+	case "mysql":
+		dump, err = MySQLDump(metadataBackendConfig, "mysql")
+		require.NoError(t, err, "unable to generate mysql dump")
+	case "mariadb":
+		dump, err = MySQLDump(metadataBackendConfig, "mariadb")
 		require.NoError(t, err, "unable to generate mysql dump")
 	}
 

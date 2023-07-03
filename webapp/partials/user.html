@@ -74,6 +74,16 @@
                     </div>
                 </div>
 
+                <!-- MAX USER SIZE -->
+                <div class="form-group">
+                    <p>0 for server default, -1 for unlimited</p>
+                    <label for="maxUserSize" class="col-sm-2 control-label">Max User Size</label>
+
+                    <div class="col-sm-8">
+                        <input id="maxUserSize" type="text" ng-model="maxUserSize" class="form-control" placeholder="Max User Size" ng-readonly="!auth_user.admin">
+                    </div>
+                </div>
+
                 <!-- MAX TTL -->
                 <div class="form-group">
                     <p>0 for server default</p>

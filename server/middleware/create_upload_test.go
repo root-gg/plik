@@ -86,3 +86,48 @@ func TestCreateUploadMetadataBackendError(t *testing.T) {
 	CreateUpload(ctx, common.DummyHandler).ServeHTTP(rr, req)
 	context.TestInternalServerError(t, rr, "database is closed")
 }
+
+func testCreateUploadMaxUserSize(t *testing.T, ok bool) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	user := common.NewUser("local", "test")
+	if ok {
+		user.MaxUserSize = 100000
+	} else {
+		user.MaxUserSize = 1000
+	}
+
+	err := ctx.GetMetadataBackend().CreateUser(user)
+	require.NoError(t, err)
+
+	ctx.SetUser(user)
+
+	upload := common.NewUpload()
+	upload.User = user.ID
+	f := upload.NewFile()
+	f.Size = 1024
+	f.Status = common.FileUploaded
+	err = ctx.GetMetadataBackend().CreateUpload(upload)
+	require.NoError(t, err)
+
+	ctx.SetSourceIP(net.ParseIP("1.2.3.4"))
+	req, err := http.NewRequest("GET", "", &bytes.Buffer{})
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	CreateUpload(ctx, common.DummyHandler).ServeHTTP(rr, req)
+
+	if ok {
+		context.TestOK(t, rr)
+	} else {
+		context.TestBadRequest(t, rr, "maximum user upload size reached")
+	}
+}
+
+func TestCreateUploadMaxUserSizeOK(t *testing.T) {
+	testCreateUploadMaxUserSize(t, true)
+}
+
+func TestCreateUploadMaxUserSizeKO(t *testing.T) {
+	testCreateUploadMaxUserSize(t, false)
+}

@@ -40,6 +40,7 @@ plik.controller('UserController', ['$scope', 'args', '$config', '$q',
             $scope.ttlUnit = $scope.ttlUnits[res[2]];
         };
 
+        // Set MaxFileSize value
         $scope.setMaxFileSize = function (maxFileSize) {
             if (maxFileSize > 0) {
                 $scope.maxFileSize = getHumanReadableSize(maxFileSize);
@@ -48,6 +49,15 @@ plik.controller('UserController', ['$scope', 'args', '$config', '$q',
             }
         }
 
+        // Set MaxUserSize value
+        $scope.setMaxUserSize = function (maxUserSize) {
+            if (maxUserSize > 0) {
+                $scope.maxUserSize = getHumanReadableSize(maxUserSize);
+            } else {
+                $scope.maxUserSize = maxUserSize;
+            }
+        }
+        
         // whenReady ensure that the scope has been initialized especially :
         // $scope.config, $scope.user, $scope.mode, $scope.upload, $scope.files, ...
         $scope.ready = $q.all([$scope.configReady, $scope.userReady]);
@@ -65,10 +75,12 @@ plik.controller('UserController', ['$scope', 'args', '$config', '$q',
                     $scope.user = args.user;
                     $scope.setMaxTTL($scope.user.maxTTL);
                     $scope.setMaxFileSize($scope.user.maxFileSize);
+                    $scope.setMaxUserSize($scope.user.maxUserSize);
                 } else {
                     $scope.user.provider = "local";
                     $scope.setMaxTTL(0);
                     $scope.setMaxFileSize(0);
+                    $scope.setMaxUserSize(0)
                     $scope.generatePassword();
                 }
             }).then(function () {
@@ -127,6 +139,20 @@ plik.controller('UserController', ['$scope', 'args', '$config', '$q',
                     $scope.user.maxFileSize = maxFileSize;
                 } else {
                     $scope.warning = "invalid max file size";
+                    return false;
+                }
+            }
+
+            // Parse maxFileSize
+            var maxUserSize = parseHumanReadableSize($scope.maxUserSize, {base: 10});
+            if (_.isNumber(maxUserSize)) {
+                $scope.user.maxUserSize = maxUserSize;
+            } else {
+                maxUserSize = Number($scope.maxUserSize)
+                if (maxUserSize === 0 || maxUserSize === -1) {
+                    $scope.user.maxUserSize = maxUserSize;
+                } else {
+                    $scope.warning = "invalid max user size";
                     return false;
                 }
             }

@@ -247,3 +247,50 @@ func TestCreateUpload_BodyTooBig(t *testing.T) {
 //	CreateUpload(ctx, rr, req)
 //	context.TestInternalServerError(t, rr, "create upload error : metadata backend error")
 //}
+
+func testCreateUploadMaxUserSize(t *testing.T, ok bool) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	user := common.NewUser("local", "test")
+
+	if ok {
+		user.MaxUserSize = 100000
+	} else {
+		user.MaxUserSize = 1000
+	}
+
+	err := ctx.GetMetadataBackend().CreateUser(user)
+	require.NoError(t, err)
+
+	ctx.SetUser(user)
+
+	uploadToCreate := &common.Upload{}
+	fileToUpload := &common.File{}
+	fileToUpload.Name = "file"
+	fileToUpload.Reference = "0"
+	fileToUpload.Size = 1024
+	uploadToCreate.Files = append(uploadToCreate.Files, fileToUpload)
+
+	reqBody, err := json.Marshal(uploadToCreate)
+	require.NoError(t, err, "unable to marshal request body")
+
+	req, err := http.NewRequest("POST", "/upload", bytes.NewBuffer(reqBody))
+	require.NoError(t, err, "unable to create new request")
+
+	rr := ctx.NewRecorder(req)
+	CreateUpload(ctx, rr, req)
+
+	if ok {
+		context.TestOK(t, rr)
+	} else {
+		context.TestBadRequest(t, rr, "maximum user upload size reached")
+	}
+}
+
+func TestCreateUploadMaxUserSizeOK(t *testing.T) {
+	testCreateUploadMaxUserSize(t, true)
+}
+
+func TestCreateUploadMaxUserSizeKO(t *testing.T) {
+	testCreateUploadMaxUserSize(t, false)
+}

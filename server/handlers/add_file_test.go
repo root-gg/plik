@@ -608,3 +608,59 @@ func TestAddFileUnlimitedSize(t *testing.T) {
 
 	context.TestOK(t, rr)
 }
+
+func testAddFileMaxUserSize(t *testing.T, ok bool) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	user := common.NewUser("local", "test")
+
+	if ok {
+		user.MaxUserSize = 100000
+	} else {
+		user.MaxUserSize = 1000
+	}
+
+	err := ctx.GetMetadataBackend().CreateUser(user)
+	require.NoError(t, err)
+
+	ctx.SetUser(user)
+
+	upload := common.NewUpload()
+	upload.User = user.ID
+	f := upload.NewFile()
+	f.Size = 1000
+	f.Status = common.FileUploaded
+	err = ctx.GetMetadataBackend().CreateUpload(upload)
+	require.NoError(t, err)
+
+	upload = &common.Upload{IsAdmin: true}
+	upload.User = user.ID
+	f = upload.NewFile()
+	f.Name = "file"
+	createTestUpload(t, ctx, upload)
+
+	reader, contentType, err := getMultipartFormData(f.Name, bytes.NewBuffer([]byte(content)))
+	req, err := http.NewRequest("POST", "/file/"+upload.ID, reader)
+	require.NoError(t, err, "unable to create new request")
+
+	req.Header.Set("Content-Type", contentType)
+
+	rr := ctx.NewRecorder(req)
+	AddFile(ctx, rr, req)
+
+	if ok {
+		context.TestOK(t, rr)
+		require.Equal(t, common.FileUploaded, f.Status)
+	} else {
+		context.TestBadRequest(t, rr, "maximum user upload size reached")
+		require.Equal(t, common.FileDeleted, f.Status)
+	}
+}
+
+func TestAddFileMaxUserSizeOK(t *testing.T) {
+	testAddFileMaxUserSize(t, true)
+}
+
+func TestAddFileMaxUserSizeKO(t *testing.T) {
+	testAddFileMaxUserSize(t, false)
+}

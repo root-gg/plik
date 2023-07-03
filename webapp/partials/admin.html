@@ -53,6 +53,9 @@
                                 Max File Size : {{humanReadableSize(config.maxFileSize)}}
                             </p>
                             <p>
+                                Max User Size : {{humanReadableSize(config.maxUserSize)}}
+                            </p>
+                            <p>
                                 Default TTL : {{getHumanReadableTTLString(config.defaultTTL)}}
                             </p>
                             <p>
@@ -127,6 +130,7 @@
                                 </div>
                                 <div class="col-sm-3 file-name">
                                     max file size : {{getUserMaxFileSize(user)}}<br/>
+                                    max user size : {{getUserMaxUserSize(user)}}<br/>
                                     max TTL : {{getUserMaxTTL(user)}}
                                 </div>
                                 <div class="col-sm-3">

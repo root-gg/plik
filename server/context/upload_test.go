@@ -613,3 +613,159 @@ func TestCreateFile(t *testing.T) {
 	common.RequireError(t, err, "upload not initialized")
 	require.Nil(t, file)
 }
+
+func TestCheckUserFreeSpaceForUploadNoUser(t *testing.T) {
+	ctx := newTestContext()
+
+	params := &common.Upload{}
+	for i := 0; i < 10; i++ {
+		file := &common.File{Name: "foo", Size: 10 * 1e9}
+		params.Files = append(params.Files, file)
+	}
+
+	err := ctx.CheckUserFreeSpaceForUpload(params)
+	require.NoError(t, err)
+}
+
+func TestCheckUserFreeSpaceForUploadNoFiles(t *testing.T) {
+	ctx := newTestContext()
+	defer setupNewMetadataBackend(ctx)()
+	ctx.user = &common.User{MaxUserSize: 1024}
+	params := &common.Upload{}
+
+	err := ctx.CheckUserFreeSpaceForUpload(params)
+	require.NoError(t, err)
+}
+
+func TestCheckUserFreeSpaceForUploadUploadTooBig(t *testing.T) {
+	ctx := newTestContext()
+	ctx.user = &common.User{MaxUserSize: 1024}
+
+	params := &common.Upload{}
+	for i := 0; i < 10; i++ {
+		file := &common.File{Name: "foo", Size: 10 * 1e9}
+		params.Files = append(params.Files, file)
+	}
+
+	err := ctx.CheckUserFreeSpaceForUpload(params)
+	common.RequireError(t, err, "maximum user upload size reached")
+}
+
+func TestCheckUserFreeSpaceForUploadOK(t *testing.T) {
+	testUploadSize(t, true)
+}
+
+func TestCheckUserFreeSpaceForUploadKO(t *testing.T) {
+	testUploadSize(t, false)
+}
+
+func testUploadSize(t *testing.T, ok bool) {
+	ctx := newTestContext()
+	ctx.user = &common.User{ID: "test", MaxUserSize: 1024}
+	defer setupNewMetadataBackend(ctx)()
+
+	// Create
+	upload := common.NewUpload()
+	upload.User = ctx.user.ID
+	file := upload.NewFile()
+	file.Status = common.FileUploaded
+
+	if ok {
+		file.Size = 900 // 900 + 10 * 10 < 1024
+	} else {
+		file.Size = 925 // 900 + 10 * 10 > 1024
+	}
+
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
+	require.NoError(t, err)
+
+	params := &common.Upload{User: ctx.user.ID}
+	for i := 0; i < 10; i++ {
+		file := &common.File{Name: "foo", Size: 10}
+		params.Files = append(params.Files, file)
+	}
+
+	err = ctx.CheckUserFreeSpaceForUpload(params)
+
+	if ok {
+		require.NoError(t, err)
+	} else {
+		common.RequireError(t, err, "maximum user upload size reached")
+	}
+}
+
+func TestCheckUserTotalUploadedSizeOK(t *testing.T) {
+	testUserTotalSize(t, true)
+}
+
+func TestCheckUserTotalUploadedSizeKO(t *testing.T) {
+	testUserTotalSize(t, false)
+}
+
+func testUserTotalSize(t *testing.T, ok bool) {
+	ctx := newTestContext()
+	ctx.user = &common.User{ID: "test", MaxUserSize: 1024}
+	defer setupNewMetadataBackend(ctx)()
+
+	// Create
+	upload := common.NewUpload()
+	upload.User = ctx.user.ID
+	file := upload.NewFile()
+	file.Status = common.FileUploaded
+
+	if ok {
+		file.Size = 900 // 900 + 10 * 10 < 1024
+	} else {
+		file.Size = 1025 // 900 + 10 * 10 > 1024
+	}
+
+	err := ctx.GetMetadataBackend().CreateUpload(upload)
+	require.NoError(t, err)
+
+	err = ctx.CheckUserTotalUploadedSize()
+
+	if ok {
+		require.NoError(t, err)
+	} else {
+		common.RequireError(t, err, "maximum user upload size reached")
+	}
+}
+
+func TestGetUserMaxSizeNoUser(t *testing.T) {
+	ctx := newTestContext()
+	ctx.GetConfig().MaxUserSize = 10000
+	maxUserSize := ctx.GetUserMaxSize()
+	require.Equal(t, int64(-1), maxUserSize)
+}
+
+func TestGetUserMaxSizeUserUnlimited(t *testing.T) {
+	ctx := newTestContext()
+	ctx.GetConfig().MaxUserSize = 10000
+	ctx.SetUser(&common.User{MaxUserSize: -1})
+	maxUserSize := ctx.GetUserMaxSize()
+	require.Equal(t, int64(-1), maxUserSize)
+}
+
+func TestGetUserMaxSizeUserLimited(t *testing.T) {
+	ctx := newTestContext()
+	ctx.GetConfig().MaxUserSize = 10000
+	ctx.SetUser(&common.User{MaxUserSize: 1000})
+	maxUserSize := ctx.GetUserMaxSize()
+	require.Equal(t, int64(1000), maxUserSize)
+}
+
+func TestGetUserMaxSizeUserServerDefault(t *testing.T) {
+	ctx := newTestContext()
+	ctx.GetConfig().MaxUserSize = 10000
+	ctx.SetUser(&common.User{MaxUserSize: 0})
+	maxUserSize := ctx.GetUserMaxSize()
+	require.Equal(t, int64(10000), maxUserSize)
+}
+
+func TestGetUserMaxSizeUserServerDefaultUnlimited(t *testing.T) {
+	ctx := newTestContext()
+	ctx.GetConfig().MaxUserSize = -1
+	ctx.SetUser(&common.User{MaxUserSize: 0})
+	maxUserSize := ctx.GetUserMaxSize()
+	require.Equal(t, int64(-1), maxUserSize)
+}
