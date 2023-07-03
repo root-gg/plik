@@ -10,13 +10,19 @@ import (
 )
 
 // NewDecoder creates cursor decoder for model
-func NewDecoder(keys ...string) *Decoder {
-	return &Decoder{keys}
+func NewDecoder(fields []DecoderField) *Decoder {
+	return &Decoder{fields: fields}
 }
 
 // Decoder cursor decoder
 type Decoder struct {
-	keys []string
+	fields []DecoderField
+}
+
+// DecoderField contains information about one decoder field.
+type DecoderField struct {
+	Key  string
+	Type *reflect.Type
 }
 
 // Decode decodes cursor into values (without pointer) by referencing field type on model.
@@ -34,10 +40,18 @@ func (d *Decoder) Decode(cursor string, model interface{}) (fields []interface{}
 	if t, err := jd.Token(); err != nil || t != json.Delim('[') {
 		return nil, ErrInvalidCursor
 	}
-	for _, key := range d.keys {
-		// key is already validated at beginning
-		f, _ := util.ReflectType(model).FieldByName(key)
-		v := reflect.New(f.Type).Interface()
+	for _, field := range d.fields {
+		// prefer field.Type when set; this is needed for getting the right type for custom types
+		var t reflect.Type
+		if field.Type != nil {
+			t = *field.Type
+		} else {
+			// key is already validated at beginning
+			f, _ := util.ReflectType(model).FieldByName(field.Key)
+			t = f.Type
+		}
+
+		v := reflect.New(t).Interface()
 		if err := jd.Decode(v); err != nil {
 			return nil, ErrInvalidCursor
 		}
@@ -55,8 +69,8 @@ func (d *Decoder) DecodeStruct(cursor string, model interface{}) (err error) {
 		return
 	}
 	elem := reflect.ValueOf(model).Elem()
-	for i, key := range d.keys {
-		elem.FieldByName(key).Set(reflect.ValueOf(fields[i]))
+	for i, field := range d.fields {
+		elem.FieldByName(field.Key).Set(reflect.ValueOf(fields[i]))
 	}
 	return
 }
@@ -67,8 +81,8 @@ func (d *Decoder) validate(model interface{}) error {
 	if modelType.Kind() != reflect.Struct {
 		return ErrInvalidModel
 	}
-	for _, key := range d.keys {
-		if _, ok := modelType.FieldByName(key); !ok {
+	for _, field := range d.fields {
+		if _, ok := modelType.FieldByName(field.Key); !ok {
 			return ErrInvalidModel
 		}
 	}

@@ -95,7 +95,7 @@ func (cmd *unregisterFromViewReq) handleCommand(w *worker) {
 		}
 
 		// Report pending data for this view before removing it.
-		w.reportView(vi, time.Now())
+		w.reportView(vi)
 
 		vi.unsubscribe()
 		if !vi.isSubscribed() {
@@ -103,7 +103,7 @@ func (cmd *unregisterFromViewReq) handleCommand(w *worker) {
 			// The collected data can be cleared.
 			vi.clearRows()
 		}
-		w.unregisterView(name)
+		w.unregisterView(vi)
 	}
 	cmd.done <- struct{}{}
 }
@@ -121,6 +121,8 @@ type retrieveDataResp struct {
 }
 
 func (cmd *retrieveDataReq) handleCommand(w *worker) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	vi, ok := w.views[cmd.v]
 	if !ok {
 		cmd.c <- &retrieveDataResp{
@@ -153,13 +155,15 @@ type recordReq struct {
 }
 
 func (cmd *recordReq) handleCommand(w *worker) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	for _, m := range cmd.ms {
 		if (m == stats.Measurement{}) { // not registered
 			continue
 		}
 		ref := w.getMeasureRef(m.Measure().Name())
 		for v := range ref.views {
-			v.addSample(cmd.tm, m.Value(), cmd.attachments, time.Now())
+			v.addSample(cmd.tm, m.Value(), cmd.attachments, cmd.t)
 		}
 	}
 }

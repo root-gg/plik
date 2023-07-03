@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build go1.9
 // +build go1.9
 
 package tag
@@ -25,7 +26,7 @@ func do(ctx context.Context, f func(ctx context.Context)) {
 	m := FromContext(ctx)
 	keyvals := make([]string, 0, 2*len(m.m))
 	for k, v := range m.m {
-		keyvals = append(keyvals, k.Name(), v)
+		keyvals = append(keyvals, k.Name(), v.value)
 	}
 	pprof.Do(ctx, pprof.Labels(keyvals...), f)
 }

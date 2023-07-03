@@ -85,10 +85,20 @@ type Version struct {
 	StorageClass string
 	VersionID    string `xml:"VersionId"`
 
+	// x-amz-meta-* headers stripped "x-amz-meta-" prefix containing the first value.
+	// Only returned by MinIO servers.
+	UserMetadata StringMap `json:"userMetadata,omitempty"`
+
+	// x-amz-tagging values in their k/v values.
+	// Only returned by MinIO servers.
+	UserTags URLMap `json:"userTags,omitempty" xml:"UserTags"`
+
 	isDeleteMarker bool
 }
 
 // ListVersionsResult is an element in the list object versions response
+// and has a special Unmarshaler because we need to preserver the order
+// of <Version>  and <DeleteMarker> in ListVersionsResult.Versions slice
 type ListVersionsResult struct {
 	Versions []Version
 
@@ -108,7 +118,7 @@ type ListVersionsResult struct {
 // UnmarshalXML is a custom unmarshal code for the response of ListObjectVersions, the custom
 // code will unmarshal <Version> and <DeleteMarker> tags and save them in Versions field to
 // preserve the lexical order of the listing.
-func (l *ListVersionsResult) UnmarshalXML(d *xml.Decoder, start xml.StartElement) (err error) {
+func (l *ListVersionsResult) UnmarshalXML(d *xml.Decoder, _ xml.StartElement) (err error) {
 	for {
 		// Read tokens from the XML document in a stream.
 		t, err := d.Token()
@@ -119,14 +129,13 @@ func (l *ListVersionsResult) UnmarshalXML(d *xml.Decoder, start xml.StartElement
 			return err
 		}
 
-		switch se := t.(type) {
-		case xml.StartElement:
+		se, ok := t.(xml.StartElement)
+		if ok {
 			tagName := se.Name.Local
 			switch tagName {
 			case "Name", "Prefix",
 				"Delimiter", "EncodingType",
-				"KeyMarker", "VersionIdMarker",
-				"NextKeyMarker", "NextVersionIdMarker":
+				"KeyMarker", "NextKeyMarker":
 				var s string
 				if err = d.DecodeElement(&s, &se); err != nil {
 					return err
@@ -135,6 +144,20 @@ func (l *ListVersionsResult) UnmarshalXML(d *xml.Decoder, start xml.StartElement
 				if v.IsValid() {
 					v.SetString(s)
 				}
+			case "VersionIdMarker":
+				// VersionIdMarker is a special case because of 'Id' instead of 'ID' in field name
+				var s string
+				if err = d.DecodeElement(&s, &se); err != nil {
+					return err
+				}
+				l.VersionIDMarker = s
+			case "NextVersionIdMarker":
+				// NextVersionIdMarker is a special case because of 'Id' instead of 'ID' in field name
+				var s string
+				if err = d.DecodeElement(&s, &se); err != nil {
+					return err
+				}
+				l.NextVersionIDMarker = s
 			case "IsTruncated": //        bool
 				var b bool
 				if err = d.DecodeElement(&b, &se); err != nil {
@@ -246,6 +269,12 @@ type ObjectPart struct {
 
 	// Size of the uploaded part data.
 	Size int64
+
+	// Checksum values of each part.
+	ChecksumCRC32  string
+	ChecksumCRC32C string
+	ChecksumSHA1   string
+	ChecksumSHA256 string
 }
 
 // ListObjectPartsResult container for ListObjectParts response.
@@ -284,16 +313,26 @@ type completeMultipartUploadResult struct {
 	Bucket   string
 	Key      string
 	ETag     string
+
+	// Checksum values, hash of hashes of parts.
+	ChecksumCRC32  string
+	ChecksumCRC32C string
+	ChecksumSHA1   string
+	ChecksumSHA256 string
 }
 
 // CompletePart sub container lists individual part numbers and their
 // md5sum, part of completeMultipartUpload.
 type CompletePart struct {
-	XMLName xml.Name `xml:"http://s3.amazonaws.com/doc/2006-03-01/ Part" json:"-"`
-
 	// Part number identifies the part.
 	PartNumber int
 	ETag       string
+
+	// Checksum values
+	ChecksumCRC32  string `xml:"ChecksumCRC32,omitempty"`
+	ChecksumCRC32C string `xml:"ChecksumCRC32C,omitempty"`
+	ChecksumSHA1   string `xml:"ChecksumSHA1,omitempty"`
+	ChecksumSHA256 string `xml:"ChecksumSHA256,omitempty"`
 }
 
 // completeMultipartUpload container for completing multipart upload.
@@ -320,14 +359,15 @@ type deletedObject struct {
 	VersionID string `xml:"VersionId,omitempty"`
 	// These fields are ignored.
 	DeleteMarker          bool
-	DeleteMarkerVersionID string
+	DeleteMarkerVersionID string `xml:"DeleteMarkerVersionId,omitempty"`
 }
 
 // nonDeletedObject container for Error element (failed deletion) in MultiObjects Delete XML response
 type nonDeletedObject struct {
-	Key     string
-	Code    string
-	Message string
+	Key       string
+	Code      string
+	Message   string
+	VersionID string `xml:"VersionId"`
 }
 
 // deletedMultiObjects container for MultiObjects Delete XML request

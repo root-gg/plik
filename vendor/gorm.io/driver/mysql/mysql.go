@@ -5,29 +5,42 @@ import (
 	"database/sql"
 	"fmt"
 	"math"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/callbacks"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/migrator"
 	"gorm.io/gorm/schema"
+	"gorm.io/gorm/utils"
+)
+
+const (
+	AutoRandomTag = "auto_random()" // Treated as an auto_random field for tidb
 )
 
 type Config struct {
-	DriverName                string
-	DSN                       string
-	Conn                      gorm.ConnPool
-	SkipInitializeWithVersion bool
-	DefaultStringSize         uint
-	DefaultDatetimePrecision  *int
-	DisableDatetimePrecision  bool
-	DontSupportRenameIndex    bool
-	DontSupportRenameColumn   bool
-	DontSupportForShareClause bool
+	DriverName                    string
+	ServerVersion                 string
+	DSN                           string
+	DSNConfig                     *mysql.Config
+	Conn                          gorm.ConnPool
+	SkipInitializeWithVersion     bool
+	DefaultStringSize             uint
+	DefaultDatetimePrecision      *int
+	DisableWithReturning          bool
+	DisableDatetimePrecision      bool
+	DontSupportRenameIndex        bool
+	DontSupportRenameColumn       bool
+	DontSupportForShareClause     bool
+	DontSupportNullAsDefaultValue bool
+	DontSupportRenameColumnUnique bool
 }
 
 type Dialector struct {
@@ -37,6 +50,8 @@ type Dialector struct {
 var (
 	// CreateClauses create clauses
 	CreateClauses = []string{"INSERT", "VALUES", "ON CONFLICT"}
+	// QueryClauses query clauses
+	QueryClauses = []string{}
 	// UpdateClauses update clauses
 	UpdateClauses = []string{"UPDATE", "SET", "WHERE", "ORDER BY", "LIMIT"}
 	// DeleteClauses delete clauses
@@ -46,10 +61,17 @@ var (
 )
 
 func Open(dsn string) gorm.Dialector {
-	return &Dialector{Config: &Config{DSN: dsn}}
+	dsnConf, _ := mysql.ParseDSN(dsn)
+	return &Dialector{Config: &Config{DSN: dsn, DSNConfig: dsnConf}}
 }
 
 func New(config Config) gorm.Dialector {
+	switch {
+	case config.DSN == "" && config.DSNConfig != nil:
+		config.DSN = config.DSNConfig.FormatDSN()
+	case config.DSN != "" && config.DSNConfig == nil:
+		config.DSNConfig, _ = mysql.ParseDSN(config.DSN)
+	}
 	return &Dialector{Config: &config}
 }
 
@@ -61,34 +83,25 @@ func (dialector Dialector) Name() string {
 func (dialector Dialector) NowFunc(n int) func() time.Time {
 	return func() time.Time {
 		round := time.Second / time.Duration(math.Pow10(n))
-		return time.Now().Local().Round(round)
+		return time.Now().Round(round)
 	}
 }
 
 func (dialector Dialector) Apply(config *gorm.Config) error {
-	if config.NowFunc == nil {
-		if dialector.DefaultDatetimePrecision == nil {
-			dialector.DefaultDatetimePrecision = &defaultDatetimePrecision
-		}
-
-		// while maintaining the readability of the code, separate the business logic from
-		// the general part and leave it to the function to do it here.
-		config.NowFunc = dialector.NowFunc(*dialector.DefaultDatetimePrecision)
+	if config.NowFunc != nil {
+		return nil
 	}
 
+	if dialector.DefaultDatetimePrecision == nil {
+		dialector.DefaultDatetimePrecision = &defaultDatetimePrecision
+	}
+	// while maintaining the readability of the code, separate the business logic from
+	// the general part and leave it to the function to do it here.
+	config.NowFunc = dialector.NowFunc(*dialector.DefaultDatetimePrecision)
 	return nil
 }
 
 func (dialector Dialector) Initialize(db *gorm.DB) (err error) {
-	ctx := context.Background()
-
-	// register callbacks
-	callbacks.RegisterDefaultCallbacks(db, &callbacks.Config{
-		CreateClauses: CreateClauses,
-		UpdateClauses: UpdateClauses,
-		DeleteClauses: DeleteClauses,
-	})
-
 	if dialector.DriverName == "" {
 		dialector.DriverName = "mysql"
 	}
@@ -106,31 +119,63 @@ func (dialector Dialector) Initialize(db *gorm.DB) (err error) {
 		}
 	}
 
+	withReturning := false
 	if !dialector.Config.SkipInitializeWithVersion {
-		var version string
-		err = db.ConnPool.QueryRowContext(ctx, "SELECT VERSION()").Scan(&version)
+		err = db.ConnPool.QueryRowContext(context.Background(), "SELECT VERSION()").Scan(&dialector.ServerVersion)
 		if err != nil {
 			return err
 		}
 
-		if strings.Contains(version, "MariaDB") {
+		if strings.Contains(dialector.ServerVersion, "MariaDB") {
 			dialector.Config.DontSupportRenameIndex = true
 			dialector.Config.DontSupportRenameColumn = true
 			dialector.Config.DontSupportForShareClause = true
-		} else if strings.HasPrefix(version, "5.6.") {
+			dialector.Config.DontSupportNullAsDefaultValue = true
+			withReturning = checkVersion(dialector.ServerVersion, "10.5")
+		} else if strings.HasPrefix(dialector.ServerVersion, "5.6.") {
 			dialector.Config.DontSupportRenameIndex = true
 			dialector.Config.DontSupportRenameColumn = true
 			dialector.Config.DontSupportForShareClause = true
-		} else if strings.HasPrefix(version, "5.7.") {
+		} else if strings.HasPrefix(dialector.ServerVersion, "5.7.") {
 			dialector.Config.DontSupportRenameColumn = true
 			dialector.Config.DontSupportForShareClause = true
-		} else if strings.HasPrefix(version, "5.") {
+		} else if strings.HasPrefix(dialector.ServerVersion, "5.") {
 			dialector.Config.DisableDatetimePrecision = true
 			dialector.Config.DontSupportRenameIndex = true
 			dialector.Config.DontSupportRenameColumn = true
 			dialector.Config.DontSupportForShareClause = true
 		}
+
+		if strings.Contains(dialector.ServerVersion, "TiDB") {
+			dialector.Config.DontSupportRenameColumnUnique = true
+		}
 	}
+
+	// register callbacks
+	callbackConfig := &callbacks.Config{
+		CreateClauses: CreateClauses,
+		QueryClauses:  QueryClauses,
+		UpdateClauses: UpdateClauses,
+		DeleteClauses: DeleteClauses,
+	}
+
+	if !dialector.Config.DisableWithReturning && withReturning {
+		callbackConfig.LastInsertIDReversed = true
+
+		if !utils.Contains(callbackConfig.CreateClauses, "RETURNING") {
+			callbackConfig.CreateClauses = append(callbackConfig.CreateClauses, "RETURNING")
+		}
+
+		if !utils.Contains(callbackConfig.UpdateClauses, "RETURNING") {
+			callbackConfig.UpdateClauses = append(callbackConfig.UpdateClauses, "RETURNING")
+		}
+
+		if !utils.Contains(callbackConfig.DeleteClauses, "RETURNING") {
+			callbackConfig.DeleteClauses = append(callbackConfig.DeleteClauses, "RETURNING")
+		}
+	}
+
+	callbacks.RegisterDefaultCallbacks(db, callbackConfig)
 
 	for k, v := range dialector.ClauseBuilders() {
 		db.ClauseBuilders[k] = v
@@ -143,7 +188,7 @@ const (
 	ClauseOnConflict = "ON CONFLICT"
 	// ClauseValues for clause.ClauseBuilder VALUES key
 	ClauseValues = "VALUES"
-	// ClauseValues for clause.ClauseBuilder FOR key
+	// ClauseFor for clause.ClauseBuilder FOR key
 	ClauseFor = "FOR"
 )
 
@@ -171,6 +216,8 @@ func (dialector Dialector) ClauseBuilders() map[string]clause.ClauseBuilder {
 					if column.Name != "" {
 						onConflict.DoUpdates = []clause.Assignment{{Column: column, Value: column}}
 					}
+
+					builder.(*gorm.Statement).AddClause(onConflict)
 				}
 			}
 
@@ -253,7 +300,7 @@ func (dialector Dialector) QuoteTo(writer clause.Writer, str string) {
 				shiftDelimiter = 0
 				underQuoted = false
 				continuousBacktick = 0
-				writer.WriteString("`")
+				writer.WriteByte('`')
 			}
 			writer.WriteByte(v)
 			continue
@@ -278,10 +325,26 @@ func (dialector Dialector) QuoteTo(writer clause.Writer, str string) {
 	if continuousBacktick > 0 && !selfQuoted {
 		writer.WriteString("``")
 	}
-	writer.WriteString("`")
+	writer.WriteByte('`')
+}
+
+type localTimeInterface interface {
+	In(loc *time.Location) time.Time
 }
 
 func (dialector Dialector) Explain(sql string, vars ...interface{}) string {
+	if dialector.DSNConfig != nil && dialector.DSNConfig.Loc != nil {
+		for i, v := range vars {
+			if p, ok := v.(localTimeInterface); ok {
+				func(i int, t localTimeInterface) {
+					defer func() {
+						recover()
+					}()
+					vars[i] = t.In(dialector.DSNConfig.Loc)
+				}(i, p)
+			}
+		}
+	}
 	return logger.ExplainSQL(sql, nil, `'`, vars...)
 }
 
@@ -299,9 +362,9 @@ func (dialector Dialector) DataTypeOf(field *schema.Field) string {
 		return dialector.getSchemaTimeType(field)
 	case schema.Bytes:
 		return dialector.getSchemaBytesType(field)
+	default:
+		return dialector.getSchemaCustomType(field)
 	}
-
-	return string(field.DataType)
 }
 
 func (dialector Dialector) getSchemaFloatType(field *schema.Field) string {
@@ -342,11 +405,11 @@ func (dialector Dialector) getSchemaStringType(field *schema.Field) string {
 }
 
 func (dialector Dialector) getSchemaTimeType(field *schema.Field) string {
-	precision := ""
 	if !dialector.DisableDatetimePrecision && field.Precision == 0 {
 		field.Precision = *dialector.DefaultDatetimePrecision
 	}
 
+	var precision string
 	if field.Precision > 0 {
 		precision = fmt.Sprintf("(%d)", field.Precision)
 	}
@@ -369,24 +432,64 @@ func (dialector Dialector) getSchemaBytesType(field *schema.Field) string {
 	return "longblob"
 }
 
+// autoRandomType
+// field.DataType MUST be `schema.Int` or `schema.Uint`
+// Judgement logic:
+// 1. Is PrimaryKey;
+// 2. Has default value;
+// 3. Default value is "auto_random()";
+// 4. IGNORE the field.Size, it MUST be bigint;
+// 5. CLEAR the default tag, and return true;
+// 6. Otherwise, return false.
+func autoRandomType(field *schema.Field) (bool, string) {
+	if field.PrimaryKey && field.HasDefaultValue &&
+		strings.ToLower(strings.TrimSpace(field.DefaultValue)) == AutoRandomTag {
+		field.DefaultValue = ""
+
+		sqlType := "bigint"
+		if field.DataType == schema.Uint {
+			sqlType += " unsigned"
+		}
+		sqlType += " auto_random"
+		return true, sqlType
+	}
+
+	return false, ""
+}
+
 func (dialector Dialector) getSchemaIntAndUnitType(field *schema.Field) string {
-	sqlType := "bigint"
+	if autoRandom, typeString := autoRandomType(field); autoRandom {
+		return typeString
+	}
+
+	constraint := func(sqlType string) string {
+		if field.DataType == schema.Uint {
+			sqlType += " unsigned"
+		}
+		if field.AutoIncrement {
+			sqlType += " AUTO_INCREMENT"
+		}
+		return sqlType
+	}
+
 	switch {
 	case field.Size <= 8:
-		sqlType = "tinyint"
+		return constraint("tinyint")
 	case field.Size <= 16:
-		sqlType = "smallint"
+		return constraint("smallint")
 	case field.Size <= 24:
-		sqlType = "mediumint"
+		return constraint("mediumint")
 	case field.Size <= 32:
-		sqlType = "int"
+		return constraint("int")
+	default:
+		return constraint("bigint")
 	}
+}
 
-	if field.DataType == schema.Uint {
-		sqlType += " unsigned"
-	}
+func (dialector Dialector) getSchemaCustomType(field *schema.Field) string {
+	sqlType := string(field.DataType)
 
-	if field.AutoIncrement {
+	if field.AutoIncrement && !strings.Contains(strings.ToLower(sqlType), " auto_increment") {
 		sqlType += " AUTO_INCREMENT"
 	}
 
@@ -399,4 +502,32 @@ func (dialector Dialector) SavePoint(tx *gorm.DB, name string) error {
 
 func (dialector Dialector) RollbackTo(tx *gorm.DB, name string) error {
 	return tx.Exec("ROLLBACK TO SAVEPOINT " + name).Error
+}
+
+// checkVersion newer or equal returns true, old returns false
+func checkVersion(newVersion, oldVersion string) bool {
+	if newVersion == oldVersion {
+		return true
+	}
+
+	var (
+		versionTrimmerRegexp = regexp.MustCompile(`^(\d+).*$`)
+
+		newVersions = strings.Split(newVersion, ".")
+		oldVersions = strings.Split(oldVersion, ".")
+	)
+	for idx, nv := range newVersions {
+		if len(oldVersions) <= idx {
+			return true
+		}
+
+		nvi, _ := strconv.Atoi(versionTrimmerRegexp.ReplaceAllString(nv, "$1"))
+		ovi, _ := strconv.Atoi(versionTrimmerRegexp.ReplaceAllString(oldVersions[idx], "$1"))
+		if nvi == ovi {
+			continue
+		}
+		return nvi > ovi
+	}
+
+	return false
 }

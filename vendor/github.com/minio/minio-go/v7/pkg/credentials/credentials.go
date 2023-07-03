@@ -22,6 +22,14 @@ import (
 	"time"
 )
 
+const (
+	// STSVersion sts version string
+	STSVersion = "2011-06-15"
+
+	// How much duration to slash from the given expiration duration
+	defaultExpiryWindow = 0.8
+)
+
 // A Value is the AWS credentials value for individual credential fields.
 type Value struct {
 	// AWS Access key ID
@@ -57,10 +65,11 @@ type Provider interface {
 // provider's struct.
 //
 // Example:
-//     type IAMCredentialProvider struct {
-//         Expiry
-//         ...
-//     }
+//
+//	type IAMCredentialProvider struct {
+//	    Expiry
+//	    ...
+//	}
 type Expiry struct {
 	// The date/time when to expire on
 	expiration time.Time
@@ -79,10 +88,15 @@ type Expiry struct {
 // the expiration time given to ensure no requests are made with expired
 // tokens.
 func (e *Expiry) SetExpiration(expiration time.Time, window time.Duration) {
-	e.expiration = expiration
-	if window > 0 {
-		e.expiration = e.expiration.Add(-window)
+	if e.CurrentTime == nil {
+		e.CurrentTime = time.Now
 	}
+	cut := window
+	if cut < 0 {
+		expireIn := expiration.Sub(e.CurrentTime())
+		cut = time.Duration(float64(expireIn) * (1 - defaultExpiryWindow))
+	}
+	e.expiration = expiration.Add(-cut)
 }
 
 // IsExpired returns if the credentials are expired.
@@ -130,6 +144,10 @@ func New(provider Provider) *Credentials {
 // If Credentials.Expire() was called the credentials Value will be force
 // expired, and the next call to Get() will cause them to be refreshed.
 func (c *Credentials) Get() (Value, error) {
+	if c == nil {
+		return Value{}, nil
+	}
+
 	c.Lock()
 	defer c.Unlock()
 

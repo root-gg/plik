@@ -1,3 +1,4 @@
+//go:build go1.7 || go1.8
 // +build go1.7 go1.8
 
 /*
@@ -22,7 +23,6 @@ package minio
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -72,7 +72,7 @@ var DefaultTransport = func(secure bool) (*http.Transport, error) {
 		}
 		if f := os.Getenv("SSL_CERT_FILE"); f != "" {
 			rootCAs := mustGetSystemCertPool()
-			data, err := ioutil.ReadFile(f)
+			data, err := os.ReadFile(f)
 			if err == nil {
 				rootCAs.AppendCertsFromPEM(data)
 			}

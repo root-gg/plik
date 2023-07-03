@@ -46,32 +46,33 @@ func NewCore(endpoint string, opts *Options) (*Core, error) {
 // ListObjects - List all the objects at a prefix, optionally with marker and delimiter
 // you can further filter the results.
 func (c Core) ListObjects(bucket, prefix, marker, delimiter string, maxKeys int) (result ListBucketResult, err error) {
-	return c.listObjectsQuery(context.Background(), bucket, prefix, marker, delimiter, maxKeys)
+	return c.listObjectsQuery(context.Background(), bucket, prefix, marker, delimiter, maxKeys, nil)
 }
 
 // ListObjectsV2 - Lists all the objects at a prefix, similar to ListObjects() but uses
 // continuationToken instead of marker to support iteration over the results.
-func (c Core) ListObjectsV2(bucketName, objectPrefix, continuationToken string, fetchOwner bool, delimiter string, maxkeys int) (ListBucketV2Result, error) {
-	return c.listObjectsV2Query(context.Background(), bucketName, objectPrefix, continuationToken, fetchOwner, false, delimiter, maxkeys)
+func (c Core) ListObjectsV2(bucketName, objectPrefix, startAfter, continuationToken, delimiter string, maxkeys int) (ListBucketV2Result, error) {
+	return c.listObjectsV2Query(context.Background(), bucketName, objectPrefix, continuationToken, true, false, delimiter, startAfter, maxkeys, nil)
 }
 
 // CopyObject - copies an object from source object to destination object on server side.
-func (c Core) CopyObject(ctx context.Context, sourceBucket, sourceObject, destBucket, destObject string, metadata map[string]string) (ObjectInfo, error) {
-	return c.copyObjectDo(ctx, sourceBucket, sourceObject, destBucket, destObject, metadata)
+func (c Core) CopyObject(ctx context.Context, sourceBucket, sourceObject, destBucket, destObject string, metadata map[string]string, srcOpts CopySrcOptions, dstOpts PutObjectOptions) (ObjectInfo, error) {
+	return c.copyObjectDo(ctx, sourceBucket, sourceObject, destBucket, destObject, metadata, srcOpts, dstOpts)
 }
 
 // CopyObjectPart - creates a part in a multipart upload by copying (a
 // part of) an existing object.
 func (c Core) CopyObjectPart(ctx context.Context, srcBucket, srcObject, destBucket, destObject string, uploadID string,
-	partID int, startOffset, length int64, metadata map[string]string) (p CompletePart, err error) {
-
+	partID int, startOffset, length int64, metadata map[string]string,
+) (p CompletePart, err error) {
 	return c.copyObjectPartDo(ctx, srcBucket, srcObject, destBucket, destObject, uploadID,
 		partID, startOffset, length, metadata)
 }
 
 // PutObject - Upload object. Uploads using single PUT call.
 func (c Core) PutObject(ctx context.Context, bucket, object string, data io.Reader, size int64, md5Base64, sha256Hex string, opts PutObjectOptions) (UploadInfo, error) {
-	return c.putObjectDo(ctx, bucket, object, data, md5Base64, sha256Hex, size, opts)
+	hookReader := newHook(data, opts.Progress)
+	return c.putObjectDo(ctx, bucket, object, hookReader, md5Base64, sha256Hex, size, opts)
 }
 
 // NewMultipartUpload - Initiates new multipart upload and returns the new uploadID.
@@ -85,9 +86,32 @@ func (c Core) ListMultipartUploads(ctx context.Context, bucket, prefix, keyMarke
 	return c.listMultipartUploadsQuery(ctx, bucket, keyMarker, uploadIDMarker, prefix, delimiter, maxUploads)
 }
 
+// PutObjectPartOptions contains options for PutObjectPart API
+type PutObjectPartOptions struct {
+	Md5Base64, Sha256Hex  string
+	SSE                   encrypt.ServerSide
+	CustomHeader, Trailer http.Header
+}
+
 // PutObjectPart - Upload an object part.
-func (c Core) PutObjectPart(ctx context.Context, bucket, object, uploadID string, partID int, data io.Reader, size int64, md5Base64, sha256Hex string, sse encrypt.ServerSide) (ObjectPart, error) {
-	return c.uploadPart(ctx, bucket, object, uploadID, data, partID, md5Base64, sha256Hex, size, sse)
+func (c Core) PutObjectPart(ctx context.Context, bucket, object, uploadID string, partID int,
+	data io.Reader, size int64, opts PutObjectPartOptions,
+) (ObjectPart, error) {
+	p := uploadPartParams{
+		bucketName:   bucket,
+		objectName:   object,
+		uploadID:     uploadID,
+		reader:       data,
+		partNumber:   partID,
+		md5Base64:    opts.Md5Base64,
+		sha256Hex:    opts.Sha256Hex,
+		size:         size,
+		sse:          opts.SSE,
+		streamSha256: true,
+		customHeader: opts.CustomHeader,
+		trailer:      opts.Trailer,
+	}
+	return c.uploadPart(ctx, p)
 }
 
 // ListObjectParts - List uploaded parts of an incomplete upload.x
@@ -96,11 +120,11 @@ func (c Core) ListObjectParts(ctx context.Context, bucket, object, uploadID stri
 }
 
 // CompleteMultipartUpload - Concatenate uploaded parts and commit to an object.
-func (c Core) CompleteMultipartUpload(ctx context.Context, bucket, object, uploadID string, parts []CompletePart) (string, error) {
+func (c Core) CompleteMultipartUpload(ctx context.Context, bucket, object, uploadID string, parts []CompletePart, opts PutObjectOptions) (UploadInfo, error) {
 	res, err := c.completeMultipartUpload(ctx, bucket, object, uploadID, completeMultipartUpload{
 		Parts: parts,
-	})
-	return res.ETag, err
+	}, opts)
+	return res, err
 }
 
 // AbortMultipartUpload - Abort an incomplete upload.
@@ -123,10 +147,4 @@ func (c Core) PutBucketPolicy(ctx context.Context, bucket, bucketPolicy string) 
 // matching etag, modtime etc.
 func (c Core) GetObject(ctx context.Context, bucketName, objectName string, opts GetObjectOptions) (io.ReadCloser, ObjectInfo, http.Header, error) {
 	return c.getObject(ctx, bucketName, objectName, opts)
-}
-
-// StatObject is a lower level API implemented to support special
-// conditions matching etag, modtime on a request.
-func (c Core) StatObject(ctx context.Context, bucketName, objectName string, opts StatObjectOptions) (ObjectInfo, error) {
-	return c.statObject(ctx, bucketName, objectName, opts)
 }

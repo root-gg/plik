@@ -20,14 +20,16 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/rs/xid"
 )
 
-var errInvalidFilter = fmt.Errorf("Invalid filter")
+var errInvalidFilter = fmt.Errorf("invalid filter")
 
 // OptionType specifies operation to be performed on config
 type OptionType string
@@ -46,21 +48,25 @@ const (
 
 // Options represents options to set a replication configuration rule
 type Options struct {
-	Op           OptionType
-	ID           string
-	Prefix       string
-	RuleStatus   string
-	Priority     string
-	TagString    string
-	StorageClass string
-	RoleArn      string
-	DestBucket   string
-	IsTagSet     bool
-	IsSCSet      bool
+	Op                      OptionType
+	RoleArn                 string
+	ID                      string
+	Prefix                  string
+	RuleStatus              string
+	Priority                string
+	TagString               string
+	StorageClass            string
+	DestBucket              string
+	IsTagSet                bool
+	IsSCSet                 bool
+	ReplicateDeletes        string // replicate versioned deletes
+	ReplicateDeleteMarkers  string // replicate soft deletes
+	ReplicaSync             string // replicate replica metadata modifications
+	ExistingObjectReplicate string
 }
 
 // Tags returns a slice of tags for a rule
-func (opts Options) Tags() []Tag {
+func (opts Options) Tags() ([]Tag, error) {
 	var tagList []Tag
 	tagTokens := strings.Split(opts.TagString, "&")
 	for _, tok := range tagTokens {
@@ -68,12 +74,15 @@ func (opts Options) Tags() []Tag {
 			break
 		}
 		kv := strings.SplitN(tok, "=", 2)
+		if len(kv) != 2 {
+			return []Tag{}, fmt.Errorf("tags should be entered as comma separated k=v pairs")
+		}
 		tagList = append(tagList, Tag{
 			Key:   kv[0],
 			Value: kv[1],
 		})
 	}
-	return tagList
+	return tagList, nil
 }
 
 // Config - replication configuration specified in
@@ -96,9 +105,23 @@ func (c *Config) AddRule(opts Options) error {
 	if err != nil {
 		return err
 	}
-	if opts.RoleArn != c.Role && c.Role != "" {
-		return fmt.Errorf("Role ARN does not match existing configuration")
+	var compatSw bool // true if RoleArn is used with new mc client and older minio version prior to multisite
+	if opts.RoleArn != "" {
+		tokens := strings.Split(opts.RoleArn, ":")
+		if len(tokens) != 6 {
+			return fmt.Errorf("invalid format for replication Role Arn: %v", opts.RoleArn)
+		}
+		switch {
+		case strings.HasPrefix(opts.RoleArn, "arn:minio:replication") && len(c.Rules) == 0:
+			c.Role = opts.RoleArn
+			compatSw = true
+		case strings.HasPrefix(opts.RoleArn, "arn:aws:iam"):
+			c.Role = opts.RoleArn
+		default:
+			return fmt.Errorf("RoleArn invalid for AWS replication configuration: %v", opts.RoleArn)
+		}
 	}
+
 	var status Status
 	// toggle rule status for edit option
 	switch opts.RuleStatus {
@@ -107,12 +130,15 @@ func (c *Config) AddRule(opts Options) error {
 	case "disable":
 		status = Disabled
 	default:
-		return fmt.Errorf("Rule state should be either [enable|disable]")
+		return fmt.Errorf("rule state should be either [enable|disable]")
 	}
 
-	tags := opts.Tags()
+	tags, err := opts.Tags()
+	if err != nil {
+		return err
+	}
 	andVal := And{
-		Tags: opts.Tags(),
+		Tags: tags,
 	}
 	filter := Filter{Prefix: opts.Prefix}
 	// only a single tag is set.
@@ -129,27 +155,59 @@ func (c *Config) AddRule(opts Options) error {
 	if opts.ID == "" {
 		opts.ID = xid.New().String()
 	}
-	arnStr := opts.RoleArn
-	if opts.RoleArn == "" {
-		arnStr = c.Role
-	}
-	if arnStr == "" {
-		return fmt.Errorf("Role ARN required")
-	}
-	tokens := strings.Split(arnStr, ":")
-	if len(tokens) != 6 {
-		return fmt.Errorf("invalid format for replication Arn")
-	}
-	if c.Role == "" {
-		c.Role = arnStr
-	}
+
 	destBucket := opts.DestBucket
 	// ref https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html
 	if btokens := strings.Split(destBucket, ":"); len(btokens) != 6 {
-		if len(btokens) == 1 {
+		if len(btokens) == 1 && compatSw {
 			destBucket = fmt.Sprintf("arn:aws:s3:::%s", destBucket)
 		} else {
 			return fmt.Errorf("destination bucket needs to be in Arn format")
+		}
+	}
+	dmStatus := Disabled
+	if opts.ReplicateDeleteMarkers != "" {
+		switch opts.ReplicateDeleteMarkers {
+		case "enable":
+			dmStatus = Enabled
+		case "disable":
+			dmStatus = Disabled
+		default:
+			return fmt.Errorf("ReplicateDeleteMarkers should be either enable|disable")
+		}
+	}
+
+	vDeleteStatus := Disabled
+	if opts.ReplicateDeletes != "" {
+		switch opts.ReplicateDeletes {
+		case "enable":
+			vDeleteStatus = Enabled
+		case "disable":
+			vDeleteStatus = Disabled
+		default:
+			return fmt.Errorf("ReplicateDeletes should be either enable|disable")
+		}
+	}
+	var replicaSync Status
+	// replica sync is by default Enabled, unless specified.
+	switch opts.ReplicaSync {
+	case "enable", "":
+		replicaSync = Enabled
+	case "disable":
+		replicaSync = Disabled
+	default:
+		return fmt.Errorf("replica metadata sync should be either [enable|disable]")
+	}
+
+	var existingStatus Status
+	if opts.ExistingObjectReplicate != "" {
+		switch opts.ExistingObjectReplicate {
+		case "enable":
+			existingStatus = Enabled
+		case "disable", "":
+			existingStatus = Disabled
+		default:
+			return fmt.Errorf("existingObjectReplicate should be either enable|disable")
 		}
 	}
 	newRule := Rule{
@@ -161,22 +219,40 @@ func (c *Config) AddRule(opts Options) error {
 			Bucket:       destBucket,
 			StorageClass: opts.StorageClass,
 		},
-		DeleteMarkerReplication: DeleteMarkerReplication{Status: Disabled},
+		DeleteMarkerReplication: DeleteMarkerReplication{Status: dmStatus},
+		DeleteReplication:       DeleteReplication{Status: vDeleteStatus},
+		// MinIO enables replica metadata syncing by default in the case of bi-directional replication to allow
+		// automatic failover as the expectation in this case is that replica and source should be identical.
+		// However AWS leaves this configurable https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-for-metadata-changes.html
+		SourceSelectionCriteria: SourceSelectionCriteria{
+			ReplicaModifications: ReplicaModifications{
+				Status: replicaSync,
+			},
+		},
+		// By default disable existing object replication unless selected
+		ExistingObjectReplication: ExistingObjectReplication{
+			Status: existingStatus,
+		},
 	}
 
 	// validate rule after overlaying priority for pre-existing rule being disabled.
 	if err := newRule.Validate(); err != nil {
 		return err
 	}
+	// if replication config uses RoleArn, migrate this to the destination element as target ARN for remote bucket for MinIO configuration
+	if c.Role != "" && !strings.HasPrefix(c.Role, "arn:aws:iam") && !compatSw {
+		for i := range c.Rules {
+			c.Rules[i].Destination.Bucket = c.Role
+		}
+		c.Role = ""
+	}
+
 	for _, rule := range c.Rules {
 		if rule.Priority == newRule.Priority {
-			return fmt.Errorf("Priority must be unique. Replication configuration already has a rule with this priority")
-		}
-		if rule.Destination.Bucket != newRule.Destination.Bucket {
-			return fmt.Errorf("The destination bucket must be same for all rules")
+			return fmt.Errorf("priority must be unique. Replication configuration already has a rule with this priority")
 		}
 		if rule.ID == newRule.ID {
-			return fmt.Errorf("A rule exists with this ID")
+			return fmt.Errorf("a rule exists with this ID")
 		}
 	}
 
@@ -187,8 +263,16 @@ func (c *Config) AddRule(opts Options) error {
 // EditRule modifies an existing rule in replication config
 func (c *Config) EditRule(opts Options) error {
 	if opts.ID == "" {
-		return fmt.Errorf("Rule ID missing")
+		return fmt.Errorf("rule ID missing")
 	}
+	// if replication config uses RoleArn, migrate this to the destination element as target ARN for remote bucket for non AWS.
+	if c.Role != "" && !strings.HasPrefix(c.Role, "arn:aws:iam") && len(c.Rules) > 1 {
+		for i := range c.Rules {
+			c.Rules[i].Destination.Bucket = c.Role
+		}
+		c.Role = ""
+	}
+
 	rIdx := -1
 	var newRule Rule
 	for i, rule := range c.Rules {
@@ -199,7 +283,7 @@ func (c *Config) EditRule(opts Options) error {
 		}
 	}
 	if rIdx < 0 {
-		return fmt.Errorf("Rule with ID %s not found in replication configuration", opts.ID)
+		return fmt.Errorf("rule with ID %s not found in replication configuration", opts.ID)
 	}
 	prefixChg := opts.Prefix != newRule.Prefix()
 	if opts.IsTagSet || prefixChg {
@@ -211,8 +295,12 @@ func (c *Config) EditRule(opts Options) error {
 		if len(newRule.Filter.And.Tags) != 0 {
 			tags = newRule.Filter.And.Tags
 		}
+		var err error
 		if opts.IsTagSet {
-			tags = opts.Tags()
+			tags, err = opts.Tags()
+			if err != nil {
+				return err
+			}
 		}
 		andVal := And{
 			Tags: tags,
@@ -241,10 +329,55 @@ func (c *Config) EditRule(opts Options) error {
 		case "disable":
 			newRule.Status = Disabled
 		default:
-			return fmt.Errorf("Rule state should be either [enable|disable]")
+			return fmt.Errorf("rule state should be either [enable|disable]")
+		}
+	}
+	// set DeleteMarkerReplication rule status for edit option
+	if opts.ReplicateDeleteMarkers != "" {
+		switch opts.ReplicateDeleteMarkers {
+		case "enable":
+			newRule.DeleteMarkerReplication.Status = Enabled
+		case "disable":
+			newRule.DeleteMarkerReplication.Status = Disabled
+		default:
+			return fmt.Errorf("ReplicateDeleteMarkers state should be either [enable|disable]")
 		}
 	}
 
+	// set DeleteReplication rule status for edit option. This is a MinIO specific
+	// option to replicate versioned deletes
+	if opts.ReplicateDeletes != "" {
+		switch opts.ReplicateDeletes {
+		case "enable":
+			newRule.DeleteReplication.Status = Enabled
+		case "disable":
+			newRule.DeleteReplication.Status = Disabled
+		default:
+			return fmt.Errorf("ReplicateDeletes state should be either [enable|disable]")
+		}
+	}
+
+	if opts.ReplicaSync != "" {
+		switch opts.ReplicaSync {
+		case "enable", "":
+			newRule.SourceSelectionCriteria.ReplicaModifications.Status = Enabled
+		case "disable":
+			newRule.SourceSelectionCriteria.ReplicaModifications.Status = Disabled
+		default:
+			return fmt.Errorf("replica metadata sync should be either [enable|disable]")
+		}
+	}
+
+	if opts.ExistingObjectReplicate != "" {
+		switch opts.ExistingObjectReplicate {
+		case "enable":
+			newRule.ExistingObjectReplication.Status = Enabled
+		case "disable":
+			newRule.ExistingObjectReplication.Status = Disabled
+		default:
+			return fmt.Errorf("existingObjectsReplication state should be either [enable|disable]")
+		}
+	}
 	if opts.IsSCSet {
 		newRule.Destination.StorageClass = opts.StorageClass
 	}
@@ -259,11 +392,7 @@ func (c *Config) EditRule(opts Options) error {
 		destBucket := opts.DestBucket
 		// ref https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-arn-format.html
 		if btokens := strings.Split(opts.DestBucket, ":"); len(btokens) != 6 {
-			if len(btokens) == 1 {
-				destBucket = fmt.Sprintf("arn:aws:s3:::%s", destBucket)
-			} else {
-				return fmt.Errorf("destination bucket needs to be in Arn format")
-			}
+			return fmt.Errorf("destination bucket needs to be in Arn format")
 		}
 		newRule.Destination.Bucket = destBucket
 	}
@@ -274,10 +403,10 @@ func (c *Config) EditRule(opts Options) error {
 	// ensure priority and destination bucket restrictions are not violated
 	for idx, rule := range c.Rules {
 		if rule.Priority == newRule.Priority && rIdx != idx {
-			return fmt.Errorf("Priority must be unique. Replication configuration already has a rule with this priority")
+			return fmt.Errorf("priority must be unique. Replication configuration already has a rule with this priority")
 		}
-		if rule.Destination.Bucket != newRule.Destination.Bucket {
-			return fmt.Errorf("The destination bucket must be same for all rules")
+		if rule.Destination.Bucket != newRule.Destination.Bucket && rule.ID == newRule.ID {
+			return fmt.Errorf("invalid destination bucket for this rule")
 		}
 	}
 
@@ -300,22 +429,24 @@ func (c *Config) RemoveRule(opts Options) error {
 		return fmt.Errorf("Rule with ID %s not found", opts.ID)
 	}
 	if len(newRules) == 0 {
-		return fmt.Errorf("Replication configuration should have at least one rule")
+		return fmt.Errorf("replication configuration should have at least one rule")
 	}
 	c.Rules = newRules
 	return nil
-
 }
 
 // Rule - a rule for replication configuration.
 type Rule struct {
-	XMLName                 xml.Name                `xml:"Rule" json:"-"`
-	ID                      string                  `xml:"ID,omitempty"`
-	Status                  Status                  `xml:"Status"`
-	Priority                int                     `xml:"Priority"`
-	DeleteMarkerReplication DeleteMarkerReplication `xml:"DeleteMarkerReplication"`
-	Destination             Destination             `xml:"Destination"`
-	Filter                  Filter                  `xml:"Filter" json:"Filter"`
+	XMLName                   xml.Name                  `xml:"Rule" json:"-"`
+	ID                        string                    `xml:"ID,omitempty"`
+	Status                    Status                    `xml:"Status"`
+	Priority                  int                       `xml:"Priority"`
+	DeleteMarkerReplication   DeleteMarkerReplication   `xml:"DeleteMarkerReplication"`
+	DeleteReplication         DeleteReplication         `xml:"DeleteReplication"`
+	Destination               Destination               `xml:"Destination"`
+	Filter                    Filter                    `xml:"Filter" json:"Filter"`
+	SourceSelectionCriteria   SourceSelectionCriteria   `xml:"SourceSelectionCriteria" json:"SourceSelectionCriteria"`
+	ExistingObjectReplication ExistingObjectReplication `xml:"ExistingObjectReplication,omitempty" json:"ExistingObjectReplication,omitempty"`
 }
 
 // Validate validates the rule for correctness
@@ -331,10 +462,13 @@ func (r Rule) Validate() error {
 	}
 
 	if r.Priority < 0 && r.Status == Enabled {
-		return fmt.Errorf("Priority must be set for the rule")
+		return fmt.Errorf("priority must be set for the rule")
 	}
 
-	return nil
+	if err := r.validateStatus(); err != nil {
+		return err
+	}
+	return r.ExistingObjectReplication.Validate()
 }
 
 // validateID - checks if ID is valid or not.
@@ -361,10 +495,7 @@ func (r Rule) validateStatus() error {
 }
 
 func (r Rule) validateFilter() error {
-	if err := r.Filter.Validate(); err != nil {
-		return err
-	}
-	return nil
+	return r.Filter.Validate()
 }
 
 // Prefix - a rule can either have prefix under <filter></filter> or under
@@ -450,11 +581,11 @@ func (tag Tag) IsEmpty() bool {
 // Validate checks this tag.
 func (tag Tag) Validate() error {
 	if len(tag.Key) == 0 || utf8.RuneCountInString(tag.Key) > 128 {
-		return fmt.Errorf("Invalid Tag Key")
+		return fmt.Errorf("invalid Tag Key")
 	}
 
 	if utf8.RuneCountInString(tag.Value) > 256 {
-		return fmt.Errorf("Invalid Tag Value")
+		return fmt.Errorf("invalid Tag Value")
 	}
 	return nil
 }
@@ -470,7 +601,7 @@ type Destination struct {
 type And struct {
 	XMLName xml.Name `xml:"And,omitempty" json:"-"`
 	Prefix  string   `xml:"Prefix,omitempty" json:"Prefix,omitempty"`
-	Tags    []Tag    `xml:"Tags,omitempty" json:"Tags,omitempty"`
+	Tags    []Tag    `xml:"Tag,omitempty" json:"Tag,omitempty"`
 }
 
 // isEmpty returns true if Tags field is null
@@ -495,4 +626,237 @@ type DeleteMarkerReplication struct {
 // IsEmpty returns true if DeleteMarkerReplication is not set
 func (d DeleteMarkerReplication) IsEmpty() bool {
 	return len(d.Status) == 0
+}
+
+// DeleteReplication - whether versioned deletes are replicated - this
+// is a MinIO specific extension
+type DeleteReplication struct {
+	Status Status `xml:"Status" json:"Status"` // should be set to "Disabled" by default
+}
+
+// IsEmpty returns true if DeleteReplication is not set
+func (d DeleteReplication) IsEmpty() bool {
+	return len(d.Status) == 0
+}
+
+// ReplicaModifications specifies if replica modification sync is enabled
+type ReplicaModifications struct {
+	Status Status `xml:"Status" json:"Status"` // should be set to "Enabled" by default
+}
+
+// SourceSelectionCriteria - specifies additional source selection criteria in ReplicationConfiguration.
+type SourceSelectionCriteria struct {
+	ReplicaModifications ReplicaModifications `xml:"ReplicaModifications" json:"ReplicaModifications"`
+}
+
+// IsValid - checks whether SourceSelectionCriteria is valid or not.
+func (s SourceSelectionCriteria) IsValid() bool {
+	return s.ReplicaModifications.Status == Enabled || s.ReplicaModifications.Status == Disabled
+}
+
+// Validate source selection criteria
+func (s SourceSelectionCriteria) Validate() error {
+	if (s == SourceSelectionCriteria{}) {
+		return nil
+	}
+	if !s.IsValid() {
+		return fmt.Errorf("invalid ReplicaModification status")
+	}
+	return nil
+}
+
+// ExistingObjectReplication - whether existing object replication is enabled
+type ExistingObjectReplication struct {
+	Status Status `xml:"Status"` // should be set to "Disabled" by default
+}
+
+// IsEmpty returns true if DeleteMarkerReplication is not set
+func (e ExistingObjectReplication) IsEmpty() bool {
+	return len(e.Status) == 0
+}
+
+// Validate validates whether the status is disabled.
+func (e ExistingObjectReplication) Validate() error {
+	if e.IsEmpty() {
+		return nil
+	}
+	if e.Status != Disabled && e.Status != Enabled {
+		return fmt.Errorf("invalid ExistingObjectReplication status")
+	}
+	return nil
+}
+
+// TargetMetrics represents inline replication metrics
+// such as pending, failed and completed bytes in total for a bucket remote target
+type TargetMetrics struct {
+	// Pending size in bytes
+	PendingSize uint64 `json:"pendingReplicationSize"`
+	// Completed size in bytes
+	ReplicatedSize uint64 `json:"completedReplicationSize"`
+	// Total Replica size in bytes
+	ReplicaSize uint64 `json:"replicaSize"`
+	// Failed size in bytes
+	FailedSize uint64 `json:"failedReplicationSize"`
+	// Total number of pending operations including metadata updates
+	PendingCount uint64 `json:"pendingReplicationCount"`
+	// Total number of failed operations including metadata updates
+	FailedCount uint64 `json:"failedReplicationCount"`
+	// Bandwidth limit in bytes/sec for this target
+	BandWidthLimitInBytesPerSecond int64 `json:"limitInBits"`
+	// Current bandwidth used in bytes/sec for this target
+	CurrentBandwidthInBytesPerSecond float64 `json:"currentBandwidth"`
+	// Completed count
+	ReplicatedCount uint64 `json:"replicationCount"`
+}
+
+// Metrics represents inline replication metrics for a bucket.
+type Metrics struct {
+	Stats map[string]TargetMetrics
+	// Total Pending size in bytes across targets
+	PendingSize uint64 `json:"pendingReplicationSize"`
+	// Completed size in bytes  across targets
+	ReplicatedSize uint64 `json:"completedReplicationSize"`
+	// Total Replica size in bytes  across targets
+	ReplicaSize uint64 `json:"replicaSize"`
+	// Failed size in bytes  across targets
+	FailedSize uint64 `json:"failedReplicationSize"`
+	// Total number of pending operations including metadata updates across targets
+	PendingCount uint64 `json:"pendingReplicationCount"`
+	// Total number of failed operations including metadata updates across targets
+	FailedCount uint64 `json:"failedReplicationCount"`
+	// Total Replica counts
+	ReplicaCount int64 `json:"replicaCount,omitempty"`
+	// Total Replicated count
+	ReplicatedCount int64 `json:"replicationCount,omitempty"`
+}
+
+// ResyncTargetsInfo provides replication target information to resync replicated data.
+type ResyncTargetsInfo struct {
+	Targets []ResyncTarget `json:"target,omitempty"`
+}
+
+// ResyncTarget provides the replica resources and resetID to initiate resync replication.
+type ResyncTarget struct {
+	Arn       string    `json:"arn"`
+	ResetID   string    `json:"resetid"`
+	StartTime time.Time `json:"startTime,omitempty"`
+	EndTime   time.Time `json:"endTime,omitempty"`
+	// Status of resync operation
+	ResyncStatus string `json:"resyncStatus,omitempty"`
+	// Completed size in bytes
+	ReplicatedSize int64 `json:"completedReplicationSize,omitempty"`
+	// Failed size in bytes
+	FailedSize int64 `json:"failedReplicationSize,omitempty"`
+	// Total number of failed operations
+	FailedCount int64 `json:"failedReplicationCount,omitempty"`
+	// Total number of completed operations
+	ReplicatedCount int64 `json:"replicationCount,omitempty"`
+	// Last bucket/object replicated.
+	Bucket string `json:"bucket,omitempty"`
+	Object string `json:"object,omitempty"`
+}
+
+// XferStats holds transfer rate info for uploads/sec
+type XferStats struct {
+	AvgRate  float64 `json:"avgRate"`
+	PeakRate float64 `json:"peakRate"`
+	CurrRate float64 `json:"currRate"`
+}
+
+// InQueueStats holds stats for objects in replication queue
+type InQueueStats struct {
+	Count int32 `json:"count"`
+	Bytes int64 `json:"bytes"`
+}
+
+// MetricName name of replication metric
+type MetricName string
+
+const (
+	// Large is a metric name for large objects >=128MiB
+	Large MetricName = "Large"
+	// Small is a metric name for  objects <128MiB size
+	Small MetricName = "Small"
+	// Total is a metric name for total objects
+	Total MetricName = "Total"
+)
+
+// ReplQNodeStats holds stats for a node in replication queue
+type ReplQNodeStats struct {
+	NodeName      string `json:"nodeName"`
+	Uptime        int64  `json:"uptime"`
+	ActiveWorkers int32  `json:"activeWorkers"`
+
+	XferStats map[MetricName]XferStats    `json:"xferStats"`
+	QStats    map[MetricName]InQueueStats `json:"qStats"`
+}
+
+// ReplQueueStats holds stats for replication queue across nodes
+type ReplQueueStats struct {
+	Nodes []ReplQNodeStats `json:"nodes"`
+}
+
+// Workers returns number of workers across all nodes
+func (q ReplQueueStats) Workers() int64 {
+	var workers int64
+	for _, node := range q.Nodes {
+		workers += int64(node.ActiveWorkers)
+	}
+	return workers
+}
+
+// ReplQStats holds stats for objects in replication queue
+type ReplQStats struct {
+	Uptime  int64 `json:"uptime"`
+	Workers int64 `json:"workers"`
+
+	XferStats map[MetricName]XferStats    `json:"xferStats"`
+	QStats    map[MetricName]InQueueStats `json:"qStats"`
+}
+
+// QStats returns cluster level stats for objects in replication queue
+func (q ReplQueueStats) QStats() (r ReplQStats) {
+	r.QStats = make(map[MetricName]InQueueStats)
+	r.XferStats = make(map[MetricName]XferStats)
+	for _, node := range q.Nodes {
+		r.Workers += int64(node.ActiveWorkers)
+		for k, v := range node.XferStats {
+			st, ok := r.XferStats[k]
+			if !ok {
+				st = XferStats{}
+			}
+			st.AvgRate += v.AvgRate
+			st.CurrRate += v.CurrRate
+			st.PeakRate = math.Max(st.PeakRate, v.PeakRate)
+			r.XferStats[k] = st
+		}
+		for k, v := range node.QStats {
+			st, ok := r.QStats[k]
+			if !ok {
+				st = InQueueStats{}
+			}
+			st.Count += v.Count
+			st.Bytes += v.Bytes
+			r.QStats[k] = st
+		}
+		r.Uptime += node.Uptime
+	}
+	if len(q.Nodes) > 0 {
+		for k := range r.XferStats {
+			st := r.XferStats[k]
+			st.AvgRate /= float64(len(q.Nodes))
+			st.CurrRate /= float64(len(q.Nodes))
+			r.XferStats[k] = st
+		}
+		r.Uptime /= int64(len(q.Nodes)) // average uptime
+	}
+
+	return
+}
+
+// MetricsV2 represents replication metrics for a bucket.
+type MetricsV2 struct {
+	History      Metrics        `json:"history"`
+	CurrentStats Metrics        `json:"currStats"`
+	QueueStats   ReplQueueStats `json:"queueStats"`
 }

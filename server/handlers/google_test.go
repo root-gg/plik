@@ -150,7 +150,7 @@ func TestGoogleCallback(t *testing.T) {
 		ExpiresIn:    int32(time.Now().Add(5 * time.Minute).Unix()),
 	}
 
-	googleUser := api_oauth2.Userinfoplus{
+	googleUser := api_oauth2.Userinfo{
 		Id:    "plik",
 		Email: "plik@root.gg",
 		Name:  "plik.root.gg",
@@ -481,7 +481,7 @@ func TestGoogleCallbackCreateUser(t *testing.T) {
 		ExpiresIn:    int32(time.Now().Add(5 * time.Minute).Unix()),
 	}
 
-	googleUser := api_oauth2.Userinfoplus{
+	googleUser := api_oauth2.Userinfo{
 		Id:    "plik",
 		Email: "plik@root.gg",
 		Name:  "plik.root.gg",
@@ -575,7 +575,7 @@ func TestGoogleCallbackCreateUserNotWhitelisted(t *testing.T) {
 		ExpiresIn:    int32(time.Now().Add(5 * time.Minute).Unix()),
 	}
 
-	googleUser := api_oauth2.Userinfoplus{
+	googleUser := api_oauth2.Userinfo{
 		Id:    "plik",
 		Email: "plik@root.gg",
 		Name:  "plik.root.gg",

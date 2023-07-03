@@ -1,49 +1,88 @@
 module github.com/root-gg/plik
 
-go 1.14
+go 1.20
 
 require (
-	cloud.google.com/go v0.37.5-0.20190415145036-430062523376
-	github.com/BurntSushi/toml v0.3.1
-	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc
+	cloud.google.com/go/storage v1.31.0
+	github.com/BurntSushi/toml v1.3.2
+	github.com/boombuler/barcode v1.0.1
 	github.com/camathieu/pb v1.0.29-0.20190403132434-889de99fc8d5
 	github.com/dgrijalva/jwt-go v3.2.1-0.20180921172315-3af4c746e1c2+incompatible
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
-	github.com/dustin/go-humanize v1.0.1-0.20200219035652-afde56e7acac
-	github.com/fatih/color v1.9.0 // indirect
-	github.com/go-gormigrate/gormigrate/v2 v2.0.0
-	github.com/golang/protobuf v1.3.2-0.20190409050943-e91709a02e0e // indirect
-	github.com/golang/snappy v0.0.2-0.20190904063534-ff6b7dc882cf
-	github.com/google/uuid v1.1.2 // indirect
-	github.com/gorilla/mux v1.7.1
-	github.com/hashicorp/golang-lru v0.5.1 // indirect
-	github.com/iancoleman/strcase v0.1.2
-	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a
+	github.com/dustin/go-humanize v1.0.1
+	github.com/go-gormigrate/gormigrate/v2 v2.1.0
+	github.com/golang/snappy v0.0.4
+	github.com/gorilla/mux v1.8.0
+	github.com/iancoleman/strcase v0.2.0
+	github.com/jinzhu/copier v0.3.5
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
-	github.com/lib/pq v1.10.4 // indirect
-	github.com/mattn/go-runewidth v0.0.5-0.20181218000649-703b5e6b11ae // indirect
-	github.com/minio/minio-go/v7 v7.0.5
+	github.com/minio/minio-go/v7 v7.0.59
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/ncw/swift v1.0.48-0.20190410202254-753d2090bb62
+	github.com/ncw/swift v1.0.53
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
 	github.com/olekukonko/ts v0.0.0-20171002115256-78ecb04241c0
-	github.com/pilagod/gorm-cursor-paginator/v2 v2.2.0
+	github.com/pilagod/gorm-cursor-paginator/v2 v2.4.1
 	github.com/root-gg/logger v0.0.0-20150501173826-5d9a47a35312
 	github.com/root-gg/utils v0.0.0-20201113182430-4cef83d8cdcf
-	github.com/spf13/cobra v0.0.6-0.20200106181057-89c7ffb5129b
+	github.com/spf13/cobra v1.7.0
+	github.com/stretchr/testify v1.8.4
+	github.com/xhit/go-str2duration/v2 v2.1.0
+	golang.org/x/crypto v0.10.0
+	golang.org/x/oauth2 v0.9.0
+	google.golang.org/api v0.129.0
+	gorm.io/driver/mysql v1.5.1
+	gorm.io/driver/postgres v1.5.2
+	gorm.io/driver/sqlite v1.5.2
+	gorm.io/gorm v1.25.2
+)
+
+require (
+	cloud.google.com/go v0.110.3 // indirect
+	cloud.google.com/go/compute v1.20.1 // indirect
+	cloud.google.com/go/compute/metadata v0.2.3 // indirect
+	cloud.google.com/go/iam v1.1.1 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/fatih/color v1.9.0 // indirect
+	github.com/go-sql-driver/mysql v1.7.1 // indirect
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/google/s2a-go v0.1.4 // indirect
+	github.com/google/uuid v1.3.0 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.2.5 // indirect
+	github.com/googleapis/gax-go/v2 v2.11.0 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
+	github.com/jackc/pgx/v5 v5.4.1 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/klauspost/compress v1.16.7 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
+	github.com/mattn/go-runewidth v0.0.14 // indirect
+	github.com/mattn/go-sqlite3 v1.14.17 // indirect
+	github.com/minio/md5-simd v1.1.2 // indirect
+	github.com/minio/sha256-simd v1.0.1 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/rivo/uniseg v0.4.4 // indirect
+	github.com/rs/xid v1.5.0 // indirect
+	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/testify v1.7.0
-	github.com/xhit/go-str2duration/v2 v2.0.0
-	go.opencensus.io v0.20.2 // indirect
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
-	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a
-	google.golang.org/api v0.3.3-0.20190418015003-33b7e862cd15
-	google.golang.org/appengine v1.5.0 // indirect
+	go.opencensus.io v0.24.0 // indirect
+	golang.org/x/net v0.11.0 // indirect
+	golang.org/x/sys v0.9.0 // indirect
+	golang.org/x/text v0.10.0 // indirect
+	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
+	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/genproto v0.0.0-20230629202037-9506855d4529 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20230629202037-9506855d4529 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230629202037-9506855d4529 // indirect
+	google.golang.org/grpc v1.56.1 // indirect
+	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
-	gopkg.in/ini.v1 v1.62.0 // indirect
-	gorm.io/driver/mysql v1.2.0
-	gorm.io/driver/postgres v1.2.2
-	gorm.io/driver/sqlite v1.2.6
-	gorm.io/driver/sqlserver v1.2.1 // indirect
-	gorm.io/gorm v1.22.3
+	gopkg.in/ini.v1 v1.67.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

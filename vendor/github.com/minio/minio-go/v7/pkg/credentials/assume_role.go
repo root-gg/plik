@@ -18,11 +18,12 @@
 package credentials
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/xml"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -30,7 +31,6 @@ import (
 	"time"
 
 	"github.com/minio/minio-go/v7/pkg/signer"
-	sha256 "github.com/minio/sha256-simd"
 )
 
 // AssumeRoleResponse contains the result of successful AssumeRole request.
@@ -93,6 +93,8 @@ type STSAssumeRoleOptions struct {
 	AccessKey string
 	SecretKey string
 
+	Policy string // Optional to assign a policy to the assumed role
+
 	Location        string // Optional commonly needed with AWS STS.
 	DurationSeconds int    // Optional defaults to 1 hour.
 
@@ -136,7 +138,7 @@ func closeResponse(resp *http.Response) {
 		// Without this closing connection would disallow re-using
 		// the same connection for future uses.
 		//  - http://stackoverflow.com/a/17961593/4465767
-		io.Copy(ioutil.Discard, resp.Body)
+		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}
 }
@@ -144,7 +146,7 @@ func closeResponse(resp *http.Response) {
 func getAssumeRoleCredentials(clnt *http.Client, endpoint string, opts STSAssumeRoleOptions) (AssumeRoleResponse, error) {
 	v := url.Values{}
 	v.Set("Action", "AssumeRole")
-	v.Set("Version", "2011-06-15")
+	v.Set("Version", STSVersion)
 	if opts.RoleARN != "" {
 		v.Set("RoleArn", opts.RoleARN)
 	}
@@ -155,6 +157,9 @@ func getAssumeRoleCredentials(clnt *http.Client, endpoint string, opts STSAssume
 		v.Set("DurationSeconds", strconv.Itoa(opts.DurationSeconds))
 	} else {
 		v.Set("DurationSeconds", strconv.Itoa(defaultDurationSeconds))
+	}
+	if opts.Policy != "" {
+		v.Set("Policy", opts.Policy)
 	}
 
 	u, err := url.Parse(endpoint)
@@ -184,11 +189,26 @@ func getAssumeRoleCredentials(clnt *http.Client, endpoint string, opts STSAssume
 	}
 	defer closeResponse(resp)
 	if resp.StatusCode != http.StatusOK {
-		return AssumeRoleResponse{}, errors.New(resp.Status)
+		var errResp ErrorResponse
+		buf, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return AssumeRoleResponse{}, err
+		}
+		_, err = xmlDecodeAndBody(bytes.NewReader(buf), &errResp)
+		if err != nil {
+			var s3Err Error
+			if _, err = xmlDecodeAndBody(bytes.NewReader(buf), &s3Err); err != nil {
+				return AssumeRoleResponse{}, err
+			}
+			errResp.RequestID = s3Err.RequestID
+			errResp.STSError.Code = s3Err.Code
+			errResp.STSError.Message = s3Err.Message
+		}
+		return AssumeRoleResponse{}, errResp
 	}
 
 	a := AssumeRoleResponse{}
-	if err = xml.NewDecoder(resp.Body).Decode(&a); err != nil {
+	if _, err = xmlDecodeAndBody(resp.Body, &a); err != nil {
 		return AssumeRoleResponse{}, err
 	}
 	return a, nil

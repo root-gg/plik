@@ -1,4 +1,6 @@
-FROM golang:1.12.4
+FROM golang:1.20-alpine
+
+RUN apk --no-cache add alpine-sdk
 
 WORKDIR /gormigrate
 COPY . .
