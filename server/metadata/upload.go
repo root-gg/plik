@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"fmt"
+	"gorm.io/gorm/clause"
 	"time"
 
 	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
@@ -34,6 +35,17 @@ func (b *Backend) GetUpload(ID string) (upload *common.Upload, err error) {
 	return upload, err
 }
 
+func getUploadsWhereClause(userID string, tokenStr string) *common.Upload {
+	whereClause := &common.Upload{}
+	if userID != "" {
+		whereClause.User = userID
+	}
+	if tokenStr != "" {
+		whereClause.Token = tokenStr
+	}
+	return whereClause
+}
+
 // GetUploads return uploads from DB
 // userID and tokenStr are filters
 // set withFiles to also fetch the files
@@ -42,15 +54,9 @@ func (b *Backend) GetUploads(userID string, tokenStr string, withFiles bool, pag
 		return nil, nil, fmt.Errorf("missing paging query")
 	}
 
-	whereClause := &common.Upload{}
-	if userID != "" {
-		whereClause.User = userID
-	}
-	if tokenStr != "" {
-		whereClause.Token = tokenStr
-	}
-
-	stmt := b.db.Model(&common.Upload{}).Where(whereClause)
+	stmt := b.db.
+		Model(&common.Upload{}).
+		Where(getUploadsWhereClause(userID, tokenStr))
 
 	if withFiles {
 		stmt = stmt.Preload("Files")
@@ -65,6 +71,76 @@ func (b *Backend) GetUploads(userID string, tokenStr string, withFiles bool, pag
 	}
 	if result.Error != nil {
 		return nil, nil, result.Error
+	}
+
+	return uploads, &c, err
+}
+
+// GetUploadsSortedBySize return uploads from DB sorted by size
+// userID and tokenStr are filters
+// set withFiles to also fetch the files
+func (b *Backend) GetUploadsSortedBySize(userID string, tokenStr string, withFiles bool, pagingQuery *common.PagingQuery) (uploads []*common.Upload, cursor *paginator.Cursor, err error) {
+	if pagingQuery == nil {
+		return nil, nil, fmt.Errorf("missing paging query")
+	}
+
+	// Enhanced type with total upload size field
+	type Upload struct {
+		common.Upload
+		Size int64 `json:"size"`
+	}
+	var res []*Upload
+
+	// This block is needed to generate the correctly quoted where clause
+	// `files`.`status` = ? or "files"."status" = ? depending on the database driver
+	// This is needed to specify the right table name in the WHERE clause because the uploads table is used by default
+	fileStatusStatement := b.db.Model(&common.File{}).Statement                                                             // Get a new statement
+	clause.Eq{Column: clause.Column{Table: "Files", Name: "status"}, Value: common.FileUploaded}.Build(fileStatusStatement) // Build the SQL expression
+	fileStatusWhereClause := fileStatusStatement.Statement.SQL.String()                                                     // Get the SQL string
+
+	stmt := b.db.
+		Model(&Upload{}).
+		Select("uploads.*, sum(size) as size").
+		// Joins() selects all fields from the joined table by default
+		InnerJoins("Files", b.db.Select("")).
+		// Only take into account uploaded files (needs to be first where clause for postgres)
+		Where(fileStatusWhereClause, common.FileUploaded).
+		Where(getUploadsWhereClause(userID, tokenStr))
+
+	// .Group("<column>") does not allow to specify the table name to avoid "ambiguous column id" error
+	stmt.Statement.AddClause(clause.GroupBy{
+		Columns: []clause.Column{{Table: "uploads", Name: "id"}},
+	})
+
+	if withFiles {
+		stmt = stmt.Preload("Files")
+	}
+
+	// Setup paginator
+	p := pagingQuery.Paginator()
+	p.SetRules([]paginator.Rule{
+		{
+			Key:     "Size", // Name of the field in the struct
+			SQLRepr: "size", // Name of the field in the SQL query results
+		},
+		{
+			Key: "ID",
+		},
+	}...)
+
+	// Execute the query
+	result, c, err := p.Paginate(stmt, &res)
+	if err != nil {
+		return nil, nil, err
+	}
+	if result.Error != nil {
+		return nil, nil, result.Error
+	}
+
+	// Cast the results back to *common.Uploads the upload size is only used as a sorting tool
+	// and does not need to escape this function for now
+	for _, upload := range res {
+		uploads = append(uploads, &upload.Upload)
 	}
 
 	return uploads, &c, err

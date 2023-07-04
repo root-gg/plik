@@ -188,10 +188,16 @@ angular.module('api', ['ngFileUpload']).factory('$api', function ($http, $q, Upl
         return api.call(url, 'GET');
     };
 
-    // Get server statistics
+    // Get users
     api.getUsers = function (limit, cursor) {
         var url = api.base + '/users';
         return api.call(url, 'GET', {limit: limit, after: cursor});
+    };
+
+    // Get uploads
+    api.getUploads = function (limit, cursor, user, token, sort, order) {
+        var url = api.base + '/uploads';
+        return api.call(url, 'GET', {limit: limit, after: cursor, user: user, token: token, sort: sort, order: order});
     };
 
     return api;

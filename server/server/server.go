@@ -280,9 +280,10 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	router.Handle("/user/{userID}", userChain.Then(handlers.UpdateUser)).Methods("POST")
 	router.Handle("/user/{userID}", userChain.Then(handlers.DeleteAccount)).Methods("DELETE")
 
+	router.Handle("/user", adminChain.Then(handlers.CreateUser)).Methods("POST")
 	router.Handle("/stats", adminChain.Then(handlers.GetServerStatistics)).Methods("GET")
 	router.Handle("/users", adminChain.Append(middleware.Paginate).Then(handlers.GetUsers)).Methods("GET")
-	router.Handle("/user", adminChain.Then(handlers.CreateUser)).Methods("POST")
+	router.Handle("/uploads", adminChain.Append(middleware.Paginate).Then(handlers.GetUploads)).Methods("GET")
 
 	if !ps.config.NoWebInterface {
 

@@ -3,6 +3,8 @@ plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location
     function ($scope, $api, $config, $dialog, $location) {
 
         $scope.config = {}
+        $scope.sort_uploads = { selected : 'date' };
+        $scope.sort_uploads_order = { selected : 'desc' };
 
         // Get server config
         $config.config
@@ -62,6 +64,7 @@ plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location
             if (!more) {
                 $scope.stats = undefined;
                 $scope.users = [];
+                $scope.uploads = [];
                 $scope.cursor = undefined;
                 $scope.display = 'users';
 
@@ -81,6 +84,65 @@ plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location
                 .then(null, function (error) {
                     // Failure
                     $dialog.alert(error);
+                });
+        };
+
+        // Display uploads management page
+        $scope.displayUploads = function (more, user, token) {
+            if (!more) {
+                $scope.stats = undefined;
+                $scope.users = [];
+                $scope.uploads = [];
+                $scope.cursor = undefined;
+                $scope.display = 'uploads';
+                $scope.user = undefined;
+                $scope.token = undefined;
+            }
+
+            // Save user and token filters
+            if (user) {
+                $scope.user = user;
+                if (token) {
+                    $scope.token = token;
+                }
+            }
+
+            $scope.limit = 50;
+
+            console.log($scope.sort_uploads)
+
+            // Get uploads
+            $api.getUploads($scope.limit, $scope.cursor, $scope.user, $scope.token, $scope.sort_uploads.selected, $scope.sort_uploads_order.selected)
+                .then(function (result) {
+                    // Success
+                    $scope.uploads = $scope.uploads.concat(result.results);
+                    $scope.cursor = result.after;
+                })
+                .then(null, function (error) {
+                    // Failure
+                    $dialog.alert(error);
+                });
+        };
+
+        // Remove an upload
+        $scope.deleteUpload = function (upload) {
+            $dialog.alert({
+                title: "Really ?",
+                message: "This will remove " + upload.files.length + " file(s) from the server",
+                confirm: true
+            }).result.then(
+                function () {
+                    $api.removeUpload(upload)
+                        .then(function () {
+                            $scope.uploads = _.reject($scope.uploads, function (u) {
+                                return u.id === upload.id;
+                            });
+                        })
+                        .then(null, function (error) {
+                            $dialog.alert(error);
+                        });
+                }, function () {
+                    // Avoid "Possibly unhandled rejection"
                 });
         };
 
@@ -225,6 +287,16 @@ plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location
                 return "default";
             }
             return "unlimited"
+        };
+
+        // Get upload url
+        $scope.getUploadUrl = function (upload) {
+            return $api.base + '/#/?id=' + upload.id;
+        };
+
+        // Get file url
+        $scope.getFileUrl = function (upload, file) {
+            return $api.base + '/file/' + upload.id + '/' + file.id + '/' + file.fileName;
         };
 
         $scope.getHumanReadableTTLString = getHumanReadableTTLString;
