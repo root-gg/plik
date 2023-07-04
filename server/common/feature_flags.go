@@ -54,6 +54,7 @@ func (config *Configuration) initializeFeatureFlags() error {
 		config.initializeFeatureExtendTTL,
 		config.initializeFeatureGithub,
 		config.initializeFeatureClients,
+		config.initializeFeatureText,
 	}
 
 	for _, initialization := range initializations {
@@ -236,6 +237,19 @@ func (config *Configuration) initializeFeatureGithub() error {
 	err := ValidateCustomFeatureFlag(config.FeatureGithub, []string{FeatureDisabled, FeatureEnabled})
 	if err != nil {
 		return fmt.Errorf("Invalid value for FeatureGithub : %s", err)
+	}
+
+	return nil
+}
+
+func (config *Configuration) initializeFeatureText() error {
+	if config.FeatureText == "" {
+		config.FeatureText = FeatureEnabled
+	}
+
+	err := ValidateFeatureFlag(config.FeatureText)
+	if err != nil {
+		return fmt.Errorf("Invalid value for FeatureText : %s", err)
 	}
 
 	return nil

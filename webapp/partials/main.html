@@ -140,7 +140,7 @@
             </div>
         </div>
         <!-- ADD FILES BUTTON -->
-        <div class="tile menu" ng-if="okToAddFiles()">
+        <div class="tile menu" ng-if="!isFeatureForced('text') && okToAddFiles()">
             <div class="menu-item">
                 <div id="drop-zone-download"
                      ngf-select="onFileSelect($files)"
@@ -155,7 +155,7 @@
             </div>
         </div>
         <!-- ADD TEXT BUTTON -->
-        <div class="tile menu" ng-if="okToAddFiles()">
+        <div class="tile menu" ng-if="isFeatureEnabled('text') && okToAddFiles()">
             <div class="menu-item">
                 <button type="button" class="btn btn-lg btn-primary btn-block" ng-click="openTextDialog('')">
                     <i class="fa fa-pencil"></i> Add text
@@ -192,7 +192,7 @@
             </div>
         </div>
         <!-- ADD FILE DROP ZONE -->
-        <div class="row" ng-show="mode == 'upload'">
+        <div class="row" ng-show="!isFeatureForced('text') && mode == 'upload'">
             <div class="col-sm-12">
                 <div class="tile">
                     <div id="drop-zone"
@@ -200,7 +200,7 @@
                          ngf-drop="onFileDrop($files,$event)"
                          ngf-multiple="true"
                          ngf-drag-over-class="drag-over">
-                        <div class="drop-text hidden-xs">Drop/paste text or files</div>
+                        <div class="drop-text hidden-xs">Drop/paste <span ng-if="isFeatureEnabled('text')">text</span><span ng-if="isFeatureEnabled('text') && !isFeatureForced('text')"> or </span><span ng-if="!isFeatureForced('text')">files</span></div>
                         <!-- ADD FILE BUTTON -->
                         <div class="btn-file center-block">
                             <span class="btn btn-lg btn-primary btn-block">
