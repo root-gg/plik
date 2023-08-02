@@ -150,9 +150,11 @@ func createUser(cmd *cobra.Command, args []string) {
 		params.MaxTTL = maxTTL
 	}
 
-	if userParams.provider == common.ProviderLocal && userParams.password == "" {
-		userParams.password = common.GenerateRandomID(32)
-		fmt.Printf("Generated password for user %s is %s\n", userParams.login, userParams.password)
+	if userParams.provider == common.ProviderLocal {
+		if userParams.password == "" {
+			userParams.password = common.GenerateRandomID(32)
+			fmt.Printf("Generated password for user %s is %s\n", userParams.login, userParams.password)
+		}
 		params.Password = userParams.password
 	}
 
