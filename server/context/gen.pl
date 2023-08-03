@@ -13,6 +13,7 @@ my $struct = [
 	'dataBackend', 'data.Backend', { panic => 1 },
 	'streamBackend', 'data.Backend', { panic => 1 },
 	'authenticator', '*common.SessionAuthenticator', { panic => 1 },
+	'metrics', '*common.PlikMetrics', { panic => 1 },
 
     'pagingQuery',  '*common.PagingQuery', { panic => 1 },
 

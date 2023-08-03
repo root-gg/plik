@@ -19,6 +19,7 @@ type Context struct {
 	dataBackend         data.Backend
 	streamBackend       data.Backend
 	authenticator       *common.SessionAuthenticator
+	metrics             *common.PlikMetrics
 	pagingQuery         *common.PagingQuery
 	sourceIP            net.IP
 	upload              *common.Upload
@@ -152,6 +153,26 @@ func (ctx *Context) SetAuthenticator(authenticator *common.SessionAuthenticator)
 	defer ctx.mu.Unlock()
 
 	ctx.authenticator = authenticator
+}
+
+// GetMetrics get metrics from the context.
+func (ctx *Context) GetMetrics() *common.PlikMetrics {
+	ctx.mu.RLock()
+	defer ctx.mu.RUnlock()
+
+	if ctx.metrics == nil {
+		panic("missing metrics from context")
+	}
+
+	return ctx.metrics
+}
+
+// SetMetrics set metrics in the context
+func (ctx *Context) SetMetrics(metrics *common.PlikMetrics) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+
+	ctx.metrics = metrics
 }
 
 // GetPagingQuery get pagingQuery from the context.

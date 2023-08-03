@@ -27,9 +27,11 @@ type Configuration struct {
 	DebugRequests bool   `json:"-"`
 	LogLevel      string `json:"-"`
 
-	ListenAddress string `json:"-"`
-	ListenPort    int    `json:"-"`
-	Path          string `json:"-"`
+	ListenAddress  string `json:"-"`
+	ListenPort     int    `json:"-"`
+	MetricsAddress string `json:"-"`
+	MetricsPort    int    `json:"-"`
+	Path           string `json:"-"`
 
 	MaxFileSizeStr   string `json:"-"`
 	MaxFileSize      int64  `json:"maxFileSize"`
@@ -109,6 +111,8 @@ func NewConfiguration() (config *Configuration) {
 
 	config.ListenAddress = "0.0.0.0"
 	config.ListenPort = 8080
+	config.MetricsAddress = "0.0.0."
+	config.MetricsPort = 0
 	config.EnhancedWebSecurity = false
 	config.SessionTimeout = "365d"
 

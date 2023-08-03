@@ -378,3 +378,8 @@ func TestDoubleDelete(t *testing.T) {
 	err = b.db.Delete(&upload).Error
 	require.NoError(t, err, "unable to delete upload")
 }
+
+func TestGetMetricsCollectors(t *testing.T) {
+	b := newTestMetadataBackend()
+	require.NotNil(t, b.GetMetricsCollectors())
+}

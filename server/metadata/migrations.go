@@ -86,7 +86,7 @@ func (b *Backend) getMigrations() []*gormigrate.Migration {
 					Value string
 				}
 
-				err := b.clean(tx)
+				_, _, err := b.clean(tx)
 				if err != nil {
 					return err
 				}
@@ -106,7 +106,7 @@ func (b *Backend) getMigrations() []*gormigrate.Migration {
 					MaxTTL      int   `json:"maxTTL"`
 				}
 
-				err := b.clean(tx)
+				_, _, err := b.clean(tx)
 				if err != nil {
 					return err
 				}
@@ -125,7 +125,7 @@ func (b *Backend) getMigrations() []*gormigrate.Migration {
 					ExtendTTL bool `json:"extend_ttl"`
 				}
 
-				err := b.clean(tx)
+				_, _, err := b.clean(tx)
 				if err != nil {
 					return err
 				}
@@ -144,7 +144,7 @@ func (b *Backend) getMigrations() []*gormigrate.Migration {
 					MaxUserSize int64 `json:"maxUserSize"`
 				}
 
-				err := b.clean(tx)
+				_, _, err := b.clean(tx)
 				if err != nil {
 					return err
 				}
