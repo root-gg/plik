@@ -60,8 +60,8 @@ func NewPlikServer(config *common.Configuration) (ps *PlikServer) {
 	ps = new(PlikServer)
 	ps.config = config
 
-	ps.cleaningRandomDelay = 3600
-	ps.cleaningMinOffset = 7200
+	ps.cleaningRandomDelay = 300
+	ps.cleaningMinOffset = 300
 
 	ps.metrics = common.NewPlikMetrics()
 	ps.close = make(chan struct{})
