@@ -162,11 +162,12 @@ func SignV2(req http.Request, accessKeyID, secretAccessKey string, virtualHost b
 // From the Amazon docs:
 //
 // StringToSign = HTTP-Verb + "\n" +
-// 	 Content-Md5 + "\n" +
-//	 Content-Type + "\n" +
-//	 Expires + "\n" +
-//	 CanonicalizedProtocolHeaders +
-//	 CanonicalizedResource;
+//
+//	Content-Md5 + "\n" +
+//	Content-Type + "\n" +
+//	Expires + "\n" +
+//	CanonicalizedProtocolHeaders +
+//	CanonicalizedResource;
 func preStringToSignV2(req http.Request, virtualHost bool) string {
 	buf := new(bytes.Buffer)
 	// Write standard headers.
@@ -189,11 +190,12 @@ func writePreSignV2Headers(buf *bytes.Buffer, req http.Request) {
 // From the Amazon docs:
 //
 // StringToSign = HTTP-Verb + "\n" +
-// 	 Content-Md5 + "\n" +
-//	 Content-Type + "\n" +
-//	 Date + "\n" +
-//	 CanonicalizedProtocolHeaders +
-//	 CanonicalizedResource;
+//
+//	Content-Md5 + "\n" +
+//	Content-Type + "\n" +
+//	Date + "\n" +
+//	CanonicalizedProtocolHeaders +
+//	CanonicalizedResource;
 func stringToSignV2(req http.Request, virtualHost bool) string {
 	buf := new(bytes.Buffer)
 	// Write standard headers.
@@ -233,16 +235,7 @@ func writeCanonicalizedHeaders(buf *bytes.Buffer, req http.Request) {
 			if idx > 0 {
 				buf.WriteByte(',')
 			}
-			if strings.Contains(v, "\n") {
-				// TODO: "Unfold" long headers that
-				// span multiple lines (as allowed by
-				// RFC 2616, section 4.2) by replacing
-				// the folding white-space (including
-				// new-line) by a single space.
-				buf.WriteString(v)
-			} else {
-				buf.WriteString(v)
-			}
+			buf.WriteString(v)
 		}
 		buf.WriteByte('\n')
 	}
@@ -252,10 +245,14 @@ func writeCanonicalizedHeaders(buf *bytes.Buffer, req http.Request) {
 // http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html#RESTAuthenticationStringToSign
 
 // Whitelist resource list that will be used in query string for signature-V2 calculation.
-// The list should be alphabetically sorted
+//
+// This list should be kept alphabetically sorted, do not hastily edit.
 var resourceList = []string{
 	"acl",
+	"cors",
 	"delete",
+	"encryption",
+	"legal-hold",
 	"lifecycle",
 	"location",
 	"logging",
@@ -270,6 +267,10 @@ var resourceList = []string{
 	"response-content-language",
 	"response-content-type",
 	"response-expires",
+	"retention",
+	"select",
+	"select-type",
+	"tagging",
 	"torrent",
 	"uploadId",
 	"uploads",
@@ -282,8 +283,9 @@ var resourceList = []string{
 // From the Amazon docs:
 //
 // CanonicalizedResource = [ "/" + Bucket ] +
-// 	  <HTTP-Request-URI, from the protocol name up to the query string> +
-// 	  [ sub-resource, if present. For example "?acl", "?location", "?logging", or "?torrent"];
+//
+//	<HTTP-Request-URI, from the protocol name up to the query string> +
+//	[ sub-resource, if present. For example "?acl", "?location", "?logging", or "?torrent"];
 func writeCanonicalizedResource(buf *bytes.Buffer, req http.Request, virtualHost bool) {
 	// Save request URL.
 	requestURL := req.URL

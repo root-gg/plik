@@ -641,19 +641,23 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             if (document.getElementsByClassName('modal-open').length > 0) return;
 
             // If clipboard contains files
-            var files = _.clone(clipboard.files);
-            if (files.length) {
-                // Add the files
-                $timeout(function () {
-                    $scope.onFileSelect(files);
-                })
-                return
+            if (!$scope.isFeatureForced('text')) {
+                var files = _.clone(clipboard.files);
+                if (files.length) {
+                    // Add the files
+                    $timeout(function () {
+                        $scope.onFileSelect(files);
+                    })
+                    return
+                }
             }
 
             // If clipboard contains text
-            var text = clipboard.getData('text');
-            if (text) {
-                $scope.openTextDialog(text);
+            if ($scope.isFeatureEnabled('text')) {
+                var text = clipboard.getData('text');
+                if (text) {
+                    $scope.openTextDialog(text);
+                }
             }
         };
 
@@ -707,6 +711,11 @@ plik.controller('MainCtrl', ['$scope', '$api', '$config', '$route', '$location',
             $scope.$on('$routeChangeStart', $paste.unregister);
         };
 
-        $scope.registerPasteHandler();
+        whenReady(function () {
+            $scope.registerPasteHandler();
+            if ($scope.isFeatureDefault("text")) {
+                $scope.openTextDialog();
+            }
+        })
     }
 ]);

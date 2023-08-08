@@ -54,7 +54,7 @@ func TestRemoveFile(t *testing.T) {
 	file1, err = ctx.GetMetadataBackend().GetFile(file1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(upload.Files), "invalid upload files count")
-	require.Equal(t, common.FileRemoved, upload.GetFile(file1.ID).Status, "invalid removed file status")
+	require.Equal(t, common.FileDeleted, upload.GetFile(file1.ID).Status, "invalid removed file status")
 }
 
 func TestRemoveFileNotAdmin(t *testing.T) {

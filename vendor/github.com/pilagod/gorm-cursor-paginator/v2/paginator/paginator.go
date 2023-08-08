@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/iancoleman/strcase"
 	"gorm.io/gorm"
 
 	"github.com/pilagod/gorm-cursor-paginator/v2/cursor"
@@ -68,10 +67,12 @@ func (p *Paginator) SetBeforeCursor(beforeCursor string) {
 
 // Paginate paginates data
 func (p *Paginator) Paginate(db *gorm.DB, dest interface{}) (result *gorm.DB, c Cursor, err error) {
-	if err = p.validate(dest); err != nil {
+	if err = p.validate(db, dest); err != nil {
 		return
 	}
-	p.setup(db, dest)
+	if err = p.setup(db, dest); err != nil {
+		return
+	}
 	fields, err := p.decodeCursor(dest)
 	if err != nil {
 		return
@@ -99,7 +100,7 @@ func (p *Paginator) Paginate(db *gorm.DB, dest interface{}) (result *gorm.DB, c 
 
 /* private */
 
-func (p *Paginator) validate(dest interface{}) (err error) {
+func (p *Paginator) validate(db *gorm.DB, dest interface{}) (err error) {
 	if len(p.rules) == 0 {
 		return ErrNoRule
 	}
@@ -110,54 +111,51 @@ func (p *Paginator) validate(dest interface{}) (err error) {
 		return
 	}
 	for _, rule := range p.rules {
-		if err = rule.validate(dest); err != nil {
+		if err = rule.validate(db, dest); err != nil {
 			return
 		}
 	}
 	return
 }
 
-func (p *Paginator) setup(db *gorm.DB, dest interface{}) {
+func (p *Paginator) setup(db *gorm.DB, dest interface{}) error {
 	var sqlTable string
 	for i := range p.rules {
 		rule := &p.rules[i]
 		if rule.SQLRepr == "" {
 			if sqlTable == "" {
-				// https://stackoverflow.com/questions/51999441/how-to-get-a-table-name-from-a-model-in-gorm
-				stmt := &gorm.Statement{DB: db}
-				stmt.Parse(dest)
-				sqlTable = stmt.Schema.Table
+				schema, err := util.ParseSchema(db, dest)
+				if err != nil {
+					return err
+				}
+				sqlTable = schema.Table
 			}
-			sqlKey := p.parseSQLKey(dest, rule.Key)
+			sqlKey := p.parseSQLKey(db, dest, rule.Key)
 			rule.SQLRepr = fmt.Sprintf("%s.%s", sqlTable, sqlKey)
 		}
+
 		if rule.NULLReplacement != nil {
-			rule.SQLRepr = fmt.Sprintf("COALESCE(%s, '%v')", rule.SQLRepr, rule.NULLReplacement)
+			nullReplacement := fmt.Sprintf("'%v'", rule.NULLReplacement)
+			if rule.SQLType != nil {
+				nullReplacement = fmt.Sprintf("CAST(%s as %s)", nullReplacement, *rule.SQLType)
+			}
+			rule.SQLRepr = fmt.Sprintf("COALESCE(%s, %s)", rule.SQLRepr, nullReplacement)
+		}
+		// cast to the underlying SQL type
+		if rule.SQLType != nil {
+			rule.SQLRepr = fmt.Sprintf("CAST( %s AS %s )", rule.SQLRepr, *rule.SQLType)
 		}
 		if rule.Order == "" {
 			rule.Order = p.order
 		}
 	}
+	return nil
 }
 
-func (p *Paginator) parseSQLKey(dest interface{}, key string) string {
+func (p *Paginator) parseSQLKey(db *gorm.DB, dest interface{}, key string) string {
 	// dest is already validated at validataion phase
-	f, _ := util.ReflectType(dest).FieldByName(key)
-	for _, tag := range strings.Split(string(f.Tag), " ") {
-		// e.g., gorm:"type:varchar(255);column:field_name"
-		if strings.HasPrefix(tag, "gorm:") {
-			opts := strings.Split(
-				strings.Trim(tag[len("gorm:"):], "\""),
-				";",
-			)
-			for _, opt := range opts {
-				if strings.HasPrefix(opt, "column:") {
-					return opt[len("column:"):]
-				}
-			}
-		}
-	}
-	return strcase.ToSnake(f.Name)
+	schema, _ := util.ParseSchema(db, dest)
+	return schema.LookUpField(key).DBName
 }
 
 // https://mangatmodi.medium.com/go-check-nil-interface-the-right-way-d142776edef1
@@ -166,7 +164,9 @@ func isNil(i interface{}) bool {
 		return true
 	}
 	switch reflect.TypeOf(i).Kind() {
-	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
+	// reflect.Array is intentionally omitted since calling IsNil() on the value
+	// of an array will panic
+	case reflect.Ptr, reflect.Map, reflect.Chan, reflect.Slice:
 		return reflect.ValueOf(i).IsNil()
 	}
 	return false
@@ -174,11 +174,11 @@ func isNil(i interface{}) bool {
 
 func (p *Paginator) decodeCursor(dest interface{}) (result []interface{}, err error) {
 	if p.isForward() {
-		if result, err = cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.After, dest); err != nil {
+		if result, err = cursor.NewDecoder(p.getDecoderFields()).Decode(*p.cursor.After, dest); err != nil {
 			err = ErrInvalidCursor
 		}
 	} else if p.isBackward() {
-		if result, err = cursor.NewDecoder(p.getKeys()...).Decode(*p.cursor.Before, dest); err != nil {
+		if result, err = cursor.NewDecoder(p.getDecoderFields()).Decode(*p.cursor.Before, dest); err != nil {
 			err = ErrInvalidCursor
 		}
 	}
@@ -250,7 +250,7 @@ func (p *Paginator) buildCursorSQLQueryArgs(fields []interface{}) (args []interf
 }
 
 func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result Cursor, err error) {
-	encoder := cursor.NewEncoder(p.getKeys()...)
+	encoder := cursor.NewEncoder(p.getEncoderFields())
 	// encode after cursor
 	if p.isBackward() || hasMore {
 		c, err := encoder.Encode(elems.Index(elems.Len() - 1))
@@ -270,12 +270,25 @@ func (p *Paginator) encodeCursor(elems reflect.Value, hasMore bool) (result Curs
 	return
 }
 
-/* rules */
-
-func (p *Paginator) getKeys() []string {
-	keys := make([]string, len(p.rules))
+/* custom types */
+func (p *Paginator) getEncoderFields() []cursor.EncoderField {
+	fields := make([]cursor.EncoderField, len(p.rules))
 	for i, rule := range p.rules {
-		keys[i] = rule.Key
+		fields[i].Key = rule.Key
+		if rule.CustomType != nil {
+			fields[i].Meta = rule.CustomType.Meta
+		}
 	}
-	return keys
+	return fields
+}
+
+func (p *Paginator) getDecoderFields() []cursor.DecoderField {
+	fields := make([]cursor.DecoderField, len(p.rules))
+	for i, rule := range p.rules {
+		fields[i].Key = rule.Key
+		if rule.CustomType != nil {
+			fields[i].Type = &rule.CustomType.Type
+		}
+	}
+	return fields
 }

@@ -37,7 +37,7 @@ func (b *Backend) GetFiles(uploadID string) (files []*common.File, err error) {
 
 // UpdateFile update a file in DB. Status ensure the file status has not changed since loaded
 func (b *Backend) UpdateFile(file *common.File, status string) error {
-	result := b.db.Where(&common.File{ID: file.ID, Status: status}).Save(file)
+	result := b.db.Model(&common.File{}).Where(&common.File{ID: file.ID, Status: status}).Updates(file)
 	if result.Error != nil {
 		return result.Error
 	}

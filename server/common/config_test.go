@@ -141,6 +141,52 @@ func TestInitializeMaxFileSizeString(t *testing.T) {
 	require.Equal(t, int64(100*1000*1000), config.MaxFileSize, "invalid max file size")
 }
 
+func TestInitializeMaxFileSizeUnlimited(t *testing.T) {
+	config := NewConfiguration()
+	config.MaxFileSizeStr = "unlimited"
+
+	err := config.Initialize()
+	require.NoError(t, err, "unable to initialize valid config")
+
+	require.Equal(t, int64(-1), config.MaxFileSize, "invalid max file size")
+
+	config = NewConfiguration()
+	config.MaxFileSizeStr = "-1"
+
+	err = config.Initialize()
+	require.NoError(t, err, "unable to initialize valid config")
+
+	require.Equal(t, int64(-1), config.MaxFileSize, "invalid max file size")
+}
+
+func TestInitializeMaxUserSizeString(t *testing.T) {
+	config := NewConfiguration()
+	config.MaxUserSizeStr = "100 MB"
+
+	err := config.Initialize()
+	require.NoError(t, err, "unable to initialize valid config")
+
+	require.Equal(t, int64(100*1000*1000), config.MaxUserSize, "invalid max file size")
+}
+
+func TestInitializeMaxUserSizeUnlimited(t *testing.T) {
+	config := NewConfiguration()
+	config.MaxUserSizeStr = "unlimited"
+
+	err := config.Initialize()
+	require.NoError(t, err, "unable to initialize valid config")
+
+	require.Equal(t, int64(-1), config.MaxUserSize, "invalid max file size")
+
+	config = NewConfiguration()
+	config.MaxUserSizeStr = "-1"
+
+	err = config.Initialize()
+	require.NoError(t, err, "unable to initialize valid config")
+
+	require.Equal(t, int64(-1), config.MaxUserSize, "invalid max file size")
+}
+
 func TestDisableAutoClean(t *testing.T) {
 	config := NewConfiguration()
 	require.True(t, config.IsAutoClean(), "invalid auto clean status")

@@ -1,21 +1,16 @@
-# https://taskfile.org
+# https://taskfile.dev
 
-version: '2'
+version: '3'
 
 tasks:
-  dl-deps:
-    desc: Downloads cli dependencies
-    cmds:
-      - go get -u golang.org/x/lint/golint
-
   go-get-all:
     cmds:
       - go get -t -tags 'sqlite postgresql mysql sqlserver' ./...
 
   lint:
-    desc: Runs golint on this project
+    desc: Runs golangci-lint
     cmds:
-      - golint .
+      - golangci-lint run
 
   test-sqlite:
     desc: Run tests for SQLite

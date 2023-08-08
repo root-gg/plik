@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/root-gg/logger"
 
 	"github.com/root-gg/plik/server/common"
@@ -39,11 +40,16 @@ type PlikServer struct {
 
 	authenticator *common.SessionAuthenticator
 
-	httpServer *http.Server
+	httpServer        *http.Server
+	metricsHTTPServer *http.Server
+
+	metrics     *common.PlikMetrics
+	serverStats *common.ServerStats
 
 	mu      sync.Mutex
 	started bool
 	done    bool
+	close   chan struct{}
 
 	cleaningRandomDelay int
 	cleaningMinOffset   int
@@ -54,8 +60,11 @@ func NewPlikServer(config *common.Configuration) (ps *PlikServer) {
 	ps = new(PlikServer)
 	ps.config = config
 
-	ps.cleaningRandomDelay = 3600
-	ps.cleaningMinOffset = 7200
+	ps.cleaningRandomDelay = 300
+	ps.cleaningMinOffset = 300
+
+	ps.metrics = common.NewPlikMetrics()
+	ps.close = make(chan struct{})
 
 	return ps
 }
@@ -77,6 +86,76 @@ func (ps *PlikServer) Start() (err error) {
 	ps.started = true
 
 	return ps.start()
+}
+
+// Start an HTTP server to server Prometheus Metrics
+func (ps *PlikServer) startMetricsHTTPServer() {
+	log := ps.config.NewLogger()
+	if ps.config.MetricsPort <= 0 {
+		return
+	}
+
+	addr := fmt.Sprintf("%s:%d", ps.config.MetricsAddress, ps.config.MetricsPort)
+
+	ps.metricsHTTPServer = &http.Server{
+		Addr:    addr,
+		Handler: promhttp.HandlerFor(ps.metrics.GetRegistry(), promhttp.HandlerOpts{}),
+	}
+
+	go func() {
+		log.Infof("Starting metrics HTTP server at : http://%s", addr)
+		err := ps.metricsHTTPServer.ListenAndServe()
+		if err != nil {
+			log.Fatalf("Unable to start metrics HTTP server : %s", err)
+		}
+	}()
+
+	go func() {
+		select {
+		case <-ps.close:
+			ps.shutdownMetricsHTTPServer()
+		}
+	}()
+}
+
+func (ps *PlikServer) shutdownMetricsHTTPServer() {
+	log := ps.config.NewLogger()
+	if ps.metricsHTTPServer == nil {
+		return
+	}
+	err := ps.metricsHTTPServer.Close()
+	if err != nil {
+		log.Warningf("Unable to shutdown metrics HTTP server : %s", err)
+	}
+}
+
+func (ps *PlikServer) refreshServerStats() (err error) {
+	start := time.Now()
+	ps.serverStats, err = ps.metadataBackend.GetServerStatistics()
+	if err != nil {
+		return err
+	}
+	elapsed := time.Since(start)
+	ps.metrics.UpdateServerStatistics(ps.serverStats, elapsed)
+	return nil
+}
+
+func (ps *PlikServer) refreshServerStatsRoutine() {
+	if ps.config.MetricsPort <= 0 {
+		return
+	}
+	log := ps.config.NewLogger()
+	for {
+		err := ps.refreshServerStats()
+		if err != nil {
+			log.Warningf("Unable to refresh server statistics : %s", err)
+		}
+		select {
+		case <-time.After(60 * time.Second):
+		case <-ps.close:
+			return
+		}
+	}
 }
 
 func (ps *PlikServer) start() (err error) {
@@ -116,6 +195,8 @@ func (ps *PlikServer) start() (err error) {
 		go ps.uploadsCleaningRoutine()
 	}
 
+	go ps.refreshServerStatsRoutine()
+
 	handler := ps.getHTTPHandler()
 
 	var proto string
@@ -152,6 +233,8 @@ func (ps *PlikServer) start() (err error) {
 		}
 	}()
 
+	ps.startMetricsHTTPServer()
+
 	return nil
 }
 
@@ -179,6 +262,7 @@ func (ps *PlikServer) ShutdownNow() (err error) {
 func (ps *PlikServer) shutdown(timeout time.Duration) (err error) {
 	log := ps.config.NewLogger()
 	log.Info("Shutdown server at " + ps.GetConfig().GetServerURL().String())
+	close(ps.close)
 	ps.done = true
 
 	err = func() error {
@@ -280,9 +364,10 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	router.Handle("/user/{userID}", userChain.Then(handlers.UpdateUser)).Methods("POST")
 	router.Handle("/user/{userID}", userChain.Then(handlers.DeleteAccount)).Methods("DELETE")
 
+	router.Handle("/user", adminChain.Then(handlers.CreateUser)).Methods("POST")
 	router.Handle("/stats", adminChain.Then(handlers.GetServerStatistics)).Methods("GET")
 	router.Handle("/users", adminChain.Append(middleware.Paginate).Then(handlers.GetUsers)).Methods("GET")
-	router.Handle("/user", adminChain.Then(handlers.CreateUser)).Methods("POST")
+	router.Handle("/uploads", adminChain.Append(middleware.Paginate).Then(handlers.GetUploads)).Methods("GET")
 
 	if !ps.config.NoWebInterface {
 
@@ -320,6 +405,8 @@ func (ps *PlikServer) initializeMetadataBackend() (err error) {
 		if err != nil {
 			return err
 		}
+		// Register gorm metrics
+		ps.metrics.Register(ps.metadataBackend.GetMetricsCollectors()...)
 	}
 
 	return nil
@@ -463,4 +550,5 @@ func (ps *PlikServer) setupContext(ctx *context.Context) {
 	ctx.SetDataBackend(ps.dataBackend)
 	ctx.SetStreamBackend(ps.streamBackend)
 	ctx.SetAuthenticator(ps.authenticator)
+	ctx.SetMetrics(ps.metrics)
 }

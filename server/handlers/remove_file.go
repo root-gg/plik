@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"fmt"
+	"github.com/root-gg/plik/server/common"
 	"net/http"
 
 	"github.com/root-gg/plik/server/context"
@@ -35,5 +37,35 @@ func RemoveFile(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 		return
 	}
 
+	// Remove the file asynchronously
+	err = purge(ctx, file)
+	if err != nil {
+		ctx.GetLogger().Warningf(err.Error())
+	}
+
 	_, _ = resp.Write([]byte("ok"))
+}
+
+// purge does its best to remove the file right now (before the next cleaning cycle)
+func purge(ctx *context.Context, file *common.File) (err error) {
+	err = ctx.GetMetadataBackend().RemoveFile(file)
+	if err != nil {
+		return fmt.Errorf("unable to remove file %s from upload %s : %s", file.ID, file.UploadID, err)
+	}
+
+	if file.Status != common.FileRemoved {
+		return nil
+	}
+
+	err = ctx.GetDataBackend().RemoveFile(file)
+	if err != nil {
+		return fmt.Errorf("unable to delete file %s from upload %s : %s", file.ID, file.UploadID, err)
+	}
+
+	err = ctx.GetMetadataBackend().UpdateFileStatus(file, common.FileRemoved, common.FileDeleted)
+	if err != nil {
+		return fmt.Errorf("unable to update file status for deleted file %s from upload %s : %s", file.ID, file.UploadID, err)
+	}
+
+	return nil
 }

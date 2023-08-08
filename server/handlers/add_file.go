@@ -3,10 +3,9 @@ package handlers
 import (
 	"crypto/md5"
 	"fmt"
+	"github.com/dustin/go-humanize"
 	"io"
 	"net/http"
-
-	"github.com/dustin/go-humanize"
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
@@ -139,11 +138,17 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		backend = ctx.GetDataBackend()
 	}
 
+	cleanup := func() {
+		err := purge(ctx, file)
+		if err != nil {
+			log.Warningf(err.Error())
+		}
+	}
+
 	err = backend.AddFile(file, preprocessReader)
 	if err != nil {
-		// TODO : file status is left to common.FileUploading we should set it to some common.FileUploadError
-		// TODO : or we can set it back to common.FileMissing if we are sure data backends will handle that
 		ctx.InternalServerError("unable to save file", err)
+		cleanup()
 		return
 	}
 
@@ -153,6 +158,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		// TODO : file status is left to common.FileUploading we should set it to some common.FileUploadError
 		// TODO : or we can set it back to common.FileMissing if we are sure data backends will handle that
 		handleHTTPError(ctx, preprocessOutput.err)
+		cleanup()
 		return
 	}
 
@@ -172,6 +178,15 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	err = ctx.GetMetadataBackend().UpdateFile(file, common.FileUploading)
 	if err != nil {
 		ctx.InternalServerError("unable to update file metadata", err)
+		cleanup()
+		return
+	}
+
+	// Check user total uploaded size (user stats only takes uploaded files into account)
+	err = ctx.CheckUserTotalUploadedSize()
+	if err != nil {
+		ctx.BadRequest(err.Error())
+		cleanup()
 		return
 	}
 

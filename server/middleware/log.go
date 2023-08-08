@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"github.com/gorilla/mux"
 	"net/http"
 	"net/http/httputil"
 	"strings"
@@ -49,6 +50,15 @@ func Log(ctx *context.Context, next http.Handler) http.Handler {
 
 		// Log the request and response status and duration
 		log.Infof("%v %v [%v %v] (%v)", req.Method, req.RequestURI, statusCode, statusCodeString, elapsed)
+
+		// Update HTTP metrics
+		route := mux.CurrentRoute(req)
+		if route != nil {
+			path, err := route.GetPathTemplate()
+			if err == nil {
+				ctx.GetMetrics().UpdateHTTPMetrics(req.Method, path, statusCodeResponseWriter.statusCode, elapsed)
+			}
+		}
 
 		if config.DebugRequests {
 			// Don't dump request body for file upload

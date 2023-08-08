@@ -329,9 +329,46 @@ func Test_initializeFeatureGithub(t *testing.T) {
 	RequireError(t, config.initializeFeatureClients(), "Invalid feature flag value")
 }
 
+func Test_initializeFeatureText(t *testing.T) {
+	config := NewConfiguration()
+	config.FeatureText = "invalid"
+	RequireError(t, config.initializeFeatureText(), "Invalid feature flag value")
+
+	config = NewConfiguration()
+	config.FeatureText = ""
+	require.NoError(t, config.initializeFeatureText())
+	require.Equal(t, FeatureEnabled, config.FeatureText)
+
+	config = NewConfiguration()
+	config.FeatureText = FeatureDisabled
+	require.NoError(t, config.initializeFeatureText())
+	require.Equal(t, FeatureDisabled, config.FeatureText)
+
+	config = NewConfiguration()
+	config.FeatureText = FeatureForced
+	require.NoError(t, config.initializeFeatureText())
+	require.Equal(t, FeatureForced, config.FeatureText)
+
+	config = NewConfiguration()
+	config.FeatureText = FeatureDefault
+	require.NoError(t, config.initializeFeatureText())
+	require.Equal(t, FeatureDefault, config.FeatureText)
+}
+
 func Test_initializeFeatureFlags(t *testing.T) {
 	config := NewConfiguration()
 	require.NoError(t, config.initializeFeatureFlags())
+
+	require.NoError(t, ValidateFeatureFlag(config.FeatureAuthentication))
+	require.NoError(t, ValidateFeatureFlag(config.FeatureOneShot))
+	require.NoError(t, ValidateFeatureFlag(config.FeatureRemovable))
+	require.NoError(t, ValidateFeatureFlag(config.FeatureStream))
+	require.NoError(t, ValidateFeatureFlag(config.FeatureComments))
+	require.NoError(t, ValidateFeatureFlag(config.FeatureSetTTL))
+	require.NoError(t, ValidateFeatureFlag(config.FeatureExtendTTL))
+	require.NoError(t, ValidateFeatureFlag(config.FeatureGithub))
+	require.NoError(t, ValidateFeatureFlag(config.FeatureClients))
+	require.NoError(t, ValidateFeatureFlag(config.FeatureText))
 
 	config = NewConfiguration()
 	config.FeatureOneShot = "invalid"

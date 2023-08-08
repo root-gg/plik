@@ -2,6 +2,7 @@ package context
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -47,7 +48,78 @@ func (ctx *Context) CreateUpload(params *common.Upload) (upload *common.Upload, 
 		return nil, err
 	}
 
+	// Check user total uploaded size
+	err = ctx.CheckUserFreeSpaceForUpload(upload)
+	if err != nil {
+		return nil, err
+	}
+
 	return upload, nil
+}
+
+func (ctx *Context) checkUserTotalUploadedSize(adding int64) error {
+	// Unlimited
+	if ctx.GetUserMaxSize() <= 0 {
+		return nil
+	}
+
+	stats, err := ctx.GetMetadataBackend().GetUserStatistics(ctx.GetUser().ID, nil)
+	if err != nil {
+		// TODO handle this HTTPError
+		return common.NewHTTPError("unable to get user statistics", err, http.StatusInternalServerError)
+	}
+
+	// Check user user upload size
+	if stats.TotalSize+adding > ctx.GetUserMaxSize() {
+		return fmt.Errorf("maximum user upload size reached. (%s)", humanize.Bytes(uint64(ctx.GetUser().MaxUserSize)))
+	}
+
+	return nil
+}
+
+// CheckUserTotalUploadedSize checks if context user is over space quota
+func (ctx *Context) CheckUserTotalUploadedSize() error {
+	return ctx.checkUserTotalUploadedSize(0)
+}
+
+// CheckUserFreeSpaceForUpload checks if context user has enough space to add this upload
+func (ctx *Context) CheckUserFreeSpaceForUpload(upload *common.Upload) error {
+	// Unlimited
+	if ctx.GetUserMaxSize() <= 0 {
+		return nil
+	}
+
+	// Compute upload size
+	uploadSize := int64(0)
+	if upload != nil {
+		for _, file := range upload.Files {
+			if file.Size > 0 {
+				uploadSize += file.Size
+			}
+		}
+	}
+
+	// Check user user upload size
+	if uploadSize > ctx.GetUserMaxSize() {
+		return fmt.Errorf("maximum user upload size reached. (%s)", humanize.Bytes(uint64(ctx.GetUser().MaxUserSize)))
+	}
+
+	return ctx.checkUserTotalUploadedSize(uploadSize)
+}
+
+// GetUserMaxSize return user max file size if configured or server default
+func (ctx *Context) GetUserMaxSize() int64 {
+	user := ctx.GetUser()
+	if user == nil {
+		return -1
+	}
+	if user.MaxUserSize > 0 {
+		return user.MaxUserSize
+	}
+	if user.MaxUserSize < 0 {
+		return -1
+	}
+	return ctx.GetConfig().MaxUserSize
 }
 
 func (ctx *Context) setUser(upload *common.Upload) (err error) {

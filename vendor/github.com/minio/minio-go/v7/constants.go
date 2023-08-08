@@ -17,15 +17,15 @@
 
 package minio
 
-/// Multipart upload defaults.
+// Multipart upload defaults.
 
 // absMinPartSize - absolute minimum part size (5 MiB) below which
 // a part in a multipart upload may not be uploaded.
 const absMinPartSize = 1024 * 1024 * 5
 
-// minPartSize - minimum part size 128MiB per object after which
+// minPartSize - minimum part size 16MiB per object after which
 // putObject behaves internally as multipart.
-const minPartSize = 1024 * 1024 * 128
+const minPartSize = 1024 * 1024 * 16
 
 // maxPartsCount - maximum number of parts for a single multipart session.
 const maxPartsCount = 10000
@@ -45,6 +45,10 @@ const maxMultipartPutObjectSize = 1024 * 1024 * 1024 * 1024 * 5
 // unsignedPayload - value to be set to X-Amz-Content-Sha256 header when
 // we don't want to sign the request payload
 const unsignedPayload = "UNSIGNED-PAYLOAD"
+
+// unsignedPayloadTrailer value to be set to X-Amz-Content-Sha256 header when
+// we don't want to sign the request payload, but have a trailer.
+const unsignedPayloadTrailer = "STREAMING-UNSIGNED-PAYLOAD-TRAILER"
 
 // Total number of parallel workers used for multipart operation.
 const totalWorkers = 4
@@ -69,7 +73,9 @@ const (
 	amzVersionID         = "X-Amz-Version-Id"
 	amzTaggingCount      = "X-Amz-Tagging-Count"
 	amzExpiration        = "X-Amz-Expiration"
+	amzRestore           = "X-Amz-Restore"
 	amzReplicationStatus = "X-Amz-Replication-Status"
+	amzDeleteMarker      = "X-Amz-Delete-Marker"
 
 	// Object legal hold header
 	amzLegalHoldHeader = "X-Amz-Object-Lock-Legal-Hold"
@@ -81,7 +87,24 @@ const (
 
 	// Replication status
 	amzBucketReplicationStatus = "X-Amz-Replication-Status"
-	// Minio specific Replication extension
-	minIOBucketReplicationSourceMTime = "X-Minio-Source-Mtime"
-	minIOBucketReplicationETag        = "X-Minio-Source-Etag"
+	// Minio specific Replication/lifecycle transition extension
+	minIOBucketSourceMTime = "X-Minio-Source-Mtime"
+
+	minIOBucketSourceETag              = "X-Minio-Source-Etag"
+	minIOBucketReplicationDeleteMarker = "X-Minio-Source-DeleteMarker"
+	minIOBucketReplicationProxyRequest = "X-Minio-Source-Proxy-Request"
+	minIOBucketReplicationRequest      = "X-Minio-Source-Replication-Request"
+	minIOBucketReplicationCheck        = "X-Minio-Source-Replication-Check"
+
+	// Header indicates last tag update time on source
+	minIOBucketReplicationTaggingTimestamp = "X-Minio-Source-Replication-Tagging-Timestamp"
+	// Header indicates last retention update time on source
+	minIOBucketReplicationObjectRetentionTimestamp = "X-Minio-Source-Replication-Retention-Timestamp"
+	// Header indicates last legalhold update time on source
+	minIOBucketReplicationObjectLegalHoldTimestamp = "X-Minio-Source-Replication-LegalHold-Timestamp"
+	minIOForceDelete                               = "x-minio-force-delete"
+	// Header indicates delete marker replication request can be sent by source now.
+	minioTgtReplicationReady = "X-Minio-Replication-Ready"
+	// Header asks if delete marker replication request can be sent by source now.
+	isMinioTgtReplicationReady = "X-Minio-Check-Replication-Ready"
 )

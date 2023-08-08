@@ -21,13 +21,13 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7/pkg/encrypt"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
@@ -200,9 +200,9 @@ func (opts CopySrcOptions) validate() (err error) {
 }
 
 // Low level implementation of CopyObject API, supports only upto 5GiB worth of copy.
-func (c Client) copyObjectDo(ctx context.Context, srcBucket, srcObject, destBucket, destObject string,
-	metadata map[string]string) (ObjectInfo, error) {
-
+func (c *Client) copyObjectDo(ctx context.Context, srcBucket, srcObject, destBucket, destObject string,
+	metadata map[string]string, srcOpts CopySrcOptions, dstOpts PutObjectOptions,
+) (ObjectInfo, error) {
 	// Build headers.
 	headers := make(http.Header)
 
@@ -210,16 +210,58 @@ func (c Client) copyObjectDo(ctx context.Context, srcBucket, srcObject, destBuck
 	for k, v := range metadata {
 		headers.Set(k, v)
 	}
+	if !dstOpts.Internal.ReplicationStatus.Empty() {
+		headers.Set(amzBucketReplicationStatus, string(dstOpts.Internal.ReplicationStatus))
+	}
+	if !dstOpts.Internal.SourceMTime.IsZero() {
+		headers.Set(minIOBucketSourceMTime, dstOpts.Internal.SourceMTime.Format(time.RFC3339Nano))
+	}
+	if dstOpts.Internal.SourceETag != "" {
+		headers.Set(minIOBucketSourceETag, dstOpts.Internal.SourceETag)
+	}
+	if dstOpts.Internal.ReplicationRequest {
+		headers.Set(minIOBucketReplicationRequest, "true")
+	}
+	if dstOpts.Internal.ReplicationValidityCheck {
+		headers.Set(minIOBucketReplicationCheck, "true")
+	}
+	if !dstOpts.Internal.LegalholdTimestamp.IsZero() {
+		headers.Set(minIOBucketReplicationObjectLegalHoldTimestamp, dstOpts.Internal.LegalholdTimestamp.Format(time.RFC3339Nano))
+	}
+	if !dstOpts.Internal.RetentionTimestamp.IsZero() {
+		headers.Set(minIOBucketReplicationObjectRetentionTimestamp, dstOpts.Internal.RetentionTimestamp.Format(time.RFC3339Nano))
+	}
+	if !dstOpts.Internal.TaggingTimestamp.IsZero() {
+		headers.Set(minIOBucketReplicationTaggingTimestamp, dstOpts.Internal.TaggingTimestamp.Format(time.RFC3339Nano))
+	}
 
-	// Set the source header
-	headers.Set("x-amz-copy-source", s3utils.EncodePath(srcBucket+"/"+srcObject))
+	if len(dstOpts.UserTags) != 0 {
+		headers.Set(amzTaggingHeader, s3utils.TagEncode(dstOpts.UserTags))
+	}
 
-	// Send upload-part-copy request
-	resp, err := c.executeMethod(ctx, http.MethodPut, requestMetadata{
+	reqMetadata := requestMetadata{
 		bucketName:   destBucket,
 		objectName:   destObject,
 		customHeader: headers,
-	})
+	}
+	if dstOpts.Internal.SourceVersionID != "" {
+		if dstOpts.Internal.SourceVersionID != nullVersionID {
+			if _, err := uuid.Parse(dstOpts.Internal.SourceVersionID); err != nil {
+				return ObjectInfo{}, errInvalidArgument(err.Error())
+			}
+		}
+		urlValues := make(url.Values)
+		urlValues.Set("versionId", dstOpts.Internal.SourceVersionID)
+		reqMetadata.queryValues = urlValues
+	}
+
+	// Set the source header
+	headers.Set("x-amz-copy-source", s3utils.EncodePath(srcBucket+"/"+srcObject))
+	if srcOpts.VersionID != "" {
+		headers.Set("x-amz-copy-source", s3utils.EncodePath(srcBucket+"/"+srcObject)+"?versionId="+srcOpts.VersionID)
+	}
+	// Send upload-part-copy request
+	resp, err := c.executeMethod(ctx, http.MethodPut, reqMetadata)
 	defer closeResponse(resp)
 	if err != nil {
 		return ObjectInfo{}, err
@@ -244,9 +286,9 @@ func (c Client) copyObjectDo(ctx context.Context, srcBucket, srcObject, destBuck
 	return objInfo, nil
 }
 
-func (c Client) copyObjectPartDo(ctx context.Context, srcBucket, srcObject, destBucket, destObject string, uploadID string,
-	partID int, startOffset int64, length int64, metadata map[string]string) (p CompletePart, err error) {
-
+func (c *Client) copyObjectPartDo(ctx context.Context, srcBucket, srcObject, destBucket, destObject string, uploadID string,
+	partID int, startOffset int64, length int64, metadata map[string]string,
+) (p CompletePart, err error) {
 	headers := make(http.Header)
 
 	// Set source
@@ -297,9 +339,9 @@ func (c Client) copyObjectPartDo(ctx context.Context, srcBucket, srcObject, dest
 // uploadPartCopy - helper function to create a part in a multipart
 // upload via an upload-part-copy request
 // https://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadUploadPartCopy.html
-func (c Client) uploadPartCopy(ctx context.Context, bucket, object, uploadID string, partNumber int,
-	headers http.Header) (p CompletePart, err error) {
-
+func (c *Client) uploadPartCopy(ctx context.Context, bucket, object, uploadID string, partNumber int,
+	headers http.Header,
+) (p CompletePart, err error) {
 	// Build query parameters
 	urlValues := make(url.Values)
 	urlValues.Set("partNumber", strconv.Itoa(partNumber))
@@ -337,7 +379,7 @@ func (c Client) uploadPartCopy(ctx context.Context, bucket, object, uploadID str
 // and concatenates them into a new object using only server-side copying
 // operations. Optionally takes progress reader hook for applications to
 // look at current progress.
-func (c Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ...CopySrcOptions) (UploadInfo, error) {
+func (c *Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ...CopySrcOptions) (UploadInfo, error) {
 	if len(srcs) < 1 || len(srcs) > maxPartsCount {
 		return UploadInfo{}, errInvalidArgument("There must be as least one and up to 10000 source objects.")
 	}
@@ -358,7 +400,7 @@ func (c Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ...
 	var err error
 	for i, src := range srcs {
 		opts := StatObjectOptions{ServerSideEncryption: encrypt.SSE(src.Encryption), VersionID: src.VersionID}
-		srcObjectInfos[i], err = c.statObject(context.Background(), src.Bucket, src.Object, opts)
+		srcObjectInfos[i], err = c.StatObject(context.Background(), src.Bucket, src.Object, opts)
 		if err != nil {
 			return UploadInfo{}, err
 		}
@@ -452,7 +494,7 @@ func (c Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ...
 	objParts := []CompletePart{}
 	partIndex := 1
 	for i, src := range srcs {
-		var h = make(http.Header)
+		h := make(http.Header)
 		src.Marshal(h)
 		if dst.Encryption != nil && dst.Encryption.Type() == encrypt.SSEC {
 			dst.Encryption.Marshal(h)
@@ -476,7 +518,7 @@ func (c Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ...
 				return UploadInfo{}, err
 			}
 			if dst.Progress != nil {
-				io.CopyN(ioutil.Discard, dst.Progress, end-start+1)
+				io.CopyN(io.Discard, dst.Progress, end-start+1)
 			}
 			objParts = append(objParts, complPart)
 			partIndex++
@@ -485,7 +527,7 @@ func (c Client) ComposeObject(ctx context.Context, dst CopyDestOptions, srcs ...
 
 	// 4. Make final complete-multipart request.
 	uploadInfo, err := c.completeMultipartUpload(ctx, dst.Bucket, dst.Object, uploadID,
-		completeMultipartUpload{Parts: objParts})
+		completeMultipartUpload{Parts: objParts}, PutObjectOptions{ServerSideEncryption: dst.Encryption})
 	if err != nil {
 		return UploadInfo{}, err
 	}

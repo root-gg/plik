@@ -6,14 +6,15 @@ import (
 	"time"
 
 	"github.com/go-gormigrate/gormigrate/v2"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/root-gg/logger"
+	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/utils"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-
-	"github.com/root-gg/plik/server/common"
+	gormPrometheus "gorm.io/plugin/prometheus"
 )
 
 // Config metadata backend configuration
@@ -44,8 +45,9 @@ func NewConfig(params map[string]interface{}) (config *Config) {
 type Backend struct {
 	Config *Config
 
-	log *logger.Logger
-	db  *gorm.DB
+	log     *logger.Logger
+	db      *gorm.DB
+	dbStats *gormPrometheus.DBStats
 }
 
 // NewBackend instantiate a new File Data Backend
@@ -125,6 +127,14 @@ func NewBackend(config *Config, log *logger.Logger) (b *Backend, err error) {
 			return nil, fmt.Errorf("unable to enable foreign keys : %s", err)
 		}
 	}
+
+	// Setup metrics
+	dbMetrics := gormPrometheus.New(gormPrometheus.Config{})
+	err = b.db.Use(dbMetrics)
+	if err != nil {
+		return nil, fmt.Errorf("unable to enable gorm metrics : %s", err)
+	}
+	b.dbStats = dbMetrics.DBStats
 
 	// For testing
 	if config.EraseFirst {
@@ -212,7 +222,7 @@ func (b *Backend) adjustConnectionPoolParameters() (err error) {
 	return nil
 }
 
-// Shutdown the the metadata backend, close all connections to the database.
+// Shutdown the metadata backend, close all connections to the database.
 func (b *Backend) Shutdown() (err error) {
 
 	// Close database connection
@@ -232,33 +242,43 @@ func (b *Backend) Shutdown() (err error) {
 
 // Clean metadata database
 //   - Remove orphan files and tokens
-func (b *Backend) Clean() error {
+func (b *Backend) Clean() (files int, tokens int, err error) {
 	return b.clean(b.db)
 }
 
-func (b *Backend) clean(tx *gorm.DB) error {
+func (b *Backend) clean(tx *gorm.DB) (files int, tokens int, err error) {
 	if !tx.Migrator().HasTable("uploads") {
 		// Empty database
-		return nil
+		return 0, 0, nil
 	}
 
 	b.log.Infof("Cleaning up SQL database")
 
 	result := tx.Exec("delete from files where upload_id not in (select id from uploads);")
 	if result.Error != nil {
-		return result.Error
+		return 0, 0, result.Error
 	}
 	if result.RowsAffected > 0 {
 		b.log.Warningf("deleted %d orphan files", result.RowsAffected)
 	}
+	files = int(result.RowsAffected)
 
 	result = tx.Exec("delete from tokens where user_id not in (select id from users);")
 	if result.Error != nil {
-		return result.Error
+		return 0, 0, result.Error
 	}
 	if result.RowsAffected > 0 {
 		b.log.Warningf("deleted %d orphan tokens", result.RowsAffected)
 	}
+	tokens = int(result.RowsAffected)
 
+	return files, tokens, nil
+}
+
+// GetMetricsCollectors return Gorm metrics
+func (b *Backend) GetMetricsCollectors() []prometheus.Collector {
+	if b.dbStats != nil {
+		return b.dbStats.Collectors()
+	}
 	return nil
 }

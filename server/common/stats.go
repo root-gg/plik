@@ -19,6 +19,15 @@ type UserStats struct {
 	TotalSize int64 `json:"totalSize"`
 }
 
+// CleaningStats cleaning statistics
+type CleaningStats struct {
+	RemovedUploads      int
+	DeletedFiles        int
+	DeletedUploads      int
+	OrphanFilesCleaned  int
+	OrphanTokensCleaned int
+}
+
 // Helpers to build the Server Stats
 
 // AddUpload add statistics of one upload to the ServerStats

@@ -25,6 +25,7 @@ type User struct {
 	IsAdmin  bool   `json:"admin"`
 
 	MaxFileSize int64 `json:"maxFileSize"`
+	MaxUserSize int64 `json:"maxUserSize"`
 	MaxTTL      int   `json:"maxTTL"`
 
 	Tokens []*Token `json:"tokens,omitempty"`
@@ -91,6 +92,7 @@ func CreateUserFromParams(userParams *User) (user *User, err error) {
 	user.Email = userParams.Email
 	user.IsAdmin = userParams.IsAdmin
 	user.MaxFileSize = userParams.MaxFileSize
+	user.MaxUserSize = userParams.MaxUserSize
 	user.MaxTTL = userParams.MaxTTL
 
 	if user.Provider == ProviderLocal {
@@ -100,7 +102,7 @@ func CreateUserFromParams(userParams *User) (user *User, err error) {
 
 		hash, err := HashPassword(userParams.Password)
 		if err != nil {
-			return nil, fmt.Errorf("unable to hash password : %s\n", err)
+			return nil, fmt.Errorf("unable to hash password : %s", err)
 		}
 		user.Password = hash
 	}
@@ -127,6 +129,7 @@ func UpdateUser(user *User, userParams *User) (err error) {
 	user.Email = userParams.Email
 	user.IsAdmin = userParams.IsAdmin
 	user.MaxFileSize = userParams.MaxFileSize
+	user.MaxUserSize = userParams.MaxUserSize
 	user.MaxTTL = userParams.MaxTTL
 	return nil
 }

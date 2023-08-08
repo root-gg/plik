@@ -53,6 +53,7 @@ function getTTL (ttl, unit) {
 // Return human-readable filesize
 function getHumanReadableSize(size) {
     if (_.isUndefined(size)) return;
+    if (size === -1) return "unlimited"
     return filesize(size, {base: 10});
 }
 

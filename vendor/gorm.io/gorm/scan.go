@@ -4,12 +4,13 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"reflect"
-	"strings"
 	"time"
 
 	"gorm.io/gorm/schema"
+	"gorm.io/gorm/utils"
 )
 
+// prepareValues prepare values slice
 func prepareValues(values []interface{}, db *DB, columnTypes []*sql.ColumnType, columns []string) {
 	if db.Statement.Schema != nil {
 		for idx, name := range columns {
@@ -49,65 +50,79 @@ func scanIntoMap(mapValue map[string]interface{}, values []interface{}, columns 
 	}
 }
 
-func (db *DB) scanIntoStruct(sch *schema.Schema, rows *sql.Rows, reflectValue reflect.Value, values []interface{}, columns []string, fields []*schema.Field, joinFields [][2]*schema.Field) {
-	for idx, column := range columns {
-		if sch == nil {
-			values[idx] = reflectValue.Interface()
-		} else if field := sch.LookUpField(column); field != nil && field.Readable {
-			values[idx] = reflect.New(reflect.PtrTo(field.IndirectFieldType)).Interface()
-		} else if names := strings.Split(column, "__"); len(names) > 1 {
-			if rel, ok := sch.Relationships.Relations[names[0]]; ok {
-				if field := rel.FieldSchema.LookUpField(strings.Join(names[1:], "__")); field != nil && field.Readable {
-					values[idx] = reflect.New(reflect.PtrTo(field.IndirectFieldType)).Interface()
-					continue
-				}
+func (db *DB) scanIntoStruct(rows Rows, reflectValue reflect.Value, values []interface{}, fields []*schema.Field, joinFields [][]*schema.Field) {
+	for idx, field := range fields {
+		if field != nil {
+			values[idx] = field.NewValuePool.Get()
+		} else if len(fields) == 1 {
+			if reflectValue.CanAddr() {
+				values[idx] = reflectValue.Addr().Interface()
+			} else {
+				values[idx] = reflectValue.Interface()
 			}
-			values[idx] = &sql.RawBytes{}
-		} else if len(columns) == 1 {
-			sch = nil
-			values[idx] = reflectValue.Interface()
-		} else {
-			values[idx] = &sql.RawBytes{}
 		}
 	}
 
 	db.RowsAffected++
 	db.AddError(rows.Scan(values...))
+	joinedNestedSchemaMap := make(map[string]interface{})
+	for idx, field := range fields {
+		if field == nil {
+			continue
+		}
 
-	if sch != nil {
-		for idx, column := range columns {
-			if field := sch.LookUpField(column); field != nil && field.Readable {
-				field.Set(reflectValue, values[idx])
-			} else if names := strings.Split(column, "__"); len(names) > 1 {
-				if rel, ok := sch.Relationships.Relations[names[0]]; ok {
-					if field := rel.FieldSchema.LookUpField(strings.Join(names[1:], "__")); field != nil && field.Readable {
-						relValue := rel.Field.ReflectValueOf(reflectValue)
-						value := reflect.ValueOf(values[idx]).Elem()
-
-						if relValue.Kind() == reflect.Ptr && relValue.IsNil() {
-							if value.IsNil() {
-								continue
-							}
-							relValue.Set(reflect.New(relValue.Type().Elem()))
+		if len(joinFields) == 0 || len(joinFields[idx]) == 0 {
+			db.AddError(field.Set(db.Statement.Context, reflectValue, values[idx]))
+		} else { // joinFields count is larger than 2 when using join
+			var isNilPtrValue bool
+			var relValue reflect.Value
+			// does not contain raw dbname
+			nestedJoinSchemas := joinFields[idx][:len(joinFields[idx])-1]
+			// current reflect value
+			currentReflectValue := reflectValue
+			fullRels := make([]string, 0, len(nestedJoinSchemas))
+			for _, joinSchema := range nestedJoinSchemas {
+				fullRels = append(fullRels, joinSchema.Name)
+				relValue = joinSchema.ReflectValueOf(db.Statement.Context, currentReflectValue)
+				if relValue.Kind() == reflect.Ptr {
+					fullRelsName := utils.JoinNestedRelationNames(fullRels)
+					// same nested structure
+					if _, ok := joinedNestedSchemaMap[fullRelsName]; !ok {
+						if value := reflect.ValueOf(values[idx]).Elem(); value.Kind() == reflect.Ptr && value.IsNil() {
+							isNilPtrValue = true
+							break
 						}
 
-						field.Set(relValue, values[idx])
+						relValue.Set(reflect.New(relValue.Type().Elem()))
+						joinedNestedSchemaMap[fullRelsName] = nil
 					}
 				}
+				currentReflectValue = relValue
+			}
+
+			if !isNilPtrValue { // ignore if value is nil
+				f := joinFields[idx][len(joinFields[idx])-1]
+				db.AddError(f.Set(db.Statement.Context, relValue, values[idx]))
 			}
 		}
+
+		// release data to pool
+		field.NewValuePool.Put(values[idx])
 	}
 }
 
+// ScanMode scan data mode
 type ScanMode uint8
 
+// scan modes
 const (
-	ScanInitialized         ScanMode = 1 << 0
-	ScanUpdate                       = 1 << 1
-	ScanOnConflictDoNothing          = 1 << 2
+	ScanInitialized         ScanMode = 1 << 0 // 1
+	ScanUpdate              ScanMode = 1 << 1 // 2
+	ScanOnConflictDoNothing ScanMode = 1 << 2 // 4
 )
 
-func Scan(rows *sql.Rows, db *DB, mode ScanMode) {
+// Scan scan rows into db statement
+func Scan(rows Rows, db *DB, mode ScanMode) {
 	var (
 		columns, _          = rows.Columns()
 		values              = make([]interface{}, len(columns))
@@ -138,7 +153,7 @@ func Scan(rows *sql.Rows, db *DB, mode ScanMode) {
 			}
 			scanIntoMap(mapValue, values, columns)
 		}
-	case *[]map[string]interface{}, []map[string]interface{}:
+	case *[]map[string]interface{}:
 		columnTypes, _ := rows.ColumnTypes()
 		for initialized || rows.Next() {
 			prepareValues(values, db, columnTypes, columns)
@@ -149,11 +164,7 @@ func Scan(rows *sql.Rows, db *DB, mode ScanMode) {
 
 			mapValue := map[string]interface{}{}
 			scanIntoMap(mapValue, values, columns)
-			if values, ok := dest.([]map[string]interface{}); ok {
-				values = append(values, mapValue)
-			} else if values, ok := dest.(*[]map[string]interface{}); ok {
-				*values = append(*values, mapValue)
-			}
+			*dest = append(*dest, mapValue)
 		}
 	case *int, *int8, *int16, *int32, *int64,
 		*uint, *uint8, *uint16, *uint32, *uint64, *uintptr,
@@ -169,7 +180,7 @@ func Scan(rows *sql.Rows, db *DB, mode ScanMode) {
 	default:
 		var (
 			fields       = make([]*schema.Field, len(columns))
-			joinFields   [][2]*schema.Field
+			joinFields   [][]*schema.Field
 			sch          = db.Statement.Schema
 			reflectValue = db.Statement.ReflectValue
 		)
@@ -193,44 +204,83 @@ func Scan(rows *sql.Rows, db *DB, mode ScanMode) {
 				sch, _ = schema.Parse(db.Statement.Dest, db.cacheStore, db.NamingStrategy)
 			}
 
-			for idx, column := range columns {
-				if field := sch.LookUpField(column); field != nil && field.Readable {
-					fields[idx] = field
-				} else if names := strings.Split(column, "__"); len(names) > 1 {
-					if rel, ok := sch.Relationships.Relations[names[0]]; ok {
-						if field := rel.FieldSchema.LookUpField(strings.Join(names[1:], "__")); field != nil && field.Readable {
-							fields[idx] = field
-
-							if len(joinFields) == 0 {
-								joinFields = make([][2]*schema.Field, len(columns))
-							}
-							joinFields[idx] = [2]*schema.Field{rel.Field, field}
-							continue
-						}
-					}
-					values[idx] = &sql.RawBytes{}
-				} else {
-					values[idx] = &sql.RawBytes{}
-				}
-			}
-
 			if len(columns) == 1 {
-				// isPluck
+				// Is Pluck
 				if _, ok := reflect.New(reflectValueType).Interface().(sql.Scanner); (reflectValueType != sch.ModelType && ok) || // is scanner
 					reflectValueType.Kind() != reflect.Struct || // is not struct
 					sch.ModelType.ConvertibleTo(schema.TimeReflectType) { // is time
 					sch = nil
 				}
 			}
+
+			// Not Pluck
+			if sch != nil {
+				matchedFieldCount := make(map[string]int, len(columns))
+				for idx, column := range columns {
+					if field := sch.LookUpField(column); field != nil && field.Readable {
+						fields[idx] = field
+						if count, ok := matchedFieldCount[column]; ok {
+							// handle duplicate fields
+							for _, selectField := range sch.Fields {
+								if selectField.DBName == column && selectField.Readable {
+									if count == 0 {
+										matchedFieldCount[column]++
+										fields[idx] = selectField
+										break
+									}
+									count--
+								}
+							}
+						} else {
+							matchedFieldCount[column] = 1
+						}
+					} else if names := utils.SplitNestedRelationName(column); len(names) > 1 { // has nested relation
+						if rel, ok := sch.Relationships.Relations[names[0]]; ok {
+							subNameCount := len(names)
+							// nested relation fields
+							relFields := make([]*schema.Field, 0, subNameCount-1)
+							relFields = append(relFields, rel.Field)
+							for _, name := range names[1 : subNameCount-1] {
+								rel = rel.FieldSchema.Relationships.Relations[name]
+								relFields = append(relFields, rel.Field)
+							}
+							// lastest name is raw dbname
+							dbName := names[subNameCount-1]
+							if field := rel.FieldSchema.LookUpField(dbName); field != nil && field.Readable {
+								fields[idx] = field
+
+								if len(joinFields) == 0 {
+									joinFields = make([][]*schema.Field, len(columns))
+								}
+								relFields = append(relFields, field)
+								joinFields[idx] = relFields
+								continue
+							}
+						}
+						values[idx] = &sql.RawBytes{}
+					} else {
+						values[idx] = &sql.RawBytes{}
+					}
+				}
+			}
 		}
 
 		switch reflectValue.Kind() {
 		case reflect.Slice, reflect.Array:
-			var elem reflect.Value
+			var (
+				elem        reflect.Value
+				isArrayKind = reflectValue.Kind() == reflect.Array
+			)
 
 			if !update || reflectValue.Len() == 0 {
 				update = false
-				db.Statement.ReflectValue.Set(reflect.MakeSlice(reflectValue.Type(), 0, 20))
+				// if the slice cap is externally initialized, the externally initialized slice is directly used here
+				if reflectValue.Cap() == 0 {
+					db.Statement.ReflectValue.Set(reflect.MakeSlice(reflectValue.Type(), 0, 20))
+				} else if !isArrayKind {
+					reflectValue.SetLen(0)
+					db.Statement.ReflectValue.Set(reflectValue)
+				}
 			}
 
 			for initialized || rows.Next() {
@@ -244,7 +294,7 @@ func Scan(rows *sql.Rows, db *DB, mode ScanMode) {
 					elem = reflectValue.Index(int(db.RowsAffected))
 					if onConflictDonothing {
 						for _, field := range fields {
-							if _, ok := field.ValueOf(elem); !ok {
+							if _, ok := field.ValueOf(db.Statement.Context, elem); !ok {
 								db.RowsAffected++
 								goto BEGIN
 							}
@@ -254,13 +304,18 @@ func Scan(rows *sql.Rows, db *DB, mode ScanMode) {
 					elem = reflect.New(reflectValueType)
 				}
 
-				db.scanIntoStruct(sch, rows, elem, values, columns, fields, joinFields)
+				db.scanIntoStruct(rows, elem, values, fields, joinFields)
 
 				if !update {
-					if isPtr {
-						reflectValue = reflect.Append(reflectValue, elem)
+					if !isPtr {
+						elem = elem.Elem()
+					}
+					if isArrayKind {
+						if reflectValue.Len() >= int(db.RowsAffected) {
+							reflectValue.Index(int(db.RowsAffected - 1)).Set(elem)
+						}
 					} else {
-						reflectValue = reflect.Append(reflectValue, elem.Elem())
+						reflectValue = reflect.Append(reflectValue, elem)
 					}
 				}
 			}
@@ -270,7 +325,7 @@ func Scan(rows *sql.Rows, db *DB, mode ScanMode) {
 			}
 		case reflect.Struct, reflect.Ptr:
 			if initialized || rows.Next() {
-				db.scanIntoStruct(sch, rows, reflectValue, values, columns, fields, joinFields)
+				db.scanIntoStruct(rows, reflectValue, values, fields, joinFields)
 			}
 		default:
 			db.AddError(rows.Scan(dest))

@@ -86,7 +86,7 @@ func (b *Backend) getMigrations() []*gormigrate.Migration {
 					Value string
 				}
 
-				err := b.clean(tx)
+				_, _, err := b.clean(tx)
 				if err != nil {
 					return err
 				}
@@ -106,7 +106,7 @@ func (b *Backend) getMigrations() []*gormigrate.Migration {
 					MaxTTL      int   `json:"maxTTL"`
 				}
 
-				err := b.clean(tx)
+				_, _, err := b.clean(tx)
 				if err != nil {
 					return err
 				}
@@ -125,13 +125,32 @@ func (b *Backend) getMigrations() []*gormigrate.Migration {
 					ExtendTTL bool `json:"extend_ttl"`
 				}
 
-				err := b.clean(tx)
+				_, _, err := b.clean(tx)
 				if err != nil {
 					return err
 				}
 
 				b.log.Warning("Applying database migration 0003-extend-ttl")
 				return b.setupTxForMigration(tx).AutoMigrate(&Upload{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				b.log.Criticalf("Something went wrong. Please check database status manually")
+				return nil
+			},
+		}, {
+			ID: "0004-max-user-size",
+			Migrate: func(tx *gorm.DB) error {
+				type User struct {
+					MaxUserSize int64 `json:"maxUserSize"`
+				}
+
+				_, _, err := b.clean(tx)
+				if err != nil {
+					return err
+				}
+
+				b.log.Warning("Applying database migration 0004-user-max-user-size")
+				return b.setupTxForMigration(tx).AutoMigrate(&User{})
 			},
 			Rollback: func(tx *gorm.DB) error {
 				b.log.Criticalf("Something went wrong. Please check database status manually")

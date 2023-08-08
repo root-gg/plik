@@ -120,4 +120,12 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 			log.Warningf("error while copying file to response : %s", err)
 		}
 	}
+
+	if file.Status == common.FileRemoved {
+		// Remove the file asynchronously
+		err := purge(ctx, file)
+		if err != nil {
+			log.Warningf(err.Error())
+		}
+	}
 }

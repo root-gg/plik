@@ -24,6 +24,14 @@
                 </button>
             </div>
         </div>
+        <!-- UPLOADS BUTTON -->
+        <div class="tile menu">
+            <div class="menu-item">
+                <button type="button" class="btn btn-lg btn-primary btn-block" ng-click="displayUploads()">
+                    <i class="fa fa-files-o"></i> Uploads
+                </button>
+            </div>
+        </div>
         <!-- USERS BUTTON -->
         <div class="tile menu">
             <div class="menu-item">
@@ -36,7 +44,7 @@
         <div class="tile menu">
             <div class="menu-item">
                 <button type="button" class="btn btn-lg btn-primary btn-block" ng-click="createUser()">
-                    <i class="fa fa-users"></i> Create User
+                    <i class="fa fa-user"></i> Create User
                 </button>
             </div>
         </div>
@@ -51,6 +59,9 @@
                         <div class="row center-block text-center">
                             <p>
                                 Max File Size : {{humanReadableSize(config.maxFileSize)}}
+                            </p>
+                            <p>
+                                Max User Size : {{humanReadableSize(config.maxUserSize)}}
                             </p>
                             <p>
                                 Default TTL : {{getHumanReadableTTLString(config.defaultTTL)}}
@@ -127,6 +138,7 @@
                                 </div>
                                 <div class="col-sm-3 file-name">
                                     max file size : {{getUserMaxFileSize(user)}}<br/>
+                                    max user size : {{getUserMaxUserSize(user)}}<br/>
                                     max TTL : {{getUserMaxTTL(user)}}
                                 </div>
                                 <div class="col-sm-3">
@@ -156,6 +168,89 @@
                                 <div class="row">
                                     <div class="col-xs-12 text-center">
                                         Load more users
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- UPLOADS -->
+        <div class="row" ng-if="display=='uploads'">
+            <div class="col-sm-12 col-centered">
+                <div class="tile panel panel-body main">
+                    <div class="row center-block text-center">
+                        <div class="tile panel panel-body main text-center">
+                            <p>
+                                <p>
+                                    sort by : <input type="radio" ng-model="sort_uploads.selected" value="date" name="sort" ng-change="displayUploads(false, user, token)"> Creation date
+                                              <input type="radio" ng-model="sort_uploads.selected" value="size" name="sort" ng-change="displayUploads(false, user, token)"> Size
+                                </p>
+                                <p>
+                                    order by : <input type="radio" ng-model="sort_uploads_order.selected" value="desc" name="order" ng-change="displayUploads(false, user, token)"> Descending
+                                               <input type="radio" ng-model="sort_uploads_order.selected" value="asc" name="order" ng-change="displayUploads(false, user, token)"> Ascending
+                                </p>
+                                <p ng-if="user">
+                                    user : {{ user }} <i class="fa fa-remove" ng-click="displayUploads(false)"></i>
+                                </p>
+                                <p ng-if="token">
+                                    token : {{ token }} <i class="fa fa-remove" ng-click="displayUploads(false, user)"></i>
+                                </p>
+                            </p>
+                        </div>
+                    </div>
+                    <!-- UPLOADS -->
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <div class="tile panel panel-body main" ng-repeat="upload in uploads">
+                                <div class="row">
+                                    <div class="col-xs-12 col-sm-4 small file-name">
+                                        <!-- UPLOAD ID / LINK -->
+                                        <a href="{{getUploadUrl(upload)}}">{{ upload.id }}</a>
+                                        <br/>
+                                        <!-- UPLOAD DATE -->
+                                        uploaded : {{ upload.createdAt | date:'medium' }}
+                                        <br/>
+                                        <!-- EXPIRE DATE -->
+                                        expire : {{ upload.expireAt | date:'medium' }}
+                                        <!-- TOKEN -->
+                                        <br ng-if="upload.user"/>
+                                        <span ng-if="upload.user">
+                                            user : <a href="" ng-click="displayUploads(false,upload.user)">{{ upload.user }}</a>
+                                        </span>
+                                        <br ng-if="upload.token"/>
+                                        <span ng-if="upload.token">
+                                            token : <a href="" ng-click="displayUploads(false,upload.user,upload.token)">{{ upload.token }}</a>
+                                        </span>
+                                    </div>
+                                    <div class="col-xs-12 col-sm-6 small file-name">
+                                        <div ng-repeat="file in upload.files | filter: {status: 'uploaded'}">
+                                            <a href="{{getFileUrl(upload,file)}}">{{ file.fileName }}</a>
+                                            <button style="background-color: transparent; border: none;" data-clipboard data-clipboard-text="{{getFileUrl(upload,file)}}">
+                                                <span class="glyphicon glyphicon-copy"></span>
+                                            </button>
+                                            <span class="pull-right">{{ humanReadableSize(file.fileSize) }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-xs-12 col-sm-2 text-center">
+                                        <!-- REMOVE -->
+                                        <button class="btn btn-danger btn-sm" ng-click="deleteUpload(upload)">
+                                            <span class="glyphicon glyphicon-remove"></span><span
+                                                class="hidden-xs hidden-sm hidden-md"> Remove</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- LOAD MORE UPLOADS -->
+                    <div class="row" ng-if="display=='uploads' && cursor">
+                        <div class="col-sm-12">
+                            <div class="tile panel panel-body main" ng-click="displayUploads(true)">
+                                <div class="row">
+                                    <div class="col-xs-12 text-center">
+                                        Load more uploads
                                     </div>
                                 </div>
                             </div>

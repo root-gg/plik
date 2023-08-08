@@ -89,17 +89,29 @@ var amazonS3HostHyphen = regexp.MustCompile(`^s3-(.*?).amazonaws.com$`)
 // amazonS3HostDualStack - regular expression used to determine if an arg is s3 host dualstack.
 var amazonS3HostDualStack = regexp.MustCompile(`^s3.dualstack.(.*?).amazonaws.com$`)
 
+// amazonS3HostFIPS - regular expression used to determine if an arg is s3 FIPS host.
+var amazonS3HostFIPS = regexp.MustCompile(`^s3-fips.(.*?).amazonaws.com$`)
+
+// amazonS3HostFIPSDualStack - regular expression used to determine if an arg is s3 FIPS host dualstack.
+var amazonS3HostFIPSDualStack = regexp.MustCompile(`^s3-fips.dualstack.(.*?).amazonaws.com$`)
+
 // amazonS3HostDot - regular expression used to determine if an arg is s3 host in . style.
 var amazonS3HostDot = regexp.MustCompile(`^s3.(.*?).amazonaws.com$`)
 
 // amazonS3ChinaHost - regular expression used to determine if the arg is s3 china host.
 var amazonS3ChinaHost = regexp.MustCompile(`^s3.(cn.*?).amazonaws.com.cn$`)
 
+// amazonS3ChinaHostDualStack - regular expression used to determine if the arg is s3 china host dualstack.
+var amazonS3ChinaHostDualStack = regexp.MustCompile(`^s3.dualstack.(cn.*?).amazonaws.com.cn$`)
+
 // Regular expression used to determine if the arg is elb host.
 var elbAmazonRegex = regexp.MustCompile(`elb(.*?).amazonaws.com$`)
 
 // Regular expression used to determine if the arg is elb host in china.
 var elbAmazonCnRegex = regexp.MustCompile(`elb(.*?).amazonaws.com.cn$`)
+
+// amazonS3HostPrivateLink - regular expression used to determine if an arg is s3 host in AWS PrivateLink interface endpoints style
+var amazonS3HostPrivateLink = regexp.MustCompile(`^(?:bucket|accesspoint).vpce-.*?.s3.(.*?).vpce.amazonaws.com$`)
 
 // GetRegionFromURL - returns a region from url host.
 func GetRegionFromURL(endpointURL url.URL) string {
@@ -120,6 +132,18 @@ func GetRegionFromURL(endpointURL url.URL) string {
 	if len(parts) > 1 {
 		return parts[1]
 	}
+	if IsAmazonFIPSUSEastWestEndpoint(endpointURL) {
+		// We check for FIPS dualstack matching first to avoid the non-greedy
+		// regex for FIPS non-dualstack matching a dualstack URL
+		parts = amazonS3HostFIPSDualStack.FindStringSubmatch(endpointURL.Host)
+		if len(parts) > 1 {
+			return parts[1]
+		}
+		parts = amazonS3HostFIPS.FindStringSubmatch(endpointURL.Host)
+		if len(parts) > 1 {
+			return parts[1]
+		}
+	}
 	parts = amazonS3HostHyphen.FindStringSubmatch(endpointURL.Host)
 	if len(parts) > 1 {
 		return parts[1]
@@ -128,7 +152,15 @@ func GetRegionFromURL(endpointURL url.URL) string {
 	if len(parts) > 1 {
 		return parts[1]
 	}
+	parts = amazonS3ChinaHostDualStack.FindStringSubmatch(endpointURL.Host)
+	if len(parts) > 1 {
+		return parts[1]
+	}
 	parts = amazonS3HostDot.FindStringSubmatch(endpointURL.Host)
+	if len(parts) > 1 {
+		return parts[1]
+	}
+	parts = amazonS3HostPrivateLink.FindStringSubmatch(endpointURL.Host)
 	if len(parts) > 1 {
 		return parts[1]
 	}
@@ -164,6 +196,7 @@ func IsAmazonFIPSGovCloudEndpoint(endpointURL url.URL) bool {
 		return false
 	}
 	return endpointURL.Host == "s3-fips-us-gov-west-1.amazonaws.com" ||
+		endpointURL.Host == "s3-fips.us-gov-west-1.amazonaws.com" ||
 		endpointURL.Host == "s3-fips.dualstack.us-gov-west-1.amazonaws.com"
 }
 
@@ -194,6 +227,15 @@ func IsAmazonFIPSEndpoint(endpointURL url.URL) bool {
 	return IsAmazonFIPSUSEastWestEndpoint(endpointURL) || IsAmazonFIPSGovCloudEndpoint(endpointURL)
 }
 
+// IsAmazonPrivateLinkEndpoint - Match if it is exactly Amazon S3 PrivateLink interface endpoint
+// See https://docs.aws.amazon.com/AmazonS3/latest/userguide/privatelink-interface-endpoints.html.
+func IsAmazonPrivateLinkEndpoint(endpointURL url.URL) bool {
+	if endpointURL == sentinelURL {
+		return false
+	}
+	return amazonS3HostPrivateLink.MatchString(endpointURL.Host)
+}
+
 // IsGoogleEndpoint - Match if it is exactly Google cloud storage endpoint.
 func IsGoogleEndpoint(endpointURL url.URL) bool {
 	if endpointURL == sentinelURL {
@@ -204,7 +246,7 @@ func IsGoogleEndpoint(endpointURL url.URL) bool {
 
 // Expects ascii encoded strings - from output of urlEncodePath
 func percentEncodeSlash(s string) string {
-	return strings.Replace(s, "/", "%2F", -1)
+	return strings.ReplaceAll(s, "/", "%2F")
 }
 
 // QueryEncode - encodes query values in their URL encoded form. In
@@ -286,31 +328,31 @@ func EncodePath(pathName string) string {
 	if reservedObjectNames.MatchString(pathName) {
 		return pathName
 	}
-	var encodedPathname string
+	var encodedPathname strings.Builder
 	for _, s := range pathName {
 		if 'A' <= s && s <= 'Z' || 'a' <= s && s <= 'z' || '0' <= s && s <= '9' { // §2.3 Unreserved characters (mark)
-			encodedPathname = encodedPathname + string(s)
+			encodedPathname.WriteRune(s)
 			continue
 		}
 		switch s {
 		case '-', '_', '.', '~', '/': // §2.3 Unreserved characters (mark)
-			encodedPathname = encodedPathname + string(s)
+			encodedPathname.WriteRune(s)
 			continue
 		default:
-			len := utf8.RuneLen(s)
-			if len < 0 {
+			l := utf8.RuneLen(s)
+			if l < 0 {
 				// if utf8 cannot convert return the same string as is
 				return pathName
 			}
-			u := make([]byte, len)
+			u := make([]byte, l)
 			utf8.EncodeRune(u, s)
 			for _, r := range u {
 				hex := hex.EncodeToString([]byte{r})
-				encodedPathname = encodedPathname + "%" + strings.ToUpper(hex)
+				encodedPathname.WriteString("%" + strings.ToUpper(hex))
 			}
 		}
 	}
-	return encodedPathname
+	return encodedPathname.String()
 }
 
 // We support '.' with bucket names but we fallback to using path

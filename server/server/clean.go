@@ -46,7 +46,11 @@ func (ps *PlikServer) uploadsCleaningRoutine() {
 		randomSleep := r.Int64() + int64(ps.cleaningMinOffset)
 
 		log.Infof("Will clean old uploads in %d seconds.", randomSleep)
-		time.Sleep(time.Duration(randomSleep) * time.Second)
+		select {
+		case <-time.After(time.Duration(randomSleep) * time.Second):
+		case <-ps.close:
+			return
+		}
 		log.Infof("Cleaning expired uploads...")
 
 		ps.Clean()
@@ -57,6 +61,9 @@ func (ps *PlikServer) uploadsCleaningRoutine() {
 func (ps *PlikServer) Clean() {
 	log := ps.config.NewLogger()
 
+	start := time.Now()
+	stats := &common.CleaningStats{}
+
 	// 1 - soft delete expired uploads
 	removed, err := ps.metadataBackend.RemoveExpiredUploads()
 	if removed > 0 {
@@ -65,6 +72,7 @@ func (ps *PlikServer) Clean() {
 	if err != nil {
 		log.Warning(err.Error())
 	}
+	stats.RemovedUploads = removed
 
 	// 2 - delete removed files
 	deleted, err := ps.PurgeDeletedFiles()
@@ -74,9 +82,9 @@ func (ps *PlikServer) Clean() {
 	if err != nil {
 		log.Warning(err.Error())
 	}
+	stats.DeletedFiles = deleted
 
 	// 3 - purge deleted uploads
-
 	purged, err := ps.metadataBackend.DeleteRemovedUploads()
 	if purged > 0 {
 		log.Infof("purged %d deleted uploads", purged)
@@ -84,13 +92,18 @@ func (ps *PlikServer) Clean() {
 	if err != nil {
 		log.Warning(err.Error())
 	}
+	stats.DeletedUploads = purged
 
 	// 4 - clean metadata database
-
-	err = ps.metadataBackend.Clean()
+	files, tokens, err := ps.metadataBackend.Clean()
 	if err != nil {
 		log.Warning(err.Error())
 	}
+	stats.OrphanFilesCleaned = files
+	stats.OrphanTokensCleaned = tokens
+
+	elapsed := time.Since(start)
+	ps.metrics.UpdateCleaningStatistics(stats, elapsed)
 }
 
 // PurgeDeletedFiles delete "removed" files from the data backend

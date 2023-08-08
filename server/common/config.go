@@ -27,12 +27,16 @@ type Configuration struct {
 	DebugRequests bool   `json:"-"`
 	LogLevel      string `json:"-"`
 
-	ListenAddress string `json:"-"`
-	ListenPort    int    `json:"-"`
-	Path          string `json:"-"`
+	ListenAddress  string `json:"-"`
+	ListenPort     int    `json:"-"`
+	MetricsAddress string `json:"-"`
+	MetricsPort    int    `json:"-"`
+	Path           string `json:"-"`
 
 	MaxFileSizeStr   string `json:"-"`
 	MaxFileSize      int64  `json:"maxFileSize"`
+	MaxUserSizeStr   string `json:"-"`
+	MaxUserSize      int64  `json:"maxUserSize"`
 	MaxFilePerUpload int    `json:"maxFilePerUpload"`
 
 	DefaultTTLStr string `json:"-"`
@@ -68,6 +72,7 @@ type Configuration struct {
 	FeatureExtendTTL      string `json:"feature_extend_ttl"`
 	FeatureClients        string `json:"feature_clients"`
 	FeatureGithub         string `json:"feature_github"`
+	FeatureText           string `json:"feature_text"`
 
 	// Deprecated Feature Flags
 	Authentication      bool `json:"authentication"`      // Deprecated: >1.3.6
@@ -106,10 +111,13 @@ func NewConfiguration() (config *Configuration) {
 
 	config.ListenAddress = "0.0.0.0"
 	config.ListenPort = 8080
+	config.MetricsAddress = "0.0.0."
+	config.MetricsPort = 0
 	config.EnhancedWebSecurity = false
 	config.SessionTimeout = "365d"
 
 	config.MaxFileSize = 10000000000 // 10GB
+	config.MaxUserSize = -1          // Default max size per user ( -1 for unlimited)
 	config.MaxFilePerUpload = 1000
 
 	config.DefaultTTL = 2592000 // 30 days
@@ -215,12 +223,24 @@ func (config *Configuration) Initialize() (err error) {
 		}
 	}
 
-	if config.MaxFileSizeStr != "" {
+	if config.MaxFileSizeStr == "unlimited" || config.MaxFileSizeStr == "-1" {
+		config.MaxFileSize = int64(-1)
+	} else if config.MaxFileSizeStr != "" {
 		maxFileSize, err := humanize.ParseBytes(config.MaxFileSizeStr)
 		if err != nil {
 			return err
 		}
 		config.MaxFileSize = int64(maxFileSize)
+	}
+
+	if config.MaxUserSizeStr == "unlimited" || config.MaxUserSizeStr == "-1" {
+		config.MaxUserSize = int64(-1)
+	} else if config.MaxUserSizeStr != "" {
+		maxUserSize, err := humanize.ParseBytes(config.MaxUserSizeStr)
+		if err != nil {
+			return err
+		}
+		config.MaxUserSize = int64(maxUserSize)
 	}
 
 	if config.DefaultTTLStr != "" {

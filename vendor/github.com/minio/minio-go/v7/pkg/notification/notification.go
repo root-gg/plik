@@ -21,6 +21,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/minio/minio-go/v7/pkg/set"
 )
@@ -29,20 +30,34 @@ import (
 type EventType string
 
 // The role of all event types are described in :
-// 	http://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html#notification-how-to-event-types-and-destinations
+//
+//	http://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html#notification-how-to-event-types-and-destinations
 const (
-	ObjectCreatedAll                     EventType = "s3:ObjectCreated:*"
-	ObjectCreatedPut                               = "s3:ObjectCreated:Put"
-	ObjectCreatedPost                              = "s3:ObjectCreated:Post"
-	ObjectCreatedCopy                              = "s3:ObjectCreated:Copy"
-	ObjectCreatedCompleteMultipartUpload           = "s3:ObjectCreated:CompleteMultipartUpload"
-	ObjectAccessedGet                              = "s3:ObjectAccessed:Get"
-	ObjectAccessedHead                             = "s3:ObjectAccessed:Head"
-	ObjectAccessedAll                              = "s3:ObjectAccessed:*"
-	ObjectRemovedAll                               = "s3:ObjectRemoved:*"
-	ObjectRemovedDelete                            = "s3:ObjectRemoved:Delete"
-	ObjectRemovedDeleteMarkerCreated               = "s3:ObjectRemoved:DeleteMarkerCreated"
-	ObjectReducedRedundancyLostObject              = "s3:ReducedRedundancyLostObject"
+	ObjectCreatedAll                                   EventType = "s3:ObjectCreated:*"
+	ObjectCreatedPut                                   EventType = "s3:ObjectCreated:Put"
+	ObjectCreatedPost                                  EventType = "s3:ObjectCreated:Post"
+	ObjectCreatedCopy                                  EventType = "s3:ObjectCreated:Copy"
+	ObjectCreatedCompleteMultipartUpload               EventType = "s3:ObjectCreated:CompleteMultipartUpload"
+	ObjectAccessedGet                                  EventType = "s3:ObjectAccessed:Get"
+	ObjectAccessedHead                                 EventType = "s3:ObjectAccessed:Head"
+	ObjectAccessedAll                                  EventType = "s3:ObjectAccessed:*"
+	ObjectRemovedAll                                   EventType = "s3:ObjectRemoved:*"
+	ObjectRemovedDelete                                EventType = "s3:ObjectRemoved:Delete"
+	ObjectRemovedDeleteMarkerCreated                   EventType = "s3:ObjectRemoved:DeleteMarkerCreated"
+	ObjectReducedRedundancyLostObject                  EventType = "s3:ReducedRedundancyLostObject"
+	ObjectTransitionAll                                EventType = "s3:ObjectTransition:*"
+	ObjectTransitionFailed                             EventType = "s3:ObjectTransition:Failed"
+	ObjectTransitionComplete                           EventType = "s3:ObjectTransition:Complete"
+	ObjectTransitionPost                               EventType = "s3:ObjectRestore:Post"
+	ObjectTransitionCompleted                          EventType = "s3:ObjectRestore:Completed"
+	ObjectReplicationAll                               EventType = "s3:Replication:*"
+	ObjectReplicationOperationCompletedReplication     EventType = "s3:Replication:OperationCompletedReplication"
+	ObjectReplicationOperationFailedReplication        EventType = "s3:Replication:OperationFailedReplication"
+	ObjectReplicationOperationMissedThreshold          EventType = "s3:Replication:OperationMissedThreshold"
+	ObjectReplicationOperationNotTracked               EventType = "s3:Replication:OperationNotTracked"
+	ObjectReplicationOperationReplicatedAfterThreshold EventType = "s3:Replication:OperationReplicatedAfterThreshold"
+	BucketCreatedAll                                   EventType = "s3:BucketCreated:*"
+	BucketRemovedAll                                   EventType = "s3:BucketRemoved:*"
 )
 
 // FilterRule - child of S3Key, a tag in the notification xml which
@@ -76,11 +91,34 @@ type Arn struct {
 
 // NewArn creates new ARN based on the given partition, service, region, account id and resource
 func NewArn(partition, service, region, accountID, resource string) Arn {
-	return Arn{Partition: partition,
+	return Arn{
+		Partition: partition,
 		Service:   service,
 		Region:    region,
 		AccountID: accountID,
-		Resource:  resource}
+		Resource:  resource,
+	}
+}
+
+var (
+	// ErrInvalidArnPrefix is returned when ARN string format does not start with 'arn'
+	ErrInvalidArnPrefix = errors.New("invalid ARN format, must start with 'arn:'")
+	// ErrInvalidArnFormat is returned when ARN string format is not valid
+	ErrInvalidArnFormat = errors.New("invalid ARN format, must be 'arn:<partition>:<service>:<region>:<accountID>:<resource>'")
+)
+
+// NewArnFromString parses string representation of ARN into Arn object.
+// Returns an error if the string format is incorrect.
+func NewArnFromString(arn string) (Arn, error) {
+	parts := strings.Split(arn, ":")
+	if len(parts) != 6 {
+		return Arn{}, ErrInvalidArnFormat
+	}
+	if parts[0] != "arn" {
+		return Arn{}, ErrInvalidArnPrefix
+	}
+
+	return NewArn(parts[1], parts[2], parts[3], parts[4], parts[5]), nil
 }
 
 // String returns the string format of the ARN
@@ -178,20 +216,28 @@ func EqualFilterRuleList(a, b []FilterRule) bool {
 
 // Equal returns whether this `Config` is equal to another defined by the passed parameters
 func (t *Config) Equal(events []EventType, prefix, suffix string) bool {
-	//Compare events
+	if t == nil {
+		return false
+	}
+
+	// Compare events
 	passEvents := EqualEventTypeList(t.Events, events)
 
-	//Compare filters
-	var newFilter []FilterRule
+	// Compare filters
+	var newFilterRules []FilterRule
 	if prefix != "" {
-		newFilter = append(newFilter, FilterRule{Name: "prefix", Value: prefix})
+		newFilterRules = append(newFilterRules, FilterRule{Name: "prefix", Value: prefix})
 	}
 	if suffix != "" {
-		newFilter = append(newFilter, FilterRule{Name: "suffix", Value: suffix})
+		newFilterRules = append(newFilterRules, FilterRule{Name: "suffix", Value: suffix})
 	}
 
-	passFilters := EqualFilterRuleList(t.Filter.S3Key.FilterRules, newFilter)
-	// if it matches events and filters, mark the index for deletion
+	var currentFilterRules []FilterRule
+	if t.Filter != nil {
+		currentFilterRules = t.Filter.S3Key.FilterRules
+	}
+
+	passFilters := EqualFilterRuleList(currentFilterRules, newFilterRules)
 	return passEvents && passFilters
 }
 

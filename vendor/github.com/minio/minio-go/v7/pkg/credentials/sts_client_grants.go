@@ -1,6 +1,6 @@
 /*
  * MinIO Go Library for Amazon S3 Compatible Cloud Storage
- * Copyright 2019 MinIO, Inc.
+ * Copyright 2019-2022 MinIO, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,14 @@
 package credentials
 
 import (
+	"bytes"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -73,7 +76,7 @@ type STSClientGrants struct {
 	Client *http.Client
 
 	// MinIO endpoint to fetch STS credentials.
-	stsEndpoint string
+	STSEndpoint string
 
 	// getClientGrantsTokenExpiry function to retrieve tokens
 	// from IDP This function should return two values one is
@@ -81,7 +84,7 @@ type STSClientGrants struct {
 	// and second return value is the expiry associated with
 	// this token. This is a customer provided function and
 	// is mandatory.
-	getClientGrantsTokenExpiry func() (*ClientGrantsToken, error)
+	GetClientGrantsTokenExpiry func() (*ClientGrantsToken, error)
 }
 
 // NewSTSClientGrants returns a pointer to a new
@@ -97,14 +100,14 @@ func NewSTSClientGrants(stsEndpoint string, getClientGrantsTokenExpiry func() (*
 		Client: &http.Client{
 			Transport: http.DefaultTransport,
 		},
-		stsEndpoint:                stsEndpoint,
-		getClientGrantsTokenExpiry: getClientGrantsTokenExpiry,
+		STSEndpoint:                stsEndpoint,
+		GetClientGrantsTokenExpiry: getClientGrantsTokenExpiry,
 	}), nil
 }
 
 func getClientGrantsCredentials(clnt *http.Client, endpoint string,
-	getClientGrantsTokenExpiry func() (*ClientGrantsToken, error)) (AssumeRoleWithClientGrantsResponse, error) {
-
+	getClientGrantsTokenExpiry func() (*ClientGrantsToken, error),
+) (AssumeRoleWithClientGrantsResponse, error) {
 	accessToken, err := getClientGrantsTokenExpiry()
 	if err != nil {
 		return AssumeRoleWithClientGrantsResponse{}, err
@@ -114,25 +117,42 @@ func getClientGrantsCredentials(clnt *http.Client, endpoint string,
 	v.Set("Action", "AssumeRoleWithClientGrants")
 	v.Set("Token", accessToken.Token)
 	v.Set("DurationSeconds", fmt.Sprintf("%d", accessToken.Expiry))
-	v.Set("Version", "2011-06-15")
+	v.Set("Version", STSVersion)
 
 	u, err := url.Parse(endpoint)
 	if err != nil {
 		return AssumeRoleWithClientGrantsResponse{}, err
 	}
-	u.RawQuery = v.Encode()
 
-	req, err := http.NewRequest(http.MethodPost, u.String(), nil)
+	req, err := http.NewRequest(http.MethodPost, u.String(), strings.NewReader(v.Encode()))
 	if err != nil {
 		return AssumeRoleWithClientGrantsResponse{}, err
 	}
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
 	resp, err := clnt.Do(req)
 	if err != nil {
 		return AssumeRoleWithClientGrantsResponse{}, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return AssumeRoleWithClientGrantsResponse{}, errors.New(resp.Status)
+		var errResp ErrorResponse
+		buf, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return AssumeRoleWithClientGrantsResponse{}, err
+		}
+		_, err = xmlDecodeAndBody(bytes.NewReader(buf), &errResp)
+		if err != nil {
+			var s3Err Error
+			if _, err = xmlDecodeAndBody(bytes.NewReader(buf), &s3Err); err != nil {
+				return AssumeRoleWithClientGrantsResponse{}, err
+			}
+			errResp.RequestID = s3Err.RequestID
+			errResp.STSError.Code = s3Err.Code
+			errResp.STSError.Message = s3Err.Message
+		}
+		return AssumeRoleWithClientGrantsResponse{}, errResp
 	}
 
 	a := AssumeRoleWithClientGrantsResponse{}
@@ -145,7 +165,7 @@ func getClientGrantsCredentials(clnt *http.Client, endpoint string,
 // Retrieve retrieves credentials from the MinIO service.
 // Error will be returned if the request fails.
 func (m *STSClientGrants) Retrieve() (Value, error) {
-	a, err := getClientGrantsCredentials(m.Client, m.stsEndpoint, m.getClientGrantsTokenExpiry)
+	a, err := getClientGrantsCredentials(m.Client, m.STSEndpoint, m.GetClientGrantsTokenExpiry)
 	if err != nil {
 		return Value{}, err
 	}

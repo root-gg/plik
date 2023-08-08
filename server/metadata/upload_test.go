@@ -151,7 +151,6 @@ func TestBackend_GetUploadsWithFiles(t *testing.T) {
 	require.NoError(t, err, "get upload error")
 	require.Len(t, uploads, 1, "invalid upload count")
 	require.Len(t, uploads[0].Files, 1, "invalid file count")
-
 }
 
 func TestBackend_GetUploads_User(t *testing.T) {
@@ -198,6 +197,237 @@ func TestBackend_GetUploads_Token(t *testing.T) {
 
 	limit := 10
 	uploads, cursor, err := b.GetUploads("", token.Token, false, &common.PagingQuery{Limit: &limit})
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+
+	for i := 0; i < limit; i++ {
+		expected := 100 - i*10
+		require.Equal(t, fmt.Sprintf("%d", expected), uploads[i].Comments, "invalid upload sequence")
+	}
+	require.Nil(t, cursor.Before, "invalid non nil before cursor")
+	require.Nil(t, cursor.After, "invalid non nil after cursor")
+}
+
+func TestBackend_GetUploadsAsc(t *testing.T) {
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	for i := 1; i <= 100; i++ {
+		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
+		f := upload.NewFile()
+		f.Size = int64(i)
+		f.Status = common.FileUploaded
+		createUpload(t, b, upload)
+	}
+
+	limit := 10
+	uploads, cursor, err := b.GetUploads("", "", false, common.NewPagingQuery().WithLimit(limit).WithOrder("asc"))
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+	require.Nil(t, cursor.Before, "invalid non nil before cursor")
+	require.NotNil(t, cursor.After, "invalid nil after cursor")
+
+	for i := 0; i < limit; i++ {
+		require.Equal(t, fmt.Sprintf("%d", i+1), uploads[i].Comments, "invalid upload sequence")
+	}
+
+	//  Test forward cursor
+	uploads, cursor, err = b.GetUploads("", "", false, common.NewPagingQuery().WithLimit(limit).WithOrder("asc").WithAfterCursor(*cursor.After))
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+	require.NotNil(t, cursor.Before, "invalid nil before cursor")
+	require.NotNil(t, cursor.After, "invalid nil after cursor")
+
+	for i := 0; i < limit; i++ {
+		require.Equal(t, fmt.Sprintf("%d", i+limit+1), uploads[i].Comments, "invalid upload sequence")
+	}
+
+	//  Test backward cursor
+	uploads, cursor, err = b.GetUploads("", "", false, common.NewPagingQuery().WithLimit(limit).WithOrder("asc").WithBeforeCursor(*cursor.Before))
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+	require.Nil(t, cursor.Before, "invalid non nil before cursor")
+	require.NotNil(t, cursor.After, "invalid nil after cursor")
+
+	for i := 0; i < limit; i++ {
+		require.Equal(t, fmt.Sprintf("%d", i+1), uploads[i].Comments, "invalid upload sequence")
+	}
+}
+
+func TestBackend_GetUploadsSortedBySize(t *testing.T) {
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	for i := 1; i <= 100; i++ {
+		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
+		f := upload.NewFile()
+		f.Size = int64(i)
+		f.Status = common.FileUploaded
+		createUpload(t, b, upload)
+	}
+
+	limit := 10
+	uploads, cursor, err := b.GetUploadsSortedBySize("", "", false, common.NewPagingQuery().WithLimit(limit))
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+	require.Nil(t, cursor.Before, "invalid non nil before cursor")
+	require.NotNil(t, cursor.After, "invalid nil after cursor")
+
+	for i := 0; i < limit; i++ {
+		require.Equal(t, fmt.Sprintf("%d", 100-i), uploads[i].Comments, "invalid upload sequence")
+	}
+
+	//  Test forward cursor
+	uploads, cursor, err = b.GetUploadsSortedBySize("", "", false, common.NewPagingQuery().WithLimit(limit).WithAfterCursor(*cursor.After))
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+	require.NotNil(t, cursor.Before, "invalid nil before cursor")
+	require.NotNil(t, cursor.After, "invalid nil after cursor")
+
+	for i := 0; i < limit; i++ {
+		require.Equal(t, fmt.Sprintf("%d", 100-limit-i), uploads[i].Comments, "invalid upload sequence")
+	}
+
+	//  Test backward cursor
+	uploads, cursor, err = b.GetUploadsSortedBySize("", "", false, common.NewPagingQuery().WithLimit(limit).WithBeforeCursor(*cursor.Before))
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+	require.Nil(t, cursor.Before, "invalid non nil before cursor")
+	require.NotNil(t, cursor.After, "invalid nil after cursor")
+
+	for i := 0; i < limit; i++ {
+		require.Equal(t, fmt.Sprintf("%d", 100-i), uploads[i].Comments, "invalid upload sequence")
+	}
+}
+
+func TestBackend_GetUploadsSortedBySizeWithFiles(t *testing.T) {
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	upload := &common.Upload{}
+	f := upload.NewFile()
+	f.Status = common.FileUploaded
+	createUpload(t, b, upload)
+
+	uploads, cursor, err := b.GetUploadsSortedBySize("", "", false, common.NewPagingQuery())
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, 1, "invalid upload count")
+	require.Len(t, uploads[0].Files, 0, "invalid file count")
+	require.Nil(t, cursor.After, "invalid non nil after cursor")
+	require.Nil(t, cursor.Before, "invalid non nil before cursor")
+
+	uploads, _, err = b.GetUploads("", "", true, common.NewPagingQuery())
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, 1, "invalid upload count")
+	require.Len(t, uploads[0].Files, 1, "invalid file count")
+}
+
+func TestBackend_GetUploadsSortedBySizeAsc(t *testing.T) {
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	for i := 1; i <= 100; i++ {
+		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
+		f := upload.NewFile()
+		f.Size = int64(i)
+		f.Status = common.FileUploaded
+		createUpload(t, b, upload)
+	}
+
+	limit := 10
+	uploads, cursor, err := b.GetUploadsSortedBySize("", "", false, common.NewPagingQuery().WithLimit(limit).WithOrder("asc"))
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+	require.Nil(t, cursor.Before, "invalid non nil before cursor")
+	require.NotNil(t, cursor.After, "invalid nil after cursor")
+
+	for i := 0; i < limit; i++ {
+		require.Equal(t, fmt.Sprintf("%d", i+1), uploads[i].Comments, "invalid upload sequence")
+	}
+
+	//  Test forward cursor
+	uploads, cursor, err = b.GetUploadsSortedBySize("", "", false, common.NewPagingQuery().WithLimit(limit).WithOrder("asc").WithAfterCursor(*cursor.After))
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+	require.NotNil(t, cursor.Before, "invalid nil before cursor")
+	require.NotNil(t, cursor.After, "invalid nil after cursor")
+
+	for i := 0; i < limit; i++ {
+		require.Equal(t, fmt.Sprintf("%d", i+limit+1), uploads[i].Comments, "invalid upload sequence")
+	}
+
+	//  Test backward cursor
+	uploads, cursor, err = b.GetUploadsSortedBySize("", "", false, common.NewPagingQuery().WithLimit(limit).WithOrder("asc").WithBeforeCursor(*cursor.Before))
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+	require.Nil(t, cursor.Before, "invalid non nil before cursor")
+	require.NotNil(t, cursor.After, "invalid nil after cursor")
+
+	for i := 0; i < limit; i++ {
+		require.Equal(t, fmt.Sprintf("%d", i+1), uploads[i].Comments, "invalid upload sequence")
+	}
+}
+
+func TestBackend_GetUploadsSortedBySize_User(t *testing.T) {
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	user := &common.User{ID: "user"}
+
+	for i := 1; i <= 100; i++ {
+		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
+		f := upload.NewFile()
+		f.Size = int64(i)
+		f.Status = common.FileUploaded
+		if i%10 == 0 {
+			upload.User = user.ID
+		}
+		createUpload(t, b, upload)
+	}
+
+	limit := 10
+	uploads, cursor, err := b.GetUploadsSortedBySize(user.ID, "", false, common.NewPagingQuery().WithLimit(limit))
+	require.NoError(t, err, "get upload error")
+	require.Len(t, uploads, limit, "invalid upload count")
+	require.NotNil(t, cursor, "invalid nil cursor")
+
+	for i := 0; i < limit; i++ {
+		expected := 100 - i*10
+		require.Equal(t, fmt.Sprintf("%d", expected), uploads[i].Comments, "invalid upload sequence")
+	}
+	require.Nil(t, cursor.Before, "invalid non nil before cursor")
+	require.Nil(t, cursor.After, "invalid non nil after cursor")
+}
+
+func TestBackend_GetUploadsSortedBySize_Token(t *testing.T) {
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	token := &common.Token{Token: "token"}
+
+	for i := 1; i <= 100; i++ {
+		upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
+		f := upload.NewFile()
+		f.Size = int64(i)
+		f.Status = common.FileUploaded
+		if i%10 == 0 {
+			upload.Token = token.Token
+		}
+		createUpload(t, b, upload)
+	}
+
+	limit := 10
+	uploads, cursor, err := b.GetUploadsSortedBySize("", token.Token, false, &common.PagingQuery{Limit: &limit})
 	require.NoError(t, err, "get upload error")
 	require.Len(t, uploads, limit, "invalid upload count")
 	require.NotNil(t, cursor, "invalid nil cursor")
