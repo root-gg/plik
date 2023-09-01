@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"testing"
@@ -49,7 +49,7 @@ func TestGetVersion(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var result *common.BuildInfo
@@ -72,7 +72,7 @@ func TestGetVersionEnhancedWebSecurity(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var result *common.BuildInfo
@@ -102,7 +102,7 @@ func TestGetConfiguration(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var result *common.Configuration
@@ -122,7 +122,7 @@ func TestGetQrCode(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 	require.NotEqual(t, 0, len(respBody), "invalid empty response body")
 	require.Equal(t, "image/png", rr.Header().Get("Content-Type"), "invalid response content type")
@@ -140,7 +140,7 @@ func TestGetQrCodeWithSize(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 	require.NotEqual(t, 0, len(respBody), "invalid empty response body")
 	require.Equal(t, "image/png", rr.Header().Get("Content-Type"), "invalid response content type")

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/root-gg/logger"
 	"github.com/root-gg/plik/server/metadata"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -59,7 +59,7 @@ func TestInternalServerError(t *testing.T, resp *httptest.ResponseRecorder, mess
 func TestFail(t *testing.T, resp *httptest.ResponseRecorder, status int, message string) {
 	require.Equal(t, status, resp.Code, "handler returned wrong status code")
 
-	respBody, err := ioutil.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
 	require.NoError(t, err, "unable to read response body")
 	require.NotEqual(t, err, 0, len(respBody), "empty response body")
 
@@ -71,7 +71,7 @@ func TestFail(t *testing.T, resp *httptest.ResponseRecorder, status int, message
 // TestOK is a helper to test a httptest.ResponseRecorder status
 func TestOK(t *testing.T, resp *httptest.ResponseRecorder) {
 	if resp.Code != http.StatusOK {
-		respBody, _ := ioutil.ReadAll(resp.Body)
+		respBody, _ := io.ReadAll(resp.Body)
 		require.Equal(t, http.StatusOK, resp.Code, fmt.Sprintf("handler error %s", string(respBody)))
 	}
 }

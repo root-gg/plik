@@ -3,7 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"testing"
@@ -35,7 +35,7 @@ func TestCreateUploadWithoutOptions(t *testing.T) {
 
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var upload = &common.Upload{}
@@ -79,7 +79,7 @@ func TestCreateUploadWithOptions(t *testing.T) {
 
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var upload = &common.Upload{}
@@ -130,7 +130,7 @@ func TestCreateWithForbiddenOptions(t *testing.T) {
 
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var upload = &common.Upload{}

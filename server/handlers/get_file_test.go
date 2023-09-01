@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	"strconv"
@@ -57,7 +56,7 @@ func TestGetFile(t *testing.T) {
 	require.Equal(t, file.Type, rr.Header().Get("Content-Type"), "invalid response content type")
 	require.Equal(t, strconv.Itoa(int(file.Size)), rr.Header().Get("Content-Length"), "invalid response content length")
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	require.Equal(t, data, string(respBody), "invalid file content")
@@ -94,7 +93,7 @@ func TestGetOneShotFile(t *testing.T) {
 
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 	require.Equal(t, data, string(respBody), "invalid file content")
 
@@ -135,7 +134,7 @@ func TestGetStreamingFile(t *testing.T) {
 
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 	require.Equal(t, data, string(respBody), "invalid file content")
 
