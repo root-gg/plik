@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"testing"
@@ -71,7 +70,7 @@ func TestMain(m *testing.M) {
 	// Setup data backend
 	switch testConfig.DataBackend {
 	case "file":
-		dir, err := ioutil.TempDir("", "pliktest_file_")
+		dir, err := os.MkdirTemp("", "pliktest_file_")
 		if err != nil {
 			fmt.Printf("Unable to setup file data backend : %s\n", err)
 			os.Exit(1)

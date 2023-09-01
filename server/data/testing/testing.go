@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"sync"
 
 	"github.com/root-gg/plik/server/common"
@@ -45,7 +44,7 @@ func (b *Backend) GetFile(file *common.File) (reader io.ReadCloser, err error) {
 	}
 
 	if content, ok := b.files[file.ID]; ok {
-		return ioutil.NopCloser(bytes.NewBuffer(content)), nil
+		return io.NopCloser(bytes.NewBuffer(content)), nil
 	}
 
 	return nil, errors.New("file not found")
@@ -65,7 +64,7 @@ func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (err error) {
 		return errors.New("file exists")
 	}
 
-	content, err := ioutil.ReadAll(fileReader)
+	content, err := io.ReadAll(fileReader)
 	if err != nil {
 		return err
 	}

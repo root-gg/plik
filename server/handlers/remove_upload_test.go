@@ -3,7 +3,7 @@ package handlers
 import (
 	"bytes"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"testing"
@@ -40,7 +40,7 @@ func TestRemoveUpload(t *testing.T) {
 	RemoveUpload(ctx, rr, req)
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 	require.Equal(t, "ok", string(respBody), "invalid response body")
 

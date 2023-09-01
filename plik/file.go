@@ -3,7 +3,6 @@ package plik
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -40,7 +39,7 @@ func newFileFromReadCloser(upload *Upload, name string, reader io.ReadCloser) *F
 
 // NewFileFromReader creates a File from a filename and an io.Reader
 func newFileFromReader(upload *Upload, name string, reader io.Reader) *File {
-	return newFileFromReadCloser(upload, name, ioutil.NopCloser(reader))
+	return newFileFromReadCloser(upload, name, io.NopCloser(reader))
 }
 
 // NewFileFromPath creates a File from a filesystem path

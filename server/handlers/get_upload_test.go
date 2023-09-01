@@ -3,7 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"testing"
@@ -34,7 +34,7 @@ func TestGetUpload(t *testing.T) {
 
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var uploadResult = &common.Upload{}

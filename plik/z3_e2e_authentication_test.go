@@ -2,7 +2,7 @@ package plik
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -40,13 +40,13 @@ func TestTokenAuthentication(t *testing.T) {
 	pc.Token = t1.Token
 
 	data := "data data data"
-	upload, file, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
+	upload, file, err := pc.UploadReader("filename", io.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
 	require.Len(t, upload.Metadata().Files, 0, "invalid file count")
 
 	reader, err := file.Download()
 	require.NoError(t, err, "unable to download file")
-	content, err := ioutil.ReadAll(reader)
+	content, err := io.ReadAll(reader)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, data, string(content), "invalid file content")
 }
@@ -178,7 +178,7 @@ func TestPasswordAuthentication(t *testing.T) {
 	upload := pc.NewUpload()
 	upload.Login = login
 	upload.Password = password
-	file := upload.AddFileFromReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
+	file := upload.AddFileFromReader("filename", io.NopCloser(bytes.NewBufferString(data)))
 
 	err = upload.Upload()
 	require.NoError(t, err, "unable to upload file")
@@ -199,7 +199,7 @@ func TestPasswordAuthentication(t *testing.T) {
 	reader, err := file.Download()
 	require.NoError(t, err, "get file error")
 
-	content, err := ioutil.ReadAll(reader)
+	content, err := io.ReadAll(reader)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, data, string(content), "invalid file content")
 }
@@ -218,7 +218,7 @@ func TestPasswordAuthenticationInClient(t *testing.T) {
 	data := "data data data"
 
 	upload := pc.NewUpload()
-	file := upload.AddFileFromReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
+	file := upload.AddFileFromReader("filename", io.NopCloser(bytes.NewBufferString(data)))
 
 	err = upload.Upload()
 	require.NoError(t, err, "unable to upload file")
@@ -236,7 +236,7 @@ func TestPasswordAuthenticationInClient(t *testing.T) {
 	reader, err := file.Download()
 	require.NoError(t, err, "get file error")
 
-	content, err := ioutil.ReadAll(reader)
+	content, err := io.ReadAll(reader)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, data, string(content), "invalid file content")
 

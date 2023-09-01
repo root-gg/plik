@@ -3,7 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"testing"
@@ -56,7 +56,7 @@ func TestGetUsers(t *testing.T) {
 
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var response common.PagingResponse
@@ -163,7 +163,7 @@ func TestGetUploads(t *testing.T) {
 
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var response common.PagingResponse
@@ -187,7 +187,7 @@ func TestGetUploadsAsc(t *testing.T) {
 
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var response common.PagingResponse
@@ -215,7 +215,7 @@ func TestGetUploadsUser(t *testing.T) {
 
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var response common.PagingResponse
@@ -244,7 +244,7 @@ func TestGetUploadsUserToken(t *testing.T) {
 
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var response common.PagingResponse
@@ -286,7 +286,7 @@ func TestGetUploadsSortedBySize(t *testing.T) {
 
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var response common.PagingResponse
@@ -347,7 +347,7 @@ func TestGetServerStatistics(t *testing.T) {
 
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var stats *common.ServerStats

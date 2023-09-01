@@ -3,7 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -39,7 +39,7 @@ func TestCreateToken(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var tokenResult = &common.Token{}
@@ -76,7 +76,7 @@ func TestCreateTokenWithForbiddenOptions(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var tokenResult = &common.Token{}
@@ -125,7 +125,7 @@ func TestRemoveToken(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 	require.Equal(t, "ok", string(respBody), "invalid response body")
 

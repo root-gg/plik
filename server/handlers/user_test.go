@@ -3,7 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"testing"
@@ -55,7 +55,7 @@ func TestCreateUser(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var userResult *common.User
@@ -206,7 +206,7 @@ func TestUpdateUser(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var userResult *common.User

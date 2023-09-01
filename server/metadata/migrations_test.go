@@ -3,7 +3,7 @@ package metadata
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/url"
 	"os"
@@ -155,7 +155,7 @@ func loadSQLDump(t *testing.T, path string) {
 	}
 	defer f.Close()
 
-	sqldump, err := ioutil.ReadAll(f)
+	sqldump, err := io.ReadAll(f)
 	require.NoError(t, err, "unable to get read sqldump")
 	_, err = sqlDB.Exec(string(sqldump))
 	require.NoError(t, err, "unable to get load sqldump")
@@ -192,7 +192,7 @@ func TestLoadExports(t *testing.T) {
 		}
 	}
 
-	files, err := ioutil.ReadDir(exportDirectory)
+	files, err := os.ReadDir(exportDirectory)
 	require.NoError(t, err, "unable to list metadata exports")
 
 	for _, file := range files {
@@ -429,7 +429,7 @@ func TestMigrationsFromSQLDumps(t *testing.T) {
 		}
 	}
 
-	files, err := ioutil.ReadDir(sqlDumpDirectory)
+	files, err := os.ReadDir(sqlDumpDirectory)
 	require.NoError(t, err, "unable to list SQL dumps")
 
 	for _, file := range files {

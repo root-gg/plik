@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"runtime"
 
@@ -102,7 +101,7 @@ func (c *Client) GetServerVersion() (bi *common.BuildInfo, err error) {
 	}
 
 	defer func() { _ = resp.Body.Close() }()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +130,7 @@ func (c *Client) GetServerConfig() (config *common.Configuration, err error) {
 	}
 
 	defer func() { _ = resp.Body.Close() }()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
