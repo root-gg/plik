@@ -76,7 +76,7 @@ func (ob *Backend) Encrypt(in io.Reader) (out io.Reader, err error) {
 
 	var args []string
 	args = append(args, ob.Config.Cipher)
-	args = append(args, "-pass", fmt.Sprintf("fd:3"))
+	args = append(args, "-pass", "fd:3")
 	args = append(args, strings.Fields(ob.Config.Options)...)
 
 	go func() {

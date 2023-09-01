@@ -245,7 +245,7 @@ func TestUploadDownloadSameFileInParallel(t *testing.T) {
 	require.NoError(t, err, "unable to start plik server")
 
 	upload := pc.NewUpload()
-	filename := fmt.Sprintf("file")
+	filename := "file"
 	data := fmt.Sprintf("data data data %s", filename)
 	file := upload.AddFileFromReader(filename, NewSlowReaderRandom(bytes.NewBufferString(data)))
 
