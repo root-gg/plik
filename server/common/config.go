@@ -416,7 +416,7 @@ func (config *Configuration) String() string {
 		}
 
 		if config.OvhAuthentication {
-			str += ("OVH authentication : enabled\n"
+			str += "OVH authentication : enabled\n"
 			if config.OvhAPIEndpoint != "" {
 				str += fmt.Sprintf("OVH API endpoint : %s\n", config.OvhAPIEndpoint)
 			}
