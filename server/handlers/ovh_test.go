@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"net/url"
@@ -57,7 +57,7 @@ func TestOVHLogin(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 	require.NotEqual(t, 0, len(respBody), "invalid empty response body")
 
@@ -264,7 +264,7 @@ func TestOVHCallback(t *testing.T) {
 	// Check the status code is what we expect.
 	require.Equal(t, 301, rr.Code, "handler returned wrong status code")
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 	require.NotEqual(t, 0, len(respBody), "invalid empty response body")
 
@@ -346,7 +346,7 @@ func TestOVHCallbackCreateUser(t *testing.T) {
 	// Check the status code is what we expect.
 	require.Equal(t, 301, rr.Code, "handler returned wrong status code")
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 	require.NotEqual(t, 0, len(respBody), "invalid empty response body")
 

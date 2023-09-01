@@ -3,7 +3,7 @@ package server
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"testing"
@@ -66,7 +66,7 @@ func getTestFile(t *testing.T, ps *PlikServer, file *common.File, content string
 	require.NotNil(t, reader, "missing file reader")
 	defer reader.Close()
 
-	result, err := ioutil.ReadAll(reader)
+	result, err := io.ReadAll(reader)
 	if err != nil {
 		return err
 	}
@@ -183,7 +183,7 @@ func TestHealth(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	require.NoError(t, err, "unable to read HTTP response body")
 

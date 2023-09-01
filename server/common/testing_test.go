@@ -2,7 +2,7 @@ package common
 
 import (
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"testing"
@@ -14,7 +14,7 @@ import (
 func TestErrorReader(t *testing.T) {
 	e := errors.New("io error")
 	reader := NewErrorReader(e)
-	_, err := ioutil.ReadAll(reader)
+	_, err := io.ReadAll(reader)
 	RequireError(t, err, e.Error())
 }
 
@@ -42,7 +42,7 @@ func TestAPIMockServer(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode, "invalid HTTP response status")
 
 	defer resp.Body.Close()
-	value, err := ioutil.ReadAll(resp.Body)
+	value, err := io.ReadAll(resp.Body)
 	require.NoError(t, err, "unable to read HTTP response")
 	require.Equal(t, "ok", string(value), "invalid HTTP response content")
 }

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	gocontext "context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"net/url"
@@ -45,7 +45,7 @@ func TestGoogleLogin(t *testing.T) {
 
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 	require.NotEqual(t, 0, len(respBody), "invalid empty response body")
 
@@ -200,7 +200,7 @@ func TestGoogleCallback(t *testing.T) {
 	// Check the status code is what we expect.
 	require.Equal(t, 301, rr.Code, "handler returned wrong status code")
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 	require.NotEqual(t, 0, len(respBody), "invalid empty response body")
 
@@ -524,7 +524,7 @@ func TestGoogleCallbackCreateUser(t *testing.T) {
 	// Check the status code is what we expect.
 	require.Equal(t, 301, rr.Code, "handler returned wrong status code")
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 	require.NotEqual(t, 0, len(respBody), "invalid empty response body")
 

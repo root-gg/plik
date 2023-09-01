@@ -2,7 +2,7 @@ package context
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -52,7 +52,7 @@ func serveAndRequest(h http.Handler) string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	resBody, err := ioutil.ReadAll(res.Body)
+	resBody, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		log.Fatal(err)

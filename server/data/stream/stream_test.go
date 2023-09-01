@@ -2,7 +2,7 @@ package stream
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"sync"
 	"testing"
 	"time"
@@ -37,7 +37,7 @@ func TestAddGetFile(t *testing.T) {
 				continue
 			}
 
-			data, err := ioutil.ReadAll(reader)
+			data, err := io.ReadAll(reader)
 			require.NoError(t, err, "unable to read reader")
 
 			err = reader.Close()

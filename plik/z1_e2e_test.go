@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -88,7 +87,7 @@ func TestDownloadDuringUpload(t *testing.T) {
 	// The file has been uploaded
 	reader, err := pc.downloadFile(upload.Metadata(), file.Metadata())
 	require.NoError(t, err, "unable to download file")
-	content, err := ioutil.ReadAll(reader)
+	content, err := io.ReadAll(reader)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, data, string(content), "invalid file content")
 }
@@ -110,7 +109,7 @@ func TestOneShot(t *testing.T) {
 
 	reader, err := pc.downloadFile(upload.Metadata(), file.Metadata())
 	require.NoError(t, err, "unable to download file")
-	content, err := ioutil.ReadAll(reader)
+	content, err := io.ReadAll(reader)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, data, string(content), "invalid file content")
 
@@ -146,7 +145,7 @@ func TestDownloadOneShotBeforeUpload(t *testing.T) {
 
 	reader, err := pc.downloadFile(upload.Metadata(), file.Metadata())
 	require.NoError(t, err, "unable to download file")
-	content, err := ioutil.ReadAll(reader)
+	content, err := io.ReadAll(reader)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, data, string(content), "invalid file content")
 
@@ -247,7 +246,7 @@ func TestStream(t *testing.T) {
 			if err != nil {
 				continue
 			}
-			content, err := ioutil.ReadAll(reader)
+			content, err := io.ReadAll(reader)
 			require.NoError(t, err, "unable to read file")
 			require.Equal(t, data, string(content), "invalid file content")
 			break
@@ -319,7 +318,7 @@ func TestQuickUpload(t *testing.T) {
 	require.Equal(t, 200, resp.StatusCode, "invalid HTTP response status %s", resp.Status)
 
 	defer func() { _ = resp.Body.Close() }()
-	respBody, err := ioutil.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	u, err := url.Parse(strings.TrimSpace(string(respBody)))
@@ -331,7 +330,7 @@ func TestQuickUpload(t *testing.T) {
 	require.Equal(t, 200, resp.StatusCode, "invalid HTTP response status %s", resp.Status)
 
 	defer func() { _ = resp.Body.Close() }()
-	respBody, err = ioutil.ReadAll(resp.Body)
+	respBody, err = io.ReadAll(resp.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	require.Equal(t, content, string(respBody), "invalid file content")

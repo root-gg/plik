@@ -3,7 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"testing"
@@ -38,7 +38,7 @@ func TestGetUser(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var userResult *common.User
@@ -84,7 +84,7 @@ func TestDeleteUser(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	require.Equal(t, string(respBody), "ok", "invalid response body")
@@ -135,7 +135,7 @@ func TestGetUserUploads(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var response common.PagingResponse
@@ -193,7 +193,7 @@ func TestGetUserUploadsWithToken(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var response common.PagingResponse
@@ -246,7 +246,7 @@ func TestGetUserTokens(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var response common.PagingResponse
@@ -294,7 +294,7 @@ func TestRemoveUserUploads(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	require.Equal(t, "2 uploads removed", string(respBody), "Invalid result message")
@@ -341,7 +341,7 @@ func TestRemoveUserUploadsWithToken(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	require.Equal(t, "1 uploads removed", string(respBody), "Invalid result message")
@@ -397,7 +397,7 @@ func TestGetUserStatistics(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var stats = &common.UserStats{}
@@ -444,7 +444,7 @@ func TestGetUserStatisticsToken(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var stats = &common.UserStats{}

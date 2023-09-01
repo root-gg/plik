@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/root-gg/plik/server/common"
@@ -20,7 +20,7 @@ func CreateUser(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 	// Read request body
 	defer func() { _ = req.Body.Close() }()
 	req.Body = http.MaxBytesReader(resp, req.Body, 1048576)
-	body, err := ioutil.ReadAll(req.Body)
+	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		ctx.BadRequest("unable to read request body : %s", err)
 		return
@@ -79,7 +79,7 @@ func UpdateUser(ctx *context.Context, resp http.ResponseWriter, req *http.Reques
 	// Read request body
 	defer func() { _ = req.Body.Close() }()
 	req.Body = http.MaxBytesReader(resp, req.Body, 1048576)
-	body, err := ioutil.ReadAll(req.Body)
+	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		ctx.BadRequest("unable to read request body : %s", err)
 		return

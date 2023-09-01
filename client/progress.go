@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strconv"
 	"strings"
 	"sync"
@@ -58,7 +57,7 @@ func (p *Progress) register(file *plik.File) {
 	p.mu.Unlock()
 
 	file.WrapReader(func(fileReader io.ReadCloser) io.ReadCloser {
-		return ioutil.NopCloser(io.TeeReader(fileReader, bar))
+		return io.NopCloser(io.TeeReader(fileReader, bar))
 	})
 
 	file.RegisterUploadCallback(func(metadata *common.File, err error) {

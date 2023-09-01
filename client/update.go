@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -143,7 +142,7 @@ func update(client *plik.Client, updateFlag bool) (err error) {
 			}
 
 			var body []byte
-			body, err = ioutil.ReadAll(resp.Body)
+			body, err = io.ReadAll(resp.Body)
 			if err != nil {
 				return fmt.Errorf("Unable to get release notes for version %s : %s", release.Name, err)
 			}

@@ -26,7 +26,7 @@ package plik
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"testing"
@@ -216,7 +216,7 @@ func TestMakeRequestDebug(t *testing.T) {
 	err = writer.Close()
 	require.NoError(t, err, "unable to close writer")
 
-	printed, err := ioutil.ReadAll(reader)
+	printed, err := io.ReadAll(reader)
 	require.NoError(t, err, "unable to read output")
 
 	require.Contains(t, string(printed), "X-Clientapp", "invalid output")
@@ -263,7 +263,7 @@ func TestMakeRequestDebugFile(t *testing.T) {
 	err = writer.Close()
 	require.NoError(t, err, "unable to close writer")
 
-	printed, err := ioutil.ReadAll(reader)
+	printed, err := io.ReadAll(reader)
 	require.NoError(t, err, "unable to read output")
 	require.Contains(t, string(printed), "X-Clientapp", "invalid output")
 	require.Contains(t, string(printed), "X-Clientversion", "invalid output")
@@ -310,7 +310,7 @@ func TestMakeRequestDebugStream(t *testing.T) {
 	err = writer.Close()
 	require.NoError(t, err, "unable to close writer")
 
-	printed, err := ioutil.ReadAll(reader)
+	printed, err := io.ReadAll(reader)
 	require.NoError(t, err, "unable to read output")
 	require.Contains(t, string(printed), "X-Clientapp", "invalid output")
 	require.Contains(t, string(printed), "X-Clientversion", "invalid output")
@@ -356,7 +356,7 @@ func TestMakeRequestDebugGetFile(t *testing.T) {
 	err = writer.Close()
 	require.NoError(t, err, "unable to close writer")
 
-	printed, err := ioutil.ReadAll(reader)
+	printed, err := io.ReadAll(reader)
 	require.NoError(t, err, "unable to read output")
 	require.Contains(t, string(printed), "X-Clientapp", "invalid output")
 	require.Contains(t, string(printed), "X-Clientversion", "invalid output")
@@ -402,7 +402,7 @@ func TestMakeRequestDebugGetArchive(t *testing.T) {
 	err = writer.Close()
 	require.NoError(t, err, "unable to close writer")
 
-	printed, err := ioutil.ReadAll(reader)
+	printed, err := io.ReadAll(reader)
 	require.NoError(t, err, "unable to read output")
 	require.Contains(t, string(printed), "X-Clientapp", "invalid output")
 	require.Contains(t, string(printed), "X-Clientversion", "invalid output")
