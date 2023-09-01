@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"runtime"
@@ -239,7 +238,7 @@ Options:
 					fmt.Fprintf(os.Stderr, "Unable to encrypt file :%s", err)
 					os.Exit(1)
 				}
-				return ioutil.NopCloser(reader)
+				return io.NopCloser(reader)
 			})
 		}
 

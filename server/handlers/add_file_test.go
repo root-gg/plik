@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"testing"
@@ -80,7 +79,7 @@ func TestAddFileWithID(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var fileResult = &common.File{}
@@ -115,7 +114,7 @@ func TestAddStreamFileWithID(t *testing.T) {
 	// Check the status code is what we expect.
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var fileResult = &common.File{}
@@ -151,7 +150,7 @@ func TestAddFileWithoutID(t *testing.T) {
 
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	var fileResult = &common.File{}
@@ -516,7 +515,7 @@ func TestAddFileQuick(t *testing.T) {
 	AddFile(ctx, rr, req)
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	files, err := ctx.GetMetadataBackend().GetFiles(upload.ID)
@@ -553,7 +552,7 @@ func TestAddFileQuickDownloadDomain(t *testing.T) {
 	AddFile(ctx, rr, req)
 	context.TestOK(t, rr)
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	files, err := ctx.GetMetadataBackend().GetFiles(upload.ID)

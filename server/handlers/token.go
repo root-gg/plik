@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -28,7 +28,7 @@ func CreateToken(ctx *context.Context, resp http.ResponseWriter, req *http.Reque
 	defer func() { _ = req.Body.Close() }()
 
 	req.Body = http.MaxBytesReader(resp, req.Body, 1048576)
-	body, err := ioutil.ReadAll(req.Body)
+	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		ctx.BadRequest(fmt.Sprintf("unable to read request body : %s", err))
 		return

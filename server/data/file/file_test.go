@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/require"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -15,7 +14,7 @@ import (
 )
 
 func newBackend(t *testing.T) (backend *Backend, cleanup func()) {
-	dir, err := ioutil.TempDir("", "pliktest")
+	dir, err := os.MkdirTemp("", "pliktest")
 	require.NoError(t, err, "unable to create temp directory")
 
 	backend = NewBackend(&Config{Directory: dir})
@@ -93,7 +92,7 @@ func TestAddFile(t *testing.T) {
 	require.NoError(t, err, "unable to open file")
 	defer fh.Close()
 
-	read, err := ioutil.ReadAll(fh)
+	read, err := io.ReadAll(fh)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, "data", string(read), "inavlid file content")
 }
@@ -141,7 +140,7 @@ func TestGetFile(t *testing.T) {
 	fileReader, err := backend.GetFile(file)
 	require.NoError(t, err, "unable to get file")
 
-	read, err := ioutil.ReadAll(fileReader)
+	read, err := io.ReadAll(fileReader)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, "data", string(read), "inavlid file content")
 }
@@ -173,7 +172,7 @@ func TestGetFileCompathPath(t *testing.T) {
 	fileReader, err := backend.GetFile(file)
 	require.NoError(t, err, "unable to get file")
 
-	read, err := ioutil.ReadAll(fileReader)
+	read, err := io.ReadAll(fileReader)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, "data", string(read), "inavlid file content")
 }
@@ -223,7 +222,7 @@ func TestRemoveFile(t *testing.T) {
 	fh, err := os.Open(path)
 	require.NoError(t, err, "unable to open file")
 
-	read, err := ioutil.ReadAll(fh)
+	read, err := io.ReadAll(fh)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, "data", string(read), "invalid file content")
 
@@ -237,7 +236,7 @@ func TestRemoveFile(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Read the contents of the file directory
-	entries, err := ioutil.ReadDir(backend.Config.Directory)
+	entries, err := os.ReadDir(backend.Config.Directory)
 	require.NoError(t, err, "unable to list files")
 	require.Equal(t, 0, len(entries), "parent directory has not been cleaned")
 
@@ -261,7 +260,7 @@ func TestRemoveFileTwice(t *testing.T) {
 	fh, err := os.Open(path)
 	require.NoError(t, err, "unable to open file")
 
-	read, err := ioutil.ReadAll(fh)
+	read, err := io.ReadAll(fh)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, "data", string(read), "inavlid file content")
 
@@ -302,7 +301,7 @@ func TestRemoveFileCompatPath(t *testing.T) {
 	fh, err := os.Open(path)
 	require.NoError(t, err, "unable to open file")
 
-	read, err := ioutil.ReadAll(fh)
+	read, err := io.ReadAll(fh)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, "data", string(read), "inavlid file content")
 

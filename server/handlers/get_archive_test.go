@@ -4,7 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"testing"
@@ -54,7 +54,7 @@ func TestGetArchive(t *testing.T) {
 	require.Equal(t, "application/zip", rr.Header().Get("Content-Type"), "invalid response content type")
 	require.Equal(t, "", rr.Header().Get("Content-Length"), "invalid response content length")
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	z, err := zip.NewReader(bytes.NewReader(respBody), int64(len(respBody)))
@@ -66,7 +66,7 @@ func TestGetArchive(t *testing.T) {
 	fileReader, err := z.File[0].Open()
 	require.NoError(t, err, "unable to open archived file")
 
-	content, err := ioutil.ReadAll(fileReader)
+	content, err := io.ReadAll(fileReader)
 	require.NoError(t, err, "unable to read archived file")
 	require.Equal(t, data, string(content), "invalid archived file content")
 }
@@ -203,7 +203,7 @@ func TestGetArchiveOneShot(t *testing.T) {
 	require.Equal(t, "application/zip", rr.Header().Get("Content-Type"), "invalid response content type")
 	require.Equal(t, "", rr.Header().Get("Content-Length"), "invalid response content length")
 
-	respBody, err := ioutil.ReadAll(rr.Body)
+	respBody, err := io.ReadAll(rr.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	z, err := zip.NewReader(bytes.NewReader(respBody), int64(len(respBody)))
@@ -215,7 +215,7 @@ func TestGetArchiveOneShot(t *testing.T) {
 	fileReader, err := z.File[0].Open()
 	require.NoError(t, err, "unable to open archived file")
 
-	content, err := ioutil.ReadAll(fileReader)
+	content, err := io.ReadAll(fileReader)
 	require.NoError(t, err, "unable to read archived file")
 	require.Equal(t, data, string(content), "invalid archived file content")
 

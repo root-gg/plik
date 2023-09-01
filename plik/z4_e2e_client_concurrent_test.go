@@ -3,7 +3,7 @@ package plik
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"sync"
 	"testing"
 
@@ -29,7 +29,7 @@ func downloadSequence(file *File, delete bool) (err error) {
 	}
 	defer func() { _ = reader.Close() }()
 
-	content, err := ioutil.ReadAll(reader)
+	content, err := io.ReadAll(reader)
 	if err != nil {
 		return fmt.Errorf("read error : %s", err)
 	}

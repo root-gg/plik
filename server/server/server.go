@@ -203,7 +203,7 @@ func (ps *PlikServer) start() (err error) {
 	address := ps.config.ListenAddress + ":" + strconv.Itoa(ps.config.ListenPort)
 	if ps.config.SslEnabled {
 		proto = "https"
-		tlsConfig := &tls.Config{MinVersion: tls.VersionTLS10}
+		tlsConfig := &tls.Config{MinVersion: ps.config.GetTlsVersion()}
 
 		if ps.config.SslCert == "" || ps.config.SslKey == "" {
 			return fmt.Errorf("unable to start plik server without ssl certificates")

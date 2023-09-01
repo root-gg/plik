@@ -2,7 +2,7 @@ package plik
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -33,7 +33,7 @@ func TestGetFileURL(t *testing.T) {
 	require.NoError(t, err, "unable to execute request")
 	require.Equal(t, http.StatusOK, resp.StatusCode, "invalid response status code")
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err, "unable to read response body")
 
 	require.Equal(t, data, string(body), "invalid file content")

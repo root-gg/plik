@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -87,7 +87,7 @@ func TestWriteJSONResponse(t *testing.T) {
 	rr := httptest.NewRecorder()
 	WriteJSONResponse(rr, obj)
 
-	body, err := ioutil.ReadAll(rr.Body)
+	body, err := io.ReadAll(rr.Body)
 	require.NoError(t, err)
 	require.NotNil(t, body)
 

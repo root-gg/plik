@@ -3,7 +3,7 @@ package plik
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 
@@ -160,13 +160,13 @@ func TestUploadReader(t *testing.T) {
 	require.NoError(t, err, "unable to start plik server")
 
 	data := "data data data"
-	upload, file, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
+	upload, file, err := pc.UploadReader("filename", io.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
 	require.Len(t, upload.Metadata().Files, 0, "invalid file count")
 
 	reader, err := pc.downloadFile(upload.getParams(), file.getParams())
 	require.NoError(t, err, "unable to download file")
-	content, err := ioutil.ReadAll(reader)
+	content, err := io.ReadAll(reader)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, data, string(content), "invalid file content")
 }
@@ -179,13 +179,13 @@ func TestUploadReadCloser(t *testing.T) {
 	require.NoError(t, err, "unable to start plik server")
 
 	data := "data data data"
-	upload, file, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
+	upload, file, err := pc.UploadReader("filename", io.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
 	require.Len(t, upload.Metadata().Files, 0, "invalid file count")
 
 	reader, err := pc.downloadFile(upload.getParams(), file.getParams())
 	require.NoError(t, err, "unable to download file")
-	content, err := ioutil.ReadAll(reader)
+	content, err := io.ReadAll(reader)
 	require.NoError(t, err, "unable to read file")
 	require.Equal(t, data, string(content), "invalid file content")
 }
@@ -197,7 +197,7 @@ func TestUploadFiles(t *testing.T) {
 	err := start(ps)
 	require.NoError(t, err, "unable to start plik server")
 
-	tmpFile, err := ioutil.TempFile("", "pliktmpfile")
+	tmpFile, err := os.CreateTemp("", "pliktmpfile")
 	require.NoError(t, err, "unable to create tmp file")
 	defer os.Remove(tmpFile.Name())
 
@@ -207,7 +207,7 @@ func TestUploadFiles(t *testing.T) {
 	err = tmpFile.Close()
 	require.NoError(t, err, "unable to close tmp file")
 
-	tmpFile2, err := ioutil.TempFile("", "pliktmpfile")
+	tmpFile2, err := os.CreateTemp("", "pliktmpfile")
 	require.NoError(t, err, "unable to create tmp file")
 	defer os.Remove(tmpFile.Name())
 
@@ -231,7 +231,7 @@ func TestUploadFiles(t *testing.T) {
 	for _, file := range upload.Metadata().Files {
 		reader, err := pc.downloadFile(upload.Metadata(), file)
 		require.NoError(t, err, "unable to download file")
-		content, err := ioutil.ReadAll(reader)
+		content, err := io.ReadAll(reader)
 		require.NoError(t, err, "unable to read file")
 		require.Equal(t, data, string(content), "invalid file content")
 	}
@@ -260,7 +260,7 @@ func TestUploadMultipleFiles(t *testing.T) {
 
 		reader, err := pc.downloadFile(upload.Metadata(), file.Metadata())
 		require.NoError(t, err, "unable to download file")
-		content, err := ioutil.ReadAll(reader)
+		content, err := io.ReadAll(reader)
 		require.NoError(t, err, "unable to read file")
 		require.Equal(t, fmt.Sprintf("data data data %s", file.Name), string(content), "invalid file content")
 	}
@@ -294,7 +294,7 @@ func TestCreateAndGetUploadFiles(t *testing.T) {
 
 		reader, err := file.Download()
 		require.NoError(t, err, "unable to download file")
-		content, err := ioutil.ReadAll(reader)
+		content, err := io.ReadAll(reader)
 		require.NoError(t, err, "unable to read file")
 		require.Equal(t, fmt.Sprintf("data data data %s", file.Name), string(content), "invalid file content")
 	}
@@ -331,7 +331,7 @@ func TestRemoveFile(t *testing.T) {
 	require.NoError(t, err, "unable to start plik server")
 
 	data := "data data data"
-	upload, file, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
+	upload, file, err := pc.UploadReader("filename", io.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
 	require.Len(t, upload.Metadata().Files, 0, "invalid file count")
 
@@ -380,7 +380,7 @@ func TestDeleteUpload(t *testing.T) {
 	require.NoError(t, err, "unable to start plik server")
 
 	data := "data data data"
-	upload, file, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
+	upload, file, err := pc.UploadReader("filename", io.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
 	require.Len(t, upload.Metadata().Files, 0, "invalid file count")
 
@@ -436,7 +436,7 @@ func TestDownloadArchive(t *testing.T) {
 	require.NoError(t, err, "unable to start plik server")
 
 	data := "data data data"
-	upload, _, err := pc.UploadReader("filename", ioutil.NopCloser(bytes.NewBufferString(data)))
+	upload, _, err := pc.UploadReader("filename", io.NopCloser(bytes.NewBufferString(data)))
 	require.NoError(t, err, "unable to upload file")
 	require.Len(t, upload.Metadata().Files, 0, "invalid file count")
 
@@ -444,7 +444,7 @@ func TestDownloadArchive(t *testing.T) {
 	require.NoError(t, err, "unable to download archive")
 
 	defer reader.Close()
-	content, err := ioutil.ReadAll(reader)
+	content, err := io.ReadAll(reader)
 	require.NoError(t, err, "unable to read archive")
 
 	require.NotEmpty(t, content, "empty archive")

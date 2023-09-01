@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/http/httputil"
@@ -43,7 +42,7 @@ func (c *Client) create(uploadParams *common.Upload) (uploadMetadata *common.Upl
 	}
 
 	defer func() { _ = resp.Body.Close() }()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +136,7 @@ func (c *Client) uploadFile(upload *common.Upload, fileParams *common.File, read
 	}
 
 	defer func() { _ = resp.Body.Close() }()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +194,7 @@ func (c *Client) getUploadWithParams(uploadParams *common.Upload) (upload *Uploa
 	}
 
 	defer func() { _ = resp.Body.Close() }()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +346,7 @@ func parseErrorResponse(resp *http.Response) (err error) {
 	// Reade response body
 
 	var body []byte
-	body, err = ioutil.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
