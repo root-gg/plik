@@ -1,6 +1,7 @@
 package common
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/url"
@@ -47,6 +48,7 @@ type Configuration struct {
 	SslEnabled bool   `json:"-"`
 	SslCert    string `json:"-"`
 	SslKey     string `json:"-"`
+	TlsVersion string `json:"-"`
 
 	NoWebInterface      bool     `json:"-"`
 	DownloadDomain      string   `json:"downloadDomain"`
@@ -360,6 +362,24 @@ func (config *Configuration) GetServerURL() *url.URL {
 	URL.Path = config.Path
 
 	return URL
+}
+
+// GetTlsVersion is a helper to get the TLS version
+func (config *Configuration) GetTlsVersion() uint16 {
+	if config.TlsVersion == "tlsv10" {
+		return tls.VersionTLS10
+	}
+	if config.TlsVersion == "tlsv11" {
+		return tls.VersionTLS11
+	}
+	if config.TlsVersion == "tlsv12" {
+		return tls.VersionTLS12
+	}
+	if config.TlsVersion == "tlsv13" {
+		return tls.VersionTLS13
+	}
+
+	return tls.VersionTLS10
 }
 
 // GetPath return the web API/UI root path
