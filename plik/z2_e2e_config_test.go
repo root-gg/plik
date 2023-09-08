@@ -236,7 +236,7 @@ func TestDownloadDomainAlias(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)
 
-	ps.GetConfig().DownloadDomain = fmt.Sprintf("https://plik.root.gg")
+	ps.GetConfig().DownloadDomain = "https://plik.root.gg"
 	ps.GetConfig().DownloadDomainAlias = []string{fmt.Sprintf("http://%s:%d", ps.GetConfig().ListenAddress, ps.GetConfig().ListenPort)}
 	err := ps.GetConfig().Initialize()
 	require.NoError(t, err, "unable to initialize config")
@@ -257,7 +257,7 @@ func TestInvalidDownloadDomain(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)
 
-	ps.GetConfig().DownloadDomain = fmt.Sprintf("https://plik.root.gg")
+	ps.GetConfig().DownloadDomain = "https://plik.root.gg"
 	err := ps.GetConfig().Initialize()
 	require.NoError(t, err, "unable to initialize config")
 
