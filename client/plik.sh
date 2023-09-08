@@ -200,7 +200,7 @@ do
     if [ "$STDIN" == true ]; then
         UPLOAD_COMMAND+="curl -s -X POST $AUTH_TOKEN_HEADER $UPLOAD_TOKEN_HEADER -F \"file=@-;filename=$FILENAME\" $PLIK_URL/file/$UPLOAD_ID"
     else
-        UPLOAD_COMMAND+="curl -s -X POST $AUTH_TOKEN_HEADER $UPLOAD_TOKEN_HEADER -F \"file=@$FILE;filename=$FILENAME\" $PLIK_URL/file/$UPLOAD_ID"
+        UPLOAD_COMMAND+="curl -s -X POST $AUTH_TOKEN_HEADER $UPLOAD_TOKEN_HEADER -F \"file=@\\\"$FILE\\\";filename=\\\"$FILENAME\\\"\" $PLIK_URL/file/$UPLOAD_ID"
     fi
 
     FILE_RESP=$(eval $UPLOAD_COMMAND)
