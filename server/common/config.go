@@ -410,13 +410,13 @@ func (config *Configuration) String() string {
 	if config.DefaultTTL > 0 {
 		str += fmt.Sprintf("Default upload TTL : %s\n", HumanDuration(time.Duration(config.DefaultTTL)*time.Second))
 	} else {
-		str += fmt.Sprintf("Default upload TTL : unlimited\n")
+		str += "Default upload TTL : unlimited\n"
 	}
 
 	if config.MaxTTL > 0 {
 		str += fmt.Sprintf("Maximum upload TTL : %s\n", HumanDuration(time.Duration(config.MaxTTL)*time.Second))
 	} else {
-		str += fmt.Sprintf("Maximum upload TTL : unlimited\n")
+		str += "Maximum upload TTL : unlimited\n"
 	}
 
 	str += fmt.Sprintf("One shot upload : %s\n", config.FeatureOneShot)
@@ -430,18 +430,18 @@ func (config *Configuration) String() string {
 	str += fmt.Sprintf("Authentication : %s\n", config.FeatureAuthentication)
 	if config.FeatureAuthentication != FeatureDisabled {
 		if config.GoogleAuthentication {
-			str += fmt.Sprintf("Google authentication : enabled\n")
+			str += "Google authentication : enabled\n"
 		} else {
-			str += fmt.Sprintf("Google authentication : disabled\n")
+			str += "Google authentication : disabled\n"
 		}
 
 		if config.OvhAuthentication {
-			str += fmt.Sprintf("OVH authentication : enabled\n")
+			str += "OVH authentication : enabled\n"
 			if config.OvhAPIEndpoint != "" {
 				str += fmt.Sprintf("OVH API endpoint : %s\n", config.OvhAPIEndpoint)
 			}
 		} else {
-			str += fmt.Sprintf("OVH authentication : disabled\n")
+			str += "OVH authentication : disabled\n"
 		}
 	}
 
