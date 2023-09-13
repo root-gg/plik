@@ -113,7 +113,7 @@ func NewConfiguration() (config *Configuration) {
 
 	config.ListenAddress = "0.0.0.0"
 	config.ListenPort = 8080
-	config.MetricsAddress = "0.0.0."
+	config.MetricsAddress = "0.0.0.0"
 	config.MetricsPort = 0
 	config.EnhancedWebSecurity = false
 	config.SessionTimeout = "365d"
