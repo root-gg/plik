@@ -35,7 +35,7 @@ func NewConfig(params map[string]interface{}) (config *Config) {
 	config = new(Config)
 	config.Bucket = "plik"
 	config.Location = "us-east-1"
-	config.PartSize = 16 * 1000 * 1000 // 16MB
+	config.PartSize = 16 * 1024 * 1024 // 16MiB
 	utils.Assign(config, params)
 	return
 }
@@ -57,7 +57,7 @@ func (config *Config) Validate() error {
 	if config.Location == "" {
 		return fmt.Errorf("missing location")
 	}
-	if config.PartSize < 5*1000*1000 {
+	if config.PartSize < 5*1024*1024 {
 		return fmt.Errorf("invalid part size")
 	}
 	return nil
@@ -139,9 +139,9 @@ func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (err error) {
 		_, err = b.client.PutObject(context.TODO(), b.config.Bucket, b.getObjectName(file.ID), fileReader, file.Size, putOpts)
 	} else {
 		// https://github.com/minio/minio-go/issues/989
-		// Minio defaults to 128MB chunks and has to actually allocate a buffer of this size before uploading the chunk
+		// Minio defaults to 128MiB chunks and has to actually allocate a buffer of this size before uploading the chunk
 		// This can lead to very high memory usage when uploading a lot of small files in parallel
-		// We default to 16MB which allow to store files up to 160GB ( 10000 chunks of 16MB ), feel free to adjust this parameter to your needs.
+		// We default to 16MiB which allow to store files up to 156GiB ( 10000 chunks of 16MiB ), feel free to adjust this parameter to your needs.
 		putOpts.PartSize = b.config.PartSize
 
 		_, err = b.client.PutObject(context.TODO(), b.config.Bucket, b.getObjectName(file.ID), fileReader, -1, putOpts)
