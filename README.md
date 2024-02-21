@@ -365,6 +365,33 @@ client_body_buffer_size 1M;
 
 Plik session cookies have the "secure" flag set when EnhancedWebSecurity is set so they can only be transmitted over secure HTTPS connections.
 
+* Is there an OpenRC template for running plik as a service?
+
+Yes (the plikuser has to be created):
+
+```
+#!/sbin/openrc-run
+
+name=$RC_SVCNAME
+description="Plik File Sharing Service"
+command="/path/to/plik/server/plikd"
+command_user="plikuser:plikuser"
+command_background=true
+directory="/path/to/plik/server"
+pidfile=/run/${RC_SVCNAME}.pid
+start_stop_daemon_args="--stdout /var/log/$RC_SVCNAME/${RC_SVCNAME}.log --stderr /var/log/$RC_SVCNAME/${RC_SVCNAME}.log"
+
+depend() {
+    use logger dns
+    need net
+    after firewall
+}
+
+start_pre() {
+    checkpath --directory --owner $command_user --mode 0775 /var/log/$RC_SVCNAME
+}
+```
+
 * Build failure "/usr/bin/env: ‘node’: No such file or directory"
 
 Debian users might need to install the nodejs-legacy package.
