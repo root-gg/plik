@@ -211,11 +211,12 @@ See help for more details
 ### Authentication <a name="authentication"></a>
 
 Plik can authenticate users using Local accounts or using Google or OVH APIs.
-
+ 
+To enable authentication set FeatureAuthentication to "enabled" in plikd.cfg
+To only allow authenticated users to upload files set FeatureAuthentication to "forced" in plikd.cfg
+ 
 If source IP address restriction is enabled, user accounts can only be created from trusted IPs and then 
 authenticated users can upload files without source IP restriction.
-
-It possible to deny unauthenticated uploads totally ( NoAnonymousUploads ).  
 
 Admin users can access the admin dashboard and manipulate every uploads.
 
