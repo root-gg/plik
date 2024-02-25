@@ -96,7 +96,20 @@ module.exports = function (grunt) {
                     dest: 'dist/fonts/',
                     flatten: true
                 }]
-            }
+            },
+            custom: {
+                files: [{
+                    src: [
+                        'css/custom.css',
+                    ],
+                    dest: 'dist/css/custom.css',
+                },{
+                    src: [
+                        'js/custom.js',
+                    ],
+                    dest: 'dist/js/custom.js',
+                }]
+            },
         },
         ngAnnotate: {
             options: {
@@ -119,7 +132,7 @@ module.exports = function (grunt) {
             javascript: {
                 files: {
                     'dist/js/app.js': ['dist/js/app.js'],
-                    'dist/js/vendor.js': ['dist/js/vendor.js']
+                    'dist/js/vendor.js': ['dist/js/vendor.js'],
                 }
             }
 

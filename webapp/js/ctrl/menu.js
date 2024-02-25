@@ -1,5 +1,8 @@
 plik.controller('MenuCtrl', ['$rootScope', '$scope', '$config',
     function ($rootScope, $scope, $config) {
+        // Set title
+        $rootScope.title = TITLE;
+
         // Get server config
         $config.getConfig()
             .then(function (config) {

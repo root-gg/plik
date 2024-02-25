@@ -85,5 +85,5 @@ plik    | [01/27/2022 10:48:26][INFO    ] Starting plikd server v...
 plik    | [01/27/2022 10:48:26][INFO    ] Starting server at http://0.0.0.0:8080
 ```
 
-Reach out on telegram or this thread if you need help or have any suggestion :
+Reach out on telegram on this thread if you need help or have any suggestion :
 https://github.com/root-gg/plik/issues/326

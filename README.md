@@ -36,6 +36,7 @@ Plik is a scalable & friendly temporary file upload system (Wetransfer like) in 
 2. [Configuration](#configuration)
 3. [Data Backends](#data-backends)
 4. [Metadata Backends](#metadata-backends)
+5. [Web UI](#web-ui)
 5. [Client CLI](#cli-client)
 6. [Go Client](#go-client)
 7. [HTTP API](#api)
@@ -123,6 +124,25 @@ Suitable for standalone deployment.
  - PostgreSQL / Mysql
 
 Suitable for distributed / High Availability deployment.
+
+### Web UI <a name="web-ui"></a>
+
+By default, Plikd serves an Angularjs Web UI on the same port as the API.
+This behaviour can be disabled by setting "NoWebInterface" in plikd.cfg.
+
+The WebUI path can be changed by setting "WebappDirectory" in plikd.cfg.
+It defaults to the relative path it has in the release .tar.gz '../webapp/dist'.
+
+The interface can be customized in a few ways:
+- The title can be changed in `js/custom.js`
+- The css styles can be override in `css/custom.css` (use !important)
+- The background can be changed : `img/background.jpg`
+- The favicon can be changed : `favicon.ico`
+
+If you are using docker the files are located at `/home/plik/webapp/dist` in the container. For example:
+```sh
+$ docker run -t -d -p 8080:8080 -v my_background.jpg:/home/plik/webapp/dist/img/background.jpg rootgg/plik
+```
 
 ### Cli client <a name="cli-client"></a>
 Plik is shipped with a powerful golang multiplatform cli client (downloadable in web interface) :  
