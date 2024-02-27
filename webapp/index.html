@@ -31,7 +31,7 @@
                 </div>
                 <!-- TOP MENU -->
                 <div class="col-sm-9 text-right hidden-xs">
-                    <a ng-if="isFeatureEnabled('authentication') && !user" href="#/login"><i class="fa fa-lock"></i> Authentication</a>
+                    <a ng-if="auth_button && isFeatureEnabled('authentication') && !user" href="#/login"><i class="fa fa-lock"></i> Authentication</a>
                     <a ng-if="isFeatureEnabled('authentication') && user" href="#/login">{{user.login}}</a>
                     &nbsp;
                     <a ng-if="isFeatureEnabled('authentication') && user && user.admin" href="#/admin"><i class="fa fa-wrench"></i> Admin&nbsp;</a>
