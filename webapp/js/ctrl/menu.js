@@ -1,7 +1,9 @@
 plik.controller('MenuCtrl', ['$rootScope', '$scope', '$config',
     function ($rootScope, $scope, $config) {
-        // Set title
-        $rootScope.title = TITLE;
+
+        // Static config
+        $rootScope.title = CONFIG.TITLE || "Plik";
+        $scope.auth_button = !CONFIG.DISABLE_AUTH_BUTTON;
 
         // Get server config
         $config.getConfig()
