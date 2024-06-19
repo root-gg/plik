@@ -78,6 +78,7 @@ func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (err error) {
 	if err != nil {
 		return fmt.Errorf("unable to create file %s : %s", path, err)
 	}
+	defer out.Close()
 
 	// Copy file data from the client request body
 	// to the file system
