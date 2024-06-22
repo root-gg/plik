@@ -278,7 +278,7 @@ plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location
             }
             return "unlimited"
         };
-        
+
         $scope.getUserMaxTTL = function (user) {
             if (user.maxTTL > 0) {
                 return getHumanReadableTTLString(user.maxTTL)
@@ -296,7 +296,11 @@ plik.controller('AdminCtrl', ['$scope', '$api', '$config', '$dialog', '$location
 
         // Get file url
         $scope.getFileUrl = function (upload, file) {
-            return $api.base + '/file/' + upload.id + '/' + file.id + '/' + file.fileName;
+            var domain = $api.base;
+            if(upload.downloadDomain) {
+                domain = upload.downloadDomain;
+            }
+            return domain + '/file/' + upload.id + '/' + file.id + '/' + file.fileName;
         };
 
         $scope.getHumanReadableTTLString = getHumanReadableTTLString;
