@@ -69,6 +69,11 @@ func GetUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 		return
 	}
 
+	config := ctx.GetConfig()
+	for _, upload := range uploads {
+		upload.DownloadDomain = config.DownloadDomain
+	}
+
 	pagingResponse := common.NewPagingResponse(uploads, cursor)
 	common.WriteJSONResponse(resp, pagingResponse)
 }

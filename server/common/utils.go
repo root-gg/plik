@@ -75,6 +75,8 @@ func WriteJSONResponse(resp http.ResponseWriter, obj interface{}) {
 		panic(fmt.Errorf("unable to serialize json response : %s", err))
 	}
 
+	resp.Header().Add("content-type", "application/json")
+
 	_, _ = resp.Write(json)
 }
 

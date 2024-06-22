@@ -243,7 +243,11 @@ plik.controller('HomeCtrl', ['$scope', '$api', '$config', '$dialog', '$location'
 
         // Get file url
         $scope.getFileUrl = function (upload, file) {
-            return $api.base + '/file/' + upload.id + '/' + file.id + '/' + file.fileName;
+            var domain = $api.base;
+            if(upload.downloadDomain) {
+                domain = upload.downloadDomain;
+            }
+            return domain + '/file/' + upload.id + '/' + file.id + '/' + file.fileName;
         };
 
         // Compute human readable size
