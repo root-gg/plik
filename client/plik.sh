@@ -33,6 +33,27 @@ function setTtl() {
     esac
     return
 }
+# The following snippet is modified from
+# https://stackoverflow.com/a/10660730/17792535
+# Snippet Start
+function rawURLEncode() {
+  local string="${1}"
+  local strlen=${#string}
+  local encoded=""
+  local pos c o
+
+  for (( pos=0 ; pos<strlen ; pos++ )); do
+     c=${string:$pos:1}
+     case "$c" in
+        [-_.~a-zA-Z0-9:/] ) o="${c}" ;;
+        * )               printf -v o '%%%02x' "'$c"
+     esac
+     encoded+="${o}"
+  done
+  echo "${encoded}"    # You can either set a return variable (FASTER) 
+  REPLY="${encoded}"   #+or echo the result (EASIER)... or both... :p
+}
+# Snippet End
 
 #
 ## Vars
@@ -223,7 +244,8 @@ do
     FILE_URL="$DOWNLOAD_DOMAIN/file/$UPLOAD_ID/$FILE_ID/$FILE_NAME"
 
     # Compute get command
-    COMMAND="curl -s $FILE_URL"
+    rawURLEncode "$FILE_URL"
+    COMMAND="curl -s '$REPLY'"
 
     if [ "$SECURE" == true ]; then
         COMMAND+=" | openssl aes-256-cbc -d -pass \"pass:$PASSPHRASE\""
@@ -232,15 +254,14 @@ do
     if [ "$ARCHIVE" == true ]; then
         COMMAND+=" | tar zxvf -"
     else
-        COMMAND+=" > $FILE_NAME"
+        COMMAND+=" > '$FILE_NAME'"
     fi
 
     # Output
     if [ "$QUIET" == true ]; then
-        echo "$FILE_URL"
+        echo "$REPLY"
     else
         echo "$COMMAND"
     fi
 done
 qecho
-
