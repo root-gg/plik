@@ -12,8 +12,7 @@ set -e
 green='\e[0;32m'
 endColor='\e[0m'
 function jsonValue() {
-    KEY=$1
-    sed -e "s/,/\n/g" | sed -e "s/[\"{}]//g" | grep $KEY | cut -d ":" -f2-
+    echo $(cat | sed -n "s/.*\"$1\":\"\([^\"]*\)\".*/\1/p")
 }
 
 function qecho(){ 
