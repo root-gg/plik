@@ -32,10 +32,8 @@ function setTtl() {
     esac
     return
 }
-# The following snippet is modified from
-# https://stackoverflow.com/a/10660730/17792535
-# Snippet Start
-function rawURLEncode() {
+
+function rawurlencode() {
   local string="${1}"
   local strlen=${#string}
   local encoded=""
@@ -45,14 +43,12 @@ function rawURLEncode() {
      c=${string:$pos:1}
      case "$c" in
         [-_.~a-zA-Z0-9:/] ) o="${c}" ;;
-        * )               printf -v o '%%%02x' "'$c"
+        * ) o=$(printf "$c" | hexdump -e '/1 "%02X\n"' | tr '\n' '%' | sed 's/^/%/; s/.$//')
      esac
      encoded+="${o}"
   done
-  echo "${encoded}"    # You can either set a return variable (FASTER) 
-  REPLY="${encoded}"   #+or echo the result (EASIER)... or both... :p
+  echo "${encoded}"
 }
-# Snippet End
 
 #
 ## Vars
@@ -64,7 +60,7 @@ PASSPHRASE=""
 ARCHIVE=false
 ONESHOT=false
 REMOVABLE=false
-TTL=0
+TTL=604800 # a week
 
 #
 ## Read ~/.plikrc file
@@ -243,7 +239,7 @@ do
     FILE_URL="$DOWNLOAD_DOMAIN/file/$UPLOAD_ID/$FILE_ID/$FILE_NAME"
 
     # Compute get command
-    rawURLEncode "$FILE_URL"
+    REPLY=$(rawurlencode "$FILE_URL")
     COMMAND="curl -s '$REPLY'"
 
     if [ "$SECURE" == true ]; then
@@ -251,7 +247,7 @@ do
     fi
 
     if [ "$ARCHIVE" == true ]; then
-        COMMAND+=" | tar zxvf -"
+        COMMAND+=" | tar zxf -"
     else
         COMMAND+=" > '$FILE_NAME'"
     fi
@@ -262,5 +258,6 @@ do
     else
         echo "$COMMAND"
     fi
+    echo -n "$PLIK_URL/#/?id=$UPLOAD_ID"
 done
 qecho
