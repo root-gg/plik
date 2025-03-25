@@ -22,3 +22,5 @@ plikd_*.cfg
 .idea
 plik.iml
 coverage.out
+
+vendor
