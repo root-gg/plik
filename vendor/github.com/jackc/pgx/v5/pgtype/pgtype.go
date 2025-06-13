@@ -44,7 +44,7 @@ const (
 	MacaddrOID             = 829
 	InetOID                = 869
 	BoolArrayOID           = 1000
-	QCharArrayOID          = 1003
+	QCharArrayOID          = 1002
 	NameArrayOID           = 1003
 	Int2ArrayOID           = 1005
 	Int4ArrayOID           = 1007
@@ -81,6 +81,8 @@ const (
 	IntervalOID            = 1186
 	IntervalArrayOID       = 1187
 	NumericArrayOID        = 1231
+	TimetzOID              = 1266
+	TimetzArrayOID         = 1270
 	BitOID                 = 1560
 	BitArrayOID            = 1561
 	VarbitOID              = 1562
@@ -559,7 +561,7 @@ func TryFindUnderlyingTypeScanPlan(dst any) (plan WrappedScanPlanNextSetter, nex
 			}
 		}
 
-		if nextDstType != nil && dstValue.Type() != nextDstType {
+		if nextDstType != nil && dstValue.Type() != nextDstType && dstValue.CanConvert(nextDstType) {
 			return &underlyingTypeScanPlan{dstType: dstValue.Type(), nextDstType: nextDstType}, dstValue.Convert(nextDstType).Interface(), true
 		}
 
@@ -1140,25 +1142,6 @@ func (m *Map) Scan(oid uint32, formatCode int16, src []byte, dst any) error {
 	return plan.Scan(src, dst)
 }
 
-func scanUnknownType(oid uint32, formatCode int16, buf []byte, dest any) error {
-	switch dest := dest.(type) {
-	case *string:
-		if formatCode == BinaryFormatCode {
-			return fmt.Errorf("unknown oid %d in binary format cannot be scanned into %T", oid, dest)
-		}
-		*dest = string(buf)
-		return nil
-	case *[]byte:
-		*dest = buf
-		return nil
-	default:
-		if nextDst, retry := GetAssignToDstType(dest); retry {
-			return scanUnknownType(oid, formatCode, buf, nextDst)
-		}
-		return fmt.Errorf("unknown oid %d cannot be scanned into %T", oid, dest)
-	}
-}
-
 var ErrScanTargetTypeChanged = errors.New("scan target type changed")
 
 func codecScan(codec Codec, m *Map, oid uint32, format int16, src []byte, dst any) error {
@@ -1377,6 +1360,8 @@ var kindToTypes map[reflect.Kind]reflect.Type = map[reflect.Kind]reflect.Type{
 	reflect.Bool:    reflect.TypeOf(false),
 }
 
+var byteSliceType = reflect.TypeOf([]byte{})
+
 type underlyingTypeEncodePlan struct {
 	nextValueType reflect.Type
 	next          EncodePlan
@@ -1391,6 +1376,10 @@ func (plan *underlyingTypeEncodePlan) Encode(value any, buf []byte) (newBuf []by
 // TryWrapFindUnderlyingTypeEncodePlan tries to convert to a Go builtin type. e.g. If value was of type MyString and
 // MyString was defined as a string then a wrapper plan would be returned that converts MyString to string.
 func TryWrapFindUnderlyingTypeEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
+	if value == nil {
+		return nil, nil, false
+	}
+
 	if _, ok := value.(driver.Valuer); ok {
 		return nil, nil, false
 	}
@@ -1404,6 +1393,15 @@ func TryWrapFindUnderlyingTypeEncodePlan(value any) (plan WrappedEncodePlanNextS
 	nextValueType := kindToTypes[refValue.Kind()]
 	if nextValueType != nil && refValue.Type() != nextValueType {
 		return &underlyingTypeEncodePlan{nextValueType: nextValueType}, refValue.Convert(nextValueType).Interface(), true
+	}
+
+	// []byte is a special case. It is a slice but we treat it as a scalar type. In the case of a named type like
+	// json.RawMessage which is defined as []byte the underlying type should be considered as []byte. But any other slice
+	// does not have a special underlying type.
+	//
+	// https://github.com/jackc/pgx/issues/1763
+	if refValue.Type() != byteSliceType && refValue.Type().AssignableTo(byteSliceType) {
+		return &underlyingTypeEncodePlan{nextValueType: byteSliceType}, refValue.Convert(byteSliceType).Interface(), true
 	}
 
 	return nil, nil, false

@@ -1,3 +1,87 @@
+# 5.5.4 (March 4, 2024)
+
+Fix CVE-2024-27304
+
+SQL injection can occur if an attacker can cause a single query or bind message to exceed 4 GB in size. An integer
+overflow in the calculated message size can cause the one large message to be sent as multiple messages under the
+attacker's control.
+
+Thanks to Paul Gerste for reporting this issue.
+
+* Fix behavior of CollectRows to return empty slice if Rows are empty (Felix)
+* Fix simple protocol encoding of json.RawMessage
+* Fix *Pipeline.getResults should close pipeline on error
+* Fix panic in TryFindUnderlyingTypeScanPlan (David Kurman)
+* Fix deallocation of invalidated cached statements in a transaction
+* Handle invalid sslkey file
+* Fix scan float4 into sql.Scanner
+* Fix pgtype.Bits not making copy of data from read buffer. This would cause the data to be corrupted by future reads.
+
+# 5.5.3 (February 3, 2024)
+
+* Fix: prepared statement already exists
+* Improve CopyFrom auto-conversion of text-ish values
+* Add ltree type support (Florent Viel)
+* Make some properties of Batch and QueuedQuery public (Pavlo Golub)
+* Add AppendRows function (Edoardo Spadolini)
+* Optimize convert UUID [16]byte to string (Kirill Malikov)
+* Fix: LargeObject Read and Write of more than ~1GB at a time (Mitar)
+
+# 5.5.2 (January 13, 2024)
+
+* Allow NamedArgs to start with underscore
+* pgproto3: Maximum message body length support (jeremy.spriet)
+* Upgrade golang.org/x/crypto to v0.17.0
+* Add snake_case support to RowToStructByName (Tikhon Fedulov)
+* Fix: update description cache after exec prepare (James Hartig)
+* Fix: pipeline checks if it is closed (James Hartig and Ryan Fowler)
+* Fix: normalize timeout / context errors during TLS startup (Samuel Stauffer)
+* Add OnPgError for easier centralized error handling (James Hartig)
+
+# 5.5.1 (December 9, 2023)
+
+* Add CopyFromFunc helper function. (robford)
+* Add PgConn.Deallocate method that uses PostgreSQL protocol Close message.
+* pgx uses new PgConn.Deallocate method. This allows deallocating statements to work in a failed transaction. This fixes a case where the prepared statement map could become invalid.
+* Fix: Prefer driver.Valuer over json.Marshaler for json fields. (Jacopo)
+* Fix: simple protocol SQL sanitizer previously panicked if an invalid $0 placeholder was used. This now returns an error instead. (maksymnevajdev)
+* Add pgtype.Numeric.ScanScientific (Eshton Robateau)
+
+# 5.5.0 (November 4, 2023)
+
+* Add CollectExactlyOneRow. (Julien GOTTELAND)
+* Add OpenDBFromPool to create *database/sql.DB from *pgxpool.Pool. (Lev Zakharov)
+* Prepare can automatically choose statement name based on sql. This makes it easier to explicitly manage prepared statements.
+* Statement cache now uses deterministic, stable statement names.
+* database/sql prepared statement names are deterministically generated.
+* Fix: SendBatch wasn't respecting context cancellation.
+* Fix: Timeout error from pipeline is now normalized.
+* Fix: database/sql encoding json.RawMessage to []byte.
+* CancelRequest: Wait for the cancel request to be acknowledged by the server. This should improve PgBouncer compatibility. (Anton Levakin)
+* stdlib: Use Ping instead of CheckConn in ResetSession
+* Add json.Marshaler and json.Unmarshaler for Float4, Float8 (Kirill Mironov)
+
+# 5.4.3 (August 5, 2023)
+
+* Fix: QCharArrayOID was defined with the wrong OID (Christoph Engelbert)
+* Fix: connect_timeout for sslmode=allow|prefer (smaher-edb)
+* Fix: pgxpool: background health check cannot overflow pool
+* Fix: Check for nil in defer when sending batch (recover properly from panic)
+* Fix: json scan of non-string pointer to pointer
+* Fix: zeronull.Timestamptz should use pgtype.Timestamptz
+* Fix: NewConnsCount was not correctly counting connections created by Acquire directly. (James Hartig)
+* RowTo(AddrOf)StructByPos ignores fields with "-" db tag
+* Optimization: improve text format numeric parsing (horpto)
+
+# 5.4.2 (July 11, 2023)
+
+* Fix: RowScanner errors are fatal to Rows
+* Fix: Enable failover efforts when pg_hba.conf disallows non-ssl connections (Brandon Kauffman)
+* Hstore text codec internal improvements (Evan Jones)
+* Fix: Stop timers for background reader when not in use. Fixes memory leak when closing connections (Adrian-Stefan Mares)
+* Fix: Stop background reader as soon as possible.
+* Add PgConn.SyncConn(). This combined with the above fix makes it safe to directly use the underlying net.Conn.
+
 # 5.4.1 (June 18, 2023)
 
 * Fix: concurrency bug with pgtypeDefaultMap and simple protocol (Lev Zakharov)
