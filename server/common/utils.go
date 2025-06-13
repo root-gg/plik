@@ -45,7 +45,7 @@ func StripPrefix(prefix string, handler http.Handler) http.Handler {
 		return handler
 	}
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		// Relative paths to javascript, css, ... imports won't work without a tailing slash
+		// Relative paths to javascript, css, ... imports won't work without a trailing slash
 		if req.URL.Path == prefix {
 			http.Redirect(resp, req, prefix+"/", http.StatusMovedPermanently)
 			return
