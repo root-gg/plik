@@ -62,7 +62,7 @@ version:
 # Run linters
 ###
 lint:
-	@FAIL=0 ;echo -n " - go fmt :" ; OUT=`gofmt -l . 2>&1 | grep -v ^vendor` ; \
+	@FAIL=0 ;echo -n " - go fmt :" ; OUT=`gofmt -l client server plik` ; \
 	if [[ -z "$$OUT" ]]; then echo " OK" ; else echo " FAIL"; echo "$$OUT"; FAIL=1 ; fi ;\
 	echo -n " - go vet :" ; OUT=`go vet ./... 2>&1` ; \
 	if [[ -z "$$OUT" ]]; then echo " OK" ; else echo " FAIL"; echo "$$OUT"; FAIL=1 ; fi ;\
@@ -72,7 +72,7 @@ lint:
 # Run fmt
 ###
 fmt:
-	@gofmt -w -s $(shell find . -type f -name '*.go' -not -path "./vendor/*" )
+	@gofmt -w -s client server plik
 
 ###
 # Run tests
