@@ -355,6 +355,30 @@ func Test_initializeFeatureText(t *testing.T) {
 	require.Equal(t, FeatureDefault, config.FeatureText)
 }
 
+func Test_initializeFeatureDeleteAccount(t *testing.T) {
+	config := NewConfiguration()
+	config.FeatureDeleteAccount = "invalid"
+	RequireError(t, config.initializeFeatureDeleteAccount(), "Invalid feature flag value")
+
+	config = NewConfiguration()
+	config.FeatureDeleteAccount = ""
+	require.NoError(t, config.initializeFeatureDeleteAccount())
+	require.Equal(t, FeatureEnabled, config.FeatureDeleteAccount)
+
+	config = NewConfiguration()
+	config.FeatureDeleteAccount = FeatureDisabled
+	require.NoError(t, config.initializeFeatureDeleteAccount())
+	require.Equal(t, FeatureDisabled, config.FeatureDeleteAccount)
+
+	config = NewConfiguration()
+	config.FeatureDeleteAccount = FeatureForced
+	RequireError(t, config.initializeFeatureDeleteAccount(), "Invalid feature flag value")
+
+	config = NewConfiguration()
+	config.FeatureDeleteAccount = FeatureDefault
+	RequireError(t, config.initializeFeatureDeleteAccount(), "Invalid feature flag value")
+}
+
 func Test_initializeFeatureFlags(t *testing.T) {
 	config := NewConfiguration()
 	require.NoError(t, config.initializeFeatureFlags())
@@ -369,6 +393,7 @@ func Test_initializeFeatureFlags(t *testing.T) {
 	require.NoError(t, ValidateFeatureFlag(config.FeatureGithub))
 	require.NoError(t, ValidateFeatureFlag(config.FeatureClients))
 	require.NoError(t, ValidateFeatureFlag(config.FeatureText))
+	require.NoError(t, ValidateFeatureFlag(config.FeatureDeleteAccount))
 
 	config = NewConfiguration()
 	config.FeatureOneShot = "invalid"

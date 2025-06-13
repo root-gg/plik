@@ -55,6 +55,7 @@ func (config *Configuration) initializeFeatureFlags() error {
 		config.initializeFeatureGithub,
 		config.initializeFeatureClients,
 		config.initializeFeatureText,
+		config.initializeFeatureDeleteAccount,
 	}
 
 	for _, initialization := range initializations {
@@ -250,6 +251,19 @@ func (config *Configuration) initializeFeatureText() error {
 	err := ValidateFeatureFlag(config.FeatureText)
 	if err != nil {
 		return fmt.Errorf("Invalid value for FeatureText : %s", err)
+	}
+
+	return nil
+}
+
+func (config *Configuration) initializeFeatureDeleteAccount() error {
+	if config.FeatureDeleteAccount == "" {
+		config.FeatureDeleteAccount = FeatureEnabled
+	}
+
+	err := ValidateCustomFeatureFlag(config.FeatureDeleteAccount, []string{FeatureDisabled, FeatureEnabled})
+	if err != nil {
+		return fmt.Errorf("Invalid value for FeatureDeleteAccount : %s", err)
 	}
 
 	return nil

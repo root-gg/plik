@@ -70,7 +70,7 @@
             </div>
         </div>
         <!-- DELETE ACCOUNT BUTTON -->
-        <div class="tile menu">
+        <div class="tile menu" ng-if="isFeatureEnabled('delete_account')">
             <div class="menu-item">
                 <button type="button" class="btn btn-lg btn-danger btn-block" ng-click="deleteAccount()">
                     <i class="fa fa-remove"></i> DELETE ACCOUNT

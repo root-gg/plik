@@ -75,6 +75,7 @@ type Configuration struct {
 	FeatureClients        string `json:"feature_clients"`
 	FeatureGithub         string `json:"feature_github"`
 	FeatureText           string `json:"feature_text"`
+	FeatureDeleteAccount  string `json:"feature_delete_account"`
 
 	// Deprecated Feature Flags
 	Authentication      bool `json:"authentication"`      // Deprecated: >1.3.6

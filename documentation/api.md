@@ -130,6 +130,7 @@ User authentication :
 
    - **DELETE** /me
      - Remove user account.
+     - This endpoint is disabled when `feature_delete_account` is set to `disabled`.
 
    - **GET** /me/token
      - List user tokens
