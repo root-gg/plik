@@ -251,7 +251,7 @@ func (ctx *Context) setBasicAuth(upload *common.Upload, login string, password s
 	upload.ProtectedByPassword = true
 
 	// Save only the md5sum of this string to authenticate further requests
-	upload.Password, err = utils.Md5sum(common.EncodeAuthBasicHeader(login, password))
+	upload.Password, err = utils.Md5sum(common.EncodeAuthBasicHeader(upload.Login, password))
 	if err != nil {
 		return fmt.Errorf("unable to generate password hash : %s", err)
 	}
