@@ -251,7 +251,10 @@ func TestUpload_PasswordDefaultLogin(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, upload)
 	require.Equal(t, "plik", upload.Login)
-	require.NotEqual(t, params.Password, upload.Password)
+	md5sum, err := utils.Md5sum(common.EncodeAuthBasicHeader("plik", "bar"))
+	require.NoError(t, err)
+
+	require.Equal(t, md5sum, upload.Password)
 	require.True(t, upload.ProtectedByPassword)
 }
 
