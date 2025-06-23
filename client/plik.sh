@@ -12,8 +12,7 @@ set -e
 green='\e[0;32m'
 endColor='\e[0m'
 function jsonValue() {
-    KEY=$1
-    sed -e "s/,/\n/g" | sed -e "s/[\"{}]//g" | grep $KEY | cut -d ":" -f2-
+    echo $(cat | sed -n "s/.*\"$1\":\"\([^\"]*\)\".*/\1/p")
 }
 
 function qecho(){ 
@@ -34,6 +33,23 @@ function setTtl() {
     return
 }
 
+function rawurlencode() {
+  local string="${1}"
+  local strlen=${#string}
+  local encoded=""
+  local pos c o
+
+  for (( pos=0 ; pos<strlen ; pos++ )); do
+     c=${string:$pos:1}
+     case "$c" in
+        [-_.~a-zA-Z0-9:/] ) o="${c}" ;;
+        * ) o=$(printf "$c" | hexdump -e '/1 "%02X\n"' | tr '\n' '%' | sed 's/^/%/; s/.$//')
+     esac
+     encoded+="${o}"
+  done
+  echo "${encoded}"
+}
+
 #
 ## Vars
 #
@@ -44,7 +60,7 @@ PASSPHRASE=""
 ARCHIVE=false
 ONESHOT=false
 REMOVABLE=false
-TTL=0
+TTL=604800 # a week
 
 #
 ## Read ~/.plikrc file
@@ -223,24 +239,25 @@ do
     FILE_URL="$DOWNLOAD_DOMAIN/file/$UPLOAD_ID/$FILE_ID/$FILE_NAME"
 
     # Compute get command
-    COMMAND="curl -s $FILE_URL"
+    REPLY=$(rawurlencode "$FILE_URL")
+    COMMAND="curl -s '$REPLY'"
 
     if [ "$SECURE" == true ]; then
         COMMAND+=" | openssl aes-256-cbc -d -pass \"pass:$PASSPHRASE\""
     fi
 
     if [ "$ARCHIVE" == true ]; then
-        COMMAND+=" | tar zxvf -"
+        COMMAND+=" | tar zxf -"
     else
-        COMMAND+=" > $FILE_NAME"
+        COMMAND+=" > '$FILE_NAME'"
     fi
 
     # Output
     if [ "$QUIET" == true ]; then
-        echo "$FILE_URL"
+        echo "$REPLY"
     else
         echo "$COMMAND"
     fi
+    echo -n "$PLIK_URL/#/?id=$UPLOAD_ID"
 done
 qecho
-
