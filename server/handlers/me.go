@@ -124,6 +124,11 @@ func GetUserStatistics(ctx *context.Context, resp http.ResponseWriter, req *http
 
 // DeleteAccount remove a user account
 func DeleteAccount(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	if ctx.GetConfig().FeatureDeleteAccount == common.FeatureDisabled {
+		ctx.BadRequest("account deletion is disabled")
+		return
+	}
+
 	// Get user from context
 	user := ctx.GetUser()
 	if user == nil {
