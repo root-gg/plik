@@ -1,6 +1,6 @@
 module github.com/root-gg/plik
 
-go 1.20
+go 1.23.0
 
 require (
 	cloud.google.com/go/storage v1.31.0
@@ -30,7 +30,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/xhit/go-str2duration/v2 v2.1.0
 	golang.org/x/crypto v0.17.0
-	golang.org/x/oauth2 v0.9.0
+	golang.org/x/oauth2 v0.27.0
 	google.golang.org/api v0.129.0
 	gorm.io/driver/mysql v1.5.1
 	gorm.io/driver/postgres v1.5.2
@@ -41,8 +41,7 @@ require (
 
 require (
 	cloud.google.com/go v0.110.3 // indirect
-	cloud.google.com/go/compute v1.20.1 // indirect
-	cloud.google.com/go/compute/metadata v0.2.3 // indirect
+	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	cloud.google.com/go/iam v1.1.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
