@@ -12,6 +12,7 @@ func newTestingContext(config *common.Configuration) (ctx *context.Context) {
 	config.Debug = true
 	ctx.SetConfig(config)
 	ctx.SetLogger(config.NewLogger())
+	ctx.SetAuditLogger(config.NewAuditLogger())
 
 	ctx.SetDataBackend(data_test.NewBackend())
 	ctx.SetStreamBackend(data_test.NewBackend())

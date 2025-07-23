@@ -70,3 +70,33 @@ func TestLogDebugNoBody(t *testing.T) {
 	require.Contains(t, string(buffer.Bytes()), "POST /file", "invalid log message")
 	require.NotContains(t, string(buffer.Bytes()), "request body", "invalid log message")
 }
+
+func TestEmptyAuditLogFile(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+	auditLogger := ctx.GetAuditLogger()
+	require.Nil(t, auditLogger, "Audit logger should not exist")
+}
+
+func TestEmptyAuditLog(t *testing.T) {
+	conf := common.NewConfiguration()
+	conf.AuditLogPath = "/tmp/log"
+	ctx := newTestingContext(conf)
+	auditLogger := ctx.GetAuditLogger()
+	require.NotNil(t, auditLogger, "Audit logger should be initialized")
+
+	ctx.GetConfig().DebugRequests = true
+
+	buffer := &bytes.Buffer{}
+	auditLogger.SetOutput(buffer)
+
+	req, err := http.NewRequest("POST", "/file", bytes.NewBuffer([]byte("request body")))
+	require.NoError(t, err, "unable to create new request")
+
+	req.RequestURI = "/file"
+
+	rr := ctx.NewRecorder(req)
+	AuditLog(ctx, common.DummyHandler).ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code, "invalid handler response status code")
+	require.Contains(t, buffer.String(), "method: POST, uri: /file", "invalid log message")
+}

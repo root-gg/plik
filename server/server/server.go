@@ -302,7 +302,7 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	emptyChain := context.NewChain(middleware.Context(ps.setupContext))
 
 	// The base middleware chain
-	stdChain := emptyChain.Append(middleware.SourceIP, middleware.Log, middleware.Recover)
+	stdChain := emptyChain.Append(middleware.SourceIP, middleware.Log, middleware.Recover, middleware.AuditLog)
 
 	// A chain that authenticates user from session cookies
 	authChain := stdChain.Append(middleware.Authenticate(false), middleware.Impersonate)
@@ -546,6 +546,7 @@ func (ps *PlikServer) GetStreamBackend() data.Backend {
 func (ps *PlikServer) setupContext(ctx *context.Context) {
 	ctx.SetConfig(ps.config)
 	ctx.SetLogger(ps.config.NewLogger())
+	ctx.SetAuditLogger(ps.config.NewAuditLogger())
 	ctx.SetMetadataBackend(ps.metadataBackend)
 	ctx.SetDataBackend(ps.dataBackend)
 	ctx.SetStreamBackend(ps.streamBackend)

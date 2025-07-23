@@ -1,11 +1,13 @@
 package middleware
 
 import (
-	"github.com/gorilla/mux"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"strings"
 	"time"
+
+	"github.com/gorilla/mux"
 
 	"github.com/root-gg/plik/server/context"
 )
@@ -77,5 +79,44 @@ func Log(ctx *context.Context, next http.Handler) http.Handler {
 				log.Warningf("Unable to dump HTTP request : %s", err)
 			}
 		}
+
+	})
+}
+
+// Log the http request
+func AuditLog(ctx *context.Context, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		auditLogger := ctx.GetAuditLogger()
+		if auditLogger == nil {
+			return
+		}
+
+		statusCodeResponseWriter := newStatusCodeResponseWriter(resp)
+		ctx.SetResp(statusCodeResponseWriter)
+		next.ServeHTTP(statusCodeResponseWriter, req)
+
+		// Get the response status code
+		statusCode := statusCodeResponseWriter.statusCode
+
+		user := ctx.GetUser()
+		method := req.Method
+		uri := req.RequestURI
+		ipSrc := ctx.GetSourceIP().String()
+		file := ctx.GetFile()
+		upload := ctx.GetUpload()
+
+		log := ""
+		if user != nil {
+			log += fmt.Sprintf("user_id: %s, user_login: %s, user_email: %s, ", user.ID, user.Login, user.Email)
+		}
+		if file != nil {
+			log += fmt.Sprintf("file_name: %s, file_md5: %s, file_size: %d, mime_type: %s, upload_id: %s, ", file.Name, file.Md5, file.Size, file.Type, file.UploadID)
+		}
+		if upload != nil {
+			log += fmt.Sprintf("upload_login: %s, upload_ttl: %d, upload_upload_token: %s, upload_ip_src: %s, ", upload.Login, upload.TTL, upload.UploadToken, upload.RemoteIP)
+		}
+		log += fmt.Sprintf("method: %s, uri: %s, status_code: %d, ip_src: %s", method, uri, statusCode, ipSrc)
+
+		auditLogger.Info(log)
 	})
 }

@@ -22,11 +22,14 @@ import (
 
 const envPrefix = "PLIKD_"
 
+var auditLogger *logger.Logger
+
 // Configuration object
 type Configuration struct {
 	Debug         bool   `json:"-"`
 	DebugRequests bool   `json:"-"`
 	LogLevel      string `json:"-"`
+	AuditLogPath  string `json:"-"`
 
 	ListenAddress  string `json:"-"`
 	ListenPort     int    `json:"-"`
@@ -281,6 +284,22 @@ func (config *Configuration) NewLogger() (log *logger.Logger) {
 		level = "DEBUG"
 	}
 	return logger.NewLogger().SetMinLevelFromString(level).SetFlags(logger.Fdate | logger.Flevel | logger.FfixedSizeLevel)
+}
+
+func (config *Configuration) NewAuditLogger() (log *logger.Logger) {
+	if auditLogger != nil {
+		return auditLogger
+	}
+	path := config.AuditLogPath
+	if path == "" {
+		return nil
+	}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		panic(fmt.Sprintf("Unable to open audit log file '%s' because: %s\n", path, err.Error()))
+	}
+	auditLogger = logger.NewLogger().SetMinLevelFromString("DEBUG").SetDateFormat("2006-01-02T15:04:05.999Z07:00").SetFlags(logger.Fdate).SetOutput(file)
+	return auditLogger
 }
 
 // GetUploadWhitelist return the parsed IP upload whitelist

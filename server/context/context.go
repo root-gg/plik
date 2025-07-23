@@ -15,6 +15,7 @@ import (
 type Context struct {
 	config              *common.Configuration
 	logger              *logger.Logger
+	auditLogger         *logger.Logger
 	metadataBackend     *metadata.Backend
 	dataBackend         data.Backend
 	streamBackend       data.Backend
@@ -73,6 +74,21 @@ func (ctx *Context) SetLogger(logger *logger.Logger) {
 	defer ctx.mu.Unlock()
 
 	ctx.logger = logger
+}
+
+// SetAuditLogger set logger used for audit in the context
+func (ctx *Context) SetAuditLogger(logger *logger.Logger) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+
+	ctx.auditLogger = logger
+}
+
+func (ctx *Context) GetAuditLogger() *logger.Logger {
+	ctx.mu.RLock()
+	defer ctx.mu.RUnlock()
+
+	return ctx.auditLogger
 }
 
 // GetMetadataBackend get metadataBackend from the context.
