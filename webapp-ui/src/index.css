@@ -1,0 +1,16 @@
+:root {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f5f6f8;
+}
+
+a {
+  color: inherit;
+}
+
+input[type='file'] {
+  display: none;
+}
