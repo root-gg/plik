@@ -5,6 +5,8 @@
 [![GoDoc](https://godoc.org/github.com/root-gg/plik?status.svg)](https://godoc.org/github.com/root-gg/plik)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](http://opensource.org/licenses/MIT)
 
+JUST WANT TO CHECK THE CI PIPELINE
+
 Want to chat with us ? Telegram channel : https://t.me/plik_rootgg
 
 # Plik
