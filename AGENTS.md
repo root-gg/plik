@@ -101,9 +101,11 @@ make vuln                   # govulncheck (report only)
 
 - **Always update docs**: When changing code, update the relevant `ARCHITECTURE.md` and VitePress docs
 - **Keep Helm chart in sync with plikd config**: When adding, removing, or renaming configuration fields in `server/common/config.go` or `server/plikd.cfg`, you **must** also update the Helm chart:
-  - `charts/plik/values.yaml` — add/update the field under `plikd:`
-  - `charts/plik/templates/configmap.yaml` — add/update the explicit key in the template
-  - `charts/plik/templates/secret.yaml` — if the field is sensitive, add env var injection
+  - `charts/plik/values.yaml` — add/update the field under `plikd:` (non-sensitive) or `secrets:` (sensitive)
+  - `charts/plik/templates/configmap.yaml` — add/update the explicit key in the template (non-sensitive config only; never put secrets here)
+  - `charts/plik/templates/secret.yaml` — if the field is a credential, add it under `secrets:` in `values.yaml` and a corresponding key in `secret.yaml`
+- **Helm secrets pattern**: All sensitive credentials must live in the `secrets:` top-level block of `values.yaml`. They are rendered into a `Secret` resource by `secret.yaml`, and injected into the pod via `envFrom.secretRef` (`optional: true`). Never put secrets in the ConfigMap.
+- **BYO Secret (existingSecret)**: Set `secrets.existingSecret: "my-secret-name"` to skip Secret creation and reference an external secret (e.g., Vault, Sealed Secrets, ESO). Use the `plik.secretName` helper in templates to resolve the correct name.
 - **Helm persistence**: the chart has two independent PVCs — `persistence` for uploaded files (`/home/plik/server/files`) and `dbPersistence` for the SQLite database (`/home/plik/server/db`). Both default to `emptyDir` when disabled. The default `MetadataBackendConfig.ConnectionString` is `/home/plik/server/db/plik.db`.
 - **Run tests before committing**: `make lint && make test`
 - **Keep ARCHITECTURE.md files in sync**: Each root folder has its own — update the one closest to your change

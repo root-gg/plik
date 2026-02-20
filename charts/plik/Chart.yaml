@@ -2,7 +2,7 @@ apiVersion: v2
 name: plik
 description: A Helm chart for Plik, a scalable & friendly temporary file upload system.
 type: application
-version: 0.3.0
+version: 0.3.1
 appVersion: "1.4-RC3"
 maintainers:
   - name: root-gg

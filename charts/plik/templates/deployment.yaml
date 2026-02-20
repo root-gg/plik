@@ -60,7 +60,8 @@ spec:
               mountPath: {{ .Values.dbPersistence.path }}
           envFrom:
             - secretRef:
-                name: {{ if .Values.existingSecret }}{{ .Values.existingSecret }}{{ else }}{{ include "plik.fullname" . }}{{ end }}
+                name: {{ include "plik.secretName" . }}
+                optional: true
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

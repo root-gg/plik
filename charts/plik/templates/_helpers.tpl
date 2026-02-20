@@ -60,3 +60,15 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Resolve the Secret name.
+Uses secrets.existingSecret if provided, otherwise uses the chart fullname.
+*/}}
+{{- define "plik.secretName" -}}
+{{- if .Values.secrets.existingSecret -}}
+{{- .Values.secrets.existingSecret -}}
+{{- else -}}
+{{- include "plik.fullname" . -}}
+{{- end -}}
+{{- end }}

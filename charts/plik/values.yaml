@@ -155,15 +155,14 @@ plikd:
   FeatureGithub: "enabled"
   FeatureText: "enabled"
 
-  # Google config (consider using secrets)
+  # Google config (non-sensitive — client ID and domain list only)
   GoogleApiClientID: ""
   GoogleValidDomains: []
 
-  # Ovh config (consider using secrets)
-  OvhApiKey: ""
+  # OVH config (non-sensitive — public endpoint only)
   OvhApiEndpoint: ""
 
-  # OIDC config (consider using secrets)
+  # OIDC config (non-sensitive — client ID, provider URL, domains)
   OIDCClientID: ""
   OIDCProviderURL: ""
   OIDCProviderName: "OpenID"
@@ -185,7 +184,6 @@ plikd:
     # S3
     # Endpoint: "127.0.0.1:9000"
     # AccessKeyID: "access_key_id"
-    # SecretAccessKey: "access_key_secret"
     # Bucket: "plik"
     # Location: "us-east-1"
     # Prefix: ""
@@ -198,7 +196,36 @@ plikd:
     ConnectionString: "/home/plik/server/db/plik.db"
     Debug: false
 
-# External Secrets
-# If set, these values will override the checks for existing secrets.
-# You can use this to point to an existing secret that contains sensitive data.
-existingSecret: ""
+# ─── Sensitive Credentials ────────────────────────────────────────────────────
+# All secret values are stored in a Kubernetes Secret, never in a ConfigMap.
+# The application reads these values from environment variables at startup.
+#
+# To use a pre-existing Secret (e.g. managed by Vault, Sealed Secrets, ESO):
+#   secrets.existingSecret: "my-plik-secret"
+# The external secret must expose the same env var keys listed below.
+secrets:
+  # If set, the chart will NOT create a Secret resource and will reference this
+  # existing Secret instead. The Secret must contain the relevant env var keys.
+  existingSecret: ""
+
+  # Google OAuth2 — client secret injected as PLIKD_GOOGLE_API_SECRET
+  googleApiSecret: ""
+
+  # OVH OAuth2 — injected as PLIKD_OVH_API_KEY / PLIKD_OVH_API_SECRET
+  ovhApiKey: ""
+  ovhApiSecret: ""
+
+  # OIDC — client secret injected as PLIKD_OIDC_CLIENT_SECRET
+  oidcClientSecret: ""
+
+  # Data backend sensitive config (e.g. S3 SecretAccessKey, Swift ApiKey).
+  # Injected as PLIKD_DATA_BACKEND_CONFIG (JSON).
+  # Keys defined here are merged with non-sensitive DataBackendConfig at runtime.
+  dataBackend: {}
+  #   SecretAccessKey: ""
+  #   ApiKey: ""
+
+  # Metadata backend sensitive config (e.g. database Password).
+  # Injected as PLIKD_METADATA_BACKEND_CONFIG (JSON).
+  metadataBackend: {}
+  #   Password: ""
