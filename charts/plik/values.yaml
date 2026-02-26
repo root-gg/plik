@@ -232,6 +232,22 @@ plikd:
   FeatureGithub: "enabled"
   # -- Enable plain-text paste mode
   FeatureText: "enabled"
+  # -- Enable end-to-end encryption (age)
+  FeatureE2EE: "enabled"
+  # -- Enable email notifications on upload/download events (`enabled`, `disabled`)
+  FeatureNotification: "disabled"
+
+  # -- Maximum number of email recipients per upload
+  MaxUploadReceivers: 5
+  # -- Notification backend type (`smtp`, `log`)
+  NotificationBackend: ""
+  # -- Non-sensitive notification backend configuration (SMTP host, port, from, TLS).
+  # Keys depend on the backend type.
+  NotificationBackendConfig:
+    Host: ""
+    Port: 587
+    From: ""
+    TLS: true
 
   # -- Google OAuth2 client ID
   GoogleApiClientID: ""
@@ -315,4 +331,10 @@ secrets:
   # -- Sensitive metadata backend config (e.g. database password).
   # Injected as `PLIKD_METADATA_BACKEND_CONFIG` JSON.
   metadataBackend: {}
+  #   Password: ""
+
+  # -- Sensitive notification backend config (e.g. SMTP password).
+  # Injected as `PLIKD_NOTIFICATION_BACKEND_CONFIG` JSON.
+  notificationBackend: {}
+  #   Username: ""
   #   Password: ""

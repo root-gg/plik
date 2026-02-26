@@ -3,6 +3,7 @@ package context
 import (
 	"fmt"
 	"net/http"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -10,6 +11,12 @@ import (
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/utils"
 )
+
+// isValidEmail checks if the given string is a valid email address.
+func isValidEmail(email string) bool {
+	_, err := mail.ParseAddress(email)
+	return err == nil
+}
 
 // CreateUpload from params and context (check configuration and default values, generate upload and file IDs, ... )
 func (ctx *Context) CreateUpload(params *common.Upload) (upload *common.Upload, err error) {
@@ -181,6 +188,24 @@ func (ctx *Context) setParams(upload *common.Upload, params *common.Upload) (err
 	upload.E2EE = params.E2EE
 	if upload.E2EE != "" && !common.IsValidE2EEScheme(upload.E2EE) {
 		return fmt.Errorf("invalid e2ee scheme %q", upload.E2EE)
+	}
+
+	// Notification parameters
+	if config.FeatureNotification != common.FeatureDisabled {
+		upload.NotifyCreator = params.NotifyCreator
+		if len(params.Receivers) > 0 {
+			// Validate and cap receivers
+			maxReceivers := config.MaxUploadReceivers
+			if maxReceivers > 0 && len(params.Receivers) > maxReceivers {
+				return fmt.Errorf("too many receivers: maximum is %d", maxReceivers)
+			}
+			for _, email := range params.Receivers {
+				if !isValidEmail(email) {
+					return fmt.Errorf("invalid receiver email: %q", email)
+				}
+			}
+			upload.Receivers = params.Receivers
+		}
 	}
 
 	return nil

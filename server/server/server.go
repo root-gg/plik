@@ -29,6 +29,16 @@ import (
 	"github.com/root-gg/plik/server/handlers"
 	"github.com/root-gg/plik/server/metadata"
 	"github.com/root-gg/plik/server/middleware"
+	"github.com/root-gg/plik/server/notification"
+	notification_log "github.com/root-gg/plik/server/notification/log"
+	notification_smtp "github.com/root-gg/plik/server/notification/smtp"
+
+	"github.com/nikoksr/notify"
+	"github.com/nikoksr/notify/service/discord"
+	notifyhttp "github.com/nikoksr/notify/service/http"
+	"github.com/nikoksr/notify/service/msteams"
+	"github.com/nikoksr/notify/service/slack"
+	"github.com/nikoksr/notify/service/telegram"
 )
 
 // PlikServer is a Plik Server instance
@@ -39,7 +49,8 @@ type PlikServer struct {
 	dataBackend     data.Backend
 	streamBackend   data.Backend
 
-	authenticator *common.SessionAuthenticator
+	authenticator       *common.SessionAuthenticator
+	notificationService *notification.Service
 
 	httpServer        *http.Server
 	httpListener      net.Listener
@@ -200,6 +211,11 @@ func (ps *PlikServer) start() (err error) {
 		}
 	}
 
+	err = ps.initializeNotificationService()
+	if err != nil {
+		return fmt.Errorf("unable to initialize notification service : %s", err)
+	}
+
 	if ps.config.IsAutoClean() {
 		go ps.uploadsCleaningRoutine()
 	}
@@ -330,6 +346,10 @@ func (ps *PlikServer) shutdown(timeout time.Duration) (err error) {
 		if err != nil {
 			log.Warningf("unable to shutdown metadata backend : %s", err)
 		}
+	}
+
+	if ps.notificationService != nil {
+		ps.notificationService.Stop()
 	}
 
 	return nil
@@ -596,4 +616,139 @@ func (ps *PlikServer) setupContext(ctx *context.Context) {
 	ctx.SetStreamBackend(ps.streamBackend)
 	ctx.SetAuthenticator(ps.authenticator)
 	ctx.SetMetrics(ps.metrics)
+	ctx.SetNotificationService(ps.notificationService)
+}
+
+// initializeNotificationService initializes the notification provider and service
+func (ps *PlikServer) initializeNotificationService() error {
+	if ps.config.FeatureNotification == common.FeatureDisabled {
+		return nil
+	}
+
+	log := ps.config.NewLogger()
+
+	var provider notification.Provider
+	switch ps.config.NotificationBackend {
+	case "smtp":
+		config := notification_smtp.NewConfig(ps.config.NotificationBackendConfig)
+		if config.Host == "" || config.From == "" {
+			return fmt.Errorf("SMTP notification backend requires Host and From to be configured")
+		}
+		provider = notification_smtp.NewProvider(config)
+	case "log":
+		provider = notification_log.NewProvider(log)
+	case "":
+		// Default to log when no backend is specified but feature is enabled
+		log.Warningf("notification feature is enabled but no backend is configured, defaulting to log backend")
+		provider = notification_log.NewProvider(log)
+	default:
+		return fmt.Errorf("invalid notification backend: %s", ps.config.NotificationBackend)
+	}
+
+	service, err := notification.NewService(provider, ps.config, log)
+	if err != nil {
+		return err
+	}
+
+	ps.notificationService = service
+	ps.notificationService.Start()
+
+	log.Infof("Notification service started with %s backend", provider.Name())
+
+	// Initialize notification channels (nikoksr/notify)
+	if len(ps.config.NotificationChannels) > 0 {
+		channels, err := ps.initializeNotificationChannels(log)
+		if err != nil {
+			return err
+		}
+		if channels != nil {
+			ps.notificationService.SetChannels(channels)
+		}
+	}
+
+	return nil
+}
+
+// initializeNotificationChannels creates nikoksr/notify services from config
+func (ps *PlikServer) initializeNotificationChannels(log *logger.Logger) (*notify.Notify, error) {
+	n := notify.New()
+	count := 0
+
+	for _, ch := range ps.config.NotificationChannels {
+		switch ch.Type {
+		case "slack":
+			token, _ := ch.Config["Token"].(string)
+			channel, _ := ch.Config["Channel"].(string)
+			if token == "" || channel == "" {
+				return nil, fmt.Errorf("slack channel requires Token and Channel")
+			}
+			svc := slack.New(token)
+			svc.AddReceivers(channel)
+			n.UseServices(svc)
+			log.Infof("Notification channel added: slack -> %s", channel)
+			count++
+
+		case "telegram":
+			token, _ := ch.Config["Token"].(string)
+			if token == "" {
+				return nil, fmt.Errorf("telegram channel requires Token")
+			}
+			svc, err := telegram.New(token)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create telegram service: %w", err)
+			}
+			// ChatID can be int64 or float64 (from JSON/TOML)
+			if chatID, ok := ch.Config["ChatID"].(int64); ok {
+				svc.AddReceivers(chatID)
+			} else if chatIDFloat, ok := ch.Config["ChatID"].(float64); ok {
+				svc.AddReceivers(int64(chatIDFloat))
+			}
+			n.UseServices(svc)
+			log.Infof("Notification channel added: telegram")
+			count++
+
+		case "discord":
+			svc := discord.New()
+			if channelID, ok := ch.Config["ChannelID"].(string); ok && channelID != "" {
+				svc.AddReceivers(channelID)
+			} else {
+				return nil, fmt.Errorf("discord channel requires ChannelID")
+			}
+			n.UseServices(svc)
+			log.Infof("Notification channel added: discord")
+			count++
+
+		case "msteams":
+			svc := msteams.New()
+			if webhook, ok := ch.Config["Webhook"].(string); ok && webhook != "" {
+				svc.AddReceivers(webhook)
+			} else {
+				return nil, fmt.Errorf("msteams channel requires Webhook")
+			}
+			n.UseServices(svc)
+			log.Infof("Notification channel added: msteams")
+			count++
+
+		case "http":
+			svc := notifyhttp.New()
+			if url, ok := ch.Config["URL"].(string); ok && url != "" {
+				svc.AddReceiversURLs(url)
+			} else {
+				return nil, fmt.Errorf("http channel requires URL")
+			}
+			n.UseServices(svc)
+			log.Infof("Notification channel added: http -> %s", ch.Config["URL"])
+			count++
+
+		default:
+			return nil, fmt.Errorf("unsupported notification channel type: %s", ch.Type)
+		}
+	}
+
+	if count == 0 {
+		return nil, nil
+	}
+
+	log.Infof("%d notification channel(s) configured", count)
+	return n, nil
 }

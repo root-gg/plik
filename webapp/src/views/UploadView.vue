@@ -52,6 +52,8 @@ const settings = reactive({
   extendTTL: isFeatureDefaultOn('extend_ttl'),
   e2eeEnabled: isFeatureDefaultOn('e2ee'),
   e2eePassphrase: '',
+  notifyCreator: false,
+  receivers: [],
   // When both defaultTTL and maxTTL are 0 (no limit), default to "never expires" ON (opt-out)
   neverExpires: config.defaultTTL <= 0 && effectiveMaxTTL.value <= 0,
   ttlValue: defaultTTL.value.value || 15,
@@ -217,6 +219,16 @@ function buildUploadParams() {
     params.e2ee = 'age'
   }
 
+  // Notification params
+  if (isFeatureEnabled('notification')) {
+    if (settings.notifyCreator) {
+      params.notifyCreator = true
+    }
+    if (settings.receivers && settings.receivers.length > 0) {
+      params.receivers = settings.receivers
+    }
+  }
+
   // Pre-populate files so the server assigns IDs (matched back via reference)
   params.files = files.value.map(f => ({
     fileName: f.fileName,
@@ -314,6 +326,7 @@ async function doUpload() {
       <UploadSidebar
         :settings="settings"
         :effectiveMaxTTL="effectiveMaxTTL"
+        :isAuthenticated="!!auth.user"
         @update:settings="Object.assign(settings, $event)" />
 
       <!-- Main Content -->

@@ -30,6 +30,10 @@ export const config = reactive({
     feature_github: 'default',
     feature_text: 'default',
     feature_e2ee: 'enabled',
+    feature_notification: 'disabled',
+
+    // Notification limits
+    maxUploadReceivers: 5,
 
     // Download domain
     downloadDomain: '',

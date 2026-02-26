@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -163,4 +164,27 @@ func (b *Backend) ForEachFile(f func(file *common.File) error) (err error) {
 	}
 
 	return nil
+}
+
+// UpdateFileDownloadedAt sets the DownloadedAt timestamp for a file if not already set.
+// Returns true if the timestamp was actually set (first download).
+func (b *Backend) UpdateFileDownloadedAt(file *common.File) (firstDownload bool, err error) {
+	if file.DownloadedAt != nil {
+		return false, nil
+	}
+
+	now := time.Now()
+	result := b.db.Model(&common.File{}).
+		Where("id = ? AND downloaded_at IS NULL", file.ID).
+		Update("downloaded_at", now)
+	if result.Error != nil {
+		return false, result.Error
+	}
+
+	if result.RowsAffected > 0 {
+		file.DownloadedAt = &now
+		return true, nil
+	}
+
+	return false, nil
 }

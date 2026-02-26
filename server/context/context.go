@@ -9,6 +9,7 @@ import (
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/data"
 	"github.com/root-gg/plik/server/metadata"
+	"github.com/root-gg/plik/server/notification"
 )
 
 // Context to be propagated throughout the middleware chain
@@ -20,6 +21,7 @@ type Context struct {
 	streamBackend       data.Backend
 	authenticator       *common.SessionAuthenticator
 	metrics             *common.PlikMetrics
+	notificationService *notification.Service
 	pagingQuery         *common.PagingQuery
 	sourceIP            net.IP
 	upload              *common.Upload
@@ -173,6 +175,23 @@ func (ctx *Context) SetMetrics(metrics *common.PlikMetrics) {
 	defer ctx.mu.Unlock()
 
 	ctx.metrics = metrics
+}
+
+// GetNotificationService get notificationService from the context.
+// Returns nil if notifications are not configured.
+func (ctx *Context) GetNotificationService() *notification.Service {
+	ctx.mu.RLock()
+	defer ctx.mu.RUnlock()
+
+	return ctx.notificationService
+}
+
+// SetNotificationService set notificationService in the context
+func (ctx *Context) SetNotificationService(notificationService *notification.Service) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+
+	ctx.notificationService = notificationService
 }
 
 // GetPagingQuery get pagingQuery from the context.

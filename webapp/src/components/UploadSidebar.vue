@@ -13,6 +13,10 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  isAuthenticated: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['update:settings'])
@@ -104,6 +108,33 @@ function toggleNeverExpires() {
   updateSetting('neverExpires', !props.settings.neverExpires)
 }
 
+// Notification receivers
+const receiverInput = ref('')
+
+function addReceiver() {
+  const email = receiverInput.value.trim()
+  if (!email) return
+  // Basic email validation
+  if (!email.includes('@') || !email.includes('.')) return
+  const current = props.settings.receivers || []
+  if (current.includes(email)) return
+  if (config.maxUploadReceivers > 0 && current.length >= config.maxUploadReceivers) return
+  updateSetting('receivers', [...current, email])
+  receiverInput.value = ''
+}
+
+function removeReceiver(email) {
+  const current = props.settings.receivers || []
+  updateSetting('receivers', current.filter(r => r !== email))
+}
+
+function onReceiverKeydown(e) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault()
+    addReceiver()
+  }
+}
+
 const hasAnySettings = computed(() =>
   isFeatureEnabled('one_shot') ||
   isFeatureEnabled('stream') ||
@@ -112,7 +143,8 @@ const hasAnySettings = computed(() =>
   isFeatureEnabled('comments') ||
   isFeatureEnabled('extend_ttl') ||
   isFeatureEnabled('set_ttl') ||
-  isFeatureEnabled('e2ee')
+  isFeatureEnabled('e2ee') ||
+  isFeatureEnabled('notification')
 )
 </script>
 
@@ -342,6 +374,60 @@ const hasAnySettings = computed(() =>
       <p v-if="maxTTL && !settings.neverExpires" class="text-xs text-surface-500 mt-1">
         Max: {{ maxTTL.value }} {{ maxTTL.unit }}
       </p>
+    </div>
+
+    <!-- Notification Section -->
+    <div v-if="isFeatureEnabled('notification')" class="sidebar-section">
+      <h3 class="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2">Notifications</h3>
+
+      <!-- Notify me -->
+      <label v-if="isAuthenticated"
+             class="flex items-center justify-between py-1 cursor-pointer group">
+        <span class="text-sm text-surface-200 group-hover:text-white transition-colors flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-accent-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          Notify me
+        </span>
+        <button type="button"
+                class="toggle-switch"
+                :data-active="settings.notifyCreator"
+                @click="updateSetting('notifyCreator', !settings.notifyCreator)">
+          <span class="toggle-dot" />
+        </button>
+      </label>
+
+      <!-- Receivers -->
+      <div class="mt-2">
+        <label class="text-xs text-surface-500 mb-1 block">Email recipients</label>
+        <div class="flex gap-1">
+          <input type="email"
+                 class="input-field flex-1 text-sm"
+                 placeholder="email@example.com"
+                 v-model="receiverInput"
+                 @keydown="onReceiverKeydown"
+                 @blur="addReceiver" />
+          <button type="button"
+                  class="btn btn-primary text-xs px-2"
+                  @click="addReceiver">Add</button>
+        </div>
+        <div v-if="settings.receivers?.length" class="flex flex-wrap gap-1 mt-2">
+          <span v-for="email in settings.receivers" :key="email"
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-accent-500/15 text-accent-300 border border-accent-500/30">
+            {{ email }}
+            <button type="button" @click="removeReceiver(email)"
+                    class="text-accent-400 hover:text-white transition-colors">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </span>
+        </div>
+        <p v-if="config.maxUploadReceivers > 0" class="text-xs text-surface-500 mt-1">
+          Max {{ config.maxUploadReceivers }} recipient(s)
+        </p>
+      </div>
     </div>
   </aside>
 </template>

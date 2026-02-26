@@ -2,6 +2,8 @@ package common
 
 import (
 	"crypto/rand"
+	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"slices"
@@ -9,6 +11,42 @@ import (
 
 	"gorm.io/gorm"
 )
+
+// Receivers is a custom type for storing a list of email addresses as JSON in the database.
+type Receivers []string
+
+// Scan implements the sql.Scanner interface for reading JSON from the database.
+func (r *Receivers) Scan(value any) error {
+	if value == nil {
+		*r = nil
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		str, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("receivers: unsupported type %T", value)
+		}
+		bytes = []byte(str)
+	}
+	if len(bytes) == 0 {
+		*r = nil
+		return nil
+	}
+	return json.Unmarshal(bytes, r)
+}
+
+// Value implements the driver.Valuer interface for writing JSON to the database.
+func (r Receivers) Value() (driver.Value, error) {
+	if len(r) == 0 {
+		return nil, nil
+	}
+	bytes, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+	return string(bytes), nil
+}
 
 var (
 	randRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
@@ -40,6 +78,9 @@ type Upload struct {
 	ProtectedByPassword bool   `json:"protectedByPassword"`
 	Login               string `json:"login,omitempty"`
 	Password            string `json:"password,omitempty"`
+
+	Receivers     Receivers `json:"receivers,omitempty" gorm:"type:text"`
+	NotifyCreator bool      `json:"notifyCreator,omitempty"`
 
 	CreatedAt time.Time      `json:"createdAt"`
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index:idx_upload_deleted_at"`
@@ -112,6 +153,7 @@ func (upload *Upload) Sanitize(config *Configuration) {
 
 	if !upload.IsAdmin {
 		upload.UploadToken = ""
+		upload.Receivers = nil
 	}
 
 	upload.DownloadDomain = config.DownloadDomain
