@@ -13,6 +13,7 @@ import (
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
+	"github.com/root-gg/plik/server/notification"
 )
 
 type preprocessOutputReturn struct {
@@ -196,6 +197,41 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	// Remove all private information (ip, data backend details, ...) before
 	// sending metadata back to the client
 	file.Sanitize()
+
+	// Check if all files are uploaded and fire notification
+	notifySvc := ctx.GetNotificationService()
+	if notifySvc != nil && !upload.Stream {
+		go func() {
+			allUploaded, err := checkAllFilesUploaded(ctx, upload.ID)
+			if err != nil {
+				log.Warningf("unable to check upload file status for notification: %s", err)
+				return
+			}
+			if allUploaded {
+				// Fetch the full upload with files for the notification
+				fullUpload, err := ctx.GetMetadataBackend().GetUpload(upload.ID)
+				if err != nil {
+					log.Warningf("unable to fetch upload for notification: %s", err)
+					return
+				}
+				files, err := ctx.GetMetadataBackend().GetFiles(upload.ID)
+				if err != nil {
+					log.Warningf("unable to fetch upload files for notification: %s", err)
+					return
+				}
+				fullUpload.Files = files
+				var user *common.User
+				if fullUpload.User != "" {
+					user, _ = ctx.GetMetadataBackend().GetUser(fullUpload.User)
+				}
+				notifySvc.Notify(notification.Event{
+					Type:   notification.EventUploadReady,
+					Upload: fullUpload,
+					User:   user,
+				})
+			}
+		}()
+	}
 
 	if ctx.IsQuick() {
 		// Do our best to print the file url in the response.

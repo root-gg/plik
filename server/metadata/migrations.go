@@ -203,6 +203,29 @@ func (b *Backend) getMigrations() []*gormigrate.Migration {
 				b.log.Criticalf("Something went wrong. Please check database status manually")
 				return nil
 			},
+		}, {
+			ID: "0008-notification",
+			Migrate: func(tx *gorm.DB) error {
+				type Upload struct {
+					Receivers     string `gorm:"type:text"`
+					NotifyCreator bool
+				}
+
+				type File struct {
+					DownloadedAt *time.Time
+				}
+
+				b.log.Warning("Applying database migration 0008-notification")
+				err := b.setupTxForMigration(tx).AutoMigrate(&Upload{})
+				if err != nil {
+					return err
+				}
+				return b.setupTxForMigration(tx).AutoMigrate(&File{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				b.log.Criticalf("Something went wrong. Please check database status manually")
+				return nil
+			},
 		},
 	}
 

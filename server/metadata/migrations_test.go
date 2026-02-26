@@ -75,6 +75,8 @@ func generateTestData(t *testing.T, b *Backend) {
 	upload.Comments = "愛 الحب 사랑 αγάπη любовь प्यार Սեր माया"
 	upload.Login = "foo"
 	upload.Password = "bar"
+	upload.Receivers = common.Receivers{"receiver1@example.com", "receiver2@example.com"}
+	upload.NotifyCreator = true
 	upload.TTL = 3600
 	upload.CreatedAt = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	deadline := time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
@@ -89,6 +91,8 @@ func generateTestData(t *testing.T, b *Backend) {
 	file.Reference = "1"
 	file.Type = "application/awesome"
 	file.Status = common.FileUploaded
+	downloadedAt := time.Date(2000, 1, 1, 0, 30, 0, 0, time.UTC)
+	file.DownloadedAt = &downloadedAt
 
 	err = b.CreateUpload(upload)
 	require.NoError(t, err, "unable to save upload metadata")

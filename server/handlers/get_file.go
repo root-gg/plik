@@ -10,6 +10,7 @@ import (
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 	"github.com/root-gg/plik/server/data"
+	"github.com/root-gg/plik/server/notification"
 )
 
 // GetFile download a file
@@ -135,6 +136,48 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		if err != nil {
 			log.Warningf("error while copying file to response : %s", err)
 		}
+	}
+
+	// Track download for notification
+	notifySvc := ctx.GetNotificationService()
+	if req.Method == "GET" && notifySvc != nil && !upload.Stream {
+		go func() {
+			firstDownload, err := ctx.GetMetadataBackend().UpdateFileDownloadedAt(file)
+			if err != nil {
+				log.Warningf("unable to update file downloaded_at: %s", err)
+				return
+			}
+			if firstDownload {
+				// Check if all files have been downloaded
+				allDownloaded, err := checkAllFilesDownloaded(ctx, upload.ID)
+				if err != nil {
+					log.Warningf("unable to check download status for notification: %s", err)
+					return
+				}
+				if allDownloaded {
+					fullUpload, err := ctx.GetMetadataBackend().GetUpload(upload.ID)
+					if err != nil {
+						log.Warningf("unable to fetch upload for notification: %s", err)
+						return
+					}
+					files, err := ctx.GetMetadataBackend().GetFiles(upload.ID)
+					if err != nil {
+						log.Warningf("unable to fetch upload files for notification: %s", err)
+						return
+					}
+					fullUpload.Files = files
+					var user *common.User
+					if fullUpload.User != "" {
+						user, _ = ctx.GetMetadataBackend().GetUser(fullUpload.User)
+					}
+					notifySvc.Notify(notification.Event{
+						Type:   notification.EventAllDownloaded,
+						Upload: fullUpload,
+						User:   user,
+					})
+				}
+			}
+		}()
 	}
 
 	if file.Status == common.FileRemoved {

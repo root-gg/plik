@@ -53,6 +53,13 @@ data:
     FeatureClients        = {{ .Values.plikd.FeatureClients | quote }}
     FeatureGithub         = {{ .Values.plikd.FeatureGithub | quote }}
     FeatureText           = {{ .Values.plikd.FeatureText | quote }}
+    FeatureE2EE           = {{ .Values.plikd.FeatureE2EE | quote }}
+    FeatureNotification   = {{ .Values.plikd.FeatureNotification | quote }}
+
+    MaxUploadReceivers    = {{ .Values.plikd.MaxUploadReceivers }}
+    {{- if .Values.plikd.NotificationBackend }}
+    NotificationBackend   = {{ .Values.plikd.NotificationBackend | quote }}
+    {{- end }}
 
     GoogleApiClientID   = {{ .Values.plikd.GoogleApiClientID | quote }}
     GoogleValidDomains  = {{ .Values.plikd.GoogleValidDomains | toJson }}
@@ -73,4 +80,11 @@ data:
     [MetadataBackendConfig]
     {{- range $key, $val := .Values.plikd.MetadataBackendConfig }}
     {{ $key }} = {{ $val | toJson }}
+    {{- end }}
+
+    {{- if .Values.plikd.NotificationBackend }}
+    [NotificationBackendConfig]
+    {{- range $key, $val := .Values.plikd.NotificationBackendConfig }}
+    {{ $key }} = {{ $val | toJson }}
+    {{- end }}
     {{- end }}

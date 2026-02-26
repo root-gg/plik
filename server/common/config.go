@@ -23,6 +23,13 @@ import (
 
 const envPrefix = "PLIKD_"
 
+// NotificationChannel describes a push notification channel (e.g. Slack, Telegram).
+// These use nikoksr/notify and send plain-text summaries, unlike the SMTP backend which sends HTML.
+type NotificationChannel struct {
+	Type   string         `json:"type"`   // slack, telegram, discord, msteams, http
+	Config map[string]any `json:"config"` // service-specific configuration
+}
+
 // Configuration object
 type Configuration struct {
 	Debug         bool      `json:"-"`
@@ -80,6 +87,7 @@ type Configuration struct {
 	FeatureGithub         string `json:"feature_github"`
 	FeatureText           string `json:"feature_text"`
 	FeatureE2EE           string `json:"feature_e2ee"`
+	FeatureNotification   string `json:"feature_notification"`
 
 	// Deprecated Feature Flags
 	Authentication      bool `json:"authentication"`      // Deprecated: >1.3.6
@@ -112,6 +120,13 @@ type Configuration struct {
 
 	DataBackend       string         `json:"-"`
 	DataBackendConfig map[string]any `json:"-"`
+
+	NotificationBackend       string         `json:"-"`
+	NotificationBackendConfig map[string]any `json:"-"`
+	MaxUploadReceivers        int            `json:"maxUploadReceivers"`
+
+	// Additional notification channels (plain text push notifications via nikoksr/notify)
+	NotificationChannels []NotificationChannel `json:"-"`
 
 	downloadDomainURL      *url.URL
 	downloadDomainURLAlias []*url.URL
@@ -152,6 +167,8 @@ func NewConfiguration() (config *Configuration) {
 	config.OIDCProviderName = "OpenID"
 
 	config.DataBackend = "file"
+
+	config.MaxUploadReceivers = 5
 
 	config.WebappDirectory = "../webapp/dist"
 	config.ClientsDirectory = "../clients"
@@ -453,6 +470,7 @@ func (config *Configuration) String() string {
 	str += fmt.Sprintf("Upload set TTL : %s\n", config.FeatureSetTTL)
 	str += fmt.Sprintf("Upload extend TTL : %s\n", config.FeatureExtendTTL)
 	str += fmt.Sprintf("E2E encryption : %s\n", config.FeatureE2EE)
+	str += fmt.Sprintf("Notification : %s\n", config.FeatureNotification)
 	str += fmt.Sprintf("Delete account : %s\n", config.FeatureDeleteAccount)
 
 	str += fmt.Sprintf("Authentication : %s\n", config.FeatureAuthentication)

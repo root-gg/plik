@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{.Strings.UploadReady}}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0f172a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0f172a;padding:32px 16px;">
+<tr><td align="center">
+
+<!-- Main card -->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:rgba(30,41,59,0.85);border:1px solid rgba(148,163,184,0.15);border-radius:16px;overflow:hidden;">
+
+<!-- Header -->
+<tr>
+<td style="padding:32px 32px 16px;text-align:center;">
+  <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;color:#e2e8f0;">{{.Strings.UploadReady}}</h1>
+  <p style="margin:0;font-size:14px;color:#94a3b8;">{{.Strings.UploadReadyDesc}}</p>
+</td>
+</tr>
+
+<!-- Upload info -->
+<tr>
+<td style="padding:0 32px 16px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:12px;">
+  <tr>
+    <td style="padding:16px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="font-size:13px;color:#94a3b8;padding-bottom:4px;">{{.Strings.FileCount}}</td>
+        <td style="font-size:13px;color:#94a3b8;padding-bottom:4px;text-align:right;">{{.Strings.Expires}}</td>
+      </tr>
+      <tr>
+        <td style="font-size:18px;font-weight:600;color:#e2e8f0;">{{.FileCount}}</td>
+        <td style="font-size:14px;color:#e2e8f0;text-align:right;">{{.ExpiresAt}}</td>
+      </tr>
+      </table>
+    </td>
+  </tr>
+  </table>
+</td>
+</tr>
+
+<!-- File list -->
+<tr>
+<td style="padding:0 32px 16px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:12px;">
+  <tr>
+    <td style="padding:12px 16px;border-bottom:1px solid rgba(148,163,184,0.1);">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">{{.Strings.FileName}}</td>
+        <td style="font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;text-align:right;">{{.Strings.FileSize}}</td>
+      </tr>
+      </table>
+    </td>
+  </tr>
+  {{range .Upload.Files}}
+  <tr>
+    <td style="padding:10px 16px;border-bottom:1px solid rgba(148,163,184,0.05);">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="font-size:14px;color:#e2e8f0;">{{.Name}}</td>
+        <td style="font-size:13px;color:#94a3b8;text-align:right;white-space:nowrap;">{{humanizeBytes .Size}}</td>
+      </tr>
+      </table>
+    </td>
+  </tr>
+  {{end}}
+  <!-- Total -->
+  <tr>
+    <td style="padding:12px 16px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="font-size:13px;font-weight:600;color:#94a3b8;">{{.Strings.TotalSize}}</td>
+        <td style="font-size:13px;font-weight:600;color:#06b6d4;text-align:right;">{{.TotalSize}}</td>
+      </tr>
+      </table>
+    </td>
+  </tr>
+  </table>
+</td>
+</tr>
+
+<!-- CTA button -->
+<tr>
+<td style="padding:8px 32px 32px;text-align:center;">
+  <a href="{{.DownloadURL}}" style="display:inline-block;padding:12px 32px;background:linear-gradient(135deg,#06b6d4,#0891b2);color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;border-radius:10px;">
+    {{.Strings.Download}}
+  </a>
+</td>
+</tr>
+
+</table>
+<!-- /Main card -->
+
+<!-- Footer -->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+<tr>
+<td style="padding:16px 32px;text-align:center;">
+  <p style="margin:0;font-size:12px;color:#475569;">
+    {{.Strings.PoweredBy}} <a href="https://github.com/root-gg/plik" style="color:#06b6d4;text-decoration:none;">Plik</a>
+  </p>
+</td>
+</tr>
+</table>
+
+</td></tr>
+</table>
+</body>
+</html>

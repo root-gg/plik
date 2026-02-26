@@ -34,7 +34,8 @@ type File struct {
 
 	BackendDetails string `json:"-"`
 
-	CreatedAt time.Time `json:"createdAt"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	DownloadedAt *time.Time `json:"downloadedAt,omitempty"`
 }
 
 // NewFile instantiate a new object
