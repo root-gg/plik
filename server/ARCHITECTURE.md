@@ -123,7 +123,7 @@ Uses GORM with gormigrate for schema management across SQLite3, PostgreSQL, and 
 ### Key behaviors
 
 - **SQLite3**: WAL mode + foreign keys enabled on connect
-- **Schema init**: Auto-migrates `Upload`, `File`, `User`, `Token`, `Setting`, `CLIAuthSession` tables
+- **Schema init**: Auto-migrates `Upload`, `File`, `User`, `Token`, `Setting`, `CLIAuthSession`, `Event` tables
 - **Migrations**: Versioned via gormigrate — see `migrations.go`
 - **Cleaning**: `Clean()` removes orphan files and tokens and CLI auth sessions
 - **Metrics**: GORM Prometheus plugin for DB stats
@@ -139,6 +139,7 @@ Uses GORM with gormigrate for schema management across SQLite3, PostgreSQL, and 
 | `user.go` | User CRUD + listing |
 | `token.go` | Token CRUD + listing |
 | `cli_auth_session.go` | CLI auth session CRUD (create, get by code, update, delete expired) |
+| `event.go` | Event CRUD + paginated queries + ForEachEvent |
 | `setting.go` | Server settings key/value store |
 | `stats.go` | Aggregate statistics queries |
 | `exporter.go` | gob + Snappy export of all metadata |
@@ -149,7 +150,7 @@ Uses GORM with gormigrate for schema management across SQLite3, PostgreSQL, and 
 The `plikd export` and `plikd import` commands dump and restore all metadata (users, tokens, uploads, files, settings) to/from a single binary file.
 
 - **Format**: Go [gob](https://pkg.go.dev/encoding/gob) encoding compressed with [Snappy](https://github.com/golang/snappy). Architecture-independent (portable across `amd64`/`arm64`), streaming (constant memory), Go-specific (not human-readable).
-- **Export order**: users → tokens → uploads (including soft-deleted) → files → settings. CLI auth sessions are intentionally excluded (ephemeral).
+- **Export order**: users → tokens → uploads (including soft-deleted) → files → settings → events. CLI auth sessions are intentionally excluded (ephemeral).
 - **Import**: decodes sequentially, calls `Create*` on the metadata backend. Supports `--ignore-errors` to skip problematic records.
 - **Use cases**: backend migration (e.g. SQLite → PostgreSQL), backups, disaster recovery.
 

@@ -577,13 +577,15 @@ Sidebar + main content layout (same pattern as download view).
 
 Admin-only page. Redirects non-admins to `/` on mount.
 
-**Sidebar**: server version/build info (release + mint badges), nav buttons (Stats, Uploads, Users), Create User button.
+**Sidebar**: server version/build info (release + mint badges), nav buttons (Stats, Uploads, Users, Events), Create User button.
 
 **Stats tab**: server config (maxFileSize, maxUserSize, defaultTTL, maxTTL) + server statistics (users, uploads, files, totalSize, anonymous counts).
 
 **Users tab**: paginated user list via `GET /users`. Each row shows login, provider, name, email, quotas, admin badge. Actions: Impersonate (👤), Edit (opens modal with full quota controls), Delete (with confirmation). Delete disabled for self. Impersonate disabled for self.
 
 **Uploads tab**: paginated all-uploads via `GET /uploads`. Sort by date/size, order asc/desc. Filter by user/token (clickable links in each row). Each row shows upload ID (link), dates, user, token, files with sizes, Remove button.
+
+**Events tab**: paginated event listing via `GET /events`. Filters by event type (`upload_created`, `file_added`, `file_downloaded`) and upload ID. Uses the reusable `EventsPanel` component with `adminMode=true`. Each event row shows type badge, timestamp, fileId, uploadId, user, and remoteIP.
 
 **Create User modal**: provider (select), login, password (local only), name, email, quotas (maxFileSize, maxUserSize, maxTTL), admin toggle. Creates via `POST /user`.
 

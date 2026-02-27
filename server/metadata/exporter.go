@@ -18,6 +18,7 @@ const (
 	metadataTypeUser
 	metadataTypeToken
 	metadataTypeSetting
+	metadataTypeEvent
 )
 
 type object struct {
@@ -49,6 +50,7 @@ func newExporter(path string) (e *exporter, err error) {
 	gob.Register(&common.User{})
 	gob.Register(&common.Token{})
 	gob.Register(&common.Setting{})
+	gob.Register(&common.Event{})
 	e.encoder = gob.NewEncoder(e.compressor)
 
 	return e, nil
@@ -76,6 +78,11 @@ func (e *exporter) addToken(token *common.Token) (err error) {
 
 func (e *exporter) addSetting(setting *common.Setting) (err error) {
 	obj := &object{Type: metadataTypeSetting, Object: setting}
+	return e.encoder.Encode(obj)
+}
+
+func (e *exporter) addEvent(event *common.Event) (err error) {
+	obj := &object{Type: metadataTypeEvent, Object: event}
 	return e.encoder.Encode(obj)
 }
 
@@ -155,6 +162,16 @@ func (b *Backend) Export(path string) (err error) {
 		return err
 	}
 	b.log.Infof("exported %d settings", count)
+
+	count = 0
+	err = b.ForEachEvent(func(event *common.Event) error {
+		count++
+		return e.addEvent(event)
+	})
+	if err != nil {
+		return err
+	}
+	b.log.Infof("exported %d events", count)
 
 	return nil
 }

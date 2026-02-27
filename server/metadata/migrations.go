@@ -217,6 +217,28 @@ func (b *Backend) getMigrations() []*gormigrate.Migration {
 				b.log.Criticalf("Something went wrong. Please check database status manually")
 				return nil
 			},
+		}, {
+			ID: "0009-upload-events",
+			Migrate: func(tx *gorm.DB) error {
+				type Event struct {
+					ID        string    `json:"id" gorm:"primaryKey;size:16"`
+					UploadID  string    `json:"uploadId" gorm:"size:256;index:idx_event_upload;constraint:OnUpdate:RESTRICT,OnDelete:RESTRICT;"`
+					FileID    string    `json:"fileId,omitempty" gorm:"size:16"`
+					FileName  string    `json:"fileName,omitempty" gorm:"size:1024"`
+					FileSize  int64     `json:"fileSize,omitempty"`
+					Type      string    `json:"type" gorm:"size:32;index:idx_event_type"`
+					RemoteIP  string    `json:"remoteIp,omitempty"`
+					User      string    `json:"user,omitempty"`
+					CreatedAt time.Time `json:"createdAt"`
+				}
+
+				b.log.Warning("Applying database migration 0009-upload-events")
+				return b.setupTxForMigration(tx).AutoMigrate(&Event{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				b.log.Criticalf("Something went wrong. Please check database status manually")
+				return nil
+			},
 		},
 	}
 

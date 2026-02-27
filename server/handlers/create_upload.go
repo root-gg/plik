@@ -58,6 +58,18 @@ func CreateUpload(ctx *context.Context, resp http.ResponseWriter, req *http.Requ
 		return
 	}
 
+	// Record upload_created event
+	event := common.NewEvent(upload.ID, common.EventUploadCreated)
+	if ctx.GetSourceIP() != nil {
+		event.RemoteIP = ctx.GetSourceIP().String()
+	}
+	if user := ctx.GetUser(); user != nil {
+		event.User = user.ID
+	}
+	if err := ctx.GetMetadataBackend().CreateEvent(event); err != nil {
+		log.Warningf("unable to record upload_created event: %s", err)
+	}
+
 	// You are admin of your own uploads
 	upload.IsAdmin = true
 

@@ -138,7 +138,7 @@ func NewBackend(config *Config, log *logger.Logger) (b *Backend, err error) {
 
 	// For testing
 	if config.EraseFirst {
-		err = b.db.Migrator().DropTable("files", "uploads", "tokens", "users", "settings", "cli_auth_sessions", "migrations")
+		err = b.db.Migrator().DropTable("files", "uploads", "tokens", "users", "settings", "cli_auth_sessions", "events", "migrations")
 		if err != nil {
 			return nil, fmt.Errorf("unable to drop tables : %s", err)
 		}
@@ -181,6 +181,7 @@ func (b *Backend) initializeSchema() (err error) {
 				&common.Token{},
 				&common.Setting{},
 				&common.CLIAuthSession{},
+				&common.Event{},
 			)
 
 			return err
@@ -272,6 +273,16 @@ func (b *Backend) clean(tx *gorm.DB) (files int, tokens int, err error) {
 		b.log.Warningf("deleted %d orphan tokens", result.RowsAffected)
 	}
 	tokens = int(result.RowsAffected)
+
+	if tx.Migrator().HasTable("events") {
+		result = tx.Exec("delete from events where upload_id not in (select id from uploads);")
+		if result.Error != nil {
+			return files, tokens, result.Error
+		}
+		if result.RowsAffected > 0 {
+			b.log.Warningf("deleted %d orphan events", result.RowsAffected)
+		}
+	}
 
 	return files, tokens, nil
 }

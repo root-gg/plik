@@ -42,6 +42,7 @@ func newImporter(path string) (i *importer, err error) {
 	gob.Register(&common.User{})
 	gob.Register(&common.Token{})
 	gob.Register(&common.Setting{})
+	gob.Register(&common.Event{})
 	i.decoder = gob.NewDecoder(i.decompressor)
 
 	return i, nil
@@ -60,8 +61,8 @@ func (b *Backend) Import(path string, options *ImportOptions) (err error) {
 
 	defer func() { _ = i.close() }()
 
-	var uploads, files, users, tokens, settings int
-	var uploadErrors, fileErrors, userErrors, tokenErrors, settingErrors int
+	var uploads, files, users, tokens, settings, events int
+	var uploadErrors, fileErrors, userErrors, tokenErrors, settingErrors, eventErrors int
 
 	for {
 		obj := &object{}
@@ -134,6 +135,18 @@ func (b *Backend) Import(path string, options *ImportOptions) (err error) {
 			} else {
 				settings++
 			}
+		case metadataTypeEvent:
+			err = b.CreateEvent(obj.Object.(*common.Event))
+			if err != nil {
+				utils.Dump(obj)
+				fmt.Printf("Unable to load event : %s\n", err)
+				if !options.IgnoreErrors {
+					return err
+				}
+				eventErrors++
+			} else {
+				events++
+			}
 		default:
 			return fmt.Errorf("invalid object type")
 		}
@@ -144,6 +157,7 @@ func (b *Backend) Import(path string, options *ImportOptions) (err error) {
 	fmt.Printf("imported %d out of %d users\n", users, users+userErrors)
 	fmt.Printf("imported %d out of %d tokens\n", tokens, tokens+tokenErrors)
 	fmt.Printf("imported %d out of %d settings\n", settings, settings+settingErrors)
+	fmt.Printf("imported %d out of %d events\n", events, events+eventErrors)
 
 	return nil
 }

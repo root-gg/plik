@@ -12,7 +12,7 @@ const props = defineProps({
   upload: { type: Object, required: true },
 })
 
-const emit = defineEmits(['delete-upload', 'add-files', 'show-qr', 'edit-passphrase'])
+const emit = defineEmits(['delete-upload', 'add-files', 'show-qr', 'edit-passphrase', 'show-events'])
 
 const expirationText = computed(() => {
   if (!props.upload.expireAt) return 'Never expires'
@@ -203,6 +203,17 @@ const canAddFiles = computed(() => props.upload.admin && !props.upload.stream)
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
         Add Files
+      </button>
+
+      <!-- Events (admin only) -->
+      <button v-if="upload.admin"
+              class="btn-primary w-full"
+              @click="emit('show-events')">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Events
       </button>
 
       <!-- Delete upload -->

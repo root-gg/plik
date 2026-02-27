@@ -186,6 +186,21 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		return
 	}
 
+	// Record file_added event
+	event := common.NewEvent(upload.ID, common.EventFileAdded)
+	event.FileID = file.ID
+	event.FileName = file.Name
+	event.FileSize = file.Size
+	if ctx.GetSourceIP() != nil {
+		event.RemoteIP = ctx.GetSourceIP().String()
+	}
+	if user := ctx.GetUser(); user != nil {
+		event.User = user.ID
+	}
+	if err := ctx.GetMetadataBackend().CreateEvent(event); err != nil {
+		log.Warningf("unable to record file_added event: %s", err)
+	}
+
 	// Check user total uploaded size (user stats only takes uploaded files into account)
 	err = ctx.CheckUserTotalUploadedSize()
 	if err != nil {

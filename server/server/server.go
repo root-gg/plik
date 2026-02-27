@@ -419,6 +419,9 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	router.Handle("/users/search", adminChain.Then(handlers.SearchUsers)).Methods("GET")
 	router.Handle("/users", adminChain.Append(middleware.Paginate).Then(handlers.GetUsers)).Methods("GET")
 	router.Handle("/uploads", adminChain.Append(middleware.Paginate).Then(handlers.GetUploads)).Methods("GET")
+	router.Handle("/events", adminChain.Append(middleware.Paginate).Then(handlers.GetAllEvents)).Methods("GET")
+
+	router.Handle("/upload/{uploadID}/events", tokenChain.Append(middleware.Upload, middleware.Paginate).Then(handlers.GetUploadEvents)).Methods("GET")
 
 	if !ps.config.NoWebInterface {
 
