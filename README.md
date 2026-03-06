@@ -56,7 +56,8 @@ sudo systemctl start plikd
 
 # From source
 git clone https://github.com/root-gg/plik.git
-cd plik && make
+cd plik/webapp && npm install && cd ..
+make
 cd server && ./plikd
 
 # Kubernetes (Helm)
