@@ -13,6 +13,7 @@ import FileRow from '../components/FileRow.vue'
 import CopyButton from '../components/CopyButton.vue'
 import QrCodeDialog from '../components/QrCodeDialog.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import EventsPanel from '../components/EventsPanel.vue'
 import { defineAsyncComponent } from 'vue'
 const CodeEditor = defineAsyncComponent(() => import('../components/CodeEditor.vue'))
 
@@ -80,6 +81,9 @@ const renderedFileContent = computed(() => {
   if (!viewingContent.value) return ''
   return renderMarkdown(viewingContent.value)
 })
+
+// Events panel state
+const showEvents = ref(false)
 
 async function viewFile(file) {
   // If already viewing this file, close it
@@ -585,7 +589,8 @@ watch(activeFiles, (files) => {
         @edit-passphrase="openPassphraseModal"
         @delete-upload="deleteUpload"
         @add-files="triggerAddFiles"
-        @show-qr="openQrUpload" />
+        @show-qr="openQrUpload"
+        @show-events="showEvents = true" />
 
       <!-- Loading placeholder sidebar -->
       <aside v-else class="w-full md:w-80 md:shrink-0 p-4">
@@ -663,7 +668,7 @@ watch(activeFiles, (files) => {
           </div>
 
           <!-- File Viewer -->
-          <div v-if="viewingFile" id="file-viewer-panel" class="glass-card overflow-hidden animate-fade-in">
+          <div v-if="viewingFile && !showEvents" id="file-viewer-panel" class="glass-card overflow-hidden animate-fade-in">
             <div class="flex items-center justify-between border-b border-surface-700/50 px-4 py-2">
               <div class="flex items-center gap-2">
                 <!-- Image icon for image files -->
@@ -767,7 +772,26 @@ watch(activeFiles, (files) => {
             </div>
           </div>
 
-          <!-- File List -->
+          <!-- Events Panel (separate view, admin only) -->
+          <template v-if="showEvents">
+            <div class="glass-card p-4 animate-fade-in">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-medium text-surface-300">Upload Events</h3>
+                <button @click="showEvents = false"
+                        class="flex items-center gap-1.5 text-xs text-surface-400 hover:text-white transition-colors">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Back to files
+                </button>
+              </div>
+              <EventsPanel :upload-id="id"
+                           :upload-token="uploadToken" />
+            </div>
+          </template>
+
+          <!-- File List (hidden when events panel is shown) -->
+          <template v-else>
           <div v-if="activeFiles.length" class="space-y-2">
             <div class="flex items-center justify-between px-1">
               <h3 class="text-sm font-medium text-surface-400">
@@ -859,6 +883,7 @@ watch(activeFiles, (files) => {
             <p class="text-surface-400">No files in this upload</p>
           </div>
 
+          </template>
 
         </template>
       </div>

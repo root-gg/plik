@@ -180,6 +180,26 @@ export function getAdminUploads({ user, token, sort, order, after, limit, oneSho
     return apiCall(`${base}/uploads${qs ? '?' + qs : ''}`)
 }
 
+export function getAdminEvents({ upload, type, after, limit } = {}) {
+    const params = new URLSearchParams()
+    if (upload) params.set('upload', upload)
+    if (type) params.set('type', type)
+    if (after) params.set('after', after)
+    if (limit) params.set('limit', limit)
+    const qs = params.toString()
+    return apiCall(`${base}/events${qs ? '?' + qs : ''}`)
+}
+
+export function getUploadEvents(uploadId, uploadToken, { after, limit } = {}) {
+    const params = new URLSearchParams()
+    if (after) params.set('after', after)
+    if (limit) params.set('limit', limit)
+    const qs = params.toString()
+    const headers = {}
+    if (uploadToken) headers['X-UploadToken'] = uploadToken
+    return apiCall(`${base}/upload/${uploadId}/events${qs ? '?' + qs : ''}`, 'GET', null, headers)
+}
+
 // ── User Uploads ──
 
 export function getUserUploads({ token, sort, after, order, limit, oneShot, removable, stream, extendTTL, password, e2ee } = {}) {

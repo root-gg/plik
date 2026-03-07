@@ -18,6 +18,7 @@ import {
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import EditUserModal from '../components/EditUserModal.vue'
 import UploadCard from '../components/UploadCard.vue'
+import EventsPanel from '../components/EventsPanel.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -68,6 +69,11 @@ const badgeFilters = ref({
     e2ee: false,
 })
 const BADGE_FILTER_KEYS = ['oneShot', 'removable', 'stream', 'extendTTL', 'password', 'e2ee']
+
+// ── Events ──
+const eventsTypeFilter = ref('')
+const eventsUploadFilter = ref('')
+const eventsPanel = ref(null)
 
 // ── Create user modal ──
 const showCreateUser = ref(false)
@@ -410,6 +416,20 @@ function showUploadsView() {
     router.push('/admin/uploads')
 }
 
+function showEventsView() {
+    router.push('/admin/events')
+}
+
+function changeEventsTypeFilter(val) {
+    eventsTypeFilter.value = val
+    nextTick(() => eventsPanel.value?.reload())
+}
+
+function changeEventsUploadFilter(val) {
+    eventsUploadFilter.value = val
+    nextTick(() => eventsPanel.value?.reload())
+}
+
 // ── Route helpers ──
 
 // Build query params from current users tab filter state (omits defaults)
@@ -466,6 +486,9 @@ watch(display, (tab, prevTab) => {
         uploads.value = []
         uploadsCursor.value = null
         loadUploads()
+    } else if (tab === 'events') {
+        eventsTypeFilter.value = ''
+        eventsUploadFilter.value = ''
     }
 })
 
@@ -609,6 +632,18 @@ onMounted(async () => {
                     d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
             Users
+          </button>
+
+          <button @click="showEventsView"
+                  :class="display === 'events'
+                    ? 'bg-accent-500/10 text-accent-400 border-l-2 border-accent-400'
+                    : 'text-surface-300 hover:text-white hover:bg-surface-700/50 border-l-2 border-transparent'"
+                  class="w-full py-2.5 rounded-lg flex items-center gap-3 px-3 text-sm transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Events
           </button>
         </div>
 
@@ -924,6 +959,46 @@ onMounted(async () => {
               {{ uploadsLoading ? 'Loading...' : 'Load more uploads' }}
             </button>
           </div>
+        </template>
+
+        <!-- ─── Events View ─── -->
+        <template v-if="display === 'events'">
+
+          <!-- Filter controls -->
+          <div class="glass-card p-3 mb-4 space-y-2 text-sm">
+            <div class="flex flex-wrap items-center gap-4">
+              <!-- Type filter -->
+              <div class="flex items-center gap-2 text-surface-400">
+                <span>Type:</span>
+                <button v-for="t in ['', 'upload_created', 'file_added', 'file_downloaded']" :key="t"
+                        @click="changeEventsTypeFilter(t)"
+                        :class="eventsTypeFilter === t ? 'text-accent-400 bg-accent-500/10' : 'text-surface-500 hover:text-surface-300'"
+                        class="px-2 py-0.5 rounded-full text-xs transition-colors">
+                  {{ t || 'All' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Upload filter -->
+            <div class="flex items-center gap-2">
+              <input v-model="eventsUploadFilter"
+                     type="text"
+                     placeholder="Filter by upload ID…"
+                     class="flex-1 bg-surface-800/60 border border-surface-600/50 rounded-lg
+                            px-3 py-1.5 text-xs text-surface-200 placeholder-surface-500
+                            focus:outline-none focus:border-accent-400/50 transition-colors"
+                     @keydown.enter="changeEventsUploadFilter(eventsUploadFilter)" />
+              <button @click="changeEventsUploadFilter(eventsUploadFilter)"
+                      class="text-xs text-accent-400 hover:text-accent-300 transition-colors px-2 py-1">Apply</button>
+              <button v-if="eventsUploadFilter" @click="changeEventsUploadFilter('')"
+                      class="text-xs text-surface-500 hover:text-white transition-colors">×</button>
+            </div>
+          </div>
+
+          <EventsPanel ref="eventsPanel"
+                       :admin-mode="true"
+                       :type-filter="eventsTypeFilter"
+                       :upload-filter="eventsUploadFilter" />
         </template>
       </main>
     </div>

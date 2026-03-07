@@ -151,6 +151,21 @@ func GetFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 			_, err = io.Copy(resp, fileReader)
 			if err != nil {
 				log.Warningf("error while copying file to response : %s", err)
+			} else {
+				// Record file_downloaded event on successful download
+				event := common.NewEvent(upload.ID, common.EventFileDownloaded)
+				event.FileID = file.ID
+				event.FileName = file.Name
+				event.FileSize = file.Size
+				if ctx.GetSourceIP() != nil {
+					event.RemoteIP = ctx.GetSourceIP().String()
+				}
+				if user := ctx.GetUser(); user != nil {
+					event.User = user.ID
+				}
+				if err := ctx.GetMetadataBackend().CreateEvent(event); err != nil {
+					log.Warningf("unable to record file_downloaded event: %s", err)
+				}
 			}
 		}
 	}

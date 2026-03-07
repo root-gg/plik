@@ -132,6 +132,35 @@ func generateTestData(t *testing.T, b *Backend) {
 
 	err = b.CreateUpload(upload4)
 	require.NoError(t, err, "unable to save upload metadata")
+
+	// Events
+	event1 := common.NewEvent(upload.ID, common.EventUploadCreated)
+	event1.ID = "EVT1XXXXXXXXXXXX"
+	event1.RemoteIP = "1.3.3.7"
+	event1.CreatedAt = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	err = b.CreateEvent(event1)
+	require.NoError(t, err, "unable to create event")
+
+	event2 := common.NewEvent(upload.ID, common.EventFileAdded)
+	event2.ID = "EVT2XXXXXXXXXXXX"
+	event2.FileID = file.ID
+	event2.FileName = file.Name
+	event2.FileSize = file.Size
+	event2.RemoteIP = "1.3.3.7"
+	event2.CreatedAt = time.Date(2000, 1, 1, 0, 0, 1, 0, time.UTC)
+	err = b.CreateEvent(event2)
+	require.NoError(t, err, "unable to create event")
+
+	event3 := common.NewEvent(upload.ID, common.EventFileDownloaded)
+	event3.ID = "EVT3XXXXXXXXXXXX"
+	event3.FileID = file.ID
+	event3.FileName = file.Name
+	event3.FileSize = file.Size
+	event3.User = user.ID
+	event3.RemoteIP = "10.0.0.1"
+	event3.CreatedAt = time.Date(2000, 1, 1, 0, 0, 2, 0, time.UTC)
+	err = b.CreateEvent(event3)
+	require.NoError(t, err, "unable to create event")
 }
 
 func loadSQLDump(t *testing.T, path string) {

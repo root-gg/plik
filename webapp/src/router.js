@@ -34,7 +34,7 @@ const routes = [
         redirect: '/admin/stats',
     },
     {
-        path: '/admin/:tab(stats|users|uploads)',
+        path: '/admin/:tab(stats|users|uploads|events)',
         name: 'admin',
         component: AdminView,
         meta: { requiresAuth: true, requiresAdmin: true },
