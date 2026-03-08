@@ -48,7 +48,7 @@ onMounted(async () => {
         const info = await getVersion()
         clients.value = info.clients || []
     } catch (err) {
-        error.value = err.message || 'Failed to load client list'
+        error.value = err.message || $t('clientsView.failedToLoadClients')
     } finally {
         loading.value = false
     }
@@ -60,24 +60,26 @@ onMounted(async () => {
 
     <!-- Header -->
     <div class="text-center mb-8">
-      <h1 class="text-2xl font-bold text-surface-100">CLI Clients</h1>
+      <h1 class="text-2xl font-bold text-surface-100">{{ $t('clientsView.title') }}</h1>
       <p class="text-sm text-surface-400 mt-2">
-        Download the Plik command-line client for your platform.
+        {{ $t('clientsView.subtitle') }}
       </p>
     </div>
 
     <!-- Quick Start -->
     <div class="mb-8 glass-card p-5 text-sm text-surface-400 space-y-2">
-      <p class="font-medium text-surface-300">Quick Start</p>
-      <p>After downloading, make the binary executable and run it:</p>
+      <p class="font-medium text-surface-300">{{ $t('clientsView.quickStart') }}</p>
+      <p>{{ $t('clientsView.quickStartInstructions') }}</p>
       <pre class="bg-surface-900/80 rounded-lg px-4 py-3 text-xs font-mono text-surface-300 overflow-x-auto">chmod +x plik
 ./plik file1 file2 ...</pre>
-      <p>Configure your server URL and token in <code class="text-accent-400">~/.plikrc</code></p>
+      <i18n-t keypath="clientsView.quickStartConfig" tag="p">
+        <template #config><code class="text-accent-400">~/.plikrc</code></template>
+      </i18n-t>
     </div>
 
     <!-- Loading -->
     <div v-if="loading" class="text-center py-16 text-surface-500">
-      Loading clients...
+      {{ $t('clientsView.loadingClients') }}
     </div>
 
     <!-- Error -->
@@ -87,7 +89,7 @@ onMounted(async () => {
 
     <!-- Empty -->
     <div v-else-if="clients.length === 0" class="glass-card p-6 text-center">
-      <p class="text-surface-400 text-sm">No client binaries available.</p>
+      <p class="text-surface-400 text-sm">{{ $t('clientsView.noClientsAvailable') }}</p>
     </div>
 
     <!-- Client list grouped by OS -->
@@ -125,7 +127,7 @@ onMounted(async () => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              Download
+              {{ $t('common.download') }}
             </a>
           </div>
         </div>

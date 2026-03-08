@@ -64,7 +64,7 @@ async function approve() {
       <template v-if="status === 'pending' || status === 'approving'">
         <div class="space-y-4">
           <div>
-            <label class="block text-xs text-surface-500 mb-1.5 text-left">Verification Code</label>
+            <label class="block text-xs text-surface-500 mb-1.5 text-left">{{ $t('cliAuth.verificationCode') }}</label>
             <input v-model="code"
                    type="text"
                    placeholder="XXXX-XXXX"
@@ -74,7 +74,7 @@ async function approve() {
           </div>
 
           <div>
-            <label class="block text-xs text-surface-500 mb-1.5 text-left">Token Description</label>
+            <label class="block text-xs text-surface-500 mb-1.5 text-left">{{ $t('cliAuth.tokenDescription') }}</label>
             <input v-model="comment"
                    type="text"
                    placeholder="CLI login"
@@ -92,11 +92,11 @@ async function approve() {
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                 </svg>
-                Authorizing…
+                {{ $t('cliAuth.authorizing') }}
               </span>
             </template>
             <template v-else>
-              Authorize CLI
+              {{ $t('cliAuth.authorizeCli') }}
             </template>
           </button>
         </div>

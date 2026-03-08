@@ -57,7 +57,7 @@ plik/
 │   └── server/             ← HTTP server + router setup
 ├── client/                 ← CLI client + MCP server (see client/ARCHITECTURE.md)
 ├── plik/                   ← Go client library (see plik/ARCHITECTURE.md)
-├── webapp/                 ← Vue 3 SPA (see webapp/ARCHITECTURE.md)
+├── webapp/                 ← Vue 3 SPA, i18n via vue-i18n (see webapp/ARCHITECTURE.md)
 ├── testing/                ← backend integration tests (see testing/ARCHITECTURE.md)
 ├── charts/                 ← Helm chart for Kubernetes deployment
 ├── .github/                ← GitHub Actions workflows (see .github/ARCHITECTURE.md)

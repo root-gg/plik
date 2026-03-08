@@ -4,8 +4,10 @@ import { config, isFeatureEnabled } from '../config.js'
 import { auth, login } from '../authStore.js'
 import { oidcLogin as apiOidcLogin } from '../api.js'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
+const { t: $t } = useI18n()
 
 // Redirect authenticated users to their intended destination.
 // This handles OAuth callbacks (server redirects to /#/login after success)
@@ -34,7 +36,7 @@ async function handleSubmit() {
   if (loading.value) return
   error.value = null
   if (!loginName.value || !password.value) {
-    error.value = 'Please enter login and password'
+    error.value = $t('loginView.pleaseEnterCredentials')
     return
   }
   loading.value = true
@@ -43,10 +45,10 @@ async function handleSubmit() {
     if (ok) {
       router.push(consumeRedirect())
     } else {
-      error.value = 'Invalid credentials'
+      error.value = $t('loginView.invalidCredentials')
     }
   } catch (err) {
-    error.value = err.message || 'Login failed'
+    error.value = err.message || $t('loginView.loginFailed')
   } finally {
     loading.value = false
   }
@@ -55,22 +57,22 @@ async function handleSubmit() {
 async function googleLogin() {
   try {
     const resp = await fetch(window.location.origin + window.location.pathname.replace(/\/$/, '') + '/auth/google/login')
-    if (!resp.ok) throw new Error('Google login failed')
+    if (!resp.ok) throw new Error($t('loginView.googleLoginFailed'))
     const url = await resp.text()
     window.location.href = url
   } catch (err) {
-    error.value = err.message || 'Google login failed'
+    error.value = err.message || $t('loginView.googleLoginFailed')
   }
 }
 
 async function ovhLogin() {
   try {
     const resp = await fetch(window.location.origin + window.location.pathname.replace(/\/$/, '') + '/auth/ovh/login')
-    if (!resp.ok) throw new Error('OVH login failed')
+    if (!resp.ok) throw new Error($t('loginView.ovhLoginFailed'))
     const url = await resp.text()
     window.location.href = url
   } catch (err) {
-    error.value = err.message || 'OVH login failed'
+    error.value = err.message || $t('loginView.ovhLoginFailed')
   }
 }
 
@@ -79,7 +81,7 @@ async function handleOidcLogin() {
     const url = await apiOidcLogin()
     window.location.href = url
   } catch (err) {
-    error.value = err.message || 'OIDC login failed'
+    error.value = err.message || $t('loginView.oidcLoginFailed')
   }
 }
 </script>
@@ -87,7 +89,7 @@ async function handleOidcLogin() {
 <template>
   <div class="w-full min-h-[calc(100vh-3.5rem)] flex items-center justify-center p-4">
     <div class="w-full max-w-sm">
-      <p class="text-surface-400 text-sm text-center mb-4">Sign in to your account</p>
+      <p class="text-surface-400 text-sm text-center mb-4">{{ $t('loginView.signInToAccount') }}</p>
 
       <!-- Login Card -->
       <div class="glass-card p-6 space-y-5">
@@ -104,21 +106,21 @@ async function handleOidcLogin() {
         <!-- Local Login Form (hidden when local auth is disabled) -->
         <form v-if="isFeatureEnabled('local_login')" @submit.prevent="handleSubmit" class="space-y-4">
           <div>
-            <label class="text-xs text-surface-400 block mb-1.5">Login</label>
+            <label class="text-xs text-surface-400 block mb-1.5">{{ $t('loginView.loginLabel') }}</label>
             <input type="text"
                    v-model="loginName"
                    class="input-field w-full"
-                   placeholder="Enter your login"
+                   :placeholder="$t('loginView.enterLogin')"
                    autocomplete="username"
                    autocapitalize="off"
                    autofocus />
           </div>
           <div>
-            <label class="text-xs text-surface-400 block mb-1.5">Password</label>
+            <label class="text-xs text-surface-400 block mb-1.5">{{ $t('loginView.passwordLabel') }}</label>
             <input type="password"
                    v-model="password"
                    class="input-field w-full"
-                   placeholder="Enter your password"
+                   :placeholder="$t('loginView.enterPassword')"
                    autocomplete="current-password" />
           </div>
           <button type="submit"
@@ -129,7 +131,7 @@ async function handleOidcLogin() {
               <path class="opacity-75" fill="currentColor"
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            {{ loading ? 'Signing in...' : 'Sign in' }}
+            {{ loading ? $t('loginView.signingIn') : $t('loginView.signIn') }}
           </button>
         </form>
 
@@ -137,7 +139,7 @@ async function handleOidcLogin() {
         <div v-if="isFeatureEnabled('local_login') && hasOAuthProviders"
              class="flex items-center gap-3">
           <div class="flex-1 border-t border-surface-700/50"></div>
-          <span class="text-xs text-surface-500">or continue with</span>
+          <span class="text-xs text-surface-500">{{ $t('loginView.orContinueWith') }}</span>
           <div class="flex-1 border-t border-surface-700/50"></div>
         </div>
 
@@ -155,7 +157,7 @@ async function handleOidcLogin() {
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
-            Sign in with Google
+            {{ $t('loginView.signInWithGoogle') }}
           </button>
 
           <button v-if="config.ovhAuthentication"
@@ -166,7 +168,7 @@ async function handleOidcLogin() {
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M0 12l5-8h14l-5 8 5 8H5z" fill="#0050D4"/>
             </svg>
-            Sign in with OVH
+            {{ $t('loginView.signInWithOvh') }}
           </button>
 
           <button v-if="config.oidcAuthentication"
@@ -178,7 +180,7 @@ async function handleOidcLogin() {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
             </svg>
-            Sign in with {{ config.oidcProviderName }}
+            {{ $t('loginView.signInWithProvider', { provider: config.oidcProviderName }) }}
           </button>
         </div>
       </div>
@@ -186,7 +188,7 @@ async function handleOidcLogin() {
       <!-- Back link (hidden when auth is forced — there's nowhere to go) -->
       <div v-if="config.feature_authentication !== 'forced'" class="text-center mt-6">
         <router-link to="/" class="text-sm text-surface-400 hover:text-accent-400 transition-colors">
-          ← Back to upload
+          {{ $t('loginView.backToUpload') }}
         </router-link>
       </div>
     </div>

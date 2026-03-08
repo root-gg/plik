@@ -5,6 +5,7 @@ import { config, isFeatureEnabled } from '../config.js'
 import { auth, clearImpersonate } from '../authStore.js'
 import { settings, getAvailableThemes } from '../settings.js'
 import ThemePicker from './ThemePicker.vue'
+import LanguagePicker from './LanguagePicker.vue'
 
 const showThemePicker = computed(() => getAvailableThemes().length > 1)
 
@@ -42,7 +43,7 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
-          Upload
+          {{ $t('header.upload') }}
         </router-link>
 
         <router-link v-if="isFeatureEnabled('clients')"
@@ -52,7 +53,7 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          CLI
+          {{ $t('header.cli') }}
         </router-link>
 
         <a v-if="isFeatureEnabled('github')"
@@ -64,7 +65,7 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
           </svg>
-          Documentation
+          {{ $t('header.documentation') }}
         </a>
 
         <a v-if="isFeatureEnabled('github')"
@@ -82,9 +83,14 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
         <template v-if="showThemePicker">
           <div class="w-px h-5 bg-surface-700/50 mx-1"></div>
           <ThemePicker>
-            <span>Theme</span>
+            <span>{{ $t('header.theme') }}</span>
           </ThemePicker>
         </template>
+
+        <div class="w-px h-5 bg-surface-700/50 mx-1"></div>
+        <LanguagePicker>
+          <span>{{ $t('header.language') }}</span>
+        </LanguagePicker>
 
         <!-- Separator before auth -->
         <div v-if="isFeatureEnabled('authentication')"
@@ -103,7 +109,7 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
-          {{ auth.user.login || auth.user.name || 'Account' }}
+          {{ auth.user.login || auth.user.name || $t('header.account') }}
         </router-link>
 
         <router-link v-if="auth.user?.admin"
@@ -113,7 +119,7 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
           </svg>
-          Admin
+          {{ $t('header.admin') }}
         </router-link>
 
         <!-- Not logged in: Login link -->
@@ -124,7 +130,7 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-          Login
+          {{ $t('header.login') }}
         </router-link>
       </nav>
 
@@ -151,7 +157,7 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
-          Upload
+          {{ $t('header.upload') }}
         </router-link>
 
         <router-link v-if="isFeatureEnabled('clients')"
@@ -162,7 +168,7 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          CLI
+          {{ $t('header.cli') }}
         </router-link>
 
         <a v-if="isFeatureEnabled('github')"
@@ -175,7 +181,7 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
           </svg>
-          Documentation
+          {{ $t('header.documentation') }}
         </a>
 
         <a v-if="isFeatureEnabled('github')"
@@ -196,9 +202,17 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
           <ThemePicker
               button-class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-surface-200
                             hover:bg-surface-700/50 hover:text-surface-100 transition-colors w-full">
-            <span>Theme</span>
+            <span>{{ $t('header.theme') }}</span>
           </ThemePicker>
         </template>
+
+        <!-- Language picker (mobile) -->
+        <div class="border-t border-surface-700/50 my-1"></div>
+        <LanguagePicker
+            button-class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-surface-200
+                          hover:bg-surface-700/50 hover:text-surface-100 transition-colors w-full">
+          <span>{{ $t('header.language') }}</span>
+        </LanguagePicker>
         <div v-if="showThemePicker || isFeatureEnabled('authentication')" class="border-t border-surface-700/50 my-1"></div>
 
         <router-link v-if="auth.user"
@@ -214,7 +228,7 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
-          {{ auth.user.login || auth.user.name || 'Account' }}
+          {{ auth.user.login || auth.user.name || $t('header.account') }}
         </router-link>
 
         <router-link v-if="auth.user?.admin"
@@ -225,7 +239,7 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
           </svg>
-          Admin
+          {{ $t('header.admin') }}
         </router-link>
 
         <router-link v-if="!auth.user && isFeatureEnabled('authentication')"
@@ -236,7 +250,7 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-          Login
+          {{ $t('header.login') }}
         </router-link>
       </div>
     </nav>
@@ -245,12 +259,12 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
   <!-- Impersonation Banner -->
   <div v-if="auth.impersonatedUser"
        class="bg-orange-500/20 border-b-2 border-orange-500/50 px-4 py-2 flex items-center justify-center gap-3 text-sm relative z-40">
-    <span class="text-orange-500 font-medium">⚠️ Impersonating
+    <span class="text-orange-500 font-medium">⚠️ {{ $t('header.impersonating') }}
       <strong class="text-orange-400">{{ auth.impersonatedUser.login || auth.impersonatedUser.name || auth.impersonatedUser.id }}</strong>
     </span>
     <button @click="clearImpersonate"
             class="text-xs bg-orange-500/30 hover:bg-orange-500/50 text-orange-400 font-semibold rounded px-3 py-1 transition-colors">
-      Stop Impersonating
+       {{ $t('header.stopImpersonating') }}
     </button>
   </div>
 </template>

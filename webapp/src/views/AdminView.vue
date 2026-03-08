@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { auth, impersonate as doImpersonate, clearImpersonate } from '../authStore.js'
 import { config } from '../config.js'
 import ErrorBanner from '../components/ErrorBanner.vue'
@@ -21,6 +22,7 @@ import UploadCard from '../components/UploadCard.vue'
 
 const router = useRouter()
 const route = useRoute()
+const { t: $t } = useI18n()
 
 // ── Display mode ──
 const display = computed(() => route.params.tab || 'stats')
@@ -97,7 +99,7 @@ async function loadStats() {
     try {
         stats.value = await getServerStats()
     } catch (err) {
-        error.value = 'Could not load server stats'
+        error.value = $t('adminView.failedToLoadStats')
     } finally {
         statsLoading.value = false
     }
@@ -124,7 +126,7 @@ async function loadUsers(more = false) {
         usersCursor.value = data.after || null
         usersTotal.value = data.total ?? null
     } catch (err) {
-        error.value = 'Could not load users'
+        error.value = $t('adminView.failedToLoadUsers')
     } finally {
         usersLoading.value = false
     }
@@ -230,7 +232,7 @@ async function loadUploads(more = false) {
         uploadsCursor.value = data.after || null
         uploadsTotal.value = data.total ?? null
     } catch (err) {
-        error.value = 'Could not load uploads'
+        error.value = $t('adminView.failedToLoadUploads')
     } finally {
         uploadsLoading.value = false
     }
@@ -258,7 +260,7 @@ async function viewUserInUsersTab(userId) {
                 .finally(() => nextTick(() => { internalNav = false }))
         }
     } catch {
-        error.value = 'Could not find user'
+        error.value = $t('adminView.failedToFindUser')
     }
 }
 
@@ -338,7 +340,7 @@ async function submitCreateUser() {
         users.value = [u, ...users.value]
         showCreateUser.value = false
     } catch (err) {
-        createError.value = err.message || 'Failed to create user'
+        createError.value = err.message || $t('adminView.failedToCreateUser')
     } finally {
         createSaving.value = false
     }
@@ -362,7 +364,7 @@ async function submitEditUser() {
         if (idx >= 0) users.value[idx] = updated
         showEditUser.value = false
     } catch (err) {
-        editError.value = err.message || 'Failed to update user'
+        editError.value = err.message || $t('adminView.failedToUpdateUser')
     } finally {
         editSaving.value = false
     }
@@ -370,13 +372,13 @@ async function submitEditUser() {
 
 function handleDeleteUser(user) {
     confirm.value = {
-        message: `Delete user "${user.login}" (${user.provider})? All their uploads and files will be deleted.`,
+        message: $t('adminView.deleteUserConfirm', { login: user.login, provider: user.provider }),
         action: async () => {
             try {
                 await apiDeleteUser(user.id)
                 users.value = users.value.filter(u => u.id !== user.id)
             } catch (err) {
-                error.value = 'Could not delete user'
+                error.value = $t('adminView.failedToDeleteUser')
             }
             confirm.value = null
         }
@@ -385,13 +387,13 @@ function handleDeleteUser(user) {
 
 function handleDeleteUpload(upload) {
     confirm.value = {
-        message: `Delete upload ${upload.id}?`,
+        message: $t('adminView.deleteUploadConfirm', { id: upload.id }),
         action: async () => {
             try {
                 await removeUpload(upload.id, upload.uploadToken)
                 uploads.value = uploads.value.filter(u => u.id !== upload.id)
             } catch (err) {
-                error.value = 'Could not delete upload'
+                error.value = $t('adminView.failedToDeleteUpload')
             }
             confirm.value = null
         }
@@ -519,7 +521,7 @@ onMounted(async () => {
     try {
         version.value = await getVersion()
     } catch (err) {
-        error.value = 'Could not load version info'
+        error.value = $t('adminView.failedToLoadVersion')
     }
 
     // Initialize from URL
@@ -555,7 +557,7 @@ onMounted(async () => {
 
         <!-- Server Info Card -->
         <div class="glass-card p-5 text-center space-y-2">
-          <p class="text-surface-200 font-medium">Plik Server</p>
+          <p class="text-surface-200 font-medium">{{ $t('adminView.plikServer') }}</p>
           <p v-if="version" class="text-xs text-surface-500 font-mono">
             v{{ version.version }}
           </p>
@@ -585,7 +587,7 @@ onMounted(async () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            Stats
+            {{ $t('adminView.stats') }}
           </button>
 
           <button @click="showUploadsView"
@@ -597,7 +599,7 @@ onMounted(async () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
             </svg>
-            Uploads
+            {{ $t('adminView.uploads') }}
           </button>
 
           <button @click="showUsersView"
@@ -609,7 +611,7 @@ onMounted(async () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            Users
+            {{ $t('adminView.users') }}
           </button>
         </div>
 
@@ -622,7 +624,7 @@ onMounted(async () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
-            Create User
+            {{ $t('adminView.createUser') }}
           </button>
         </div>
       </aside>
@@ -635,59 +637,59 @@ onMounted(async () => {
 
         <!-- ─── Stats View ─── -->
         <template v-if="display === 'stats'">
-          <div v-if="statsLoading" class="text-center py-12 text-surface-500">Loading stats...</div>
+          <div v-if="statsLoading" class="text-center py-12 text-surface-500">{{ $t('adminView.loadingStats') }}</div>
 
           <div v-else-if="stats" class="space-y-4">
             <!-- Server Config -->
             <div class="glass-card p-5">
-              <h3 class="text-sm text-surface-400 uppercase tracking-wider mb-4">Server Configuration</h3>
+              <h3 class="text-sm text-surface-400 uppercase tracking-wider mb-4">{{ $t('adminView.serverConfiguration') }}</h3>
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                 <div>
-                  <p class="text-xs text-surface-500">Max File Size</p>
-                  <p class="text-surface-200 font-medium">{{ quotaLabel(config.maxFileSize) }}</p>
+                  <p class="text-xs text-surface-500">{{ $t('adminView.maxFileSize') }}</p>
+                  <p class="text-surface-200 font-medium">{{ quotaLabel(config.maxFileSize, $t) }}</p>
                 </div>
                 <div>
-                  <p class="text-xs text-surface-500">Max User Size</p>
-                  <p class="text-surface-200 font-medium">{{ quotaLabel(config.maxUserSize) }}</p>
+                  <p class="text-xs text-surface-500">{{ $t('adminView.maxUserSize') }}</p>
+                  <p class="text-surface-200 font-medium">{{ quotaLabel(config.maxUserSize, $t) }}</p>
                 </div>
                 <div>
-                  <p class="text-xs text-surface-500">Default TTL</p>
-                  <p class="text-surface-200 font-medium">{{ ttlLabel(config.defaultTTL) }}</p>
+                  <p class="text-xs text-surface-500">{{ $t('adminView.defaultTTL') }}</p>
+                  <p class="text-surface-200 font-medium">{{ ttlLabel(config.defaultTTL, $t) }}</p>
                 </div>
                 <div>
-                  <p class="text-xs text-surface-500">Max TTL</p>
-                  <p class="text-surface-200 font-medium">{{ ttlLabel(config.maxTTL) }}</p>
+                  <p class="text-xs text-surface-500">{{ $t('adminView.maxTTL') }}</p>
+                  <p class="text-surface-200 font-medium">{{ ttlLabel(config.maxTTL, $t) }}</p>
                 </div>
               </div>
             </div>
 
             <!-- Server Stats -->
             <div class="glass-card p-5">
-              <h3 class="text-sm text-surface-400 uppercase tracking-wider mb-4">Server Statistics</h3>
+              <h3 class="text-sm text-surface-400 uppercase tracking-wider mb-4">{{ $t('adminView.serverStatistics') }}</h3>
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-6 text-center">
                 <div>
                   <p class="text-2xl font-bold text-surface-200">{{ stats.users }}</p>
-                  <p class="text-xs text-surface-500">Users</p>
+                  <p class="text-xs text-surface-500">{{ $t('adminView.usersLabel') }}</p>
                 </div>
                 <div>
                   <p class="text-2xl font-bold text-surface-200">{{ stats.uploads }}</p>
-                  <p class="text-xs text-surface-500">Uploads</p>
+                  <p class="text-xs text-surface-500">{{ $t('adminView.uploadsLabel') }}</p>
                 </div>
                 <div>
                   <p class="text-2xl font-bold text-surface-200">{{ stats.anonymousUploads }}</p>
-                  <p class="text-xs text-surface-500">Anonymous Uploads</p>
+                  <p class="text-xs text-surface-500">{{ $t('adminView.anonymousUploads') }}</p>
                 </div>
                 <div>
                   <p class="text-2xl font-bold text-surface-200">{{ stats.files }}</p>
-                  <p class="text-xs text-surface-500">Files</p>
+                  <p class="text-xs text-surface-500">{{ $t('adminView.files') }}</p>
                 </div>
                 <div>
                   <p class="text-2xl font-bold text-surface-200">{{ humanReadableSize(stats.totalSize) }}</p>
-                  <p class="text-xs text-surface-500">Total Size</p>
+                  <p class="text-xs text-surface-500">{{ $t('adminView.totalSize') }}</p>
                 </div>
                 <div>
                   <p class="text-2xl font-bold text-surface-200">{{ humanReadableSize(stats.anonymousTotalSize) }}</p>
-                  <p class="text-xs text-surface-500">Anonymous Size</p>
+                  <p class="text-xs text-surface-500">{{ $t('adminView.anonymousSize') }}</p>
                 </div>
               </div>
             </div>
@@ -703,7 +705,7 @@ onMounted(async () => {
                    @input="onUsersSearchInput"
                    @keydown.escape="closeSearch"
                    type="text"
-                   placeholder="Search users by login, name, or email…"
+                   :placeholder="$t('adminView.searchUsersPlaceholder')"
                    class="input-field rounded-xl!
                           px-4! py-2.5!" />
             <!-- Search dropdown -->
@@ -729,57 +731,57 @@ onMounted(async () => {
             <div class="flex flex-wrap items-center gap-4">
               <!-- Sort by -->
               <div class="flex items-center gap-2 text-surface-400">
-                <span>Sort:</span>
+                <span>{{ $t('adminView.sort') }}</span>
                 <button @click="changeUsersSortBy('date')"
                         :class="usersSortBy === 'date' ? 'text-accent-400' : 'text-surface-500 hover:text-surface-300'"
-                        class="transition-colors">Date</button>
+                        class="transition-colors">{{ $t('adminView.date') }}</button>
               </div>
               <!-- Order -->
               <div class="flex items-center gap-2 text-surface-400">
-                <span>Order:</span>
+                <span>{{ $t('adminView.order') }}</span>
                 <button @click="changeUsersSortOrder('desc')"
                         :class="usersSortOrder === 'desc' ? 'text-accent-400' : 'text-surface-500 hover:text-surface-300'"
-                        class="transition-colors">Desc</button>
+                        class="transition-colors">{{ $t('adminView.desc') }}</button>
                 <span class="text-surface-600">|</span>
                 <button @click="changeUsersSortOrder('asc')"
                         :class="usersSortOrder === 'asc' ? 'text-accent-400' : 'text-surface-500 hover:text-surface-300'"
-                        class="transition-colors">Asc</button>
+                        class="transition-colors">{{ $t('adminView.asc') }}</button>
               </div>
             </div>
 
             <!-- Provider filter -->
             <div class="flex flex-wrap items-center gap-2 text-surface-400">
-              <span>Provider:</span>
+              <span>{{ $t('adminView.provider') }}</span>
               <button v-for="p in ['', 'local', 'google', 'ovh', 'oidc']" :key="p"
                       @click="changeUsersProviderFilter(p)"
                       :class="usersProviderFilter === p ? 'text-accent-400 bg-accent-500/10' : 'text-surface-500 hover:text-surface-300'"
                       class="px-2 py-0.5 rounded-full text-xs transition-colors">
-                {{ p || 'All' }}
+                {{ p || $t('adminView.all') }}
               </button>
             </div>
 
             <!-- Admin filter -->
             <div class="flex flex-wrap items-center gap-2 text-surface-400">
-              <span>Role:</span>
+              <span>{{ $t('adminView.role') }}</span>
               <button v-for="a in ['', 'true', 'false']" :key="a"
                       @click="changeUsersAdminFilter(a)"
                       :class="usersAdminFilter === a ? 'text-accent-400 bg-accent-500/10' : 'text-surface-500 hover:text-surface-300'"
                       class="px-2 py-0.5 rounded-full text-xs transition-colors">
-                {{ a === '' ? 'All' : a === 'true' ? 'Admin' : 'Non-Admin' }}
+                {{ a === '' ? $t('adminView.all') : a === 'true' ? $t('common.admin') : $t('adminView.nonAdmin') }}
               </button>
             </div>
           </div>
 
           <p v-if="usersTotal !== null" class="text-xs text-surface-500 mb-2">
-            Showing {{ users.length }} of {{ usersTotal }} users
+            {{ $t('adminView.showingUsersOf', { shown: users.length, total: usersTotal }) }}
           </p>
 
           <div v-if="usersLoading && users.length === 0" class="text-center py-12 text-surface-500">
-            Loading users...
+            {{ $t('adminView.loadingUsers') }}
           </div>
 
           <div v-else-if="users.length === 0" class="text-center py-12 text-surface-500">
-            No users
+            {{ $t('adminView.noUsers') }}
           </div>
 
           <div class="space-y-3">
@@ -813,9 +815,9 @@ onMounted(async () => {
 
                 <!-- Quotas -->
                 <div class="sm:w-1/4 text-xs text-surface-500 space-y-1">
-                  <p>max file size: {{ quotaLabel(user.maxFileSize) }}</p>
-                  <p>max user size: {{ quotaLabel(user.maxUserSize) }}</p>
-                  <p>max TTL: {{ ttlLabel(user.maxTTL) }}</p>
+                  <p>{{ $t('adminView.maxFileSizeLabel', { value: quotaLabel(user.maxFileSize, $t) }) }}</p>
+                  <p>{{ $t('adminView.maxUserSizeLabel', { value: quotaLabel(user.maxUserSize, $t) }) }}</p>
+                  <p>{{ $t('adminView.maxTTLLabel', { value: ttlLabel(user.maxTTL, $t) }) }}</p>
                 </div>
 
                 <!-- Actions -->
@@ -823,7 +825,7 @@ onMounted(async () => {
                   <button @click="filterUploadsByUser(user.id)"
                           class="text-xs text-surface-400 hover:text-surface-200 border border-surface-600/50
                                  rounded-lg px-3 py-1.5 hover:bg-surface-700/50 transition-colors"
-                          title="View uploads">
+                          :title="$t('adminView.viewUploads')">
                     📁
                   </button>
                   <button @click="doImpersonate(user)"
@@ -831,20 +833,20 @@ onMounted(async () => {
                           :class="user.id === auth.originalUser?.id ? 'opacity-30 cursor-not-allowed' : 'hover:text-green-300 hover:bg-green-500/10'"
                           class="text-xs text-green-400 border border-green-500/30
                                  rounded-lg px-3 py-1.5 transition-colors"
-                          title="Impersonate">
+                          :title="$t('adminView.impersonate')">
                     👤
                   </button>
                   <button @click="openEditUser(user)"
                           class="text-xs text-accent-400 hover:text-accent-300 border border-accent-500/30
                                  rounded-lg px-3 py-1.5 hover:bg-accent-500/10 transition-colors">
-                    Edit
+                    {{ $t('adminView.edit') }}
                   </button>
                   <button @click="handleDeleteUser(user)"
                           :disabled="user.id === auth.user?.id"
                           :class="user.id === auth.user?.id ? 'opacity-30 cursor-not-allowed' : 'hover:text-red-300 hover:bg-red-500/10'"
                           class="text-xs text-red-400 border border-red-500/30
                                  rounded-lg px-3 py-1.5 transition-colors">
-                    Delete
+                    {{ $t('common.delete') }}
                   </button>
                 </div>
               </div>
@@ -857,7 +859,7 @@ onMounted(async () => {
                     class="w-full glass-card p-3 text-sm text-surface-400 hover:text-surface-100
                            hover:bg-surface-700/30 transition-colors text-center"
                     :disabled="usersLoading">
-              {{ usersLoading ? 'Loading...' : 'Load more users' }}
+              {{ usersLoading ? $t('common.loading') : $t('adminView.loadMoreUsers') }}
             </button>
           </div>
         </template>
@@ -884,7 +886,7 @@ onMounted(async () => {
                   user: <span class="font-mono text-accent-400">{{ uploadsUserFilter }}</span>
                   <button @click="viewUserInUsersTab(uploadsUserFilter)"
                           class="text-surface-400 hover:text-accent-400 transition-colors"
-                          title="View user in users tab">🔍</button>
+                          :title="$t('adminView.viewUserInUsersTab')">🔍</button>
                   <button @click="clearUserFilter" class="text-surface-500 hover:text-surface-100">×</button>
                 </div>
                 <div v-if="uploadsTokenFilter" class="flex items-center gap-1.5 text-surface-300">
@@ -900,15 +902,15 @@ onMounted(async () => {
           </UploadControls>
 
           <p v-if="uploadsTotal !== null" class="text-xs text-surface-500 mb-2">
-            Showing {{ uploads.length }} of {{ uploadsTotal }} uploads
+            {{ $t('adminView.showingUploadsOf', { shown: uploads.length, total: uploadsTotal }) }}
           </p>
 
           <div v-if="uploadsLoading && uploads.length === 0" class="text-center py-12 text-surface-500">
-            Loading uploads...
+            {{ $t('adminView.loadingUploads') }}
           </div>
 
           <div v-else-if="uploads.length === 0" class="text-center py-12 text-surface-500">
-            No uploads
+            {{ $t('adminView.noUploads') }}
           </div>
 
           <div class="space-y-3">
@@ -926,7 +928,7 @@ onMounted(async () => {
                     class="w-full glass-card p-3 text-sm text-surface-400 hover:text-surface-100
                            hover:bg-surface-700/30 transition-colors text-center"
                     :disabled="uploadsLoading">
-              {{ uploadsLoading ? 'Loading...' : 'Load more uploads' }}
+              {{ uploadsLoading ? $t('common.loading') : $t('adminView.loadMoreUploads') }}
             </button>
           </div>
         </template>
@@ -945,7 +947,7 @@ onMounted(async () => {
            class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
            @mousedown.self="showCreateUser = false">
         <div class="glass-card p-4 sm:p-6 max-w-md w-full space-y-5 animate-fade-in max-h-[90vh] overflow-y-auto">
-          <h2 class="text-lg font-semibold text-surface-200">Create User</h2>
+          <h2 class="text-lg font-semibold text-surface-200">{{ $t('adminView.createUserTitle') }}</h2>
 
           <div v-if="createError" class="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">
             {{ createError }}
@@ -953,7 +955,7 @@ onMounted(async () => {
 
           <!-- Provider -->
           <div>
-            <label class="block text-xs text-surface-500 mb-1">Provider</label>
+            <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.provider') }}</label>
             <select v-model="createForm.provider" class="input-field w-full">
               <option value="local">local</option>
               <option value="google">google</option>
@@ -964,61 +966,61 @@ onMounted(async () => {
 
           <!-- Login -->
           <div>
-            <label class="block text-xs text-surface-500 mb-1">Login</label>
-            <input type="text" v-model="createForm.login" class="input-field w-full" placeholder="min 4 chars" />
+            <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.login') }}</label>
+            <input type="text" v-model="createForm.login" class="input-field w-full" :placeholder="$t('adminView.loginPlaceholder')" />
           </div>
 
           <!-- Password (local only) -->
           <div v-if="createForm.provider === 'local'">
-            <label class="block text-xs text-surface-500 mb-1">Password</label>
-            <input type="password" v-model="createForm.password" class="input-field w-full" placeholder="min 8 chars" />
+            <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.password') }}</label>
+            <input type="password" v-model="createForm.password" class="input-field w-full" :placeholder="$t('adminView.passwordPlaceholder')" />
           </div>
 
           <!-- Name -->
           <div>
-            <label class="block text-xs text-surface-500 mb-1">Name</label>
-            <input type="text" v-model="createForm.name" class="input-field w-full" placeholder="Optional" />
+            <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.name') }}</label>
+            <input type="text" v-model="createForm.name" class="input-field w-full" :placeholder="$t('adminView.optional')" />
           </div>
 
           <!-- Email -->
           <div>
-            <label class="block text-xs text-surface-500 mb-1">Email</label>
-            <input type="email" v-model="createForm.email" class="input-field w-full" placeholder="Optional" />
+            <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.email') }}</label>
+            <input type="email" v-model="createForm.email" class="input-field w-full" :placeholder="$t('adminView.optional')" />
           </div>
 
           <!-- Quotas -->
           <div class="border-t border-surface-700/50 pt-4 space-y-4">
-            <p class="text-xs text-surface-500 uppercase tracking-wider">Quotas</p>
+            <p class="text-xs text-surface-500 uppercase tracking-wider">{{ $t('adminView.quotas') }}</p>
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs text-surface-500 mb-1">Max File Size (GB)</label>
+                <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.maxFileSizeGB') }}</label>
                 <input type="text" inputmode="decimal" v-model="createForm.maxFileSize"
                        @input="createForm.maxFileSize = filterQuotaInput($event.target.value, true)"
                        @blur="createForm.maxFileSize = clampQuota(createForm.maxFileSize)"
                        class="input-field w-full" />
-                <p class="text-xs text-surface-600 mt-0.5">{{ defaultSizeHint(config.maxFileSize) }}</p>
+                <p class="text-xs text-surface-600 mt-0.5">{{ defaultSizeHint(config.maxFileSize, $t) }}</p>
               </div>
               <div>
-                <label class="block text-xs text-surface-500 mb-1">Max User Size (GB)</label>
+                <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.maxUserSizeGB') }}</label>
                 <input type="text" inputmode="decimal" v-model="createForm.maxUserSize"
                        @input="createForm.maxUserSize = filterQuotaInput($event.target.value, true)"
                        @blur="createForm.maxUserSize = clampQuota(createForm.maxUserSize)"
                        class="input-field w-full" />
-                <p class="text-xs text-surface-600 mt-0.5">{{ defaultSizeHint(config.maxUserSize) }}</p>
+                <p class="text-xs text-surface-600 mt-0.5">{{ defaultSizeHint(config.maxUserSize, $t) }}</p>
               </div>
             </div>
             <div>
-              <label class="block text-xs text-surface-500 mb-1">Max TTL</label>
+              <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.maxTTL') }}</label>
               <div class="flex gap-2">
                 <input type="text" inputmode="numeric" v-model="createForm.maxTTL"
                        @input="createForm.maxTTL = filterQuotaInput($event.target.value, false)"
                        @blur="createForm.maxTTL = clampQuota(createForm.maxTTL)"
                        class="input-field flex-1" />
                 <select v-model.number="createTTLUnit" class="input-field w-28">
-                  <option v-for="u in TTL_UNITS" :key="u.seconds" :value="u.seconds">{{ u.label }}</option>
+                  <option v-for="u in TTL_UNITS" :key="u.seconds" :value="u.seconds">{{ $t(u.i18nKey) }}</option>
                 </select>
               </div>
-              <p class="text-xs text-surface-600 mt-0.5">{{ defaultTTLHint(config.maxTTL) }}</p>
+              <p class="text-xs text-surface-600 mt-0.5">{{ defaultTTLHint(config.maxTTL, $t) }}</p>
             </div>
 
             <!-- Admin -->
@@ -1026,15 +1028,15 @@ onMounted(async () => {
               <input type="checkbox" v-model="createForm.admin"
                      class="w-4 h-4 rounded border-surface-600 bg-surface-800
                             text-accent-500 focus:ring-accent-500/30" />
-              Admin
+              {{ $t('common.admin') }}
             </label>
           </div>
 
           <div class="flex justify-end gap-2 pt-2">
-            <button @click="showCreateUser = false" class="btn-ghost text-sm px-4 py-2">Cancel</button>
+            <button @click="showCreateUser = false" class="btn-ghost text-sm px-4 py-2">{{ $t('common.cancel') }}</button>
             <button @click="submitCreateUser" :disabled="createSaving"
                     class="btn-primary px-4 py-2 text-sm">
-              {{ createSaving ? 'Creating...' : 'Create' }}
+              {{ createSaving ? $t('adminView.creating') : $t('adminView.create') }}
             </button>
           </div>
         </div>
@@ -1047,8 +1049,8 @@ onMounted(async () => {
                    v-model:ttl-unit="editTTLUnit"
                    :error="editError"
                    :saving="editSaving"
-                   title="Edit User"
-                   quota-header="Quotas"
+                   :title="$t('adminView.editUserTitle')"
+                   :quota-header="$t('adminView.quotas')"
                    :show-quotas="true"
                    @save="submitEditUser" />
   </div>

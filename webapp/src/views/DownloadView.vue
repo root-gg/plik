@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { getUpload, removeUpload, removeFile as apiRemoveFile, uploadFile, getFileURL } from '../api.js'
 import { generateRef, isMarkdownFile, isImageFile, isVideoFile, isAudioFile, isViewableFile } from '../utils.js'
 import { fetchAndDecrypt } from '../crypto.js'
@@ -24,6 +25,7 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const { t: $t } = useI18n()
 
 const upload = ref(null)
 const loading = ref(true)
@@ -115,7 +117,7 @@ async function viewFile(file) {
     const text = await resp.text()
     viewingContent.value = text
   } catch (err) {
-    viewingError.value = err.message || 'Failed to load file content'
+    viewingError.value = err.message || $t('downloadView.failedToLoadUpload')
   } finally {
     viewingLoading.value = false
     nextTick(() => {
@@ -218,7 +220,7 @@ async function fetchUpload() {
   } catch (err) {
     error.value = err.status
       ? `${err.message} (HTTP ${err.status})`
-      : (err.message || 'Failed to load upload')
+      : (err.message || $t('downloadView.failedToLoadUpload'))
   } finally {
     loading.value = false
   }
@@ -226,16 +228,16 @@ async function fetchUpload() {
 
 async function deleteUpload() {
   confirmDialog.value = {
-    title: 'Delete Upload',
-    message: 'Are you sure you want to delete this upload? This action cannot be undone.',
-    confirmText: 'Delete',
+    title: $t('downloadView.deleteUploadTitle'),
+    message: $t('downloadView.deleteUploadMessage'),
+    confirmText: $t('common.delete'),
     onConfirm: async () => {
       try {
         await removeUpload(props.id, uploadToken.value)
         // Redirect to home page
         router.push({ path: '/' })
       } catch (err) {
-        error.value = err.message || 'Failed to delete upload'
+        error.value = err.message || $t('downloadView.failedToDeleteUpload')
         confirmDialog.value = null
       } finally {
         confirmDialog.value = null
@@ -246,9 +248,9 @@ async function deleteUpload() {
 
 async function deleteFile(file) {
   confirmDialog.value = {
-    title: 'Delete File',
-    message: `Are you sure you want to delete "${file.fileName}"? This action cannot be undone.`,
-    confirmText: 'Delete',
+    title: $t('downloadView.deleteFileTitle'),
+    message: $t('downloadView.deleteFileMessage', { name: file.fileName }),
+    confirmText: $t('common.delete'),
     onConfirm: async () => {
       try {
         await apiRemoveFile(
@@ -261,7 +263,7 @@ async function deleteFile(file) {
         }
         await fetchUpload()
       } catch (err) {
-        error.value = err.message || 'Failed to delete file'
+        error.value = err.message || $t('downloadView.failedToDeleteFile')
         confirmDialog.value = null
       } finally {
         confirmDialog.value = null
@@ -394,7 +396,7 @@ function uploadFileEntry(fileEntry) {
   }).catch(async (err) => {
     if (!err.cancelled) {
       fileEntry.status = 'error'
-      fileEntry.error = err.message || 'Upload failed'
+      fileEntry.error = err.message || $t('api.uploadFailed', { status: '' })
     }
     // Refresh server state so we know which files are still retryable
     await fetchUpload()
@@ -494,7 +496,7 @@ function fileLinks() {
 
 // QR code helpers
 function openQrUpload() {
-  qrTitle.value = 'Upload Link'
+  qrTitle.value = $t('downloadView.uploadLink')
   qrUrl.value = window.location.href
   showQr.value = true
 }
@@ -523,7 +525,7 @@ async function decryptAndDownload(file) {
     a.click()
     URL.revokeObjectURL(a.href)
   } catch (err) {
-    uploadError.value = `Decryption failed: ${err.message || 'Wrong passphrase?'}`
+    uploadError.value = $t('downloadView.decryptionFailed', { error: err.message || $t('downloadView.wrongPassphrase') })
   } finally {
     isDecrypting.value = false
   }
@@ -652,7 +654,7 @@ watch(activeFiles, (files) => {
         <!-- Loading -->
         <div v-if="loading" class="flex flex-col items-center justify-center py-16">
           <div class="animate-spin rounded-full h-8 w-8 border-2 border-accent-400 border-t-transparent" />
-          <span class="mt-4 text-sm text-surface-400">Loading upload...</span>
+          <span class="mt-4 text-sm text-surface-400">{{ $t('downloadView.loadingUpload') }}</span>
         </div>
 
         <!-- Error -->
@@ -669,7 +671,7 @@ watch(activeFiles, (files) => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
               </svg>
-              <h3 class="text-xs font-semibold text-surface-400 uppercase tracking-wider">Comment</h3>
+              <h3 class="text-xs font-semibold text-surface-400 uppercase tracking-wider">{{ $t('downloadView.comment') }}</h3>
             </div>
             <div class="prose prose-sm max-w-none" v-html="renderMarkdown(upload.comments)" />
           </div>
@@ -681,8 +683,8 @@ watch(activeFiles, (files) => {
                     d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
             <div>
-              <span class="text-sm text-accent-400 font-medium">End-to-End Encrypted with <a href="https://age-encryption.org" target="_blank" rel="noopener noreferrer" class="underline hover:text-accent-300 transition-colors">Age</a></span>
-              <p class="text-xs text-surface-400 mt-0.5">Files will be decrypted in your browser</p>
+              <span class="text-sm text-accent-400 font-medium">{{ $t('downloadView.e2eeIndicator', { link: '' }) }}<a href="https://age-encryption.org" target="_blank" rel="noopener noreferrer" class="underline hover:text-accent-300 transition-colors">Age</a></span>
+              <p class="text-xs text-surface-400 mt-0.5">{{ $t('downloadView.e2eeDecryptInBrowser') }}</p>
             </div>
           </div>
 
@@ -693,12 +695,12 @@ watch(activeFiles, (files) => {
                     d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
             <div>
-              <span class="text-sm text-accent-400 font-medium">Streaming Upload</span>
+              <span class="text-sm text-accent-400 font-medium">{{ $t('downloadView.streamingUpload') }}</span>
               <p class="text-xs text-surface-400 mt-0.5">
-                Files are streamed directly from the uploader to the downloader — share the upload link or individual file links to start the transfer.
+                {{ $t('downloadView.streamingDescription') }}
               </p>
               <p v-if="config.streamTimeout > 0" class="text-xs text-surface-400 mt-0.5">
-                You have {{ streamTimeoutLabel }} to start downloading the files.
+                {{ $t('downloadView.streamTimeout', { timeout: streamTimeoutLabel }) }}
               </p>
             </div>
           </div>
@@ -706,7 +708,7 @@ watch(activeFiles, (files) => {
           <!-- Decrypting Spinner -->
           <div v-if="isDecrypting" class="flex items-center justify-center py-4">
             <div class="animate-spin rounded-full h-6 w-6 border-2 border-accent-400 border-t-transparent" />
-            <span class="ml-3 text-sm text-surface-400">Decrypting...</span>
+            <span class="ml-3 text-sm text-surface-400">{{ $t('downloadView.decrypting') }}</span>
           </div>
 
           <!-- File Viewer -->
@@ -736,13 +738,13 @@ watch(activeFiles, (files) => {
                 <span class="text-sm font-medium text-surface-200">{{ viewingFile.fileName }}</span>
               </div>
               <div class="flex items-center gap-1">
-                <CopyButton v-if="viewingContent && !isViewingVideo && !isViewingAudio" :text="viewingContent" label="Copy" />
+                <CopyButton v-if="viewingContent && !isViewingVideo && !isViewingAudio" :text="viewingContent" :label="$t('common.copy')" />
                 <!-- Prev/Next navigation (only when multiple viewable files) -->
                 <template v-if="viewableFiles.length > 1">
                   <button class="p-1 transition-colors"
                           :class="hasPrev ? 'text-surface-400 hover:text-surface-100' : 'text-surface-700 cursor-default'"
                           :disabled="!hasPrev"
-                          title="Previous file (←)"
+                          :title="$t('downloadView.previousFile')"
                           @click="viewPrev">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -752,7 +754,7 @@ watch(activeFiles, (files) => {
                   <button class="p-1 transition-colors"
                           :class="hasNext ? 'text-surface-400 hover:text-surface-100' : 'text-surface-700 cursor-default'"
                           :disabled="!hasNext"
-                          title="Next file (→)"
+                          :title="$t('downloadView.nextFile')"
                           @click="viewNext">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -760,7 +762,7 @@ watch(activeFiles, (files) => {
                   </button>
                 </template>
                 <button class="p-1 text-surface-400 hover:text-surface-100 transition-colors"
-                        title="Close viewer (Esc)"
+                        :title="$t('downloadView.closeViewer')"
                         @click="closeViewer">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -783,7 +785,7 @@ watch(activeFiles, (files) => {
             </MarkdownTabs>
             <div v-if="viewingLoading" class="flex items-center justify-center py-8">
               <div class="animate-spin rounded-full h-6 w-6 border-2 border-accent-400 border-t-transparent" />
-              <span class="ml-3 text-sm text-surface-400">Loading file content...</span>
+              <span class="ml-3 text-sm text-surface-400">{{ $t('downloadView.loadingFileContent') }}</span>
             </div>
             <div v-else-if="viewingError" class="p-4 text-sm text-danger-500">{{ viewingError }}</div>
             <div v-else-if="isViewingImage" class="p-4 flex items-center justify-center bg-surface-900/50">
@@ -819,16 +821,16 @@ watch(activeFiles, (files) => {
             <div class="flex items-center justify-between px-1">
               <h3 class="text-sm font-medium text-surface-400">
                 <template v-if="isAddingFiles && !upload.stream">
-                  {{ uploadedCount }}/{{ totalFiles }} file{{ totalFiles > 1 ? 's' : '' }} uploaded
+                  {{ uploadedCount }}/{{ totalFiles }} {{ $t('homeView.files').toLowerCase() }} {{ $t('fileRow.uploaded').replace(':','') }}
                 </template>
                 <template v-else>
-                  {{ totalFiles }} file{{ totalFiles > 1 ? 's' : '' }}
+                  {{ totalFiles }} {{ $t('homeView.files').toLowerCase() }}
                 </template>
               </h3>
               <CopyButton
                 v-if="fileLinks().length > 1"
                 :text="fileLinks().map(f => f.url).join('\n')"
-                label="Copy All Links"
+                :label="$t('common.copyAllLinks')"
                 size="sm" />
             </div>
 
@@ -852,25 +854,25 @@ watch(activeFiles, (files) => {
             <div class="flex items-center justify-between px-1">
               <h3 class="text-sm font-medium text-surface-400">
                 <template v-if="isAddingFiles && pendingFiles.some(f => f.status === 'error') && !pendingFiles.some(f => f.status === 'uploading' || f.status === 'toUpload')">
-                  {{ pendingFiles.filter(f => f.status === 'error').length }} file{{ pendingFiles.filter(f => f.status === 'error').length > 1 ? 's' : '' }} failed
+                  {{ pendingFiles.filter(f => f.status === 'error').length }} {{ $t('homeView.files').toLowerCase() }} failed
                 </template>
                 <template v-else-if="isAddingFiles">
-                  {{ pendingFiles.filter(f => f.status !== 'uploaded').length }} file{{ pendingFiles.filter(f => f.status !== 'uploaded').length > 1 ? 's' : '' }} left to upload
+                  {{ pendingFiles.filter(f => f.status !== 'uploaded').length }} {{ $t('homeView.files').toLowerCase() }} left
                 </template>
                 <template v-else>
-                  {{ pendingFiles.length }} file{{ pendingFiles.length > 1 ? 's' : '' }} to add
+                  {{ pendingFiles.length }} {{ $t('homeView.files').toLowerCase() }}
                 </template>
               </h3>
               <div class="flex items-center gap-3">
                 <button v-if="isAddingFiles && pendingFiles.some(f => f.status === 'error') && !pendingFiles.some(f => f.status === 'uploading' || f.status === 'toUpload')"
                         class="text-xs text-accent-400 hover:text-accent-300 transition-colors"
                         @click="retryAllFailed">
-                  Retry Failed
+                  {{ $t('downloadView.retryFailed') }}
                 </button>
                 <button v-if="isAddingFiles"
                         class="text-xs text-danger-500 hover:text-danger-400 transition-colors"
                         @click="cancelAllUploads">
-                  Cancel All
+                  {{ $t('downloadView.cancelAll') }}
                 </button>
               </div>
             </div>
@@ -891,19 +893,19 @@ watch(activeFiles, (files) => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
-              Upload
+              {{ $t('common.upload') }}
             </button>
           </div>
 
           <!-- Upload progress indicator -->
           <div v-if="isAddingFiles && pendingFiles.some(f => f.status === 'uploading' || f.status === 'toUpload')" class="flex items-center justify-center py-2">
             <div class="animate-spin rounded-full h-4 w-4 border-2 border-accent-400 border-t-transparent" />
-            <span class="ml-2 text-xs text-surface-400">Uploading files...</span>
+            <span class="ml-2 text-xs text-surface-400">{{ $t('downloadView.uploadingFiles') }}</span>
           </div>
 
           <!-- No files -->
           <div v-if="!activeFiles.length && !pendingFiles.length" class="glass-card p-8 text-center">
-            <p class="text-surface-400">No files in this upload</p>
+            <p class="text-surface-400">{{ $t('downloadView.noFilesInUpload') }}</p>
           </div>
 
 
@@ -941,18 +943,18 @@ watch(activeFiles, (files) => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
-          <h3 class="text-lg font-medium text-surface-100">Enter Passphrase</h3>
+          <h3 class="text-lg font-medium text-surface-100">{{ $t('downloadView.enterPassphrase') }}</h3>
         </div>
-        <p class="text-sm text-surface-400">This upload is end-to-end encrypted. Enter the passphrase to decrypt files.</p>
+        <p class="text-sm text-surface-400">{{ $t('downloadView.e2eePassphrasePrompt') }}</p>
         <input type="text"
                v-model="passphraseInput"
                class="input-field font-mono text-sm"
-               placeholder="Passphrase"
+               :placeholder="$t('downloadView.passphrasePlaceholder')"
                @keydown.enter="submitPassphrase" />
         <div class="flex justify-end">
           <button class="btn-primary px-4 py-1.5 text-sm"
                   :disabled="!passphraseInput.trim()"
-                  @click="submitPassphrase">Decrypt</button>
+                  @click="submitPassphrase">{{ $t('common.decrypt') }}</button>
         </div>
       </div>
     </div>

@@ -1,9 +1,9 @@
 <script setup>
 const props = defineProps({
-  title: { type: String, default: 'Confirm Action' },
+  title: { type: String, default: '' },
   message: { type: String, required: true },
-  confirmText: { type: String, default: 'Confirm' },
-  cancelText: { type: String, default: 'Cancel' },
+  confirmText: { type: String, default: '' },
+  cancelText: { type: String, default: '' },
   variant: { type: String, default: 'danger' }, // 'danger' | 'primary'
 })
 
@@ -37,7 +37,7 @@ const emit = defineEmits(['confirm', 'cancel'])
 
           <!-- Content -->
           <div class="flex-1 min-w-0">
-            <h2 class="text-lg font-semibold text-surface-100 mb-2">{{ title }}</h2>
+            <h2 class="text-lg font-semibold text-surface-100 mb-2">{{ title || $t('common.confirmAction') }}</h2>
             <p class="text-sm text-surface-300">{{ message }}</p>
           </div>
         </div>
@@ -45,12 +45,12 @@ const emit = defineEmits(['confirm', 'cancel'])
         <!-- Actions -->
         <div class="flex gap-3 justify-end">
           <button class="btn-ghost px-4 py-2" @click="emit('cancel')">
-            {{ cancelText }}
+            {{ cancelText || $t('common.cancel') }}
           </button>
           <button :class="variant === 'danger' ? 'btn-danger' : 'btn-primary'"
                   class="px-4 py-2"
                   @click="emit('confirm')">
-            {{ confirmText }}
+            {{ confirmText || $t('common.confirm') }}
           </button>
         </div>
       </div>

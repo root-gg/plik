@@ -92,9 +92,9 @@ export function encodeBasicAuth(login, password) {
 const GB = 1000 * 1000 * 1000
 
 export const TTL_UNITS = [
-    { label: 'minutes', seconds: 60 },
-    { label: 'hours', seconds: 3600 },
-    { label: 'days', seconds: 86400 },
+    { label: 'minutes', i18nKey: 'uploadSidebar.minutes', seconds: 60 },
+    { label: 'hours', i18nKey: 'uploadSidebar.hours', seconds: 3600 },
+    { label: 'days', i18nKey: 'uploadSidebar.days', seconds: 86400 },
 ]
 
 /**
@@ -107,18 +107,18 @@ export function getUploadUrl(upload) {
 /**
  * Display label for a quota value (bytes)
  */
-export function quotaLabel(value) {
-    if (!value || value === 0) return 'default'
-    if (value === -1) return 'unlimited'
+export function quotaLabel(value, t) {
+    if (!value || value === 0) return t ? t('common.default') : 'default'
+    if (value === -1) return t ? t('common.unlimited') : 'unlimited'
     return humanReadableSize(value)
 }
 
 /**
  * Display label for a TTL value (seconds)
  */
-export function ttlLabel(seconds) {
-    if (!seconds || seconds === 0) return 'default'
-    if (seconds === -1) return 'unlimited'
+export function ttlLabel(seconds, t) {
+    if (!seconds || seconds === 0) return t ? t('common.default') : 'default'
+    if (seconds === -1) return t ? t('common.unlimited') : 'unlimited'
     if (seconds < 60) return seconds + 's'
     if (seconds < 3600) return Math.floor(seconds / 60) + 'm'
     if (seconds < 86400) return Math.floor(seconds / 3600) + 'h'
@@ -200,19 +200,24 @@ export function filterQuotaInput(raw, allowDecimal = false) {
 /**
  * Hint text for size quota inputs showing the server default
  */
-export function defaultSizeHint(configVal) {
-    if (!configVal || configVal <= 0 || isNaN(configVal)) return '0 = default, -1 = unlimited'
-    return `0 = default (${humanReadableSize(configVal)}), -1 = unlimited`
+export function defaultSizeHint(configVal, t) {
+    const hint0 = t ? t('common.defaultHint') : '0 = default, -1 = unlimited'
+    if (!configVal || configVal <= 0 || isNaN(configVal)) return hint0
+    const hint = t ? t('common.defaultHintValue', { value: humanReadableSize(configVal) }) : `0 = default (${humanReadableSize(configVal)}), -1 = unlimited`
+    return hint
 }
 
 /**
  * Hint text for TTL quota inputs showing the server default
  */
-export function defaultTTLHint(configVal) {
-    if (!configVal || configVal <= 0 || isNaN(configVal)) return '0 = default, -1 = unlimited'
+export function defaultTTLHint(configVal, t) {
+    const hint0 = t ? t('common.defaultHint') : '0 = default, -1 = unlimited'
+    if (!configVal || configVal <= 0 || isNaN(configVal)) return hint0
     const ttl = secondsToBestUnit(configVal)
     const unit = TTL_UNITS.find(u => u.seconds === ttl.unit)
-    return `0 = default (${ttl.value} ${unit ? unit.label : 's'}), -1 = unlimited`
+    const unitLabel = (t && unit) ? t(unit.i18nKey) : (unit ? unit.label : 's')
+    const hint = t ? t('common.defaultHintValue', { value: `${ttl.value} ${unitLabel}` }) : `0 = default (${ttl.value} ${unitLabel}), -1 = unlimited`
+    return hint
 }
 
 /**

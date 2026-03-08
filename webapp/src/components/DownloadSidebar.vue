@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { formatDate } from '../utils.js'
 import { getArchiveURL, getAdminURL } from '../api.js'
 import CopyButton from './CopyButton.vue'
@@ -13,18 +14,20 @@ const props = defineProps({
 
 const emit = defineEmits(['delete-upload', 'add-files', 'show-qr', 'edit-passphrase', 'error'])
 
+const { t } = useI18n()
+
 const expirationText = computed(() => {
-  if (!props.upload.expireAt) return 'Never expires'
+  if (!props.upload.expireAt) return t('downloadSidebar.neverExpires')
   const d = new Date(props.upload.expireAt)
   const now = new Date()
-  if (d <= now) return 'Expired'
+  if (d <= now) return t('downloadSidebar.expired')
   const diffMs = d - now
   const diffDays = Math.floor(diffMs / 86400000)
   const diffHours = Math.floor((diffMs % 86400000) / 3600000)
-  if (diffDays > 0) return `Expires in ${diffDays}d ${diffHours}h`
-  if (diffHours > 0) return `Expires in ${diffHours}h`
+  if (diffDays > 0) return t('downloadSidebar.expiresInDaysHours', { days: diffDays, hours: diffHours })
+  if (diffHours > 0) return t('downloadSidebar.expiresInHours', { hours: diffHours })
   const diffMins = Math.max(1, Math.ceil((diffMs % 3600000) / 60000))
-  return `Expires in ${diffMins}m`
+  return t('downloadSidebar.expiresInMinutes', { minutes: diffMins })
 })
 
 const archiveUrl = computed(() => getArchiveURL(props.upload.id))
@@ -59,7 +62,7 @@ async function nativeShare() {
   } catch (err) {
     // User cancelled or share failed — ignore
     if (err.name !== 'AbortError') {
-      emit('error', 'Share failed')
+      emit('error', t('downloadSidebar.shareFailed'))
     }
   }
 }
@@ -73,15 +76,15 @@ const canAddFiles = computed(() => props.upload.admin && !props.upload.stream)
   <aside class="w-full md:w-80 md:shrink-0 p-4 space-y-3 animate-slide-in">
     <!-- Upload Info -->
     <div class="sidebar-section">
-      <h3 class="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2">Upload Info</h3>
+      <h3 class="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2">{{ $t('downloadSidebar.uploadInfo') }}</h3>
 
-      <div v-if="expirationText === 'Never expires'" class="text-sm text-surface-300">
+      <div v-if="expirationText === $t('downloadSidebar.neverExpires')" class="text-sm text-surface-300">
         <div class="flex items-center gap-2">
           <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8z" />
           </svg>
-          <span class="text-emerald-400">Never expires</span>
+          <span class="text-emerald-400">{{ $t('downloadSidebar.neverExpires') }}</span>
         </div>
       </div>
 
@@ -102,16 +105,16 @@ const canAddFiles = computed(() => props.upload.admin && !props.upload.stream)
 
     <!-- Share -->
     <div class="sidebar-section">
-      <h3 class="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2">Share</h3>
+      <h3 class="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2">{{ $t('downloadSidebar.share') }}</h3>
 
       <!-- Passphrase display (E2EE only) -->
       <div v-if="upload.e2ee" class="mb-3">
-        <label class="text-xs text-surface-500 mb-1 block">Passphrase</label>
+        <label class="text-xs text-surface-500 mb-1 block">{{ $t('downloadSidebar.passphrase') }}</label>
         <div class="flex items-center gap-2 p-2 rounded bg-surface-800/50 border border-surface-700 min-w-0 overflow-hidden">
           <span v-if="passphrase" class="text-xs text-accent-400 font-mono truncate flex-1">{{ passphrase }}</span>
-          <span v-else class="text-xs text-surface-500 italic flex-1">Not set</span>
+          <span v-else class="text-xs text-surface-500 italic flex-1">{{ $t('downloadSidebar.notSet') }}</span>
           <button class="text-surface-400 hover:text-accent-400 transition-colors shrink-0"
-                  title="Edit passphrase"
+                  :title="$t('downloadSidebar.editPassphrase')"
                   @click="emit('edit-passphrase')">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -121,7 +124,7 @@ const canAddFiles = computed(() => props.upload.admin && !props.upload.stream)
           <CopyButton v-if="passphrase" :text="passphrase" size="sm" />
         </div>
         <label v-if="passphrase" class="flex items-center justify-between py-1.5 mt-2 cursor-pointer group">
-          <span class="text-xs text-surface-400 group-hover:text-surface-200 transition-colors">Include passphrase in link</span>
+          <span class="text-xs text-surface-400 group-hover:text-surface-200 transition-colors">{{ $t('downloadSidebar.includePassphraseInLink') }}</span>
           <button type="button"
                   class="toggle-switch scale-75"
                   :data-active="includePassphrase"
@@ -142,7 +145,7 @@ const canAddFiles = computed(() => props.upload.admin && !props.upload.stream)
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
         </svg>
-        {{ shareSuccess ? 'Shared!' : 'Share' }}
+        {{ shareSuccess ? $t('downloadSidebar.shared') : $t('downloadSidebar.share') }}
       </button>
       <div v-else class="flex items-center gap-2 p-2 rounded bg-surface-800/50 border border-surface-700 min-w-0 overflow-hidden">
         <span class="text-xs text-surface-300 truncate flex-1">{{ shareUrl }}</span>
@@ -153,14 +156,14 @@ const canAddFiles = computed(() => props.upload.admin && !props.upload.stream)
     <!-- Admin URL (only for admins) -->
     <div v-if="adminUrl" class="sidebar-section">
       <div class="flex items-center gap-1 mb-2">
-        <h3 class="text-xs font-semibold text-surface-400 uppercase tracking-wider">Admin URL</h3>
+        <h3 class="text-xs font-semibold text-surface-400 uppercase tracking-wider">{{ $t('downloadSidebar.adminUrl') }}</h3>
         <div class="group relative">
           <svg class="w-3.5 h-3.5 text-surface-500 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div class="absolute left-0 -top-2 -translate-y-full hidden group-hover:block w-56 p-2 text-xs bg-surface-900 text-surface-200 rounded shadow-lg z-10">
-            Share this URL with others to allow them to add files to this upload
+            {{ $t('downloadSidebar.adminUrlHelp') }}
           </div>
         </div>
       </div>
@@ -172,7 +175,7 @@ const canAddFiles = computed(() => props.upload.admin && !props.upload.stream)
 
     <!-- Actions -->
     <div class="sidebar-section space-y-2">
-      <h3 class="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2">Actions</h3>
+      <h3 class="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2">{{ $t('downloadSidebar.actions') }}</h3>
 
       <!-- Zip archive -->
       <a v-if="upload.files?.length && !upload.stream && !upload.e2ee"
@@ -182,7 +185,7 @@ const canAddFiles = computed(() => props.upload.admin && !props.upload.stream)
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
         </svg>
-        Zip Archive
+        {{ $t('downloadSidebar.zipArchive') }}
       </a>
 
       <!-- QR Code -->
@@ -191,7 +194,7 @@ const canAddFiles = computed(() => props.upload.admin && !props.upload.stream)
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM17 14v3h3M14 17h3v3" />
         </svg>
-        QR Code
+        {{ $t('common.qrCode') }}
       </button>
 
       <!-- Add files -->
@@ -201,7 +204,7 @@ const canAddFiles = computed(() => props.upload.admin && !props.upload.stream)
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        Add Files
+        {{ $t('downloadSidebar.addFiles') }}
       </button>
 
       <!-- Delete upload -->
@@ -212,7 +215,7 @@ const canAddFiles = computed(() => props.upload.admin && !props.upload.stream)
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </svg>
-        Delete Upload
+        {{ $t('downloadSidebar.deleteUpload') }}
       </button>
     </div>
   </aside>

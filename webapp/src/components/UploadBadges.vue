@@ -16,27 +16,27 @@ const sizeClasses = computed(() =>
        class="flex flex-wrap" :class="size === 'sm' ? 'gap-1' : 'gap-1.5'">
     <span v-if="upload.oneShot"
           class="rounded-full bg-warning-500/15 text-warning-500" :class="sizeClasses">
-      One-shot
+      {{ $t('badges.oneShot') }}
     </span>
     <span v-if="upload.removable"
           class="rounded-full bg-danger-500/15 text-danger-500" :class="sizeClasses">
-      Removable
+      {{ $t('badges.removable') }}
     </span>
     <span v-if="upload.stream"
           class="rounded-full bg-accent-500/15 text-accent-400" :class="sizeClasses">
-      Stream
+      {{ $t('badges.stream') }}
     </span>
     <span v-if="upload.extend_ttl"
           class="rounded-full bg-emerald-500/15 text-emerald-400" :class="sizeClasses">
-      Extend TTL
+      {{ $t('badges.extendTTL') }}
     </span>
     <span v-if="upload.protectedByPassword"
           class="rounded-full bg-surface-600/50 text-surface-300" :class="sizeClasses">
-      🔒 Password
+      🔒 {{ $t('badges.password') }}
     </span>
     <span v-if="upload.e2ee"
           class="rounded-full bg-accent-500/15 text-accent-400" :class="sizeClasses">
-      🔐 Encrypted
+      🔐 {{ $t('badges.encrypted') }}
     </span>
   </div>
 </template>

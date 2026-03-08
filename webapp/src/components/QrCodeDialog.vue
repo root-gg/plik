@@ -2,7 +2,7 @@
 import { getQrCodeURL } from '../api.js'
 
 const props = defineProps({
-  title: { type: String, default: 'QR Code' },
+  title: { type: String, default: '' },
   url: { type: String, required: true },
 })
 
@@ -20,7 +20,7 @@ const qrSrc = getQrCodeURL(props.url, 400)
       <!-- Dialog -->
       <div class="relative glass-card p-6 max-w-sm w-full animate-fade-in space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-surface-100 truncate">{{ title }}</h2>
+          <h2 class="text-lg font-semibold text-surface-100 truncate">{{ title || $t('common.qrCode') }}</h2>
           <button class="text-surface-400 hover:text-surface-100 transition-colors" @click="emit('close')">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

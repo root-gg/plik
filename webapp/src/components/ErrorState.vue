@@ -1,7 +1,7 @@
 <script setup>
 defineProps({
   message: { type: String, required: true },
-  retryLabel: { type: String, default: 'Try again' },
+  retryLabel: { type: String, default: '' },
 })
 defineEmits(['retry'])
 </script>
@@ -13,6 +13,6 @@ defineEmits(['retry'])
             d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
     <p class="text-danger-500 font-medium">{{ message }}</p>
-    <button class="btn-ghost mt-4" @click="$emit('retry')">{{ retryLabel }}</button>
+    <button class="btn-ghost mt-4" @click="$emit('retry')">{{ retryLabel || $t('common.tryAgain') }}</button>
   </div>
 </template>

@@ -49,34 +49,34 @@ function clampField(field) {
         <!-- Provider & Login (read-only) -->
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs text-surface-500 mb-1">Provider</label>
+            <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.provider') }}</label>
             <div class="input-field bg-surface-800/50 text-surface-400 cursor-not-allowed">{{ form.provider }}</div>
           </div>
           <div>
-            <label class="block text-xs text-surface-500 mb-1">Login</label>
+            <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.login') }}</label>
             <div class="input-field bg-surface-800/50 text-surface-400 cursor-not-allowed">{{ form.login }}</div>
           </div>
         </div>
 
         <!-- Name -->
         <div>
-          <label class="block text-xs text-surface-500 mb-1">Name</label>
+          <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.name') }}</label>
           <input type="text" :value="form.name" @input="updateField('name', $event.target.value)"
-                 class="input-field w-full" placeholder="Display name" />
+                 class="input-field w-full" :placeholder="$t('editUser.displayName')" />
         </div>
 
         <!-- Email -->
         <div>
-          <label class="block text-xs text-surface-500 mb-1">Email</label>
+          <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.email') }}</label>
           <input type="email" :value="form.email" @input="updateField('email', $event.target.value)"
-                 class="input-field w-full" placeholder="Email" />
+                 class="input-field w-full" :placeholder="$t('editUser.email')" />
         </div>
 
         <!-- Password (local only) -->
         <div v-if="form.provider === 'local'">
-          <label class="block text-xs text-surface-500 mb-1">Password</label>
+          <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.password') }}</label>
           <input type="password" :value="form.password" @input="updateField('password', $event.target.value)"
-                 class="input-field w-full" placeholder="Leave blank to keep current" />
+                 class="input-field w-full" :placeholder="$t('editUser.leaveBlankToKeep')" />
         </div>
 
         <!-- Quotas -->
@@ -86,25 +86,25 @@ function clampField(field) {
 
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs text-surface-500 mb-1">Max File Size (GB)</label>
+                <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.maxFileSizeGB') }}</label>
                 <input type="text" inputmode="decimal" :value="form.maxFileSize"
                        @input="updateQuotaField('maxFileSize', $event.target.value, true)"
                        @blur="clampField('maxFileSize')"
                        class="input-field w-full" />
-                <p class="text-xs text-surface-600 mt-0.5">{{ defaultSizeHint(config.maxFileSize) }}</p>
+                <p class="text-xs text-surface-600 mt-0.5">{{ defaultSizeHint(config.maxFileSize, $t) }}</p>
               </div>
               <div>
-                <label class="block text-xs text-surface-500 mb-1">Max User Size (GB)</label>
+                <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.maxUserSizeGB') }}</label>
                 <input type="text" inputmode="decimal" :value="form.maxUserSize"
                        @input="updateQuotaField('maxUserSize', $event.target.value, true)"
                        @blur="clampField('maxUserSize')"
                        class="input-field w-full" />
-                <p class="text-xs text-surface-600 mt-0.5">{{ defaultSizeHint(config.maxUserSize) }}</p>
+                <p class="text-xs text-surface-600 mt-0.5">{{ defaultSizeHint(config.maxUserSize, $t) }}</p>
               </div>
             </div>
 
             <div>
-              <label class="block text-xs text-surface-500 mb-1">Max TTL</label>
+              <label class="block text-xs text-surface-500 mb-1">{{ $t('editUser.maxTTL') }}</label>
               <div class="flex gap-2">
                 <input type="text" inputmode="numeric" :value="form.maxTTL"
                        @input="updateQuotaField('maxTTL', $event.target.value, false)"
@@ -112,10 +112,10 @@ function clampField(field) {
                        class="input-field flex-1" />
                 <select :value="ttlUnit" @change="$emit('update:ttlUnit', Number($event.target.value))"
                         class="input-field w-28">
-                  <option v-for="u in TTL_UNITS" :key="u.seconds" :value="u.seconds">{{ u.label }}</option>
+                  <option v-for="u in TTL_UNITS" :key="u.seconds" :value="u.seconds">{{ $t(u.i18nKey) }}</option>
                 </select>
               </div>
-              <p class="text-xs text-surface-600 mt-0.5">{{ defaultTTLHint(config.maxTTL) }}</p>
+              <p class="text-xs text-surface-600 mt-0.5">{{ defaultTTLHint(config.maxTTL, $t) }}</p>
             </div>
 
             <label class="flex items-center gap-2 text-sm text-surface-300 cursor-pointer">
@@ -123,17 +123,17 @@ function clampField(field) {
                      @change="updateField('admin', $event.target.checked)"
                      class="w-4 h-4 rounded border-surface-600 bg-surface-800
                             text-accent-500 focus:ring-accent-500/30" />
-              Admin
+              {{ $t('common.admin') }}
             </label>
           </div>
         </template>
 
         <!-- Actions -->
         <div class="flex justify-end gap-2 pt-2">
-          <button @click="close" class="btn-ghost text-sm px-4 py-2">Cancel</button>
+          <button @click="close" class="btn-ghost text-sm px-4 py-2">{{ $t('common.cancel') }}</button>
           <button @click="$emit('save')" :disabled="saving"
                   class="btn-primary px-4 py-2 text-sm">
-            {{ saving ? 'Saving...' : 'Save' }}
+            {{ saving ? $t('common.saving') : $t('common.save') }}
           </button>
         </div>
       </div>

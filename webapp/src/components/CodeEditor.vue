@@ -367,7 +367,7 @@ onBeforeUnmount(() => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          {{ justValidated ? 'Valid' : 'Validate' }}
+          {{ justValidated ? $t('common.valid') : $t('common.validate') }}
         </button>
         <!-- JSON Prettify button -->
         <button v-if="isJson"
@@ -383,14 +383,14 @@ onBeforeUnmount(() => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M4 6h16M4 12h8m-8 6h16" />
           </svg>
-          {{ justPrettified ? 'Prettified' : 'Prettify' }}
+          {{ justPrettified ? $t('common.prettified') : $t('common.prettify') }}
         </button>
         <div v-if="readonly" class="flex items-center gap-1">
           <svg class="w-3 h-3 text-surface-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
-          <span class="text-xs text-surface-500">Read only</span>
+          <span class="text-xs text-surface-500">{{ $t('common.readOnly') }}</span>
         </div>
       </div>
     </div>

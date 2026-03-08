@@ -10,6 +10,7 @@
 |-------------|-------------------------------|
 | Framework   | Vue 3 (Composition API, `<script setup>`) |
 | Router      | Vue Router 4, hash history (`#/`) |
+| i18n        | vue-i18n v11 (Composition API mode, `useI18n()` / global `$t()`) |
 | Styling     | Tailwind CSS v4 (via `@import "tailwindcss"`) with custom `@utility` and `@theme` blocks |
 | Code Editor | CodeMirror 6 (`@codemirror/language-data` for syntax, `@codemirror/theme-one-dark`) |
 | Build       | Vite                          |
@@ -693,6 +694,52 @@ The `style.css` file defines custom utility classes via `@utility` (Tailwind v4 
 > **Note**: The `.setting-help-wrap` CSS class (not a `@utility`) controls tooltip visibility via `:hover` and `:focus-within`.
 
 > **Gotcha**: These are `@utility` blocks, NOT traditional CSS classes or Tailwind `@apply`. They follow Tailwind v4's custom utility syntax and generate single utility classes.
+
+
+---
+
+## Internationalization (i18n)
+
+### Setup
+
+- **Library**: `vue-i18n` v11, Composition API mode (`legacy: false`, `globalInjection: true`)
+- **Config**: `src/i18n.js` — creates the i18n instance, exports helpers (`setLocale`, `getLocale`, `SUPPORTED_LOCALES`, `LOCALE_LABELS`, `LOCALE_FLAGS`)
+- **Integration**: Registered as a Vue plugin in `main.js` (`app.use(i18n)`)
+- **Locale detection**: `localStorage('plik-locale')` → browser `navigator.language` → `'en'` fallback
+
+### File Structure
+
+| File | Purpose |
+|------|---------|
+| `src/i18n.js` | i18n instance, locale detection, `setLocale()` helper |
+| `src/locales/en.json` | English translations (source of truth) |
+| `src/locales/fr.json` | French translations (must be key-synced with `en.json`) |
+| `src/components/LanguagePicker.vue` | Dropdown with inline SVG flags |
+
+### Translation Conventions
+
+1. **Template strings**: Use `$t('namespace.key')` or `{{ $t('namespace.key') }}` in templates
+2. **Script strings**: Destructure `const { t: $t } = useI18n()` and call `$t('...')`
+3. **Parameterized**: `$t('key', { name: value })` with `{name}` placeholders in JSON
+4. **Component interpolation**: Use `<i18n-t keypath="..." tag="p">` for strings with embedded HTML/components
+5. **Utility functions**: Functions in `utils.js` (`quotaLabel`, `ttlLabel`, `defaultSizeHint`, `defaultTTLHint`) accept an optional `t` function as second argument for translation
+
+### Key Namespaces
+
+Keys are grouped by component: `common.*`, `header.*`, `uploadSidebar.*`, `downloadSidebar.*`, `fileRow.*`, `badges.*`, `uploadView.*`, `downloadView.*`, `homeView.*`, `adminView.*`, `loginView.*`, `clientsView.*`, `cliAuth.*`, `errorView.*`, `editUser.*`, `uploadCard.*`, `uploadControls.*`, `api.*`, `languagePicker.*`.
+
+### Adding a New Locale
+
+1. Copy `src/locales/en.json` → `src/locales/<code>.json` and translate all values
+2. Import the new file in `src/i18n.js` and add to `messages`, `SUPPORTED_LOCALES`, `LOCALE_LABELS`, `LOCALE_FLAGS`
+3. Add the language name to `languagePicker` section in all existing locale files
+
+### Gotchas
+
+- **en.json ↔ fr.json keys must be identical** — verify with: `diff <(jq -S 'paths(scalars) | join(".")' src/locales/en.json | sort) <(jq -S 'paths(scalars) | join(".")' src/locales/fr.json | sort)`
+- **Flag emojis don't render on Linux** — use inline SVG strings in `LOCALE_FLAGS` instead
+- **TTL_UNITS** have both `label` (English fallback) and `i18nKey` (for `$t()` in templates)
+- **`formatDate()`** uses `toLocaleDateString(undefined, ...)` which auto-localizes via the browser locale
 
 ---
 

@@ -21,18 +21,18 @@ const emit = defineEmits(['delete', 'filter-token', 'filter-user'])
            class="font-mono text-accent-400 hover:text-accent-300 transition-colors">
           {{ upload.id }}
         </a>
-        <p class="text-surface-500">uploaded: {{ formatDate(upload.createdAt) }}</p>
-        <p class="text-surface-500">expires: {{ upload.expireAt ? formatDate(upload.expireAt) : 'Never' }}</p>
+        <p class="text-surface-500">{{ $t('uploadCard.uploaded') }} {{ formatDate(upload.createdAt) }}</p>
+        <p class="text-surface-500">{{ $t('uploadCard.expires') }} {{ upload.expireAt ? formatDate(upload.expireAt) : $t('common.never') }}</p>
         <UploadBadges :upload="upload" size="sm" class="mt-1" />
         <p v-if="showUser && upload.user" class="text-surface-500">
-          user:
+          {{ $t('uploadCard.user') }}
           <button @click="emit('filter-user', upload.user)"
                   class="text-accent-400 hover:text-accent-300 transition-colors">
             {{ upload.user }}
           </button>
         </p>
         <p v-if="upload.token" class="text-surface-500">
-          token:
+          {{ $t('uploadCard.token') }}
           <button @click="emit('filter-token', upload.token)"
                   class="text-accent-400 hover:text-accent-300 transition-colors">
             {{ tokenLabel || upload.token?.substring(0, 8) + '...' }}
@@ -49,16 +49,16 @@ const emit = defineEmits(['delete', 'filter-token', 'filter-user'])
           <div class="flex items-center gap-1.5 min-w-0">
             <span v-if="file.status === 'missing'"
                   class="shrink-0 w-4 h-4 rounded-full bg-warning-500/15 text-warning-500 text-[10px] font-bold flex items-center justify-center cursor-default"
-                  title="Missing — waiting for upload">m</span>
+                  :title="$t('uploadCard.missing')">m</span>
             <span v-else-if="file.status === 'uploading'"
                   class="shrink-0 w-4 h-4 rounded-full bg-accent-500/15 text-accent-400 text-[10px] font-bold flex items-center justify-center cursor-default"
-                  title="Uploading">u</span>
+                  :title="$t('fileRow.uploading')">u</span>
             <span v-else-if="file.status === 'removed'"
                   class="shrink-0 w-4 h-4 rounded-full bg-danger-500/15 text-danger-500 text-[10px] font-bold flex items-center justify-center cursor-default"
-                  title="Removed">r</span>
+                  :title="$t('fileRow.removed')">r</span>
             <span v-else-if="file.status === 'deleted'"
                   class="shrink-0 w-4 h-4 rounded-full bg-danger-500/15 text-danger-500 text-[10px] font-bold flex items-center justify-center cursor-default"
-                  title="Deleted">d</span>
+                  :title="$t('fileRow.deleted')">d</span>
             <a v-else-if="file.status === 'uploaded'"
                :href="getFileURL(upload.id, file.id, file.fileName, upload.stream)"
                class="text-surface-300 hover:text-accent-400 transition-colors truncate">
@@ -71,7 +71,7 @@ const emit = defineEmits(['delete', 'filter-token', 'filter-user'])
           <span class="text-surface-500 shrink-0">{{ humanReadableSize(file.fileSize) }}</span>
         </div>
         <p v-if="!upload.files || upload.files.length === 0"
-           class="text-surface-500 italic">No files</p>
+           class="text-surface-500 italic">{{ $t('uploadCard.noFiles') }}</p>
       </div>
 
       <!-- Actions -->
@@ -79,7 +79,7 @@ const emit = defineEmits(['delete', 'filter-token', 'filter-user'])
         <button @click="emit('delete', upload)"
                 class="text-xs text-red-400 hover:text-red-300 border border-red-500/30
                        rounded-lg px-3 py-1.5 hover:bg-red-500/10 transition-colors">
-          Remove
+          {{ $t('uploadCard.remove') }}
         </button>
       </div>
     </div>

@@ -122,7 +122,7 @@ function fileUrl() {
         <!-- Download mode: caret toggles details, name is a link -->
         <div v-else-if="mode === 'download'" class="inline-flex items-center gap-1 min-w-0 w-full">
           <button class="shrink-0 p-0.5 text-surface-500 hover:text-surface-300 transition-colors"
-                  title="Toggle details"
+                  :title="$t('fileRow.toggleDetails')"
                   @click="showDetails = !showDetails">
             <svg class="w-3 h-3 transition-transform duration-200"
                  :class="showDetails ? 'rotate-90' : ''"
@@ -169,7 +169,7 @@ function fileUrl() {
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
-            Uploaded
+            {{ $t('fileRow.uploaded') }}
           </span>
         </div>
 
@@ -179,15 +179,15 @@ function fileUrl() {
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
-            {{ file.error || 'Upload failed' }}
+            {{ file.error || $t('fileRow.uploadFailed') }}
           </span>
           <button class="text-xs text-accent-400 hover:text-accent-300 transition-colors flex items-center gap-0.5"
-                  title="Retry upload"
+                  :title="$t('fileRow.retry')"
                   @click="emit('retry', file)">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Retry
+            {{ $t('fileRow.retry') }}
           </button>
         </div>
       </div>
@@ -200,16 +200,16 @@ function fileUrl() {
       <!-- Status badge for non-uploaded files (download mode) -->
       <span v-if="mode === 'download' && isDeleted"
             class="text-xs text-danger-500 bg-danger-500/10 px-2 py-0.5 rounded-full shrink-0">
-        Removed
+        {{ $t('fileRow.removed') }}
       </span>
       <span v-else-if="mode === 'download' && file.status === 'missing'"
             class="text-xs text-warning-500 bg-warning-500/10 px-2 py-0.5 rounded-full shrink-0">
-        Waiting for upload
+        {{ $t('fileRow.waitingForUpload') }}
       </span>
       <span v-else-if="mode === 'download' && file.status === 'uploading'"
             class="text-xs text-accent-400 bg-accent-500/10 px-2 py-0.5 rounded-full shrink-0 inline-flex items-center gap-1">
         <div class="animate-spin rounded-full h-3 w-3 border border-accent-400 border-t-transparent" />
-        Uploading…
+        {{ $t('fileRow.uploading') }}
       </span>
 
       <!-- Actions -->
@@ -218,7 +218,7 @@ function fileUrl() {
         <!-- QR Code button (download mode) -->
         <button v-if="mode === 'download' && isDownloadable"
                 class="btn bg-surface-700/50 text-surface-400 hover:text-surface-100 px-2 py-1.5 text-xs"
-                title="Show QR code"
+                :title="$t('fileRow.showQrCode')"
                 @click="emit('show-qr', file)">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -233,7 +233,7 @@ function fileUrl() {
         <!-- View button (download mode, viewable files) -->
         <button v-if="mode === 'download' && file.status === 'uploaded' && isViewable && !isOneShot && !isStream"
                 class="btn bg-accent-500/10 text-accent-400 hover:bg-accent-500/20 px-2 py-1.5 text-xs"
-                title="View file content"
+                :title="$t('fileRow.viewFileContent')"
                 @click="emit('view', file)">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -241,7 +241,7 @@ function fileUrl() {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
           </svg>
-          <span class="hidden md:inline">View</span>
+          <span class="hidden md:inline">{{ $t('common.view') }}</span>
         </button>
 
         <!-- Download button (download mode) -->
@@ -254,25 +254,25 @@ function fileUrl() {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
-          <span class="hidden md:inline">Download</span>
+          <span class="hidden md:inline">{{ $t('common.download') }}</span>
         </a>
 
         <!-- Decrypt + Download button (E2EE mode) -->
         <button v-if="mode === 'download' && isDownloadable && isE2ee"
                 class="btn bg-accent-500/10 text-accent-400 hover:bg-accent-500/20 px-2 md:px-3 py-1.5 text-xs"
-                title="Decrypt and download"
+                :title="$t('fileRow.decryptAndDownload')"
                 @click="emit('decrypt-download', file)">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
-          <span class="hidden md:inline">Decrypt</span>
+          <span class="hidden md:inline">{{ $t('common.decrypt') }}</span>
         </button>
 
         <!-- Cancel button (uploading mode — for in-progress or queued files) -->
         <button v-if="mode === 'uploading' && (file.status === 'uploading' || file.status === 'toUpload')"
                 class="btn bg-danger-500/10 text-danger-500 hover:bg-danger-500/20 px-2 py-1.5 text-xs"
-                title="Cancel upload"
+                :title="$t('fileRow.cancelUpload')"
                 @click="emit('cancel', file)">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -282,7 +282,7 @@ function fileUrl() {
         <!-- Remove button (error state — dismiss failed upload) -->
         <button v-if="mode === 'uploading' && file.status === 'error'"
                 class="btn bg-danger-500/10 text-danger-500 hover:bg-danger-500/20 px-2 py-1.5 text-xs"
-                title="Dismiss"
+                :title="$t('fileRow.dismiss')"
                 @click="emit('remove', file)">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -292,7 +292,7 @@ function fileUrl() {
         <!-- Remove button -->
         <button v-if="(mode === 'upload' || canRemove) && file.status !== 'uploading'"
                 class="btn bg-danger-500/10 text-danger-500 hover:bg-danger-500/20 px-2 py-1.5 text-xs"
-                title="Remove file"
+                :title="$t('fileRow.removeFile')"
                 @click="emit('remove', file)">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -305,15 +305,15 @@ function fileUrl() {
     <div v-if="showDetails && mode === 'download'"
          class="w-full mt-2 pt-2 border-t border-surface-700/50 text-xs text-surface-400 space-y-1 animate-fade-in">
       <div v-if="file.fileType" class="flex gap-2">
-        <span class="text-surface-500 w-14">Type:</span>
+        <span class="text-surface-500 w-14">{{ $t('fileRow.type') }}</span>
         <span class="text-surface-300">{{ file.fileType }}</span>
       </div>
       <div v-if="file.fileMd5" class="flex gap-2">
-        <span class="text-surface-500 w-14">MD5:</span>
+        <span class="text-surface-500 w-14">{{ $t('fileRow.md5') }}</span>
         <span class="text-surface-300 font-mono">{{ file.fileMd5 }}</span>
       </div>
       <div v-if="file.createdAt" class="flex gap-2">
-        <span class="text-surface-500 w-14">Created:</span>
+        <span class="text-surface-500 w-14">{{ $t('fileRow.created') }}</span>
         <span class="text-surface-300">{{ new Date(file.createdAt).toLocaleString() }}</span>
       </div>
     </div>

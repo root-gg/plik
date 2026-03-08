@@ -9,6 +9,7 @@ import { generateRef, ttlToSeconds, secondsToTTL, encodeBasicAuth, humanReadable
 import { encryptFile } from '../crypto.js'
 import { auth } from '../authStore.js'
 import { renderMarkdown } from '../markdown.js'
+import { useI18n } from 'vue-i18n'
 import UploadSidebar from '../components/UploadSidebar.vue'
 import MarkdownTabs from '../components/MarkdownTabs.vue'
 import FileRow from '../components/FileRow.vue'
@@ -17,6 +18,7 @@ import { defineAsyncComponent } from 'vue'
 const CodeEditor = defineAsyncComponent(() => import('../components/CodeEditor.vue'))
 
 const router = useRouter()
+const { t: $t } = useI18n()
 const fileInput = ref(null)
 
 // Effective limits (user-specific overrides server config)
@@ -249,11 +251,11 @@ const commentsRequired = computed(() => isFeatureForced('comments') && !commentT
 async function createEmptyUpload() {
   if (isUploading.value) return
   if (commentsRequired.value) {
-    uploadError.value = 'A comment is required'
+    uploadError.value = $t('uploadView.commentRequired')
     return
   }
   if (settings.e2eeEnabled && !settings.e2eePassphrase.trim()) {
-    uploadError.value = 'E2EE is enabled but the passphrase is empty'
+    uploadError.value = $t('uploadView.e2eePassphraseEmpty')
     return
   }
 
@@ -267,7 +269,7 @@ async function createEmptyUpload() {
   } catch (err) {
     uploadError.value = err.status
       ? `${err.message} (HTTP ${err.status})`
-      : (err.message || 'Failed to create upload')
+      : (err.message || $t('uploadView.failedToCreateUpload'))
   } finally {
     isUploading.value = false
   }
@@ -276,11 +278,11 @@ async function createEmptyUpload() {
 async function doUpload() {
   if (!hasFiles.value || isUploading.value) return
   if (commentsRequired.value) {
-    uploadError.value = 'A comment is required'
+    uploadError.value = $t('uploadView.commentRequired')
     return
   }
   if (settings.e2eeEnabled && !settings.e2eePassphrase.trim()) {
-    uploadError.value = 'E2EE is enabled but the passphrase is empty'
+    uploadError.value = $t('uploadView.e2eePassphraseEmpty')
     return
   }
 
@@ -324,7 +326,7 @@ async function doUpload() {
   } catch (err) {
     uploadError.value = err.status
       ? `${err.message} (HTTP ${err.status})`
-      : (err.message || 'Failed to create upload')
+      : (err.message || $t('uploadView.failedToCreateUpload'))
   } finally {
     isUploading.value = false
   }
@@ -355,11 +357,11 @@ async function doUpload() {
              :class="{ 'ring-1 ring-danger-500/50': commentsRequired }">
           <MarkdownTabs :modelValue="commentTab"
                         @update:modelValue="commentTab = $event"
-                        leftLabel="Write"
+                        :leftLabel="$t('common.write')"
                         leftIcon="write"
                         :renderedHtml="renderedComment">
             <template #left-badge>
-              <span v-if="isFeatureForced('comments')" class="ml-1 text-[10px] text-danger-400 font-semibold uppercase">required</span>
+              <span v-if="isFeatureForced('comments')" class="ml-1 text-[10px] text-danger-400 font-semibold uppercase">{{ $t('common.required') }}</span>
             </template>
             <div class="p-3">
               <textarea
@@ -367,7 +369,7 @@ async function doUpload() {
                 class="w-full bg-transparent border border-surface-700 rounded-lg p-3 text-sm text-surface-200
                        placeholder-surface-500 font-mono resize-y focus:outline-none focus:border-accent-400/50
                        transition-colors min-h-[120px]"
-                :placeholder="isFeatureForced('comments') ? 'Write a comment... (required, Markdown supported)' : 'Write a comment... (Markdown supported)'"
+                :placeholder="isFeatureForced('comments') ? $t('uploadView.commentRequiredPlaceholder') : $t('uploadView.commentPlaceholder')"
               />
             </div>
           </MarkdownTabs>
@@ -381,7 +383,7 @@ async function doUpload() {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <span class="text-sm font-medium text-surface-200">Text Upload</span>
+              <span class="text-sm font-medium text-surface-200">{{ $t('uploadView.textUpload') }}</span>
             </div>
             <button class="text-surface-400 hover:text-surface-100 transition-colors"
                     @click="textMode = false; textContent = ''; pasteTab = 'code'">
@@ -392,7 +394,7 @@ async function doUpload() {
           </div>
           <div class="p-3 space-y-3">
             <div class="flex items-center gap-2">
-              <label class="text-xs text-surface-400 shrink-0">Filename</label>
+              <label class="text-xs text-surface-400 shrink-0">{{ $t('uploadView.filename') }}</label>
               <input type="text"
                      v-model="textFilename"
                      @input="onFilenameInput"
@@ -407,7 +409,7 @@ async function doUpload() {
               <CodeEditor
                 v-model="textContent"
                 :filename="textFilename"
-                placeholder="Paste or type text here..."
+                :placeholder="$t('uploadView.pasteOrTypeHere')"
                 @language-detected="onLanguageDetected"
               />
             </MarkdownTabs>
@@ -415,14 +417,14 @@ async function doUpload() {
               v-if="!isPasteMarkdown"
               v-model="textContent"
               :filename="textFilename"
-              placeholder="Paste or type text here..."
+              :placeholder="$t('uploadView.pasteOrTypeHere')"
               @language-detected="onLanguageDetected"
             />
             <div class="flex justify-end gap-2">
               <button class="btn border border-surface-600 bg-surface-700/50 text-surface-300 hover:bg-surface-600/50
                              hover:text-surface-100 px-4 py-1.5 text-sm transition-all"
                       @click="textMode = false; textContent = ''; pasteTab = 'code'">
-                Cancel
+                {{ $t('common.cancel') }}
               </button>
               <button class="btn-primary px-4 py-1.5 text-sm"
                       :disabled="!textContent.trim()"
@@ -430,7 +432,7 @@ async function doUpload() {
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
-                Add
+                {{ $t('common.add') }}
               </button>
             </div>
           </div>
@@ -453,10 +455,10 @@ async function doUpload() {
           </div>
           <div class="text-center">
             <p class="text-surface-200 font-medium">
-              {{ isDragging ? 'Drop files here' : 'Drop, paste or click to select files' }}
+              {{ isDragging ? $t('uploadView.dropFilesHere') : $t('uploadView.dropPasteOrClick') }}
             </p>
             <p v-if="effectiveMaxFileSize > 0" class="text-sm text-surface-500 mt-1">
-              Max {{ humanReadableSize(effectiveMaxFileSize) }} per file
+              {{ $t('uploadView.maxPerFile', { size: humanReadableSize(effectiveMaxFileSize) }) }}
             </p>
             <p v-else-if="effectiveMaxFileSize === -1" class="text-sm text-surface-500 mt-1">
               No file size limit
@@ -465,12 +467,12 @@ async function doUpload() {
               <button class="text-xs text-surface-400 hover:text-accent-400 transition-colors"
                       title="Allow adding files to an upload after its creation"
                       @click.stop="createEmptyUpload">
-                Create empty upload
+                {{ $t('uploadView.createEmptyUpload') }}
               </button>
               <span class="text-surface-600 text-xs">·</span>
               <button v-if="isFeatureEnabled('text')" class="text-xs text-surface-400 hover:text-accent-400 transition-colors"
                       @click.stop="textMode = true; userEditedFilename = false">
-                Paste text
+                {{ $t('uploadView.pasteText') }}
               </button>
             </div>
           </div>
@@ -487,7 +489,7 @@ async function doUpload() {
         <div v-if="files.length" class="space-y-2">
           <div class="flex items-center justify-between px-1">
             <h3 class="text-sm font-medium text-surface-400">
-              {{ files.length }} file{{ files.length > 1 ? 's' : '' }} selected
+              {{ files.length }} {{ $t('homeView.files').toLowerCase() }}
             </h3>
           </div>
 
@@ -506,14 +508,14 @@ async function doUpload() {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
-            Upload
+            {{ $t('common.upload') }}
           </button>
         </div>
 
         <!-- Uploading Spinner (while createUpload is in progress) -->
         <div v-if="isUploading" class="flex items-center justify-center py-4">
           <div class="animate-spin rounded-full h-6 w-6 border-2 border-accent-400 border-t-transparent" />
-          <span class="ml-3 text-sm text-surface-400">Creating upload...</span>
+          <span class="ml-3 text-sm text-surface-400">{{ $t('uploadView.creatingUpload') }}</span>
         </div>
       </div>
     </main>
