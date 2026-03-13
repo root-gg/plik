@@ -134,6 +134,11 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	preprocessOutputCh := make(chan preprocessOutputReturn)
 	go preprocessor(ctx, fileReader, preprocessWriter, preprocessOutputCh)
 
+	// Reset file.Size — the pre-populated value from createUpload is unreliable
+	// (e.g. wrong for E2EE uploads where encryption changes the size).
+	// The preprocessor goroutine will compute the actual size from the stream.
+	file.Size = 0
+
 	// Save file in the data backend
 	var backend data.Backend
 	if upload.Stream {

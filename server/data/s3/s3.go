@@ -1,6 +1,7 @@
 package s3
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -18,16 +19,17 @@ var _ data.Backend = (*Backend)(nil)
 
 // Config describes configuration for S3 data backend
 type Config struct {
-	Endpoint        string
-	AccessKeyID     string
-	SecretAccessKey string
-	Bucket          string
-	Location        string
-	Prefix          string
-	PartSize        uint64
-	UseSSL          bool
-	SendContentMd5  bool
-	SSE             string
+	Endpoint              string
+	AccessKeyID           string
+	SecretAccessKey       string
+	Bucket                string
+	Location              string
+	Prefix                string
+	PartSize              uint64
+	PartUploadConcurrency uint
+	UseSSL                bool
+	SendContentMd5        bool
+	SSE                   string
 }
 
 // NewConfig instantiate a new default configuration
@@ -37,6 +39,7 @@ func NewConfig(params map[string]any) (config *Config) {
 	config.Bucket = "plik"
 	config.Location = "us-east-1"
 	config.PartSize = 16 * 1024 * 1024 // 16MiB
+	config.PartUploadConcurrency = 4
 	utils.Assign(config, params)
 	return
 }
@@ -146,6 +149,15 @@ func (b *Backend) GetFile(file *common.File) (reader io.ReadSeekCloser, err erro
 }
 
 // AddFile implementation for S3 Data Backend
+//
+// Uses a buffer-then-decide strategy:
+//   - Read up to PartSize bytes from the stream
+//   - If EOF is reached: single PUT with the exact size (optimal for small files)
+//   - If more data remains: multipart upload with optional parallelism
+//
+// This avoids the overhead of multipart initiation for small files while correctly
+// handling unknown-size streams (e.g. E2EE where the encrypted size differs from
+// the declared size).
 func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (err error) {
 	putOpts := b.newPutObjectOptions(file.Type)
 
@@ -155,17 +167,43 @@ func (b *Backend) AddFile(file *common.File, fileReader io.Reader) (err error) {
 		return err
 	}
 
-	if file.Size > 0 {
-		_, err = b.client.PutObject(context.TODO(), b.config.Bucket, b.getObjectName(file.UploadID, file.ID), fileReader, file.Size, putOpts)
-	} else {
-		// https://github.com/minio/minio-go/issues/989
-		// Minio defaults to 128MiB chunks and has to actually allocate a buffer of this size before uploading the chunk
-		// This can lead to very high memory usage when uploading a lot of small files in parallel
-		// We default to 16MiB which allow to store files up to 156GiB ( 10000 chunks of 16MiB ), feel free to adjust this parameter to your needs.
-		putOpts.PartSize = b.config.PartSize
+	objectName := b.getObjectName(file.UploadID, file.ID)
+	partSize := b.config.PartSize
 
-		_, err = b.client.PutObject(context.TODO(), b.config.Bucket, b.getObjectName(file.UploadID, file.ID), fileReader, -1, putOpts)
+	// Buffer up to partSize+1 bytes to determine upload strategy.
+	// Using io.CopyN + bytes.Buffer instead of a fixed make([]byte, partSize)
+	// so small files only allocate memory proportional to their actual size.
+	var buf bytes.Buffer
+	n, readErr := io.CopyN(&buf, fileReader, int64(partSize)+1)
+
+	switch {
+	case readErr == io.EOF:
+		// File fits in a single part → single PUT with exact size (1 HTTP request)
+		_, err = b.client.PutObject(context.TODO(), b.config.Bucket, objectName,
+			bytes.NewReader(buf.Bytes()), n, putOpts)
+
+	case readErr == nil:
+		// Read partSize+1 bytes, more data to come → multipart upload
+		// https://github.com/minio/minio-go/issues/989
+		// We default to 16MiB parts which allow files up to 156GiB (10000 × 16MiB).
+		putOpts.PartSize = partSize
+
+		// Enable parallel part uploads if configured
+		concurrency := max(b.config.PartUploadConcurrency, 1)
+		if concurrency > 1 {
+			putOpts.ConcurrentStreamParts = true
+			putOpts.NumThreads = concurrency
+		}
+
+		// Chain the buffered data with the remaining stream
+		combined := io.MultiReader(&buf, fileReader)
+		_, err = b.client.PutObject(context.TODO(), b.config.Bucket, objectName,
+			combined, -1, putOpts)
+
+	default:
+		err = readErr
 	}
+
 	return err
 }
 
