@@ -47,10 +47,16 @@ The actual test code lives in `plik/z*_e2e_*_test.go`. The `testing/` scripts pr
 
 ### Per-Backend Storage-Level Tests
 
-Each cloud data backend also has integration tests in its own package (`server/data/s3/`, `server/data/gcs/`, `server/data/swift/`) that verify objects are truly removed from the underlying storage after `RemoveFile`. These tests use `t.Skip` when `PLIKD_CONFIG` is not set or doesn't point to the matching backend. They run automatically during `make test` (skipping), and can be triggered with a real backend via:
+Each cloud data backend also has integration tests in its own package (`server/data/s3/`, `server/data/gcs/`, `server/data/swift/`) that verify upload, download, and deletion against real storage. These tests use `t.Skip` when `PLIKD_CONFIG` is not set or doesn't point to the matching backend.
+
+They run automatically:
+- During `test_backends.sh` — S3 and Swift tests are executed alongside the e2e suite
+- During `make test` — they compile but skip (no real backend available)
+
+To run manually against a specific backend:
 
 ```bash
-PLIKD_CONFIG=testing/minio/plikd.cfg go test ./server/data/s3/... -v -race
+PLIKD_CONFIG=$PWD/testing/minio/plikd.cfg go test ./server/data/s3/... -v -race
 ```
 
 ### Backend Coverage

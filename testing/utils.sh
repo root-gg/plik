@@ -50,23 +50,24 @@ function run_tests {
     export PLIKD_CONFIG
     export BACKEND
 
-    if [[ -z "$TEST" ]]; then
-        ( cd "$ROOT/plik" && GORACE="halt_on_error=1" go test -count=1 -race ./... )
-        ( cd "$ROOT/server/server" && GORACE="halt_on_error=1" go test -count=1 -race ./... )
-
-        # Run metadata backend tests
-        if [[ "$BACKEND" == "postgres" ]] || [[ "$BACKEND" == "mariadb" ]] || [[ "$BACKEND" == "mysql" ]] || [[ "$BACKEND" == "mssql" ]]; then
-            ( cd "$ROOT/server/metadata" && GORACE="halt_on_error=1" go test -count=1 -race ./... )
-        fi
-    else
-        ( cd "$ROOT/plik" && GORACE="halt_on_error=1" go test -count=1 -v -race -run "$TEST" )
-        ( cd "$ROOT/server/server" && GORACE="halt_on_error=1" go test -count=1 -race ./... )
-
-        # Run metadata backend test
-        if [[ "$BACKEND" == "postgres" ]] || [[ "$BACKEND" == "mariadb" ]] || [[ "$BACKEND" == "mysql" ]] || [[ "$BACKEND" == "mssql" ]]; then
-            ( cd "$ROOT/server/metadata" && GORACE="halt_on_error=1" go test -count=1 -v -race -run "$TEST" )
-        fi
+    VERBOSE=""
+    RUN_FLAGS=""
+    if [[ -n "$TEST" ]]; then
+        VERBOSE="-v"
+        RUN_FLAGS="-run $TEST"
     fi
+
+    ( cd "$ROOT/plik" && GORACE="halt_on_error=1" go test -count=1 $VERBOSE -race $RUN_FLAGS ./... )
+    ( cd "$ROOT/server/server" && GORACE="halt_on_error=1" go test -count=1 $VERBOSE -race $RUN_FLAGS ./... )
+
+    # Run metadata backend tests
+    if [[ "$BACKEND" == "postgres" ]] || [[ "$BACKEND" == "mariadb" ]] || [[ "$BACKEND" == "mysql" ]] || [[ "$BACKEND" == "mssql" ]]; then
+        ( cd "$ROOT/server/metadata" && GORACE="halt_on_error=1" go test -count=1 $VERBOSE -race $RUN_FLAGS ./... )
+    fi
+
+    # Run data backend integration tests (each package self-skips when PLIKD_CONFIG doesn't match)
+    ( cd "$ROOT/server/data/s3" && GORACE="halt_on_error=1" go test -count=1 $VERBOSE -race $RUN_FLAGS ./... )
+    ( cd "$ROOT/server/data/swift" && GORACE="halt_on_error=1" go test -count=1 $VERBOSE -race $RUN_FLAGS ./... )
 }
 
 function run_cmd {

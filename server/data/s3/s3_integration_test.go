@@ -182,3 +182,134 @@ func TestRemoveFileWithPrefix(t *testing.T) {
 
 	require.False(t, statObject(t, b, objectName), "prefixed object should not exist after RemoveFile")
 }
+
+// TestAddFileEmpty verifies that zero-byte files are handled correctly.
+// This exercises the edge case where io.CopyN returns (0, io.EOF).
+func TestAddFileEmpty(t *testing.T) {
+	b := newTestBackend(t)
+
+	upload := &common.Upload{}
+	file := upload.NewFile()
+	file.Status = common.FileUploaded
+	upload.InitializeForTests()
+
+	err := b.AddFile(file, bytes.NewReader(nil))
+	require.NoError(t, err, "unable to add empty file")
+
+	// Verify we can read it back (should be zero bytes)
+	reader, err := b.GetFile(file)
+	require.NoError(t, err, "unable to get empty file")
+	data, err := io.ReadAll(reader)
+	require.NoError(t, err, "unable to read empty file")
+	require.Empty(t, data, "empty file should have no content")
+	_ = reader.Close()
+
+	// Clean up
+	err = b.RemoveFile(file)
+	require.NoError(t, err, "unable to remove empty file")
+}
+
+// TestAddFileSmall verifies that files smaller than PartSize are uploaded
+// via a single PUT request (buffer-then-decide: EOF before buffer fills).
+func TestAddFileSmall(t *testing.T) {
+	b := newTestBackend(t)
+
+	upload := &common.Upload{}
+	file := upload.NewFile()
+	file.Status = common.FileUploaded
+	upload.InitializeForTests()
+
+	// Small content — well under the default 16MiB PartSize
+	content := "hello, small file"
+	err := b.AddFile(file, bytes.NewBufferString(content))
+	require.NoError(t, err, "unable to add small file")
+
+	// Verify we can read it back correctly
+	reader, err := b.GetFile(file)
+	require.NoError(t, err, "unable to get small file")
+	data, err := io.ReadAll(reader)
+	require.NoError(t, err, "unable to read small file")
+	require.Equal(t, content, string(data), "small file content mismatch")
+	_ = reader.Close()
+
+	// Verify the object exists at the expected key
+	objectName := b.getObjectName(file.UploadID, file.ID)
+	require.True(t, statObject(t, b, objectName), "small file object should exist")
+
+	// Clean up
+	err = b.RemoveFile(file)
+	require.NoError(t, err, "unable to remove small file")
+}
+
+// TestAddFileLarge verifies that files larger than PartSize are uploaded
+// via multipart upload (buffer-then-decide: buffer fills, falls through to multipart).
+func TestAddFileLarge(t *testing.T) {
+	b := newTestBackend(t)
+
+	// Use a small PartSize so we don't need to allocate 16MiB+ in tests
+	b.config.PartSize = 5 * 1024 * 1024 // 5MiB (S3 minimum)
+
+	upload := &common.Upload{}
+	file := upload.NewFile()
+	file.Status = common.FileUploaded
+	upload.InitializeForTests()
+
+	// Create content larger than PartSize to trigger multipart
+	contentSize := int(b.config.PartSize) + 1024 // PartSize + 1KiB
+	content := make([]byte, contentSize)
+	for i := range content {
+		content[i] = byte(i % 256)
+	}
+
+	err := b.AddFile(file, bytes.NewReader(content))
+	require.NoError(t, err, "unable to add large file")
+
+	// Verify we can read it back correctly
+	reader, err := b.GetFile(file)
+	require.NoError(t, err, "unable to get large file")
+	data, err := io.ReadAll(reader)
+	require.NoError(t, err, "unable to read large file")
+	require.Equal(t, content, data, "large file content mismatch")
+	_ = reader.Close()
+
+	// Clean up
+	err = b.RemoveFile(file)
+	require.NoError(t, err, "unable to remove large file")
+}
+
+// TestAddFileLargeParallel verifies that parallel multipart uploads work
+// when PartUploadConcurrency > 1.
+func TestAddFileLargeParallel(t *testing.T) {
+	b := newTestBackend(t)
+
+	// Use small PartSize and enable parallel uploads
+	b.config.PartSize = 5 * 1024 * 1024 // 5MiB
+	b.config.PartUploadConcurrency = 4
+
+	upload := &common.Upload{}
+	file := upload.NewFile()
+	file.Status = common.FileUploaded
+	upload.InitializeForTests()
+
+	// Create content spanning multiple parts (3 × PartSize to exercise parallelism)
+	contentSize := int(b.config.PartSize) * 3
+	content := make([]byte, contentSize)
+	for i := range content {
+		content[i] = byte(i % 256)
+	}
+
+	err := b.AddFile(file, bytes.NewReader(content))
+	require.NoError(t, err, "unable to add large file with parallel upload")
+
+	// Verify we can read it back correctly
+	reader, err := b.GetFile(file)
+	require.NoError(t, err, "unable to get large file")
+	data, err := io.ReadAll(reader)
+	require.NoError(t, err, "unable to read large file")
+	require.Equal(t, content, data, "large file content mismatch with parallel upload")
+	_ = reader.Close()
+
+	// Clean up
+	err = b.RemoveFile(file)
+	require.NoError(t, err, "unable to remove large file")
+}

@@ -447,3 +447,76 @@ func TestQuickUploadWithSpecialChars(t *testing.T) {
 
 	require.Equal(t, content, string(respBody), "invalid file content")
 }
+
+func TestEmptyFile(t *testing.T) {
+	ps, pc := newPlikServerAndClient()
+	defer shutdown(ps)
+
+	err := startWithClient(ps, pc)
+	require.NoError(t, err, "unable to start plik server")
+
+	upload, file, err := pc.UploadReader("empty.txt", bytes.NewBufferString(""))
+	require.NoError(t, err, "unable to upload empty file")
+	require.NotNil(t, upload, "invalid nil upload")
+	require.NotNil(t, file, "invalid nil file")
+
+	reader, err := pc.downloadFile(upload.Metadata(), file.Metadata())
+	require.NoError(t, err, "unable to download empty file")
+	content, err := io.ReadAll(reader)
+	require.NoError(t, err, "unable to read empty file")
+	require.Equal(t, "", string(content), "empty file content should be empty")
+	require.Equal(t, 0, len(content), "empty file size should be 0")
+}
+
+func TestEmptyFileOneShot(t *testing.T) {
+	ps, pc := newPlikServerAndClient()
+	defer shutdown(ps)
+
+	pc.OneShot = true
+
+	err := startWithClient(ps, pc)
+	require.NoError(t, err, "unable to start plik server")
+
+	upload, file, err := pc.UploadReader("empty.txt", bytes.NewBufferString(""))
+	require.NoError(t, err, "unable to upload empty file")
+
+	require.True(t, upload.Metadata().OneShot, "invalid upload non oneshot")
+
+	reader, err := pc.downloadFile(upload.Metadata(), file.Metadata())
+	require.NoError(t, err, "unable to download empty file")
+	content, err := io.ReadAll(reader)
+	require.NoError(t, err, "unable to read empty file")
+	require.Equal(t, "", string(content), "empty file content should be empty")
+
+	_, err = pc.downloadFile(upload.Metadata(), file.Metadata())
+	require.Error(t, err, "missing error")
+	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : deleted", file.Name, file.metadata.ID), "invalid error")
+}
+
+func TestEmptyFileStream(t *testing.T) {
+	ps, pc := newPlikServerAndClient()
+	defer shutdown(ps)
+
+	pc.Stream = true
+
+	err := startWithClient(ps, pc)
+	require.NoError(t, err, "unable to start plik server")
+
+	upload := pc.NewUpload()
+	file := upload.AddFileFromReader("empty.txt", bytes.NewBufferString(""))
+
+	err = upload.Create()
+	require.NoError(t, err, "unable to create upload")
+	require.True(t, upload.Stream, "invalid stream flag")
+
+	// A 0-byte stream completes almost instantly — the upload pipe closes
+	// immediately and the file transitions to "deleted" before any download
+	// can connect.  This is expected behavior: streaming is ephemeral.
+	err = upload.Upload()
+	require.NoError(t, err, "unable to upload empty file in stream mode")
+
+	// The file should already be deleted
+	_, err = pc.downloadFile(upload.Metadata(), file.Metadata())
+	require.Error(t, err, "missing error")
+	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : deleted", file.Name, file.metadata.ID), "invalid error")
+}
