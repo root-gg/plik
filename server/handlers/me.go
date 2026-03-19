@@ -51,6 +51,12 @@ func PatchMe(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 			return
 		}
 	}
+	if raw, ok := patch["language"]; ok {
+		if err := json.Unmarshal(raw, &user.Language); err != nil {
+			ctx.BadRequest("invalid language value : %s", err)
+			return
+		}
+	}
 	if raw, ok := patch["name"]; ok {
 		if err := json.Unmarshal(raw, &user.Name); err != nil {
 			ctx.BadRequest("invalid name value : %s", err)

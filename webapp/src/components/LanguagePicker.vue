@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { getLocale, setLocale, SUPPORTED_LOCALES, LOCALE_LABELS, LOCALE_FLAGS } from '../i18n.js'
+import { getAvailableLanguages, currentLanguage, setUserLanguage } from '../settings.js'
 
 const props = defineProps({
     buttonClass: {
@@ -12,16 +12,15 @@ const props = defineProps({
 const open = ref(false)
 const pickerRef = ref(null)
 
-const currentLocale = ref(getLocale())
-const showPicker = computed(() => SUPPORTED_LOCALES.length > 1)
+const languages = computed(() => getAvailableLanguages())
+const showPicker = computed(() => languages.value.length > 1)
 
 function toggle() {
     open.value = !open.value
 }
 
-function select(lang) {
-    setLocale(lang)
-    currentLocale.value = lang
+async function select(name) {
+    await setUserLanguage(name)
     open.value = false
 }
 
@@ -59,18 +58,18 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside, true))
                   rounded-lg shadow-xl overflow-hidden z-50">
         <div class="py-1">
           <button
-              v-for="lang in SUPPORTED_LOCALES"
-              :key="lang"
-              :id="'lang-option-' + lang"
+              v-for="lang in languages"
+              :key="lang.name"
+              :id="'lang-option-' + lang.name"
               class="w-full flex items-center gap-3 px-3 py-2 text-sm text-left
                      transition-colors hover:bg-surface-700/30"
-              :class="currentLocale === lang
+              :class="currentLanguage === lang.name
                 ? 'text-accent-400'
                 : 'text-surface-300 hover:text-surface-100'"
-              @click="select(lang)">
+              @click="select(lang.name)">
 
-            <!-- Check mark for active locale -->
-            <svg v-if="currentLocale === lang"
+            <!-- Check mark for active language -->
+            <svg v-if="currentLanguage === lang.name"
                  class="w-4 h-4 shrink-0 text-accent-400"
                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -78,8 +77,8 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside, true))
             </svg>
             <span v-else class="w-4 h-4 shrink-0"></span>
 
-            <span class="w-5 h-3.5 shrink-0 rounded-[2px] overflow-hidden inline-flex" v-html="LOCALE_FLAGS[lang]"></span>
-            <span class="truncate">{{ LOCALE_LABELS[lang] || lang }}</span>
+            <img v-if="lang.flag" :src="lang.flag" class="w-5 h-3.5 shrink-0 rounded-[2px]" alt="" />
+            <span class="truncate">{{ lang.label }}</span>
           </button>
         </div>
       </div>

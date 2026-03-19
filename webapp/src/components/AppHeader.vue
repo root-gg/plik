@@ -3,13 +3,12 @@ import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { config, isFeatureEnabled } from '../config.js'
 import { auth, clearImpersonate } from '../authStore.js'
-import { settings, getAvailableThemes } from '../settings.js'
+import { settings, getAvailableThemes, getAvailableLanguages } from '../settings.js'
 import ThemePicker from './ThemePicker.vue'
 import LanguagePicker from './LanguagePicker.vue'
-import { SUPPORTED_LOCALES } from '../i18n.js'
 
 const showThemePicker = computed(() => getAvailableThemes().length > 1)
-const showLanguagePicker = computed(() => SUPPORTED_LOCALES.length > 1)
+const showLanguagePicker = computed(() => getAvailableLanguages().length > 1)
 
 const route = useRoute()
 const mobileOpen = ref(false)

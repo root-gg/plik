@@ -432,6 +432,8 @@ The webapp loads instance-level settings from `/settings.json` at startup (JSONC
 | `themes` | array | `["*"]` | Available themes in the picker (`["*"]` = all built-ins, `[]` = no picker). Entries can be strings (`"nord"`), objects (`{ "name": "custom", "label": "My Theme" }`), or `"*"` to expand all built-ins (e.g. `["*", { "name": "acme", "label": "Acme" }]`) |
 | `defaultDarkTheme` | string | `"dark"` | Theme used by "auto" when OS prefers dark mode |
 | `defaultLightTheme` | string | `"light"` | Theme used by "auto" when OS prefers light mode |
+| `language` | string | `"auto"` | `"auto"` (detect from browser), `"en"`, `"fr"`, or any language code matching a registered locale |
+| `languages` | array | `["*"]` | Available languages in the picker (`["*"]` = all built-ins, `[]` = no picker). Entries can be strings (`"fr"`), objects (`{ "name": "de", "label": "Deutsch" }`), or `"*"` to expand all built-ins |
 | `footer` | string | `""` | Custom footer HTML (e.g. `"Powered by <a href='…'>Plik</a>"`). Takes precedence over `AbuseContact` in `plikd.cfg`. |
 
 **Footer priority**: `settings.footer` > `config.abuseContact` (`plikd.cfg`) > none. When only `AbuseContact` is set, the footer renders a default "For abuse contact &lt;mailto&gt;" template.
@@ -703,18 +705,31 @@ The `style.css` file defines custom utility classes via `@utility` (Tailwind v4 
 ### Setup
 
 - **Library**: `vue-i18n` v11, Composition API mode (`legacy: false`, `globalInjection: true`)
-- **Config**: `src/i18n.js` — creates the i18n instance, exports helpers (`setLocale`, `getLocale`, `SUPPORTED_LOCALES`, `LOCALE_LABELS`, `LOCALE_FLAGS`)
-- **Integration**: Registered as a Vue plugin in `main.js` (`app.use(i18n)`)
-- **Locale detection**: `localStorage('plik-locale')` → browser `navigator.language` → `'en'` fallback
+- **Config**: `src/i18n.js` — creates the i18n instance, exports `setLocale()` and `getLocale()` helpers
+- **Language management**: `src/settings.js` — `BUILTIN_LANGUAGES`, `getAvailableLanguages()`, `getUserLanguage()`, `setUserLanguage()`, `syncLanguageFromUser()`, `resolveAutoLanguage()`, `currentLanguage` ref (mirrors theme pattern)
+- **Integration**: i18n registered as a Vue plugin in `main.js` (`app.use(i18n)`). Language resolved in `loadSettings()` before mount (zero flash).
+- **Persistence**: `localStorage('plik-locale')` for all users; `User.Language` DB field for authenticated users (synced on login/session restore via `syncLanguageFromUser()` in `authStore.js`)
+
+### Architecture
+
+Language management follows the **exact same pattern as themes**:
+
+1. `settings.json` declares `language` (default) and `languages` (picker list, `["*"]` = all built-in)
+2. `settings.js` owns the `BUILTIN_LANGUAGES` registry and all language logic
+3. `loadSettings()` reads localStorage → settings.json fallback, resolves "auto" to browser locale, calls `setLocale()` before mount
+4. `setUserLanguage()` writes localStorage, updates `currentLanguage` ref, calls `setLocale()`, and fire-and-forget PATCHes `/me` for logged-in users
+5. `syncLanguageFromUser()` is called by `authStore.js` on login/session restore (server wins over localStorage)
+6. `LanguagePicker.vue` uses `getAvailableLanguages()` and `currentLanguage` from `settings.js`
 
 ### File Structure
 
 | File | Purpose |
 |------|---------|
-| `src/i18n.js` | i18n instance, locale detection, `setLocale()` helper |
+| `src/i18n.js` | vue-i18n instance, `setLocale()`, `getLocale()` |
+| `src/settings.js` | `BUILTIN_LANGUAGES`, `getAvailableLanguages()`, `getUserLanguage()`, `setUserLanguage()`, `syncLanguageFromUser()`, `resolveAutoLanguage()`, `currentLanguage` ref |
 | `src/locales/en.json` | English translations (source of truth) |
 | `src/locales/fr.json` | French translations (must be key-synced with `en.json`) |
-| `src/components/LanguagePicker.vue` | Dropdown with inline SVG flags |
+| `src/components/LanguagePicker.vue` | Dropdown with inline SVG flags, uses `settings.js` |
 
 ### Translation Conventions
 
@@ -731,13 +746,13 @@ Keys are grouped by component: `common.*`, `header.*`, `uploadSidebar.*`, `downl
 ### Adding a New Locale
 
 1. Copy `src/locales/en.json` → `src/locales/<code>.json` and translate all values
-2. Import the new file in `src/i18n.js` and add to `messages`, `SUPPORTED_LOCALES`, `LOCALE_LABELS`, `LOCALE_FLAGS`
-3. Add the language name to `languagePicker` section in all existing locale files
+2. Add the language to `BUILTIN_LANGUAGES` in `src/settings.js` (with name, label, and flag SVG)
+3. Import the locale file in `src/i18n.js` and add to the `messages` object
 
 ### Gotchas
 
 - **en.json ↔ fr.json keys must be identical** — verify with: `diff <(jq -S 'paths(scalars) | join(".")' src/locales/en.json | sort) <(jq -S 'paths(scalars) | join(".")' src/locales/fr.json | sort)`
-- **Flag emojis don't render on Linux** — use inline SVG strings in `LOCALE_FLAGS` instead
+- **Flag emojis don't render on Linux** — flags are SVG files in `webapp/public/flags/` (same pattern as themes in `themes/`)
 - **TTL_UNITS** have both `label` (English fallback) and `i18nKey` (for `$t()` in templates)
 - **`formatDate()`** uses `toLocaleDateString(undefined, ...)` which auto-localizes via the browser locale
 

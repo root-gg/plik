@@ -19,7 +19,16 @@ const BUILTIN_THEMES = [
     { name: 'hexless', label: 'Hexless' },
 ]
 
+// All built-in languages with display metadata.
+// Flags are SVG files in webapp/public/flags/ (same pattern as themes in themes/).
+export const BUILTIN_LANGUAGES = [
+    { name: 'auto', label: 'Auto' },
+    { name: 'en', label: 'English', flag: '/flags/en.svg' },
+    { name: 'fr', label: 'Français', flag: '/flags/fr.svg' },
+]
+
 const STORAGE_KEY = 'plik-theme'
+const LANGUAGE_STORAGE_KEY = 'plik-locale'
 
 // White-label safe defaults: empty name so "Plik" is never leaked
 // if settings.json is missing or fails to load.
@@ -30,6 +39,8 @@ export const settings = reactive({
     themes: ['*'],
     defaultDarkTheme: 'dark',
     defaultLightTheme: 'light',
+    language: 'auto',
+    languages: ['*'],
     backgroundImage: '',
     backgroundColor: '',
     overlayOpacity: 0,
@@ -40,6 +51,9 @@ export const settings = reactive({
 
 /** Reactive current theme value — used by ThemePicker */
 export const currentTheme = ref('auto')
+
+/** Reactive current language value — used by LanguagePicker */
+export const currentLanguage = ref('auto')
 
 /**
  * Strip single-line // comments from JSONC text.
@@ -226,11 +240,125 @@ export function syncThemeFromUser(user) {
     }
 }
 
+// ── Language infrastructure ────────────────────────────────────────────
+
+/**
+ * Get the list of available languages for the picker.
+ * - `["*"]`    → expands to all built-in languages (default)
+ * - `[]`       → empty list (no picker, English only)
+ * - Otherwise  → only the listed languages
+ */
+export function getAvailableLanguages() {
+    const result = []
+    for (const entry of settings.languages) {
+        if (entry === '*') {
+            for (const bl of BUILTIN_LANGUAGES) {
+                if (!result.some(r => r.name === bl.name)) {
+                    result.push(bl)
+                }
+            }
+        } else if (typeof entry === 'string') {
+            const builtin = BUILTIN_LANGUAGES.find(l => l.name === entry)
+            result.push(builtin || { name: entry, label: entry })
+        } else {
+            result.push({ name: entry.name, label: entry.label || entry.name, flag: entry.flag })
+        }
+    }
+    return result
+}
+
+/**
+ * Resolve "auto" language: detect from browser `navigator.language`.
+ * Returns the best matching supported locale, or 'en' as fallback.
+ */
+export function resolveAutoLanguage() {
+    const lang = navigator.language?.split('-')[0]
+    const available = getAvailableLanguages()
+    // Only match against concrete languages (not 'auto')
+    if (lang && available.some(l => l.name === lang)) return lang
+    // Fallback: first non-auto language, or 'en'
+    const first = available.find(l => l.name !== 'auto')
+    return first ? first.name : 'en'
+}
+
+/**
+ * Get the user's preferred language from localStorage, falling back to settings default.
+ * Validates against available languages — stale values are cleared.
+ */
+export function getUserLanguage() {
+    const available = getAvailableLanguages()
+
+    try {
+        const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY)
+        if (stored && available.some(l => l.name === stored)) {
+            return stored
+        }
+        if (stored) {
+            localStorage.removeItem(LANGUAGE_STORAGE_KEY)
+        }
+    } catch {
+        // localStorage unavailable
+    }
+
+    // Validate the settings default against available languages
+    if (available.some(l => l.name === settings.language)) {
+        return settings.language
+    }
+
+    // Neither stored nor default is valid — use first available
+    return available.length > 0 ? available[0].name : 'auto'
+}
+
+/**
+ * Set the user's language preference — writes to localStorage and applies immediately.
+ * When logged in, also persists to the server (fire-and-forget).
+ * @param {string} name - language name ('auto', 'en', 'fr', etc.)
+ * @param {object} opts
+ * @param {boolean} opts.skipSync - if true, skip server persistence (used when applying server value)
+ */
+export async function setUserLanguage(name, { skipSync = false } = {}) {
+    try {
+        localStorage.setItem(LANGUAGE_STORAGE_KEY, name)
+    } catch {
+        // localStorage unavailable
+    }
+    currentLanguage.value = name
+
+    // Apply the effective locale (resolve 'auto' to concrete language)
+    const effectiveLocale = name === 'auto' ? resolveAutoLanguage() : name
+    const { setLocale } = await import('./i18n.js')
+    setLocale(effectiveLocale)
+
+    // Persist to backend if logged in (fire-and-forget)
+    if (!skipSync) {
+        const { auth } = await import('./authStore.js')
+        if (auth.user) {
+            const { patchMe } = await import('./api.js')
+            patchMe({ language: name }).catch(() => { })
+        }
+    }
+}
+
+/**
+ * Apply the user's server-side language on login/session restore.
+ * No-op if the user hasn't set a language server-side.
+ */
+export function syncLanguageFromUser(user) {
+    if (!user?.language) return
+    const available = getAvailableLanguages()
+    if (available.some(l => l.name === user.language)) {
+        setUserLanguage(user.language, { skipSync: true })
+    }
+}
+
+// ── Initialization ─────────────────────────────────────────────────────
+
 /**
  * Load webapp settings from /settings.json before Vue mounts.
  * - Fetches and parses the JSONC file
  * - Merges values into the reactive settings object
  * - Applies theme (before Vue mounts → zero flash)
+ * - Applies language (before Vue mounts → correct locale on first render)
  * - Sets document.title from settings.name
  * - Conditionally injects custom CSS/JS if paths are configured
  */
@@ -252,6 +380,15 @@ export async function loadSettings() {
 
     // Apply theme before anything renders
     await applyTheme(theme)
+
+    // Resolve language: localStorage > settings.json default
+    const language = getUserLanguage()
+    currentLanguage.value = language
+
+    // Apply language before Vue mounts
+    const effectiveLocale = language === 'auto' ? resolveAutoLanguage() : language
+    const { setLocale } = await import('./i18n.js')
+    setLocale(effectiveLocale)
 
     // Set page title (stays empty if no custom settings — white-label safe)
     document.title = settings.name

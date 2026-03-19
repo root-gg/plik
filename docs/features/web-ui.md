@@ -39,6 +39,13 @@ Edit `settings.json` to change the app name, theme, background, and more. The fi
   // Theme used by "auto" when the OS prefers light mode (default: "light")
   "defaultLightTheme": "light",
 
+  // Language: "auto" (detect from browser), "en", "fr", etc.
+  // See [Internationalization](/plik/features/internationalization) for details.
+  "language": "auto",
+
+  // Available languages in the picker ("*" = all built-in, [] = English only)
+  "languages": ["*"],
+
   // Background image path (e.g. "/img/background.jpg")
   "backgroundImage": "",
 

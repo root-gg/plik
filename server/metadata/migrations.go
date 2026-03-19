@@ -217,6 +217,20 @@ func (b *Backend) getMigrations() []*gormigrate.Migration {
 				b.log.Criticalf("Something went wrong. Please check database status manually")
 				return nil
 			},
+		}, {
+			ID: "0009-user-language",
+			Migrate: func(tx *gorm.DB) error {
+				type User struct {
+					Language string `json:"language,omitempty"`
+				}
+
+				b.log.Warning("Applying database migration 0009-user-language")
+				return b.setupTxForMigration(tx).AutoMigrate(&User{})
+			},
+			Rollback: func(tx *gorm.DB) error {
+				b.log.Criticalf("Something went wrong. Please check database status manually")
+				return nil
+			},
 		},
 	}
 

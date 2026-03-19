@@ -14,6 +14,12 @@
   "defaultDarkTheme": "dark",
   // Theme used by "auto" when the OS prefers light mode (default: "light")
   "defaultLightTheme": "light",
+  // Language: "auto" (detect from browser), "en", "fr", etc.
+  "language": "auto",
+  // Available languages in the picker ("*" = all built-in, [] = English only)
+  "languages": [
+    "*"
+  ],
   // Background image path (relative to webapp root, e.g. "/img/background.jpg")
   "backgroundImage": "",
   // Fallback background color (CSS value, e.g. "#1a1a2e")

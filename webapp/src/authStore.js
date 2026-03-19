@@ -4,7 +4,7 @@
 
 import { reactive } from 'vue'
 import { login as apiLogin, logout as apiLogout, getUser, setImpersonateUser } from './api.js'
-import { syncThemeFromUser } from './settings.js'
+import { syncThemeFromUser, syncLanguageFromUser } from './settings.js'
 
 export const auth = reactive({
     user: null,       // { id, provider, login, admin, ... } or null
@@ -25,6 +25,7 @@ export async function checkSession() {
         auth.user = await getUser()
         auth.originalUser = auth.user
         syncThemeFromUser(auth.user)
+        syncLanguageFromUser(auth.user)
     } catch (err) {
         // 401 = not logged in, that's fine
         auth.user = null
@@ -46,6 +47,7 @@ export async function login(loginName, password) {
         auth.user = await getUser()
         auth.originalUser = auth.user
         syncThemeFromUser(auth.user)
+        syncLanguageFromUser(auth.user)
         return true
     } catch (err) {
         auth.error = err.message || 'Login failed'
