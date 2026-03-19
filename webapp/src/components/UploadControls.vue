@@ -14,7 +14,7 @@ const emit = defineEmits(['update:sort-by', 'update:sort-order', 'toggle-filter'
     <div class="flex flex-wrap items-center gap-4">
       <!-- Sort by -->
       <div class="flex items-center gap-2 text-surface-400">
-        <span>{{ $t('uploadControls.sort') }}:</span>
+        <span>{{ $t('uploadControls.sort') }}</span>
         <button @click="emit('update:sort-by', 'date')"
                 :class="sortBy === 'date' ? 'text-accent-400' : 'text-surface-500 hover:text-surface-300'"
                 class="transition-colors">{{ $t('uploadControls.date') }}</button>
@@ -25,7 +25,7 @@ const emit = defineEmits(['update:sort-by', 'update:sort-order', 'toggle-filter'
       </div>
       <!-- Order -->
       <div class="flex items-center gap-2 text-surface-400">
-        <span>{{ $t('uploadControls.order') }}:</span>
+        <span>{{ $t('uploadControls.order') }}</span>
         <button @click="emit('update:sort-order', 'desc')"
                 :class="sortOrder === 'desc' ? 'text-accent-400' : 'text-surface-500 hover:text-surface-300'"
                 class="transition-colors">{{ $t('uploadControls.desc') }}</button>
@@ -37,7 +37,7 @@ const emit = defineEmits(['update:sort-by', 'update:sort-order', 'toggle-filter'
     </div>
     <!-- Badge filters -->
     <div class="flex flex-wrap items-center gap-2 text-surface-400">
-        <span>{{ $t('uploadControls.filter') }}:</span>
+        <span>{{ $t('uploadControls.filter') }}</span>
         <button @click="emit('toggle-filter', 'oneShot')"
                 :class="badgeFilters.oneShot ? 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/50' : 'text-surface-500 hover:text-surface-300'"
                 class="px-2 py-0.5 rounded text-xs transition-all">{{ $t('uploadControls.oneShot') }}</button>

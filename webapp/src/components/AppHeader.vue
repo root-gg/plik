@@ -6,8 +6,10 @@ import { auth, clearImpersonate } from '../authStore.js'
 import { settings, getAvailableThemes } from '../settings.js'
 import ThemePicker from './ThemePicker.vue'
 import LanguagePicker from './LanguagePicker.vue'
+import { SUPPORTED_LOCALES } from '../i18n.js'
 
 const showThemePicker = computed(() => getAvailableThemes().length > 1)
+const showLanguagePicker = computed(() => SUPPORTED_LOCALES.length > 1)
 
 const route = useRoute()
 const mobileOpen = ref(false)
@@ -87,10 +89,12 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
           </ThemePicker>
         </template>
 
-        <div class="w-px h-5 bg-surface-700/50 mx-1"></div>
-        <LanguagePicker>
-          <span>{{ $t('header.language') }}</span>
-        </LanguagePicker>
+        <template v-if="showLanguagePicker">
+          <div class="w-px h-5 bg-surface-700/50 mx-1"></div>
+          <LanguagePicker>
+            <span>{{ $t('header.language') }}</span>
+          </LanguagePicker>
+        </template>
 
         <!-- Separator before auth -->
         <div v-if="isFeatureEnabled('authentication')"
@@ -207,13 +211,15 @@ watch(() => route.fullPath, () => { mobileOpen.value = false })
         </template>
 
         <!-- Language picker (mobile) -->
-        <div class="border-t border-surface-700/50 my-1"></div>
-        <LanguagePicker
-            button-class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-surface-200
-                          hover:bg-surface-700/50 hover:text-surface-100 transition-colors w-full">
-          <span>{{ $t('header.language') }}</span>
-        </LanguagePicker>
-        <div v-if="showThemePicker || isFeatureEnabled('authentication')" class="border-t border-surface-700/50 my-1"></div>
+        <template v-if="showLanguagePicker">
+          <div class="border-t border-surface-700/50 my-1"></div>
+          <LanguagePicker
+              button-class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-surface-200
+                            hover:bg-surface-700/50 hover:text-surface-100 transition-colors w-full">
+            <span>{{ $t('header.language') }}</span>
+          </LanguagePicker>
+        </template>
+        <div v-if="showThemePicker || showLanguagePicker || isFeatureEnabled('authentication')" class="border-t border-surface-700/50 my-1"></div>
 
         <router-link v-if="auth.user"
                      to="/home"

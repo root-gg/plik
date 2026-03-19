@@ -78,7 +78,7 @@ const canAddFiles = computed(() => props.upload.admin && !props.upload.stream)
     <div class="sidebar-section">
       <h3 class="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-2">{{ $t('downloadSidebar.uploadInfo') }}</h3>
 
-      <div v-if="expirationText === $t('downloadSidebar.neverExpires')" class="text-sm text-surface-300">
+      <div v-if="!upload.expireAt" class="text-sm text-surface-300">
         <div class="flex items-center gap-2">
           <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

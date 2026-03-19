@@ -489,7 +489,7 @@ async function doUpload() {
         <div v-if="files.length" class="space-y-2">
           <div class="flex items-center justify-between px-1">
             <h3 class="text-sm font-medium text-surface-400">
-              {{ files.length }} {{ $t('homeView.files').toLowerCase() }}
+              {{ $t('uploadView.filesSelected', files.length, { count: files.length }) }}
             </h3>
           </div>
 

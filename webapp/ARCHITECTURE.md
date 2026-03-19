@@ -718,7 +718,7 @@ The `style.css` file defines custom utility classes via `@utility` (Tailwind v4 
 
 ### Translation Conventions
 
-1. **Template strings**: Use `$t('namespace.key')` or `{{ $t('namespace.key') }}` in templates
+1. **Template strings**: Use `$t('namespace.key')` or <code v-pre>{{ $t('namespace.key') }}</code> in templates
 2. **Script strings**: Destructure `const { t: $t } = useI18n()` and call `$t('...')`
 3. **Parameterized**: `$t('key', { name: value })` with `{name}` placeholders in JSON
 4. **Component interpolation**: Use `<i18n-t keypath="..." tag="p">` for strings with embedded HTML/components
