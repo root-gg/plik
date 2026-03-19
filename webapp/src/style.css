@@ -295,6 +295,7 @@
   transition: all 0.2s ease-out;
   cursor: pointer;
   color: var(--color-surface-300);
+  white-space: nowrap;
 
   &:hover {
     color: var(--color-surface-50);

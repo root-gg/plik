@@ -728,7 +728,8 @@ Language management follows the **exact same pattern as themes**:
 | `src/i18n.js` | vue-i18n instance, `setLocale()`, `getLocale()` |
 | `src/settings.js` | `BUILTIN_LANGUAGES`, `getAvailableLanguages()`, `getUserLanguage()`, `setUserLanguage()`, `syncLanguageFromUser()`, `resolveAutoLanguage()`, `currentLanguage` ref |
 | `src/locales/en.json` | English translations (source of truth) |
-| `src/locales/fr.json` | French translations (must be key-synced with `en.json`) |
+| `src/locales/*.json` | Translations for fr, de, es, it, pt, nl, pl (must be key-synced with `en.json`) |
+| `src/__tests__/locales.test.js` | Automated key sync test — validates keys, empty values, and placeholder tokens |
 | `src/components/LanguagePicker.vue` | Dropdown with inline SVG flags, uses `settings.js` |
 
 ### Translation Conventions
@@ -751,7 +752,7 @@ Keys are grouped by component: `common.*`, `header.*`, `uploadSidebar.*`, `downl
 
 ### Gotchas
 
-- **en.json ↔ fr.json keys must be identical** — verify with: `diff <(jq -S 'paths(scalars) | join(".")' src/locales/en.json | sort) <(jq -S 'paths(scalars) | join(".")' src/locales/fr.json | sort)`
+- **All locale files must have identical keys to en.json** — verified automatically by `src/__tests__/locales.test.js` (run with `npm test`). The test also checks for empty values and placeholder token mismatches.
 - **Flag emojis don't render on Linux** — flags are SVG files in `webapp/public/flags/` (same pattern as themes in `themes/`)
 - **TTL_UNITS** have both `label` (English fallback) and `i18nKey` (for `$t()` in templates)
 - **`formatDate()`** uses `toLocaleDateString(undefined, ...)` which auto-localizes via the browser locale

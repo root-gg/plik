@@ -25,6 +25,14 @@ export const BUILTIN_LANGUAGES = [
     { name: 'auto', label: 'Auto' },
     { name: 'en', label: 'English', flag: '/flags/en.svg' },
     { name: 'fr', label: 'Français', flag: '/flags/fr.svg' },
+    { name: 'de', label: 'Deutsch', flag: '/flags/de.svg' },
+    { name: 'es', label: 'Español', flag: '/flags/es.svg' },
+    { name: 'it', label: 'Italiano', flag: '/flags/it.svg' },
+    { name: 'pt', label: 'Português', flag: '/flags/pt.svg' },
+    { name: 'nl', label: 'Nederlands', flag: '/flags/nl.svg' },
+    { name: 'pl', label: 'Polski', flag: '/flags/pl.svg' },
+    { name: 'zh', label: '中文', flag: '/flags/zh.svg' },
+    { name: 'ru', label: 'Русский', flag: '/flags/ru.svg' },
 ]
 
 const STORAGE_KEY = 'plik-theme'

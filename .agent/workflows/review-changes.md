@@ -92,6 +92,16 @@ For every modified file, evaluate against ALL of the following checklist:
 - [ ] Are new UI elements accessible (sufficient contrast, focus states, hover states)?
 - [ ] Is the user experience consistent across views (Home, Admin, Download)?
 
+#### i18n / Translations (if locale files were changed)
+- [ ] Do all locale files have the same key set as `en.json`? (run `npm test -- --run src/__tests__/locales.test.js`)
+- [ ] Are `{placeholder}` tokens preserved exactly in every translation?
+- [ ] Are semantic distinctions preserved (e.g. "passphrase" ≠ "password")? See `/review-language` workflow.
+- [ ] Does each language follow its own punctuation rules? (e.g. French requires spaces before `:`, `?`, `!`, `;`)
+- [ ] Are `languagePicker` entries present for every supported language in every locale file?
+- [ ] Are new languages registered in both `settings.js` (`BUILTIN_LANGUAGES`) and `i18n.js` (import + messages)?
+- [ ] Does each new language have a matching flag SVG in `public/flags/`?
+- [ ] Are pipe-separated plurals (`{count} file | {count} files`) correct for the target language's plural rules?
+
 ### 3. Cross-check with project context
 
 - Read the relevant ARCHITECTURE.md file(s) for the changed packages
