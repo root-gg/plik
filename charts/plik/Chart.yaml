@@ -6,8 +6,8 @@ type: application
 # __VERSION__ is replaced with the release tag at build time by releaser/helm_release.sh
 # To install from source replace the __VERSION__ placeholder with a valid semver or run:
 #   make helm-install
-version: __VERSION__
-appVersion: "__VERSION__"
+version: 1.4.1
+appVersion: "1.4.1"
 
 maintainers:
   - name: root-gg

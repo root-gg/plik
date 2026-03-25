@@ -182,6 +182,11 @@ func (ps *PlikServer) start() (err error) {
 		return fmt.Errorf("unable to initialize metadata backend : %s", err)
 	}
 
+	err = ps.ensureDefaultAdmin()
+	if err != nil {
+		return fmt.Errorf("unable to ensure default admin user : %s", err)
+	}
+
 	err = ps.initializeDataBackend()
 	if err != nil {
 		return fmt.Errorf("unable to initialize data backend : %s", err)
@@ -278,6 +283,53 @@ func (ps *PlikServer) start() (err error) {
 
 	ps.startMetricsHTTPServer()
 
+	return nil
+}
+
+// ensureDefaultAdmin creates a local admin user on first startup if DefaultAdminLogin is configured.
+// It is idempotent: if the user already exists it does nothing.
+func (ps *PlikServer) ensureDefaultAdmin() error {
+	if ps.config.DefaultAdminLogin == "" {
+		return nil
+	}
+
+	log := ps.config.NewLogger()
+
+	userID := common.GetUserID(common.ProviderLocal, ps.config.DefaultAdminLogin)
+	user, err := ps.metadataBackend.GetUser(userID)
+	if err != nil {
+		return fmt.Errorf("unable to check for default admin user : %s", err)
+	}
+
+	if user != nil {
+		log.Infof("Default admin user '%s' already exists, skipping creation", ps.config.DefaultAdminLogin)
+		return nil
+	}
+
+	password := ps.config.DefaultAdminPassword
+	if password == "" {
+		password = common.GenerateRandomID(32)
+		log.Warningf("Generated password for default admin '%s' : %s", ps.config.DefaultAdminLogin, password)
+	}
+
+	params := &common.User{
+		Provider: common.ProviderLocal,
+		Login:    ps.config.DefaultAdminLogin,
+		Password: password,
+		IsAdmin:  true,
+	}
+
+	user, err = common.CreateUserFromParams(params)
+	if err != nil {
+		return fmt.Errorf("unable to create default admin user : %s", err)
+	}
+
+	err = ps.metadataBackend.CreateUser(user)
+	if err != nil {
+		return fmt.Errorf("unable to save default admin user : %s", err)
+	}
+
+	log.Infof("Created default admin user '%s'", ps.config.DefaultAdminLogin)
 	return nil
 }
 

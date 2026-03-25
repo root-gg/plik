@@ -280,3 +280,75 @@ func TestAutoClean(t *testing.T) {
 	require.NoError(t, err, "unexpected unable to get upload")
 	require.Nil(t, u, "should be unable to get expired upload after clean")
 }
+
+func newPlikServerWithAuth() (ps *PlikServer) {
+	ps = newPlikServer()
+	ps.config.FeatureAuthentication = common.FeatureEnabled
+	ps.config.FeatureLocalLogin = common.FeatureEnabled
+	ps.config.LocalAuthentication = true
+	return ps
+}
+
+func TestEnsureDefaultAdminDisabled(t *testing.T) {
+	ps := newPlikServer()
+	// DefaultAdminLogin is empty — should be a no-op
+	err := ps.ensureDefaultAdmin()
+	require.NoError(t, err, "unexpected error when DefaultAdminLogin is empty")
+
+	// No user should have been created
+	userID := common.GetUserID(common.ProviderLocal, "admin")
+	user, err := ps.metadataBackend.GetUser(userID)
+	require.NoError(t, err)
+	require.Nil(t, user, "no user should be created when DefaultAdminLogin is empty")
+}
+
+func TestEnsureDefaultAdminCreated(t *testing.T) {
+	ps := newPlikServerWithAuth()
+	ps.config.DefaultAdminLogin = "admin"
+	ps.config.DefaultAdminPassword = "s3cr3tpass"
+
+	err := ps.ensureDefaultAdmin()
+	require.NoError(t, err, "unable to create default admin")
+
+	userID := common.GetUserID(common.ProviderLocal, "admin")
+	user, err := ps.metadataBackend.GetUser(userID)
+	require.NoError(t, err)
+	require.NotNil(t, user, "default admin user should have been created")
+	require.Equal(t, "admin", user.Login)
+	require.True(t, user.IsAdmin, "default admin user should have admin flag")
+	require.True(t, common.CheckPasswordHash("s3cr3tpass", user.Password), "password should match")
+}
+
+func TestEnsureDefaultAdminIdempotent(t *testing.T) {
+	ps := newPlikServerWithAuth()
+	ps.config.DefaultAdminLogin = "admin"
+	ps.config.DefaultAdminPassword = "s3cr3tpass"
+
+	err := ps.ensureDefaultAdmin()
+	require.NoError(t, err, "first call should succeed")
+
+	// Second call must be a no-op and not error
+	err = ps.ensureDefaultAdmin()
+	require.NoError(t, err, "second call should be a no-op")
+
+	userID := common.GetUserID(common.ProviderLocal, "admin")
+	user, err := ps.metadataBackend.GetUser(userID)
+	require.NoError(t, err)
+	require.NotNil(t, user, "admin user should still exist")
+	require.True(t, common.CheckPasswordHash("s3cr3tpass", user.Password), "password should be unchanged")
+}
+
+func TestEnsureDefaultAdminAutoGeneratesPassword(t *testing.T) {
+	ps := newPlikServerWithAuth()
+	ps.config.DefaultAdminLogin = "admin"
+	// No password set — should auto-generate
+
+	err := ps.ensureDefaultAdmin()
+	require.NoError(t, err, "unable to create default admin with auto-generated password")
+
+	userID := common.GetUserID(common.ProviderLocal, "admin")
+	user, err := ps.metadataBackend.GetUser(userID)
+	require.NoError(t, err)
+	require.NotNil(t, user, "default admin user should have been created")
+	require.NotEmpty(t, user.Password, "password hash should have been set")
+}

@@ -69,6 +69,10 @@ data:
     GitHubApiClientID        = {{ .Values.plikd.GitHubApiClientID | quote }}
     GitHubValidOrganizations = {{ .Values.plikd.GitHubValidOrganizations | toJson }}
 
+    {{- if .Values.plikd.DefaultAdminLogin }}
+    DefaultAdminLogin    = {{ .Values.plikd.DefaultAdminLogin | quote }}
+    {{- end }}
+
     DataBackend = {{ .Values.plikd.DataBackend | quote }}
 
     [DataBackendConfig]

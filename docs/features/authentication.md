@@ -17,6 +17,25 @@ Create users via the server CLI:
 # Generated password for user root is 08ybEyh2KkiMho8dzpdQaJZm78HmvWGC
 ```
 
+For Docker or Kubernetes deployments, you can instead provision a local admin user automatically on first startup via config:
+
+```toml
+DefaultAdminLogin    = "admin"
+DefaultAdminPassword = "s3cr3tpass"   # Optional: auto-generated and logged if omitted
+```
+
+Or equivalently via environment variables:
+
+```bash
+PLIKD_DEFAULT_ADMIN_LOGIN=admin
+PLIKD_DEFAULT_ADMIN_PASSWORD=s3cr3tpass
+```
+
+This is idempotent — if the user already exists it is left untouched. In Kubernetes/Helm, set `plikd.DefaultAdminLogin` in `values.yaml` and put the password in `secrets.defaultAdminPassword` so it is stored in a Secret rather than the ConfigMap.
+
+> [!WARNING]
+> This feature is intended for **bootstrap and troubleshooting** only. For production deployments, change the admin password as soon as possible, or grant admin permissions to a real user account via the web UI or `plikd user update --admin` CLI command instead.
+
 ## Google OAuth
 
 1. Create an application in the [Google Developer Console](https://console.developers.google.com)

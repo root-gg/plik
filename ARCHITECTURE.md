@@ -333,6 +333,14 @@ PLIKD_DATA_BACKEND_CONFIG='{"Directory":"/var/files"}' ./plikd
 
 Arrays are overridden, maps are merged.
 
+### Default Admin Provisioning
+
+Set `DefaultAdminLogin` (and optionally `DefaultAdminPassword`) to have the server automatically create a local admin user on first startup. This runs once after the metadata backend is initialized and is **idempotent** — if the user already exists, it is left untouched. If no password is provided, a random 32-char password is generated and logged at `WARNING` level.
+
+Equivalent env vars: `PLIKD_DEFAULT_ADMIN_LOGIN` / `PLIKD_DEFAULT_ADMIN_PASSWORD`.
+
+In Helm: `plikd.DefaultAdminLogin` (ConfigMap) + `secrets.defaultAdminPassword` (Secret).
+
 ### Helm Chart Sync
 
 The Helm chart (`charts/plik/`) mirrors the configuration model. When adding or modifying config fields in `server/common/config.go` or `server/plikd.cfg`, **always update**:

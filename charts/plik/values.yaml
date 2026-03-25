@@ -213,6 +213,10 @@ plikd:
   # -- Maximum upload TTL
   MaxTTLStr: "30d"
 
+  # -- Login for the default local admin user to create on first startup (empty = disabled).
+  # Idempotent: skipped if the user already exists.
+  DefaultAdminLogin: ""
+
   # -- Enable user authentication (`enabled`, `disabled`, `forced`)
   FeatureAuthentication: "disabled"
   # -- Enable local login
@@ -319,6 +323,10 @@ secrets:
 
   # -- OIDC client secret (injected as `PLIKD_OIDC_CLIENT_SECRET`)
   oidcClientSecret: ""
+
+  # -- Default admin password (injected as `PLIKD_DEFAULT_ADMIN_PASSWORD`).
+  # If empty, a random password is generated and logged on first startup.
+  defaultAdminPassword: ""
 
   # -- GitHub OAuth app client secret (injected as `PLIKD_GIT_HUB_API_SECRET`)
   githubApiSecret: ""

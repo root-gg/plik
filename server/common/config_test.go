@@ -121,6 +121,69 @@ func TestInitializeConfigAuthenticationNoMethod(t *testing.T) {
 	require.NoError(t, err, "should be able to initialize with local login")
 }
 
+func TestInitializeConfigDefaultAdminValid(t *testing.T) {
+	config := NewConfiguration()
+	config.FeatureAuthentication = FeatureEnabled
+	config.DefaultAdminLogin = "admin"
+	config.DefaultAdminPassword = "s3cr3tpass"
+
+	err := config.Initialize()
+	require.NoError(t, err, "valid default admin config should initialize successfully")
+}
+
+func TestInitializeConfigDefaultAdminNoAuth(t *testing.T) {
+	// DefaultAdminLogin set but FeatureAuthentication is disabled → should fail
+	config := NewConfiguration()
+	config.FeatureAuthentication = FeatureDisabled
+	config.DefaultAdminLogin = "admin"
+
+	err := config.Initialize()
+	RequireError(t, err, "DefaultAdminLogin is set but FeatureAuthentication is disabled")
+}
+
+func TestInitializeConfigDefaultAdminLocalLoginDisabled(t *testing.T) {
+	// DefaultAdminLogin set but FeatureLocalLogin is disabled → should fail
+	config := NewConfiguration()
+	config.FeatureAuthentication = FeatureEnabled
+	config.FeatureLocalLogin = FeatureDisabled
+	config.GoogleAPIClientID = "id"
+	config.GoogleAPISecret = "secret"
+	config.DefaultAdminLogin = "admin"
+
+	err := config.Initialize()
+	RequireError(t, err, "DefaultAdminLogin is set but FeatureLocalLogin is disabled")
+}
+
+func TestInitializeConfigDefaultAdminLoginTooShort(t *testing.T) {
+	config := NewConfiguration()
+	config.FeatureAuthentication = FeatureEnabled
+	config.DefaultAdminLogin = "adm" // 3 chars, min is 4
+
+	err := config.Initialize()
+	RequireError(t, err, "DefaultAdminLogin is too short")
+}
+
+func TestInitializeConfigDefaultAdminPasswordTooShort(t *testing.T) {
+	config := NewConfiguration()
+	config.FeatureAuthentication = FeatureEnabled
+	config.DefaultAdminLogin = "admin"
+	config.DefaultAdminPassword = "short" // 5 chars, min is 8
+
+	err := config.Initialize()
+	RequireError(t, err, "DefaultAdminPassword is too short")
+}
+
+func TestInitializeConfigDefaultAdminPasswordEmpty(t *testing.T) {
+	// Empty password is allowed (will be auto-generated at runtime)
+	config := NewConfiguration()
+	config.FeatureAuthentication = FeatureEnabled
+	config.DefaultAdminLogin = "admin"
+	// DefaultAdminPassword intentionally left empty
+
+	err := config.Initialize()
+	require.NoError(t, err, "empty password should be allowed (auto-generated at startup)")
+}
+
 func TestInitializeConfigPlikDomain(t *testing.T) {
 	config := NewConfiguration()
 	config.PlikDomain = "https://plik.root.gg"

@@ -112,6 +112,7 @@ make vuln                   # govulncheck (report only)
 | `server/handlers/misc.go` | Shared helpers: `parseBoolFilter`, `parseBadgeFilters` (badge filter struct from request) |
 | `webapp/src/components/UploadControls.vue` | Shared sort/order/badge-filter control bar used by AdminView and HomeView |
 | `server/common/feature_flags.go` | Feature flag types (`disabled`/`enabled`/`default`/`forced`) |
+| `server/server/server.go` | `ensureDefaultAdmin()` — idempotent bootstrap of `DefaultAdminLogin`/`DefaultAdminPassword` on startup |
 
 ## Conventions
 
@@ -122,6 +123,7 @@ make vuln                   # govulncheck (report only)
 - **ID generation**: Random hex strings (16 chars for files, 16 chars for uploads); CLI tokens use prefixed opaque format (`plik_` + 30 Base62 + 6 CRC32, 41 chars total)
 - **Backend interface**: `data.Backend` is the storage abstraction; implementations are swappable via config
 - **Archive compression**: Enabled by default (`EnableArchiveCompression = true`). Can be disabled to `zip.Store` (no compression) on public instances to prevent CPU exhaustion DoS.
+- **Default admin provisioning**: `DefaultAdminLogin` / `DefaultAdminPassword` config options (+ `PLIKD_DEFAULT_ADMIN_LOGIN` / `PLIKD_DEFAULT_ADMIN_PASSWORD` env vars) create a local admin user on first startup via `ensureDefaultAdmin()`. Idempotent — skipped if the user already exists. Intended for bootstrap only; remove from config once a real admin account exists.
 
 ## Best Practices
 

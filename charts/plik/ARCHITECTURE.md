@@ -36,6 +36,8 @@ charts/plik/
 | Non-sensitive config | `plikd.*` in `values.yaml` | ConfigMap (`plikd.cfg`) | TOML config file |
 | Sensitive credentials | `secrets.*` in `values.yaml` | Kubernetes Secret | `envFrom.secretRef` → env var override |
 
+Sensitive fields in `secrets.*` include OAuth client secrets (`googleApiSecret`, `oidcClientSecret`, `githubApiSecret`, `ovhApiKey`, `ovhApiSecret`), backend credentials (`dataBackend`, `metadataBackend`), and the default admin password (`defaultAdminPassword`).
+
 The server loads the config file first, then applies env var overrides via `PLIKD_` prefix + screaming snake case (e.g., `GoogleAPISecret` → `PLIKD_GOOGLE_API_SECRET`). Map-type fields like `DataBackendConfig` accept JSON and **merge** into the config file map.
 
 ### BYO Secret (existingSecret)

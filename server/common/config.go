@@ -118,6 +118,9 @@ type Configuration struct {
 	GitHubAPISecret          string   `json:"-"`
 	GitHubValidOrganizations []string `json:"-"`
 
+	DefaultAdminLogin    string `json:"-"`
+	DefaultAdminPassword string `json:"-"`
+
 	MetadataBackendConfig map[string]any `json:"-"`
 
 	DataBackend       string         `json:"-"`
@@ -243,6 +246,21 @@ func (config *Configuration) Initialize() (err error) {
 	config.OIDCAuthentication = config.FeatureAuthentication != FeatureDisabled && config.OIDCClientID != "" && config.OIDCClientSecret != "" && config.OIDCProviderURL != ""
 	config.GitHubAuthentication = config.FeatureAuthentication != FeatureDisabled && config.GitHubAPIClientID != "" && config.GitHubAPISecret != ""
 	config.LocalAuthentication = config.FeatureAuthentication != FeatureDisabled && config.FeatureLocalLogin != FeatureDisabled
+
+	if config.DefaultAdminLogin != "" {
+		if config.FeatureAuthentication == FeatureDisabled {
+			return fmt.Errorf("DefaultAdminLogin is set but FeatureAuthentication is disabled")
+		}
+		if config.FeatureLocalLogin == FeatureDisabled {
+			return fmt.Errorf("DefaultAdminLogin is set but FeatureLocalLogin is disabled")
+		}
+		if len(config.DefaultAdminLogin) < 4 {
+			return fmt.Errorf("DefaultAdminLogin is too short (min 4 chars)")
+		}
+		if config.DefaultAdminPassword != "" && len(config.DefaultAdminPassword) < 8 {
+			return fmt.Errorf("DefaultAdminPassword is too short (min 8 chars)")
+		}
+	}
 
 	// Validate that at least one authentication method is available when authentication is enabled
 	if config.FeatureAuthentication != FeatureDisabled &&

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- New `DefaultAdminLogin` config option (and `secrets.defaultAdminPassword` in Helm) to automatically create a local admin user on first startup — idempotent, skipped if the user already exists
+
 ### Changed
 - New `BucketLookup` S3 data backend config option (`"auto"` / `"dns"` / `"path"` — path-style required for Cloudflare R2 and some MinIO deployments)
 
