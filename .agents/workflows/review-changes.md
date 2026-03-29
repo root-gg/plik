@@ -84,6 +84,12 @@ For every modified file, evaluate against ALL of the following checklist:
 - [ ] Are options/flags documented consistently with `--help` output?
 - [ ] Are there broken or outdated screenshots/examples?
 
+#### HTTP API Reference (`docs/reference/api.md`) — check whenever HTTP handlers or API response structs are modified
+- [ ] Are new/modified endpoints listed in the endpoint table?
+- [ ] Are new/changed request/response fields documented with examples?
+- [ ] Are removed or renamed fields noted for backward compatibility?
+- [ ] Are new query parameters listed in the relevant filter table?
+
 #### CSS / Theming (if webapp styles were changed)
 - [ ] Do changes use design tokens (`surface-*`, `accent-*`) instead of hardcoded colors?
 - [ ] Do new/modified components look correct in both dark and light themes?
@@ -107,6 +113,7 @@ For every modified file, evaluate against ALL of the following checklist:
 - Read the relevant ARCHITECTURE.md file(s) for the changed packages
 - Verify the change aligns with documented patterns
 - Check if AGENTS.md needs updating
+- **If any HTTP handler, route, or API response struct was modified**: check `docs/reference/api.md` and flag any drift as a 🔴 Critical issue
 
 ### 4. Lint and build
 

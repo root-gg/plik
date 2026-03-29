@@ -56,6 +56,7 @@ type Configuration struct {
 	PlikDomain          string   `json:"plikDomain"`
 	DownloadDomain      string   `json:"downloadDomain"`
 	DownloadDomainAlias []string `json:"downloadDomainAlias"`
+	DownloadURL         string   `json:"downloadURL,omitempty" toml:"-"` // Computed: DownloadDomain + Path
 	EnhancedWebSecurity bool     `json:"-"`
 	SessionTimeout      string   `json:"-"`
 	StreamTimeoutStr    string   `json:"-"`
@@ -197,7 +198,9 @@ func LoadConfiguration(path string) (config *Configuration, err error) {
 		return nil, err
 	}
 
-	err = config.Initialize()
+	// Use a minimal bootstrap logger so domain path-stripping warnings reach stdout
+	bootstrapLog := config.NewLogger()
+	err = config.Initialize(bootstrapLog)
 	if err != nil {
 		return nil, err
 	}
@@ -214,8 +217,10 @@ func (config *Configuration) EnvironmentOverride() (err error) {
 	return utils.AssignStrings(config, getEnvOverride)
 }
 
-// Initialize config internal parameters
-func (config *Configuration) Initialize() (err error) {
+// Initialize config internal parameters.
+// log is used to emit warnings for misconfigured domain options (e.g. path components
+// in PlikDomain / DownloadDomain). Pass nil to suppress warnings (e.g. in tests).
+func (config *Configuration) Initialize(log *logger.Logger) (err error) {
 
 	// For backward compatibility
 	if config.LogLevel == "DEBUG" {
@@ -275,6 +280,13 @@ func (config *Configuration) Initialize() (err error) {
 		if config.plikDomainURL, err = url.Parse(config.PlikDomain); err != nil {
 			return fmt.Errorf("invalid plik domain URL %s : %s", config.PlikDomain, err)
 		}
+		if config.plikDomainURL.Path != "" && config.plikDomainURL.Path != "/" {
+			if log != nil {
+				log.Warningf("PlikDomain %q contains a path component %q which will be ignored — use the Path config option instead", config.PlikDomain, config.plikDomainURL.Path)
+			}
+			config.plikDomainURL.Path = ""
+			config.PlikDomain = config.plikDomainURL.String()
+		}
 	}
 
 	if config.DownloadDomain != "" {
@@ -283,11 +295,24 @@ func (config *Configuration) Initialize() (err error) {
 		if config.downloadDomainURL, err = url.Parse(config.DownloadDomain); err != nil {
 			return fmt.Errorf("invalid download domain URL %s : %s", config.DownloadDomain, err)
 		}
+		if config.downloadDomainURL.Path != "" && config.downloadDomainURL.Path != "/" {
+			if log != nil {
+				log.Warningf("DownloadDomain %q contains a path component %q which will be ignored — use the Path config option instead", config.DownloadDomain, config.downloadDomainURL.Path)
+			}
+			config.downloadDomainURL.Path = ""
+			config.DownloadDomain = config.downloadDomainURL.String()
+		}
 
-		for _, domainAlias := range config.DownloadDomainAlias {
-			domainAlias, err := url.Parse(domainAlias)
+		for _, alias := range config.DownloadDomainAlias {
+			domainAlias, err := url.Parse(alias)
 			if err != nil {
 				return fmt.Errorf("invalid download domain URL %s : %s", domainAlias, err)
+			}
+			if domainAlias.Path != "" && domainAlias.Path != "/" {
+				if log != nil {
+					log.Warningf("DownloadDomainAlias %q contains a path component %q which will be ignored", alias, domainAlias.Path)
+				}
+				domainAlias.Path = ""
 			}
 			config.downloadDomainURLAlias = append(config.downloadDomainURLAlias, domainAlias)
 		}
@@ -295,6 +320,11 @@ func (config *Configuration) Initialize() (err error) {
 		if config.plikDomainURL != nil && config.IsDownloadDomain(config.plikDomainURL.Host) {
 			return fmt.Errorf("PlikDomain and DownloadDomain must be different domains (%s), using the same domain would cause redirect loops", config.plikDomainURL.Host)
 		}
+
+		// Compute the download base URL (domain + Path) for use in generated URLs
+		u := *config.downloadDomainURL
+		u.Path = config.Path
+		config.DownloadURL = u.String()
 	}
 
 	if config.MaxFileSizeStr == "unlimited" || config.MaxFileSizeStr == "-1" {
@@ -483,6 +513,44 @@ func (config *Configuration) GetServerURL() *url.URL {
 	URL.Path = config.Path
 
 	return URL
+}
+
+// GetDownloadBaseURL returns the base URL for file download links.
+// Uses DownloadDomain + Path when configured, otherwise falls back to GetServerURL().
+func (config *Configuration) GetDownloadBaseURL() *url.URL {
+	if config.downloadDomainURL != nil {
+		u := *config.downloadDomainURL
+		u.Path = config.Path
+		return &u
+	}
+	return config.GetServerURL()
+}
+
+// GetFileURL returns the full download URL for a file.
+// When stream is true, uses the /stream/ endpoint instead of /file/.
+func (config *Configuration) GetFileURL(uploadID, fileID, fileName string, stream bool) string {
+	mode := "file"
+	if stream {
+		mode = "stream"
+	}
+	u := config.GetDownloadBaseURL()
+	// Set Path (decoded) for correct URL semantics, and RawPath (encoded) so .String()
+	// emits exactly one level of percent-encoding (no double-encoding).
+	rawSuffix := fmt.Sprintf("/%s/%s/%s/%s", mode, uploadID, fileID, url.PathEscape(fileName))
+	decodedSuffix := fmt.Sprintf("/%s/%s/%s/%s", mode, uploadID, fileID, fileName)
+	u.RawPath = u.Path + rawSuffix
+	u.Path = u.Path + decodedSuffix
+	return u.String()
+}
+
+// GetArchiveURL returns the full download URL for an upload archive.
+func (config *Configuration) GetArchiveURL(uploadID, archiveName string) string {
+	u := config.GetDownloadBaseURL()
+	rawSuffix := fmt.Sprintf("/archive/%s/%s", uploadID, url.PathEscape(archiveName))
+	decodedSuffix := fmt.Sprintf("/archive/%s/%s", uploadID, archiveName)
+	u.RawPath = u.Path + rawSuffix
+	u.Path = u.Path + decodedSuffix
+	return u.String()
 }
 
 // GetTlsVersion is a helper to get the TLS version

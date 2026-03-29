@@ -58,7 +58,7 @@ func RestrictDownloadDomain(config *common.Configuration) func(http.Handler) htt
 
 			// Non-file request on the download domain → redirect or reject
 			if config.GetPlikDomain() != nil {
-				redirectURL := fmt.Sprintf("%s%s", config.PlikDomain, req.URL.RequestURI())
+				redirectURL := fmt.Sprintf("%s%s%s", config.PlikDomain, config.Path, req.URL.RequestURI())
 				http.Redirect(resp, req, redirectURL, http.StatusFound)
 			} else {
 				http.Error(resp, "This domain is reserved for file downloads", http.StatusForbidden)

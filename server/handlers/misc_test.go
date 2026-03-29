@@ -252,7 +252,7 @@ func TestCheckDownloadDomain(t *testing.T) {
 	config := common.NewConfiguration()
 	config.DownloadDomain = "https://plik.root.gg"
 	config.DownloadDomainAlias = []string{"https://dl.root.gg"}
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	ctx := newTestingContext(config)
 
@@ -278,7 +278,7 @@ func TestCheckDownloadDomain(t *testing.T) {
 func TestGetRedirectionURLWithPlikDomain(t *testing.T) {
 	config := common.NewConfiguration()
 	config.PlikDomain = "https://plik.root.gg"
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	ctx := newTestingContext(config)
 
@@ -296,7 +296,7 @@ func TestGetRedirectionURLWithPlikDomainAndPath(t *testing.T) {
 	config := common.NewConfiguration()
 	config.PlikDomain = "https://plik.root.gg"
 	config.Path = "/sub"
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	ctx := newTestingContext(config)
 
@@ -313,7 +313,7 @@ func TestCORSHeaders(t *testing.T) {
 	config := common.NewConfiguration()
 	config.PlikDomain = "https://plik.root.gg"
 	config.DownloadDomain = "https://dl.plik.root.gg"
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	ctx := newTestingContext(config)
 
@@ -358,7 +358,7 @@ func TestCORSPreflight(t *testing.T) {
 	config := common.NewConfiguration()
 	config.PlikDomain = "https://plik.root.gg"
 	config.DownloadDomain = "https://dl.plik.root.gg"
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	ctx := newTestingContext(config)
 
@@ -384,7 +384,7 @@ func TestCORSPreflight(t *testing.T) {
 
 func TestHealth(t *testing.T) {
 	config := common.NewConfiguration()
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	req, err := http.NewRequest("GET", "/health", bytes.NewBuffer([]byte{}))
 	require.NoError(t, err, "unable to create new request")

@@ -46,12 +46,12 @@ Core types used throughout the server:
 
 | File | Content |
 |------|---------|
-| `upload.go` | `Upload` struct — container for files with TTL, options, password, E2EE scheme |
+| `upload.go` | `Upload` struct — container for files with TTL, options, password, E2EE scheme. `Sanitize()` populates `DownloadURL` (= `config.DownloadURL`) alongside the legacy `DownloadDomain` field for backward compatibility. |
 | `file.go` | `File` struct + status constants (`missing`/`uploading`/`uploaded`/`removed`/`deleted`) |
 | `user.go` | `User` struct + provider constants (`local`/`google`/`ovh`/`oidc`/`github`), includes `Theme` field for webapp theme preference |
 | `token.go` | `Token` struct — prefixed opaque tokens (`plik_` + Base62 random + CRC32 checksum). Backward-compatible with legacy UUIDv4 tokens. |
 | `cli_auth_session.go` | `CLIAuthSession` struct — ephemeral device auth sessions for CLI login |
-| `config.go` | `Configuration` struct — TOML parsing + env var override |
+| `config.go` | `Configuration` struct — TOML parsing + env var override. `Initialize(*logger.Logger)` strips path components from `PlikDomain`/`DownloadDomain`/aliases (warns if found) and computes `DownloadURL = DownloadDomain + Path`. URL helpers: `GetServerURL()`, `GetDownloadBaseURL()` (returns `DownloadDomain+Path` or `GetServerURL()`), `GetFileURL(uploadID, fileID, name, stream)`, `GetArchiveURL(uploadID, name)` — centralise all download link construction. |
 | `feature_flags.go` | Feature flag types: `disabled`/`enabled`/`default`/`forced` |
 | `settings.go` | `Setting` struct — server-level key/value (e.g., auth signing key) |
 | `authentication.go` | `SessionAuthenticator` — JWT session cookie management |

@@ -531,7 +531,7 @@ func TestAddFileQuick(t *testing.T) {
 func TestAddFileQuickDownloadDomain(t *testing.T) {
 	config := common.NewConfiguration()
 	config.DownloadDomain = "https://plik.root.gg"
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "config initialization error")
 
 	ctx := newTestingContext(config)

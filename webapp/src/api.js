@@ -337,14 +337,14 @@ export function removeFile(upload, file) {
 
 // ── URL Builders ──
 
-let _downloadDomain = ''
+let _downloadURL = ''
 
-export function setDownloadDomain(domain) {
-    _downloadDomain = domain || ''
+export function setDownloadURL(url) {
+    _downloadURL = url || ''
 }
 
 function downloadBase() {
-    return _downloadDomain || base
+    return _downloadURL || base
 }
 
 export function getFileURL(uploadId, fileId, fileName, stream = false) {

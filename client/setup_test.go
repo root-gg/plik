@@ -82,7 +82,7 @@ func TestMain(m *testing.M) {
 	config.FeatureExtendTTL = common.FeatureEnabled
 	config.LogOutput = &serverLogBuf // Redirect server logs to buffer for test failure output
 
-	_ = config.Initialize()
+	_ = config.Initialize(nil)
 
 	ps := server.NewPlikServer(config)
 

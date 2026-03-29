@@ -147,7 +147,7 @@ func TestGetArchiveInvalidDownloadDomain(t *testing.T) {
 	ctx := newTestingContext(config)
 	config.DownloadDomain = "http://download.domain"
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "Unable to initialize config")
 
 	req, err := http.NewRequest("GET", "/archive/", bytes.NewBuffer([]byte{}))

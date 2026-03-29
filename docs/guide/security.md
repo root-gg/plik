@@ -95,7 +95,7 @@ DownloadDomain = "https://dl.plik.root.gg"    # Separate domain for serving file
 DownloadDomainAlias = []                       # Additional accepted download hosts
 ```
 
-**`PlikDomain`** — The public URL where the webapp is served. When set:
+**`PlikDomain`** — The public URL where the webapp is served. **Domain only — no path component.** If a path is included (e.g., `https://plik.example.com/app`), Plik will strip it with a startup warning and use the `Path` config option instead. When set:
 - OAuth redirect URLs use this domain instead of the `Referer` header
 - `GetServerURL()` returns this domain for CLI quick upload URLs
 - CORS headers are configured when `DownloadDomain` is also set
@@ -104,9 +104,19 @@ DownloadDomainAlias = []                       # Additional accepted download ho
 Setting `PlikDomain` alone does **not** enforce any domain check on file downloads — files remain accessible from any host. To restrict downloads to a specific domain, you must also set `DownloadDomain`.
 :::
 
-**`DownloadDomain`** — The domain that serves uploaded files. When set:
+**`DownloadDomain`** — The domain that serves uploaded files. **Domain only — no path component.** If a path is included, it will be stripped with a startup warning. When set:
 - File/archive download requests are rejected unless the `Host` header matches the download domain (or an alias)
 - Non-file requests (webapp UI, API) on the download domain are **blocked** when `PlikDomain` is also set (see below)
+- The computed `downloadURL` field (returned in `/config` and upload API responses) equals `DownloadDomain + Path`
+
+::: info Path prefix and DownloadURL
+The `Path` config option is the **single source of truth** for URL path prefixes. Setting it to `/sub` means:
+- All API and webapp routes are served under `/sub`
+- The `downloadURL` field in API responses is `DownloadDomain + /sub` (or `PlikDomain + /sub` if no `DownloadDomain`)
+- File download links from quick upload and the web UI automatically include `/sub`
+
+Do **not** put the path in `PlikDomain` or `DownloadDomain` — use `Path` instead.
+:::
 
 **`DownloadDomainAlias`** — Additional hostnames accepted for file downloads. Useful when:
 - Accessing the server via `localhost` during development

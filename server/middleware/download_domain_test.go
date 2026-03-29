@@ -20,7 +20,7 @@ func newTestHandler() (http.Handler, *bool) {
 
 func TestRestrictDownloadDomain_NoDownloadDomain(t *testing.T) {
 	config := common.NewConfiguration()
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	handler, called := newTestHandler()
 	middleware := RestrictDownloadDomain(config)(handler)
@@ -36,7 +36,7 @@ func TestRestrictDownloadDomain_NoDownloadDomain(t *testing.T) {
 func TestRestrictDownloadDomain_NotOnDownloadDomain(t *testing.T) {
 	config := common.NewConfiguration()
 	config.DownloadDomain = "https://dl.plik.root.gg"
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	handler, called := newTestHandler()
 	middleware := RestrictDownloadDomain(config)(handler)
@@ -53,7 +53,7 @@ func TestRestrictDownloadDomain_NotOnDownloadDomain(t *testing.T) {
 func TestRestrictDownloadDomain_FileEndpoint(t *testing.T) {
 	config := common.NewConfiguration()
 	config.DownloadDomain = "https://dl.plik.root.gg"
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	handler, called := newTestHandler()
 	middleware := RestrictDownloadDomain(config)(handler)
@@ -77,7 +77,7 @@ func TestRestrictDownloadDomain_FileEndpoint(t *testing.T) {
 func TestRestrictDownloadDomain_HealthEndpoint(t *testing.T) {
 	config := common.NewConfiguration()
 	config.DownloadDomain = "https://dl.plik.root.gg"
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	handler, called := newTestHandler()
 	middleware := RestrictDownloadDomain(config)(handler)
@@ -95,7 +95,7 @@ func TestRestrictDownloadDomain_RedirectWithPlikDomain(t *testing.T) {
 	config := common.NewConfiguration()
 	config.PlikDomain = "https://plik.root.gg"
 	config.DownloadDomain = "https://dl.plik.root.gg"
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	handler, called := newTestHandler()
 	middleware := RestrictDownloadDomain(config)(handler)
@@ -114,7 +114,7 @@ func TestRestrictDownloadDomain_RedirectPreservesPath(t *testing.T) {
 	config := common.NewConfiguration()
 	config.PlikDomain = "https://plik.root.gg"
 	config.DownloadDomain = "https://dl.plik.root.gg"
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	handler, called := newTestHandler()
 	middleware := RestrictDownloadDomain(config)(handler)
@@ -132,7 +132,7 @@ func TestRestrictDownloadDomain_RedirectPreservesPath(t *testing.T) {
 func TestRestrictDownloadDomain_OnlyDownloadDomain_PassesThrough(t *testing.T) {
 	config := common.NewConfiguration()
 	config.DownloadDomain = "https://dl.plik.root.gg"
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	handler, called := newTestHandler()
 	middleware := RestrictDownloadDomain(config)(handler)
@@ -152,7 +152,7 @@ func TestRestrictDownloadDomain_Alias(t *testing.T) {
 	config.PlikDomain = "https://plik.root.gg"
 	config.DownloadDomain = "https://dl.plik.root.gg"
 	config.DownloadDomainAlias = []string{"https://dl2.plik.root.gg"}
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	handler, called := newTestHandler()
 	middleware := RestrictDownloadDomain(config)(handler)
@@ -172,7 +172,7 @@ func TestRestrictDownloadDomain_WebappRoot(t *testing.T) {
 	config := common.NewConfiguration()
 	config.PlikDomain = "https://plik.root.gg"
 	config.DownloadDomain = "https://dl.plik.root.gg"
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	handler, called := newTestHandler()
 	middleware := RestrictDownloadDomain(config)(handler)
@@ -193,15 +193,15 @@ func TestRestrictDownloadDomain_RedirectWithPath(t *testing.T) {
 	config.PlikDomain = "https://plik.root.gg"
 	config.DownloadDomain = "https://dl.plik.root.gg"
 	config.Path = "/sub"
-	require.NoError(t, config.Initialize())
+	require.NoError(t, config.Initialize(nil))
 
 	handler, called := newTestHandler()
 	middleware := RestrictDownloadDomain(config)(handler)
 
-	// Non-file request on download domain — should redirect to PlikDomain.
-	// The request path is already stripped of the prefix by the server's StripPrefix
-	// middleware before it reaches the download_domain middleware. So the Location
-	// header should be PlikDomain + the already-stripped RequestURI (no double-prefix).
+	// The server's StripPrefix middleware strips /sub before the request reaches the
+	// router, so req.URL.Path is already "/config" here (not "/sub/config").
+	// RestrictDownloadDomain must add config.Path back when building the redirect target
+	// so the browser ends up at PlikDomain + Path + strippedRequestURI.
 	req := httptest.NewRequest("GET", "/config", nil)
 	req.Host = "dl.plik.root.gg"
 	rr := httptest.NewRecorder()
@@ -209,6 +209,6 @@ func TestRestrictDownloadDomain_RedirectWithPath(t *testing.T) {
 
 	require.False(t, *called, "non-file endpoint should not pass through on download domain")
 	require.Equal(t, http.StatusFound, rr.Code)
-	require.Equal(t, "https://plik.root.gg/config", rr.Header().Get("Location"),
-		"redirect should point to PlikDomain + request path (Path already stripped by StripPrefix middleware)")
+	require.Equal(t, "https://plik.root.gg/sub/config", rr.Header().Get("Location"),
+		"redirect must include the Path prefix so the browser lands on the correct subpath URL")
 }

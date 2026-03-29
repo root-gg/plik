@@ -42,7 +42,7 @@ func TestCLIAuth_FullFlow(t *testing.T) {
 	defer shutdown(ps)
 
 	ps.GetConfig().FeatureAuthentication = common.FeatureForced
-	_ = ps.GetConfig().Initialize()
+	_ = ps.GetConfig().Initialize(nil)
 
 	user := common.NewUser(common.ProviderLocal, "cliuser")
 	user.Login = "cliuser"
@@ -133,7 +133,7 @@ func TestCLIAuth_DefaultComment(t *testing.T) {
 	defer shutdown(ps)
 
 	ps.GetConfig().FeatureAuthentication = common.FeatureForced
-	_ = ps.GetConfig().Initialize()
+	_ = ps.GetConfig().Initialize(nil)
 
 	user := common.NewUser(common.ProviderLocal, "cliuser2")
 	user.Login = "cliuser2"
@@ -196,7 +196,7 @@ func TestCLIAuth_PollWrongSecret(t *testing.T) {
 	defer shutdown(ps)
 
 	ps.GetConfig().FeatureAuthentication = common.FeatureForced
-	_ = ps.GetConfig().Initialize()
+	_ = ps.GetConfig().Initialize(nil)
 
 	err := start(ps)
 	require.NoError(t, err)
@@ -226,7 +226,7 @@ func TestCLIAuth_ApproveUnauthenticated(t *testing.T) {
 	defer shutdown(ps)
 
 	ps.GetConfig().FeatureAuthentication = common.FeatureForced
-	_ = ps.GetConfig().Initialize()
+	_ = ps.GetConfig().Initialize(nil)
 
 	err := start(ps)
 	require.NoError(t, err)
@@ -256,7 +256,7 @@ func TestCLIAuth_AuthDisabled(t *testing.T) {
 	defer shutdown(ps)
 
 	ps.GetConfig().FeatureAuthentication = common.FeatureDisabled
-	_ = ps.GetConfig().Initialize()
+	_ = ps.GetConfig().Initialize(nil)
 
 	err := start(ps)
 	require.NoError(t, err)
@@ -279,7 +279,7 @@ func TestCLIAuth_ApproveInvalidCode(t *testing.T) {
 	defer shutdown(ps)
 
 	ps.GetConfig().FeatureAuthentication = common.FeatureForced
-	_ = ps.GetConfig().Initialize()
+	_ = ps.GetConfig().Initialize(nil)
 
 	user := common.NewUser(common.ProviderLocal, "cliuser3")
 	user.Login = "cliuser3"

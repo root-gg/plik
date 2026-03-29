@@ -21,7 +21,7 @@ func TestIsWhitelistedAlreadyInContext(t *testing.T) {
 
 func TestIsWhitelistedNoWhitelist(t *testing.T) {
 	config := common.NewConfiguration()
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize config")
 
 	ctx := &Context{}
@@ -34,7 +34,7 @@ func TestIsWhitelistedNoWhitelist(t *testing.T) {
 func TestIsWhitelistedNoIp(t *testing.T) {
 	config := common.NewConfiguration()
 	config.UploadWhitelist = append(config.UploadWhitelist, "1.1.1.1")
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize config")
 
 	ctx := &Context{}
@@ -46,7 +46,7 @@ func TestIsWhitelistedNoIp(t *testing.T) {
 func TestIsWhitelisted(t *testing.T) {
 	config := common.NewConfiguration()
 	config.UploadWhitelist = append(config.UploadWhitelist, "1.1.1.1")
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize config")
 
 	ctx := &Context{}

@@ -82,7 +82,7 @@ func TestLocalLoginBrowser(t *testing.T) {
 	defer shutdown(ps)
 
 	ps.GetConfig().FeatureAuthentication = common.FeatureForced
-	_ = ps.GetConfig().Initialize()
+	_ = ps.GetConfig().Initialize(nil)
 
 	// Create a local user with a hashed password
 	user := common.NewUser(common.ProviderLocal, "testuser")
@@ -158,7 +158,7 @@ func TestLocalLoginBrowserInvalidPassword(t *testing.T) {
 	defer shutdown(ps)
 
 	ps.GetConfig().FeatureAuthentication = common.FeatureForced
-	_ = ps.GetConfig().Initialize()
+	_ = ps.GetConfig().Initialize(nil)
 
 	// Create a local user
 	user := common.NewUser(common.ProviderLocal, "testuser2")
@@ -193,11 +193,11 @@ func TestLocalLoginBrowserDisabled(t *testing.T) {
 	defer shutdown(ps)
 
 	ps.GetConfig().FeatureAuthentication = common.FeatureForced
-	_ = ps.GetConfig().Initialize()
+	_ = ps.GetConfig().Initialize(nil)
 
 	// Disable local login
 	ps.GetConfig().FeatureLocalLogin = common.FeatureDisabled
-	_ = ps.GetConfig().Initialize()
+	_ = ps.GetConfig().Initialize(nil)
 
 	err := start(ps)
 	require.NoError(t, err, "unable to start Plik server")
@@ -220,7 +220,7 @@ func TestOIDCLoginBrowser(t *testing.T) {
 	defer shutdown(ps)
 
 	ps.GetConfig().FeatureAuthentication = common.FeatureForced
-	_ = ps.GetConfig().Initialize()
+	_ = ps.GetConfig().Initialize(nil)
 
 	if !oidcAvailable(ps.GetConfig()) {
 		t.Skip("OIDC provider not available, skipping OIDC test")
@@ -328,7 +328,7 @@ func TestOIDCLoginRedirectURL(t *testing.T) {
 	defer shutdown(ps)
 
 	ps.GetConfig().FeatureAuthentication = common.FeatureForced
-	_ = ps.GetConfig().Initialize()
+	_ = ps.GetConfig().Initialize(nil)
 
 	if !oidcAvailable(ps.GetConfig()) {
 		t.Skip("OIDC provider not available, skipping OIDC test")

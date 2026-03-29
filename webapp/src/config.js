@@ -2,7 +2,7 @@
 // Fetches server configuration once and provides reactive state
 
 import { reactive, ref } from 'vue'
-import { getConfig, getVersion, setDownloadDomain } from './api.js'
+import { getConfig, getVersion, setDownloadURL } from './api.js'
 
 export const config = reactive({
     loaded: false,
@@ -33,8 +33,9 @@ export const config = reactive({
     feature_text: 'default',
     feature_e2ee: 'enabled',
 
-    // Download domain
+    // Download domain / URL
     downloadDomain: '',
+    downloadURL: '',
 
     // OAuth providers (set by server config)
     googleAuthentication: false,
@@ -53,7 +54,8 @@ export async function loadConfig() {
         const data = await getConfig()
         Object.assign(config, data)
         config.loaded = true
-        setDownloadDomain(config.downloadDomain)
+        // Prefer downloadURL (domain+path) if present; fall back to downloadDomain for old servers
+        setDownloadURL(config.downloadURL || config.downloadDomain || '')
     } catch (err) {
         config.error = err.message || 'Failed to load configuration'
         console.error('Failed to load config:', err)

@@ -14,6 +14,7 @@ type Upload struct {
 	ExtendTTL bool   `json:"extend_ttl"`
 
 	DownloadDomain string `json:"downloadDomain" gorm:"-"`
+	DownloadURL    string `json:"downloadURL,omitempty" gorm:"-"` // Computed: DownloadDomain + Path
 	RemoteIP       string `json:"uploadIp,omitempty"`
 	Comments       string `json:"comments"`
 	E2EE           string `json:"e2ee,omitempty" gorm:"column:e2ee"`
@@ -107,7 +108,8 @@ func (upload *Upload) Sanitize(config *Configuration) {
 		upload.UploadToken = ""
 	}
 
-	upload.DownloadDomain = config.DownloadDomain
+	upload.DownloadDomain = config.DownloadDomain // kept for backward compatibility
+	upload.DownloadURL = config.DownloadURL       // new: includes Path
 	for _, file := range upload.Files {
 		file.Sanitize()
 	}

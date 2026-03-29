@@ -6,7 +6,7 @@ Full REST API reference. All endpoints accept/return JSON unless noted.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/config` | Server configuration (feature flags, limits) |
+| `GET` | `/config` | Server configuration (feature flags, limits, `downloadURL`) |
 | `GET` | `/version` | Build info (version, git commit) |
 | `GET` | `/qrcode?url=...&size=...` | Generate QR code PNG |
 | `GET` | `/health` | Health check |
@@ -53,9 +53,14 @@ Response:
 {
     "id": "TczL35OTIb3InNr6",
     "uploadToken": "50lGHbLEIrpJOl4uECddTI7pga...",
+    "downloadDomain": "https://dl.example.com",
+    "downloadURL": "https://dl.example.com/sub",
     "files": []
 }
 ```
+
+`downloadDomain` — raw domain configured as `DownloadDomain`, kept for backward compatibility.
+`downloadURL` — fully-qualified base URL for download links: `DownloadDomain + Path`. Use this to construct file/archive links. Falls back to the server's own URL when `DownloadDomain` is not set.
 
 ### Add File (POST /file/{uploadID})
 
@@ -66,6 +71,18 @@ Send as `multipart/form-data` with `file` field. The `X-UploadToken` header is r
 The upload token is not required for public uploads. For password-protected uploads, provide HTTP Basic auth with the upload's login/password.
 
 HTTP Range requests (`Range` header) are supported on file downloads, allowing partial content retrieval (206 responses).
+
+### GET /config — Selected Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `downloadDomain` | `string` | Raw configured `DownloadDomain` (backward compat) |
+| `downloadURL` | `string` | `DownloadDomain + Path` — use this as the base for file/archive links |
+| `plikDomain` | `string` | Configured `PlikDomain` (public server URL, no path) |
+| `maxFileSize` | `int` | Max file size in bytes (`-1` = unlimited) |
+| `feature_*` | `string` | Feature flag values: `disabled`, `enabled`, `default`, `forced` |
+
+> **Note on path components:** `PlikDomain` and `DownloadDomain` must be domain-only (no path). If a path is inadvertently included, Plik will strip it with a warning on startup. Use the `Path` server config option to configure a URL path prefix — it is automatically incorporated into `downloadURL`.
 
 ## Authentication Endpoints
 

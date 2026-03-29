@@ -40,7 +40,7 @@ func TestInitializeConfigUploadWhitelist(t *testing.T) {
 	config := NewConfiguration()
 	config.UploadWhitelist = []string{"1.1.1.1", "127.0.0.0/24", "127.0.0.10/24"}
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize invalid config")
 
 	require.Equal(t, len(config.UploadWhitelist), len(config.GetUploadWhitelist()), "invalid parsed upload whitelist length")
@@ -51,7 +51,7 @@ func TestInitializeConfigUploadWhitelist(t *testing.T) {
 	config = NewConfiguration()
 	config.UploadWhitelist = []string{"foo", "bar", "baz"}
 
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	RequireError(t, err, "failed to parse upload whitelist")
 }
 
@@ -63,7 +63,7 @@ func TestIsWhitelisted(t *testing.T) {
 	require.True(t, config.IsWhitelisted(net.ParseIP("1234::1").To16()), "no whitelist should be always ok")
 
 	config.UploadWhitelist = []string{"1.1.1.1", "127.0.0.0/24", "1234::/64"}
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize invalid config")
 
 	require.False(t, config.IsWhitelisted(nil), "should not be whitelisted")
@@ -83,7 +83,7 @@ func TestInitializeConfigAuthentication(t *testing.T) {
 	config.OvhAPIKey = "ovh_api_key"
 	config.OvhAPISecret = "ovh_api_secret"
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize config")
 }
 
@@ -93,7 +93,7 @@ func TestInitializeConfigAuthenticationNoMethod(t *testing.T) {
 	config.FeatureAuthentication = FeatureEnabled
 	config.FeatureLocalLogin = FeatureDisabled
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	RequireError(t, err, "no authentication method is available")
 
 	// Auth forced but local login disabled and no OAuth configured → should fail
@@ -101,7 +101,7 @@ func TestInitializeConfigAuthenticationNoMethod(t *testing.T) {
 	config.FeatureAuthentication = FeatureForced
 	config.FeatureLocalLogin = FeatureDisabled
 
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	RequireError(t, err, "no authentication method is available")
 
 	// Auth disabled → should be fine regardless
@@ -109,7 +109,7 @@ func TestInitializeConfigAuthenticationNoMethod(t *testing.T) {
 	config.FeatureAuthentication = FeatureDisabled
 	config.FeatureLocalLogin = FeatureDisabled
 
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	require.NoError(t, err, "should be able to initialize with auth disabled")
 
 	// Auth enabled + local login enabled → should be fine
@@ -117,7 +117,7 @@ func TestInitializeConfigAuthenticationNoMethod(t *testing.T) {
 	config.FeatureAuthentication = FeatureEnabled
 	config.FeatureLocalLogin = FeatureEnabled
 
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	require.NoError(t, err, "should be able to initialize with local login")
 }
 
@@ -127,7 +127,7 @@ func TestInitializeConfigDefaultAdminValid(t *testing.T) {
 	config.DefaultAdminLogin = "admin"
 	config.DefaultAdminPassword = "s3cr3tpass"
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "valid default admin config should initialize successfully")
 }
 
@@ -137,7 +137,7 @@ func TestInitializeConfigDefaultAdminNoAuth(t *testing.T) {
 	config.FeatureAuthentication = FeatureDisabled
 	config.DefaultAdminLogin = "admin"
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	RequireError(t, err, "DefaultAdminLogin is set but FeatureAuthentication is disabled")
 }
 
@@ -150,7 +150,7 @@ func TestInitializeConfigDefaultAdminLocalLoginDisabled(t *testing.T) {
 	config.GoogleAPISecret = "secret"
 	config.DefaultAdminLogin = "admin"
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	RequireError(t, err, "DefaultAdminLogin is set but FeatureLocalLogin is disabled")
 }
 
@@ -159,7 +159,7 @@ func TestInitializeConfigDefaultAdminLoginTooShort(t *testing.T) {
 	config.FeatureAuthentication = FeatureEnabled
 	config.DefaultAdminLogin = "adm" // 3 chars, min is 4
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	RequireError(t, err, "DefaultAdminLogin is too short")
 }
 
@@ -169,7 +169,7 @@ func TestInitializeConfigDefaultAdminPasswordTooShort(t *testing.T) {
 	config.DefaultAdminLogin = "admin"
 	config.DefaultAdminPassword = "short" // 5 chars, min is 8
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	RequireError(t, err, "DefaultAdminPassword is too short")
 }
 
@@ -180,7 +180,7 @@ func TestInitializeConfigDefaultAdminPasswordEmpty(t *testing.T) {
 	config.DefaultAdminLogin = "admin"
 	// DefaultAdminPassword intentionally left empty
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "empty password should be allowed (auto-generated at startup)")
 }
 
@@ -188,7 +188,7 @@ func TestInitializeConfigPlikDomain(t *testing.T) {
 	config := NewConfiguration()
 	config.PlikDomain = "https://plik.root.gg"
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize config")
 	require.NotNil(t, config.GetPlikDomain())
 	require.Equal(t, "plik.root.gg", config.GetPlikDomain().Host)
@@ -198,7 +198,7 @@ func TestInitializeConfigInvalidPlikDomain(t *testing.T) {
 	config := NewConfiguration()
 	config.PlikDomain = ":/invalid"
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.Error(t, err, "able to initialize invalid config")
 }
 
@@ -206,7 +206,7 @@ func TestInitializeConfigDownloadDomain(t *testing.T) {
 	config := NewConfiguration()
 	config.DownloadDomain = "https://dl.plik.root.gg"
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize config")
 	require.Equal(t, config.DownloadDomain, config.GetDownloadDomain().String(), "invalid download domain")
 }
@@ -216,7 +216,7 @@ func TestInitializeConfigPlikDomainEqualsDownloadDomain(t *testing.T) {
 	config.PlikDomain = "https://plik.root.gg"
 	config.DownloadDomain = "https://plik.root.gg"
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	RequireError(t, err, "PlikDomain and DownloadDomain must be different domains")
 }
 
@@ -226,7 +226,7 @@ func TestInitializeConfigPlikDomainEqualsDownloadDomainAlias(t *testing.T) {
 	config.DownloadDomain = "https://dl.plik.root.gg"
 	config.DownloadDomainAlias = []string{"https://plik.root.gg"}
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	RequireError(t, err, "PlikDomain and DownloadDomain must be different domains")
 }
 
@@ -234,7 +234,7 @@ func TestInitializeConfigInvalidDownloadDomain(t *testing.T) {
 	config := NewConfiguration()
 	config.DownloadDomain = ":/invalid"
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.Error(t, err, "able to initialize invalid config")
 }
 
@@ -243,7 +243,7 @@ func TestInitializeInvalidDefaultTTL(t *testing.T) {
 	config.DefaultTTL = 10 * 86400
 	config.MaxTTL = 1 * 86400
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.Error(t, err, "able to initialize invalid config")
 }
 
@@ -252,7 +252,7 @@ func TestInitializeInfiniteMaxTTL(t *testing.T) {
 	config.DefaultTTL = 10 * 86400
 	config.MaxTTL = -1
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize valid config")
 }
 
@@ -261,7 +261,7 @@ func TestInitializeTTLString(t *testing.T) {
 	config.DefaultTTLStr = "3d"
 	config.MaxTTLStr = "30d"
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize valid config")
 
 	require.Equal(t, 3*86400, config.DefaultTTL, "invalid default TTL")
@@ -272,7 +272,7 @@ func TestInitializeMaxFileSizeString(t *testing.T) {
 	config := NewConfiguration()
 	config.MaxFileSizeStr = "100 MB"
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize valid config")
 
 	require.Equal(t, int64(100*1000*1000), config.MaxFileSize, "invalid max file size")
@@ -282,7 +282,7 @@ func TestInitializeMaxFileSizeUnlimited(t *testing.T) {
 	config := NewConfiguration()
 	config.MaxFileSizeStr = "unlimited"
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize valid config")
 
 	require.Equal(t, int64(-1), config.MaxFileSize, "invalid max file size")
@@ -290,7 +290,7 @@ func TestInitializeMaxFileSizeUnlimited(t *testing.T) {
 	config = NewConfiguration()
 	config.MaxFileSizeStr = "-1"
 
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize valid config")
 
 	require.Equal(t, int64(-1), config.MaxFileSize, "invalid max file size")
@@ -300,7 +300,7 @@ func TestInitializeMaxUserSizeString(t *testing.T) {
 	config := NewConfiguration()
 	config.MaxUserSizeStr = "100 MB"
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize valid config")
 
 	require.Equal(t, int64(100*1000*1000), config.MaxUserSize, "invalid max file size")
@@ -310,7 +310,7 @@ func TestInitializeMaxUserSizeUnlimited(t *testing.T) {
 	config := NewConfiguration()
 	config.MaxUserSizeStr = "unlimited"
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize valid config")
 
 	require.Equal(t, int64(-1), config.MaxUserSize, "invalid max file size")
@@ -318,7 +318,7 @@ func TestInitializeMaxUserSizeUnlimited(t *testing.T) {
 	config = NewConfiguration()
 	config.MaxUserSizeStr = "-1"
 
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	require.NoError(t, err, "unable to initialize valid config")
 
 	require.Equal(t, int64(-1), config.MaxUserSize, "invalid max file size")
@@ -345,7 +345,7 @@ func TestGetServerUrl(t *testing.T) {
 func TestGetServerUrlWithPlikDomain(t *testing.T) {
 	config := NewConfiguration()
 	config.PlikDomain = "https://plik.root.gg"
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err)
 	require.Equal(t, "https://plik.root.gg", config.GetServerURL().String())
 
@@ -418,7 +418,7 @@ func TestConfiguration_NewLogger(t *testing.T) {
 func TestNewConfiguration_InitializeDebugCompat(t *testing.T) {
 	config := NewConfiguration()
 	config.LogLevel = "DEBUG"
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err, "initialize error")
 	require.True(t, config.Debug)
 	require.True(t, config.DebugRequests)
@@ -461,29 +461,29 @@ func TestConfiguration_GetSessionTimeout(t *testing.T) {
 	config := NewConfiguration()
 	require.Equal(t, 0, config.GetSessionTimeout())
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err)
 	require.Equal(t, 365*24*60*60, config.GetSessionTimeout())
 
 	config = NewConfiguration()
 	config.SessionTimeout = "30d"
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	require.NoError(t, err)
 	require.Equal(t, 30*24*60*60, config.GetSessionTimeout())
 
 	config = NewConfiguration()
 	config.SessionTimeout = ""
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	RequireError(t, err, "unable to parse SessionTimeout")
 
 	config = NewConfiguration()
 	config.SessionTimeout = "-1"
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	RequireError(t, err, "invalid negative or zero value for SessionTimeout")
 
 	config = NewConfiguration()
 	config.SessionTimeout = "azerty"
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	RequireError(t, err, "unable to parse SessionTimeout")
 }
 
@@ -491,30 +491,30 @@ func TestConfiguration_GetStreamTimeout(t *testing.T) {
 	config := NewConfiguration()
 	require.Equal(t, 0, config.GetStreamTimeout())
 
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err)
 	require.Equal(t, 5*60, config.GetStreamTimeout()) // default "5m"
 
 	config = NewConfiguration()
 	config.StreamTimeoutStr = "10m"
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	require.NoError(t, err)
 	require.Equal(t, 10*60, config.GetStreamTimeout())
 
 	config = NewConfiguration()
 	config.StreamTimeoutStr = "0"
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	require.NoError(t, err)
 	require.Equal(t, 0, config.GetStreamTimeout()) // disabled
 
 	config = NewConfiguration()
 	config.StreamTimeoutStr = "azerty"
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	RequireError(t, err, "unable to parse StreamTimeout")
 
 	config = NewConfiguration()
 	config.StreamTimeoutStr = "-1"
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	RequireError(t, err, "invalid negative value for StreamTimeout")
 }
 
@@ -527,7 +527,7 @@ func TestConfiguration_GetPath(t *testing.T) {
 
 func TestConfiguration_IsValidDownloadDomain(t *testing.T) {
 	config := NewConfiguration()
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err)
 
 	require.Nil(t, config.downloadDomainURL)
@@ -536,7 +536,7 @@ func TestConfiguration_IsValidDownloadDomain(t *testing.T) {
 
 	config = NewConfiguration()
 	config.DownloadDomain = "https://plik.root.gg"
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	require.NoError(t, err)
 
 	require.NotNil(t, config.downloadDomainURL)
@@ -546,7 +546,7 @@ func TestConfiguration_IsValidDownloadDomain(t *testing.T) {
 	config = NewConfiguration()
 	config.DownloadDomain = "https://plik.root.gg"
 	config.DownloadDomainAlias = []string{"https://dl.root.gg"}
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	require.NoError(t, err)
 
 	require.NotNil(t, config.downloadDomainURL)
@@ -559,14 +559,14 @@ func TestConfiguration_IsValidDownloadDomain(t *testing.T) {
 func TestConfiguration_GetCORSOrigin(t *testing.T) {
 	// No domains → no CORS
 	config := NewConfiguration()
-	err := config.Initialize()
+	err := config.Initialize(nil)
 	require.NoError(t, err)
 	require.Equal(t, "", config.GetCORSOrigin())
 
 	// PlikDomain only → no CORS
 	config = NewConfiguration()
 	config.PlikDomain = "https://plik.root.gg"
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	require.NoError(t, err)
 	require.Equal(t, "", config.GetCORSOrigin())
 
@@ -574,7 +574,7 @@ func TestConfiguration_GetCORSOrigin(t *testing.T) {
 	config = NewConfiguration()
 	config.PlikDomain = "https://plik.root.gg"
 	config.DownloadDomain = "https://dl.plik.root.gg"
-	err = config.Initialize()
+	err = config.Initialize(nil)
 	require.NoError(t, err)
 	require.Equal(t, "https://plik.root.gg", config.GetCORSOrigin())
 }
@@ -602,4 +602,155 @@ func TestGetTlsVersionAllValues(t *testing.T) {
 	// Unknown value should default to TLS 1.2
 	config.TlsVersion = "invalid"
 	require.Equal(t, uint16(tls.VersionTLS12), config.GetTlsVersion())
+}
+
+// ── Domain Path Stripping ──────────────────────────────────────────────────
+
+func TestInitialize_PlikDomainWithPath_StripsPath(t *testing.T) {
+	config := NewConfiguration()
+	config.PlikDomain = "https://plik.root.gg/badpath"
+	err := config.Initialize(nil)
+	require.NoError(t, err)
+	// Path component should be removed
+	require.Equal(t, "https://plik.root.gg", config.PlikDomain)
+	require.Empty(t, config.GetPlikDomain().Path)
+}
+
+func TestInitialize_DownloadDomainWithPath_StripsPath(t *testing.T) {
+	config := NewConfiguration()
+	config.DownloadDomain = "https://dl.plik.root.gg/badpath"
+	err := config.Initialize(nil)
+	require.NoError(t, err)
+	require.Equal(t, "https://dl.plik.root.gg", config.DownloadDomain)
+	require.Empty(t, config.GetDownloadDomain().Path)
+}
+
+func TestInitialize_DownloadDomainAliasWithPath_StripsPath(t *testing.T) {
+	config := NewConfiguration()
+	config.DownloadDomain = "https://dl.plik.root.gg"
+	config.DownloadDomainAlias = []string{"https://dl2.plik.root.gg/also/bad"}
+	err := config.Initialize(nil)
+	require.NoError(t, err)
+	aliases := config.GetDownloadDomainAlias()
+	require.Len(t, aliases, 1)
+	require.Empty(t, aliases[0].Path)
+}
+
+// ── DownloadURL Computed Field ─────────────────────────────────────────────
+
+func TestInitialize_DownloadURL_NoDownloadDomain(t *testing.T) {
+	config := NewConfiguration()
+	err := config.Initialize(nil)
+	require.NoError(t, err)
+	require.Empty(t, config.DownloadURL)
+}
+
+func TestInitialize_DownloadURL_WithDownloadDomain(t *testing.T) {
+	config := NewConfiguration()
+	config.DownloadDomain = "https://dl.plik.root.gg"
+	err := config.Initialize(nil)
+	require.NoError(t, err)
+	require.Equal(t, "https://dl.plik.root.gg", config.DownloadURL)
+}
+
+func TestInitialize_DownloadURL_WithDownloadDomainAndPath(t *testing.T) {
+	config := NewConfiguration()
+	config.DownloadDomain = "https://dl.plik.root.gg"
+	config.Path = "/sub"
+	err := config.Initialize(nil)
+	require.NoError(t, err)
+	// DownloadURL must include Path; raw DownloadDomain must not
+	require.Equal(t, "https://dl.plik.root.gg/sub", config.DownloadURL)
+	require.Equal(t, "https://dl.plik.root.gg", config.DownloadDomain)
+}
+
+// ── GetDownloadBaseURL ─────────────────────────────────────────────────────
+
+func TestGetDownloadBaseURL_NoDownloadDomain_FallsBackToServerURL(t *testing.T) {
+	config := NewConfiguration()
+	config.PlikDomain = "https://plik.root.gg"
+	err := config.Initialize(nil)
+	require.NoError(t, err)
+	u := config.GetDownloadBaseURL()
+	require.Equal(t, "https://plik.root.gg", u.String())
+}
+
+func TestGetDownloadBaseURL_WithDownloadDomain(t *testing.T) {
+	config := NewConfiguration()
+	config.DownloadDomain = "https://dl.plik.root.gg"
+	err := config.Initialize(nil)
+	require.NoError(t, err)
+	u := config.GetDownloadBaseURL()
+	require.Equal(t, "https://dl.plik.root.gg", u.String())
+}
+
+func TestGetDownloadBaseURL_WithDownloadDomainAndPath(t *testing.T) {
+	config := NewConfiguration()
+	config.DownloadDomain = "https://dl.plik.root.gg"
+	config.Path = "/sub"
+	err := config.Initialize(nil)
+	require.NoError(t, err)
+	u := config.GetDownloadBaseURL()
+	require.Equal(t, "https://dl.plik.root.gg/sub", u.String())
+}
+
+// ── GetFileURL ─────────────────────────────────────────────────────────────
+
+func TestGetFileURL_NoDownloadDomain(t *testing.T) {
+	config := NewConfiguration()
+	config.PlikDomain = "https://plik.root.gg"
+	err := config.Initialize(nil)
+	require.NoError(t, err)
+	got := config.GetFileURL("upload1", "file1", "test.txt", false)
+	require.Equal(t, "https://plik.root.gg/file/upload1/file1/test.txt", got)
+}
+
+func TestGetFileURL_WithDownloadDomainAndPath(t *testing.T) {
+	config := NewConfiguration()
+	config.DownloadDomain = "https://dl.plik.root.gg"
+	config.Path = "/sub"
+	err := config.Initialize(nil)
+	require.NoError(t, err)
+	got := config.GetFileURL("upload1", "file1", "test.txt", false)
+	require.Equal(t, "https://dl.plik.root.gg/sub/file/upload1/file1/test.txt", got)
+}
+
+func TestGetFileURL_StreamMode(t *testing.T) {
+	config := NewConfiguration()
+	config.DownloadDomain = "https://dl.plik.root.gg"
+	config.Path = "/sub"
+	err := config.Initialize(nil)
+	require.NoError(t, err)
+	got := config.GetFileURL("upload1", "file1", "test.txt", true)
+	require.Equal(t, "https://dl.plik.root.gg/sub/stream/upload1/file1/test.txt", got)
+}
+
+func TestGetFileURL_SpecialCharsInName(t *testing.T) {
+	config := NewConfiguration()
+	config.PlikDomain = "https://plik.root.gg"
+	err := config.Initialize(nil)
+	require.NoError(t, err)
+	got := config.GetFileURL("upload1", "file1", "my file (1).txt", false)
+	require.Equal(t, "https://plik.root.gg/file/upload1/file1/my%20file%20%281%29.txt", got)
+}
+
+// ── GetArchiveURL ──────────────────────────────────────────────────────────
+
+func TestGetArchiveURL_NoDownloadDomain(t *testing.T) {
+	config := NewConfiguration()
+	config.PlikDomain = "https://plik.root.gg"
+	err := config.Initialize(nil)
+	require.NoError(t, err)
+	got := config.GetArchiveURL("upload1", "archive.zip")
+	require.Equal(t, "https://plik.root.gg/archive/upload1/archive.zip", got)
+}
+
+func TestGetArchiveURL_WithDownloadDomainAndPath(t *testing.T) {
+	config := NewConfiguration()
+	config.DownloadDomain = "https://dl.plik.root.gg"
+	config.Path = "/sub"
+	err := config.Initialize(nil)
+	require.NoError(t, err)
+	got := config.GetArchiveURL("upload1", "archive.zip")
+	require.Equal(t, "https://dl.plik.root.gg/sub/archive/upload1/archive.zip", got)
 }

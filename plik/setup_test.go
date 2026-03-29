@@ -135,7 +135,7 @@ func newPlikServerAndClient() (ps *server.PlikServer, pc *Client) {
 		}
 	}
 
-	_ = config.Initialize()
+	_ = config.Initialize(nil)
 	ps = server.NewPlikServer(config)
 
 	metadataBackend, err := metadata.NewBackend(metadataBackendConfig, config.NewLogger())

@@ -223,7 +223,11 @@ func (file *File) GetURL() (URL *url.URL, err error) {
 	}
 
 	var domain string
-	if uploadMetadata.DownloadDomain != "" {
+	if uploadMetadata.DownloadURL != "" {
+		// Prefer DownloadURL: already includes the server Path prefix (e.g. /sub)
+		domain = uploadMetadata.DownloadURL
+	} else if uploadMetadata.DownloadDomain != "" {
+		// Backward compat with older servers that only return DownloadDomain
 		domain = uploadMetadata.DownloadDomain
 	} else {
 		domain = file.upload.client.URL

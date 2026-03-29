@@ -142,7 +142,7 @@ func showFile(cmd *cobra.Command, args []string) {
 
 	utils.Dump(file)
 	fmt.Printf("Upload URL : %s/#/?id=%s\n", config.GetServerURL(), file.UploadID)
-	fmt.Printf("File URL : %s/file/%s/%s/%s\n", config.GetServerURL(), file.UploadID, file.ID, file.Name)
+	fmt.Printf("File URL   : %s\n", config.GetFileURL(file.UploadID, file.ID, file.Name, false))
 }
 
 func deleteFiles(cmd *cobra.Command, args []string) {
