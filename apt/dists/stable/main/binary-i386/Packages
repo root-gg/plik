@@ -1,0 +1,36 @@
+Package: plik-client
+Version: 1.4.2
+Architecture: i386
+Maintainer: Mathieu Bodjikian <mathieu@bodjikian.fr>
+Installed-Size: 14456
+Conflicts: plik-client
+Filename: pool/main/plik-client_1.4.2_i386.deb
+Size: 5813846
+MD5sum: 9c4d6d12397b0d5d297cfcb1e36c2c38
+SHA1: 61d9ccf266cda157703fef51fea4f564b2838390
+SHA256: a332d8004d6cdc01476bc430e1e80295decad09bb7b909252e56ddd523d2da3c
+Section: utils
+Priority: optional
+Homepage: https://github.com/root-gg/plik
+Description: Plik CLI client - Command-line file upload tool.
+ Upload files to a Plik server from the terminal.
+
+Package: plik-server
+Version: 1.4.2
+Architecture: i386
+Maintainer: Mathieu Bodjikian <mathieu@bodjikian.fr>
+Installed-Size: 228196
+Depends: ca-certificates
+Conflicts: plik-server
+Filename: pool/main/plik-server_1.4.2_i386.deb
+Size: 88622108
+MD5sum: 08824e350a7bf46d50e961c05164aa69
+SHA1: 5ef1a85a1be13d0e5461427a05155f6a0691cb24
+SHA256: 58c8e3249f6e05289f457417e2730cbc1f484e0f0ea69d4f79be51a2a6aaea34
+Section: web
+Priority: optional
+Homepage: https://github.com/root-gg/plik
+Description: Plik server - Temporary file upload system.
+ Self-hosted file sharing platform with multi-backend support,
+ web interface, CLI client, and optional authentication.
+

@@ -1,0 +1,43 @@
+apiVersion: v1
+entries:
+  plik:
+  - apiVersion: v2
+    appVersion: 1.4.2
+    created: "2026-03-31T15:53:35.349663206Z"
+    description: A Helm chart for Plik, a scalable & friendly temporary file upload
+      system.
+    digest: 3c375daf101117a818373e7c66601a944431342b6d4768a0007561ce216af830
+    maintainers:
+    - name: root-gg
+    name: plik
+    type: application
+    urls:
+    - https://github.com/root-gg/plik/releases/download/1.4.2/plik-helm-1.4.2.tgz
+    version: 1.4.2
+  - apiVersion: v2
+    appVersion: 1.4.1
+    created: "2026-03-08T20:20:11.496346048Z"
+    description: A Helm chart for Plik, a scalable & friendly temporary file upload
+      system.
+    digest: c89b9cc94025ad747edb61ab6b55b316d36c6a74d9ad9d26c015a623b3b59cf1
+    maintainers:
+    - name: root-gg
+    name: plik
+    type: application
+    urls:
+    - https://github.com/root-gg/plik/releases/download/1.4.1/plik-helm-1.4.1.tgz
+    version: 1.4.1
+  - apiVersion: v2
+    appVersion: 1.4.0
+    created: "2026-03-03T15:02:15.9138038Z"
+    description: A Helm chart for Plik, a scalable & friendly temporary file upload
+      system.
+    digest: 991ba8ebec9aa771f1b44790e12475f68b6a9d72744e295dce203c8c99397e99
+    maintainers:
+    - name: root-gg
+    name: plik
+    type: application
+    urls:
+    - https://github.com/root-gg/plik/releases/download/1.4.0/plik-helm-1.4.0.tgz
+    version: 1.4.0
+generated: "2026-03-31T15:53:35.347492988Z"

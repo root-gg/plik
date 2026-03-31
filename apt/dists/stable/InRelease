@@ -1,0 +1,45 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Origin: root-gg
+Label: Plik
+Suite: stable
+Codename: stable
+Architectures: amd64 arm64 armhf i386 
+Components: main
+Description: Plik APT repository
+Date: Tue, 31 Mar 2026 15:56:27 +0000
+MD5Sum:
+ 7f1798ef8dff0c67c427ec80a43c37fe 1222 main/binary-armhf/Packages
+ b09ad7051587d9fbb05cb0e1513f8b1d 663 main/binary-armhf/Packages.gz
+ eea5f47b3ac731531040fab564e6c831 1222 main/binary-arm64/Packages
+ 3f98b5510046206ef21ef25d48b02909 662 main/binary-arm64/Packages.gz
+ bf045150310312a542ed7ac5840f8544 1218 main/binary-i386/Packages
+ 1d7be1e98c2fff142a80301fdffd1330 660 main/binary-i386/Packages.gz
+ 88cedb49c1a54203d7a131b90e1562dc 1222 main/binary-amd64/Packages
+ d22644947b674422b1eaa25cbd91523b 663 main/binary-amd64/Packages.gz
+SHA256:
+ bc8d014e8a97d177d54b4358baf4771e96ae034a44b610ac980ec48bc40025a8 1222 main/binary-armhf/Packages
+ f04b340ae6eed6140d521e82e6784a2497c96d9971b11fbc6264500314ae2f00 663 main/binary-armhf/Packages.gz
+ ca83cda648518cfd4c4ea1816bccee43ab884cd20417eb21f4755f455acb1457 1222 main/binary-arm64/Packages
+ 9d437c52c8ed659cb6830484fbb98bdd03f98dc88f6065f4ae7605c21f8fc8f3 662 main/binary-arm64/Packages.gz
+ 377261c00087eff9d5e8daa926130aa4583c3eb5c50aa97499d8b4fe0746d207 1218 main/binary-i386/Packages
+ f42c0fad876e3f07967ffcf0684521d77241c757000b44e7706669bc120093c2 660 main/binary-i386/Packages.gz
+ 828204b4ee28ebf213daea2364581585d543530dc5359a40d0068587c903c1b5 1222 main/binary-amd64/Packages
+ 3c2e0224d4bbdd1b05d7bea1ba2d2b10cab85d71e5bb8e9bf2c688d0c13e187c 663 main/binary-amd64/Packages.gz
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCgAdFiEEisENRfuUqhoJjkUlQt5gjO2eowAFAmnL7qwACgkQQt5gjO2e
+owAdDw//UPgu7VvAUMCnvuWEQXW2VOKfbYII87fiiJE9nl4lwrvN8fESkADmDvgP
+84I1GI1rUUif6o7seg0ErlLHswaw/d3jL2t6e/+uww/NUewQNGVLipJbUOhqZ4va
+Cz7LjImC5jJTlDYGy4hBVTC2+rF0f1imFS+YeRx9C0RJ5cTP/k0mvqbcucei7GYK
+6+f1AyBVBILG4Wg//W4eIz+o3jOubwItNxhKywNE7lb4t0xzw02y9D6Sqyol7nLA
+pulhFvdRZbe8Vt7AbjkUIs9p0j4xzl9qKGiC44Ezqc88b/eFShHY2RpcFTAkw5l4
+EF3vhyk7A3YHwgQWA6QCc78OAkYYaMzhWEeRRzy8ly2F3yE6CaDXZlHlv25QbDLn
+CnvddklmBjxeTOL3o9GwNvNiWxegcKfzN6233HvPPTa6nYPlTldzp+rS0zss1IKD
+SD59yfjjfcx5E9bcK07/JK7XApgAnA2aegYQL6SgXYeKzB1fpRndsmMHizZOPTAZ
+TKRTgXkFTAzxReIQ4A5iu3gf2W6WMmOjL/1MbJiwAzsFK6q9PpJmL24yaXV1muqC
+xp7Gg5+2bGqAwleapmCb5KifQ1AQBV15ZiyZ7QT4zIpgR/66E/dfYs0olCgtnyRg
+s1wF2s+zEz2yDJgtLyYs1KUFEVdwWAXjiSi5e4Z3X8+74JwTW+E=
+=Uhsh
+-----END PGP SIGNATURE-----
