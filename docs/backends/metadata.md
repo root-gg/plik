@@ -62,4 +62,7 @@ Plik uses [gormigrate](https://github.com/go-gormigrate/gormigrate) for automati
 
 ## Migrating Between Backends
 
-To migrate data between different metadata backends (e.g. SQLite → PostgreSQL), use the `plikd export` and `plikd import` commands. See the [Import / Export](/operations/import-export) guide for details.
+Plik provides two approaches for migrating between metadata backends:
+
+- **`plikd export` / `plikd import`** — Export metadata to a portable file and import it into a new backend. Good for offline backups or scheduled migrations. See the [Import / Export](/operations/import-export) guide.
+- **`plikd migrate`** — Live, direct backend-to-backend migration that also handles file data blobs in parallel. No intermediate files needed. See the [Migration](/operations/migration) guide.
