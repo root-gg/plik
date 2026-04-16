@@ -175,7 +175,7 @@ notification is received or the context is canceled.
 
 Tracing and Logging
 
-pgx supports tracing by setting ConnConfig.Tracer.
+pgx supports tracing by setting ConnConfig.Tracer. To combine several tracers you can use the multitracer.Tracer.
 
 In addition, the tracelog package provides the TraceLog type which lets a traditional logger act as a Tracer.
 
@@ -183,7 +183,7 @@ For debug tracing of the actual PostgreSQL wire protocol messages see github.com
 
 Lower Level PostgreSQL Functionality
 
-github.com/jackc/pgx/v5/pgconn contains a lower level PostgreSQL driver roughly at the level of libpq. pgx.Conn in
+github.com/jackc/pgx/v5/pgconn contains a lower level PostgreSQL driver roughly at the level of libpq. pgx.Conn is
 implemented on top of pgconn. The Conn.PgConn() method can be used to access this lower layer.
 
 PgBouncer

@@ -29,9 +29,9 @@ type Rows interface {
 	// to call Close after rows is already closed.
 	Close()
 
-	// Err returns any error that occurred while reading. Err must only be called after the Rows is closed (either by
-	// calling Close or by Next returning false). If it is called early it may return nil even if there was an error
-	// executing the query.
+	// Err returns any error that occurred while executing a query or reading its results. Err must be called after the
+	// Rows is closed (either by calling Close or by Next returning false) to check if the query was successful. If it is
+	// called before the Rows is closed it may return nil even if the query failed on the server.
 	Err() error
 
 	// CommandTag returns the command tag from this query. It is only available after Rows is closed.
@@ -41,22 +41,19 @@ type Rows interface {
 	// when there was an error executing the query.
 	FieldDescriptions() []pgconn.FieldDescription
 
-	// Next prepares the next row for reading. It returns true if there is another
-	// row and false if no more rows are available or a fatal error has occurred.
-	// It automatically closes rows when all rows are read.
+	// Next prepares the next row for reading. It returns true if there is another row and false if no more rows are
+	// available or a fatal error has occurred. It automatically closes rows upon returning false (whether due to all rows
+	// having been read or due to an error).
 	//
-	// Callers should check rows.Err() after rows.Next() returns false to detect
-	// whether result-set reading ended prematurely due to an error. See
-	// Conn.Query for details.
+	// Callers should check rows.Err() after rows.Next() returns false to detect whether result-set reading ended
+	// prematurely due to an error. See Conn.Query for details.
 	//
-	// For simpler error handling, consider using the higher-level pgx v5
-	// CollectRows() and ForEachRow() helpers instead.
+	// For simpler error handling, consider using the higher-level pgx v5 CollectRows() and ForEachRow() helpers instead.
 	Next() bool
 
-	// Scan reads the values from the current row into dest values positionally.
-	// dest can include pointers to core types, values implementing the Scanner
-	// interface, and nil. nil will skip the value entirely. It is an error to
-	// call Scan without first calling Next() and checking that it returned true.
+	// Scan reads the values from the current row into dest values positionally. dest can include pointers to core types,
+	// values implementing the Scanner interface, and nil. nil will skip the value entirely. It is an error to call Scan
+	// without first calling Next() and checking that it returned true. Rows is automatically closed upon error.
 	Scan(dest ...any) error
 
 	// Values returns the decoded row values. As with Scan(), it is an error to
@@ -188,6 +185,17 @@ func (rows *baseRows) Close() {
 	} else if rows.queryTracer != nil {
 		rows.queryTracer.TraceQueryEnd(rows.ctx, rows.conn, TraceQueryEndData{rows.commandTag, rows.err})
 	}
+
+	// Zero references to other memory allocations. This allows them to be GC'd even when the Rows still referenced. In
+	// particular, when using pgxpool GC could be delayed as pgxpool.poolRows are allocated in large slices.
+	//
+	// https://github.com/jackc/pgx/pull/2269
+	rows.values = nil
+	rows.scanPlans = nil
+	rows.scanTypes = nil
+	rows.ctx = nil
+	rows.sql = ""
+	rows.args = nil
 }
 
 func (rows *baseRows) CommandTag() pgconn.CommandTag {
@@ -272,7 +280,7 @@ func (rows *baseRows) Scan(dest ...any) error {
 
 		err := rows.scanPlans[i].Scan(values[i], dst)
 		if err != nil {
-			err = ScanArgError{ColumnIndex: i, Err: err}
+			err = ScanArgError{ColumnIndex: i, FieldName: fieldDescriptions[i].Name, Err: err}
 			rows.fatal(err)
 			return err
 		}
@@ -334,11 +342,16 @@ func (rows *baseRows) Conn() *Conn {
 
 type ScanArgError struct {
 	ColumnIndex int
+	FieldName   string
 	Err         error
 }
 
 func (e ScanArgError) Error() string {
-	return fmt.Sprintf("can't scan into dest[%d]: %v", e.ColumnIndex, e.Err)
+	if e.FieldName == "?column?" { // Don't include the fieldname if it's unknown
+		return fmt.Sprintf("can't scan into dest[%d]: %v", e.ColumnIndex, e.Err)
+	}
+
+	return fmt.Sprintf("can't scan into dest[%d] (col: %s): %v", e.ColumnIndex, e.FieldName, e.Err)
 }
 
 func (e ScanArgError) Unwrap() error {
@@ -366,7 +379,7 @@ func ScanRow(typeMap *pgtype.Map, fieldDescriptions []pgconn.FieldDescription, v
 
 		err := typeMap.Scan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], d)
 		if err != nil {
-			return ScanArgError{ColumnIndex: i, Err: err}
+			return ScanArgError{ColumnIndex: i, FieldName: fieldDescriptions[i].Name, Err: err}
 		}
 	}
 
@@ -468,6 +481,8 @@ func CollectOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 		return value, err
 	}
 
+	// The defer rows.Close() won't have executed yet. If the query returned more than one row, rows would still be open.
+	// rows.Close() must be called before rows.Err() so we explicitly call it here.
 	rows.Close()
 	return value, rows.Err()
 }
@@ -514,7 +529,7 @@ func RowTo[T any](row CollectableRow) (T, error) {
 	return value, err
 }
 
-// RowTo returns a the address of a T scanned from row.
+// RowToAddrOf returns the address of a T scanned from row.
 func RowToAddrOf[T any](row CollectableRow) (*T, error) {
 	var value T
 	err := row.Scan(&value)
@@ -545,7 +560,7 @@ func (rs *mapRowScanner) ScanRow(rows Rows) error {
 	return nil
 }
 
-// RowToStructByPos returns a T scanned from row. T must be a struct. T must have the same number a public fields as row
+// RowToStructByPos returns a T scanned from row. T must be a struct. T must have the same number of public fields as row
 // has fields. The row and T fields will be matched by position. If the "db" struct tag is "-" then the field will be
 // ignored.
 func RowToStructByPos[T any](row CollectableRow) (T, error) {
@@ -797,7 +812,7 @@ func computeNamedStructFields(
 			if !dbTagPresent {
 				colName = sf.Name
 			}
-			fpos := fieldPosByName(fldDescs, colName)
+			fpos := fieldPosByName(fldDescs, colName, !dbTagPresent)
 			if fpos == -1 {
 				if missingField == "" {
 					missingField = colName
@@ -816,19 +831,24 @@ func computeNamedStructFields(
 
 const structTagKey = "db"
 
-func fieldPosByName(fldDescs []pgconn.FieldDescription, field string) (i int) {
+func fieldPosByName(fldDescs []pgconn.FieldDescription, field string, normalize bool) (i int) {
 	i = -1
-	for i, desc := range fldDescs {
 
-		// Snake case support.
+	if normalize {
 		field = strings.ReplaceAll(field, "_", "")
-		descName := strings.ReplaceAll(desc.Name, "_", "")
-
-		if strings.EqualFold(descName, field) {
-			return i
+	}
+	for i, desc := range fldDescs {
+		if normalize {
+			if strings.EqualFold(strings.ReplaceAll(desc.Name, "_", ""), field) {
+				return i
+			}
+		} else {
+			if desc.Name == field {
+				return i
+			}
 		}
 	}
-	return
+	return i
 }
 
 // structRowField describes a field of a struct.

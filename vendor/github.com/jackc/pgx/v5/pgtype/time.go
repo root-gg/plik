@@ -19,24 +19,28 @@ type TimeValuer interface {
 
 // Time represents the PostgreSQL time type. The PostgreSQL time is a time of day without time zone.
 //
-// Time is represented as the number of microseconds since midnight in the same way that PostgreSQL does. Other time
-// and date types in pgtype can use time.Time as the underlying representation. However, pgtype.Time type cannot due
-// to needing to handle 24:00:00. time.Time converts that to 00:00:00 on the following day.
+// Time is represented as the number of microseconds since midnight in the same way that PostgreSQL does. Other time and
+// date types in pgtype can use time.Time as the underlying representation. However, pgtype.Time type cannot due to
+// needing to handle 24:00:00. time.Time converts that to 00:00:00 on the following day.
+//
+// The time with time zone type is not supported. Use of time with time zone is discouraged by the PostgreSQL documentation.
 type Time struct {
 	Microseconds int64 // Number of microseconds since midnight
 	Valid        bool
 }
 
+// ScanTime implements the [TimeScanner] interface.
 func (t *Time) ScanTime(v Time) error {
 	*t = v
 	return nil
 }
 
+// TimeValue implements the [TimeValuer] interface.
 func (t Time) TimeValue() (Time, error) {
 	return t, nil
 }
 
-// Scan implements the database/sql Scanner interface.
+// Scan implements the [database/sql.Scanner] interface.
 func (t *Time) Scan(src any) error {
 	if src == nil {
 		*t = Time{}
@@ -56,7 +60,7 @@ func (t *Time) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T", src)
 }
 
-// Value implements the database/sql/driver Valuer interface.
+// Value implements the [database/sql/driver.Valuer] interface.
 func (t Time) Value() (driver.Value, error) {
 	if !t.Valid {
 		return nil, nil
@@ -135,7 +139,6 @@ func (encodePlanTimeCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 }
 
 func (TimeCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
-
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
