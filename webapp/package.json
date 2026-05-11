@@ -21,7 +21,7 @@
     "highlight.js": "^11.11.1",
     "markdown-it": "^14.1.1",
     "marked": "^17.0.1",
-    "mermaid": "^11.12.3",
+    "mermaid": "^11.15.0",
     "tailwindcss": "^4.1.18",
     "vue": "^3.5.25",
     "vue-i18n": "^11.3.0",
