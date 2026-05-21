@@ -347,3 +347,53 @@ secrets:
   # Injected as `PLIKD_METADATA_BACKEND_CONFIG` JSON.
   metadataBackend: {}
   #   Password: ""
+
+# -- Extra Kubernetes objects to deploy alongside the chart.
+# Supports three forms — choose based on your values file strategy:
+#
+# ── Form 1: dict (recommended when using multiple values files) ────────────────
+# Helm performs a deep merge on dicts, so each values file can add its own key
+# without overwriting keys defined in other files.
+#
+# extraObjects:
+#   my-external-secret:
+#     apiVersion: external-secrets.io/v1beta1
+#     kind: ExternalSecret
+#     metadata:
+#       name: plik-external-secret
+#     spec:
+#       secretStoreRef:
+#         name: my-store
+#         kind: ClusterSecretStore
+#       target:
+#         name: plik-secret
+#       data:
+#         - secretKey: PLIKD_GOOGLE_API_SECRET
+#           remoteRef:
+#             key: plik/google-api-secret
+#
+# ── Form 2: list (simple, single values file) ─────────────────────────────────
+# Convenient when everything is in one file. Note: a second -f file will replace
+# the entire list, not append to it.
+#
+# extraObjects:
+#   - apiVersion: v1
+#     kind: ConfigMap
+#     metadata:
+#       name: my-extra-config
+#     data:
+#       foo: bar
+#
+# ── Form 3: string (alternative to list for single-file use) ──────────────────
+# Same merge behaviour as a list (last file wins), but Go template expressions
+# are supported inline (e.g. {{ include "plik.fullname" . }}).
+#
+# extraObjects: |
+#   - apiVersion: v1
+#     kind: ConfigMap
+#     metadata:
+#       name: {{ include "plik.fullname" . }}-extra
+#     data:
+#       foo: bar
+extraObjects: {}
+
