@@ -73,9 +73,18 @@ func (user *User) NewToken() (token *Token) {
 	return token
 }
 
-// NewToken add a new token to a user
+// String returns the user ID (as expected by the CLI --login flag) followed by
+// the login when it differs from the ID (OIDC users are keyed by the sub claim
+// while their login holds the preferred username), then name and email.
 func (user *User) String() string {
-	str := user.Provider + ":" + user.Login
+	id := user.ID
+	if id == "" {
+		id = GetUserID(user.Provider, user.Login)
+	}
+	str := id
+	if id != GetUserID(user.Provider, user.Login) {
+		str += " " + user.Login
+	}
 	if user.Name != "" {
 		str += " " + user.Name
 	}

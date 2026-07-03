@@ -42,6 +42,14 @@ plikd user create --login bob --max-file-size 100MB --max-user-size 1GB --max-tt
 plikd user list
 ```
 
+::: tip OIDC users
+OIDC users are identified by their `sub` claim, not by their username. `plikd user list` prints the real ID (e.g. `oidc:8f9d056a-1dab-3192-f1ae-552e024d948e`) followed by the username — pass the full ID part after `oidc:` as `--login` to `show`, `update`, `delete` and `token` commands:
+
+```bash
+plikd user update --provider oidc --login 8f9d056a-1dab-3192-f1ae-552e024d948e --admin
+```
+:::
+
 ### Show user details
 
 ```bash

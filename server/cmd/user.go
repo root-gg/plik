@@ -107,6 +107,17 @@ func init() {
 	userCmd.AddCommand(deleteUserCmd)
 }
 
+// userNotFoundError returns the message shown when a user lookup fails.
+// OIDC users are keyed by the sub claim, not by their displayed login,
+// so hint at how to find the right identifier.
+func userNotFoundError(provider string, userID string) string {
+	msg := fmt.Sprintf("User %s not found", userID)
+	if provider == common.ProviderOIDC {
+		msg += "\nOIDC users are identified by their 'sub' claim : run 'plikd user list' and pass the ID part after 'oidc:' as --login"
+	}
+	return msg
+}
+
 // parseMaxSize parses a human-readable byte size flag value.
 // Returns -1 for unlimited, 0 for unset, or the parsed byte count.
 func parseMaxSize(flagName string, s string) int64 {
@@ -225,7 +236,7 @@ func showUser(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 	if user == nil {
-		fmt.Printf("User %s not found\n", userID)
+		fmt.Println(userNotFoundError(userParams.provider, userID))
 		os.Exit(1)
 	}
 
@@ -257,7 +268,7 @@ func updateUser(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 	if user == nil {
-		fmt.Printf("User %s not found\n", userID)
+		fmt.Println(userNotFoundError(userParams.provider, userID))
 		os.Exit(1)
 	}
 
@@ -366,7 +377,7 @@ func deleteUser(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 	if user == nil {
-		fmt.Printf("user %s not found\n", userID)
+		fmt.Println(userNotFoundError(userParams.provider, userID))
 		os.Exit(1)
 	}
 
