@@ -88,7 +88,7 @@ func createToken(cmd *cobra.Command, args []string) {
 	}
 
 	if user == nil {
-		fmt.Printf("User %s not found\n", userID)
+		fmt.Println(userNotFoundError(tokenParams.provider, userID))
 		os.Exit(1)
 	}
 
