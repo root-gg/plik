@@ -17,11 +17,11 @@
     "@tailwindcss/vite": "^4.1.18",
     "age-encryption": "^0.3.0",
     "codemirror": "^6.0.2",
-    "dompurify": "^3.4.1",
+    "dompurify": "^3.4.11",
     "highlight.js": "^11.11.1",
-    "markdown-it": "^14.1.1",
+    "markdown-it": "^14.2.0",
     "marked": "^17.0.1",
-    "mermaid": "^11.12.3",
+    "mermaid": "^11.15.0",
     "tailwindcss": "^4.1.18",
     "vue": "^3.5.25",
     "vue-i18n": "^11.3.0",
@@ -32,7 +32,7 @@
     "@vitejs/plugin-vue": "^6.0.2",
     "@vue/test-utils": "^2.2.7",
     "jsdom": "^29.0.1",
-    "vite": "^8.0.5",
+    "vite": "^8.0.16",
     "vitest": "^4.0.18"
   }
 }
