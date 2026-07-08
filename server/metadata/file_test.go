@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -266,4 +267,49 @@ func TestBackend_ForEachFile(t *testing.T) {
 	}
 	err = b.ForEachFile(f)
 	require.Errorf(t, err, "expected")
+}
+
+// documentedImmutableFileColumns are the common.File fields UpdateFile
+// deliberately does not persist, matching the comment on updatableFileColumns:
+// ID/UploadID/CreatedAt are immutable identity/audit columns, and
+// DownloadCount/LastDownloadedAt are owned by the download recording path
+// (server/metadata/stats_download.go), never by UpdateFile.
+var documentedImmutableFileColumns = map[string]bool{
+	"ID":               true,
+	"UploadID":         true,
+	"CreatedAt":        true,
+	"DownloadCount":    true,
+	"LastDownloadedAt": true,
+}
+
+// TestUpdatableFileColumnsMatchesSchema is the maintenance-rule tripwire for
+// updatableFileColumns: it reflects over common.File and asserts every field
+// is either listed in updatableFileColumns or in the small, explicitly
+// documented exclusion set above, and that neither list contains a field the
+// other one also claims. Adding a field to common.File without updating one
+// of the two lists fails this test, instead of silently leaving a new column
+// unwritten by UpdateFile (or wrongly writable when it should be immutable).
+func TestUpdatableFileColumnsMatchesSchema(t *testing.T) {
+	updatable := make(map[string]bool, len(updatableFileColumns))
+	for _, name := range updatableFileColumns {
+		require.False(t, updatable[name], "duplicate column %q in updatableFileColumns", name)
+		updatable[name] = true
+	}
+
+	typ := reflect.TypeFor[common.File]()
+	seen := make(map[string]bool, typ.NumField())
+	for field := range typ.Fields() {
+		seen[field.Name] = true
+		if documentedImmutableFileColumns[field.Name] {
+			require.Falsef(t, updatable[field.Name],
+				"%q is documented as immutable/owned elsewhere but is also listed in updatableFileColumns", field.Name)
+			continue
+		}
+		require.Truef(t, updatable[field.Name],
+			"common.File.%s has no entry in updatableFileColumns and is not in the documented exclusion set; add one or the other", field.Name)
+	}
+
+	for name := range updatable {
+		require.Truef(t, seen[name], "updatableFileColumns entry %q has no matching common.File field", name)
+	}
 }

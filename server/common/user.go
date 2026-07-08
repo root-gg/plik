@@ -37,7 +37,8 @@ type User struct {
 	MaxUserSize int64 `json:"maxUserSize"`
 	MaxTTL      int   `json:"maxTTL"`
 
-	Tokens []*Token `json:"tokens,omitempty"`
+	Tokens []*Token   `json:"tokens,omitempty"`
+	Stats  *UserStats `json:"stats,omitempty" gorm:"-"`
 
 	CreatedAt time.Time `json:"createdAt"`
 }

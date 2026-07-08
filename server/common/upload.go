@@ -35,6 +35,20 @@ type Upload struct {
 	Login               string `json:"login,omitempty"`
 	Password            string `json:"password,omitempty"`
 
+	DownloadCount    int64      `json:"downloadCount" gorm:"index:idx_upload_download_count"`
+	LastDownloadedAt *time.Time `json:"lastDownloadedAt,omitempty"`
+
+	// DownloadedBytes is the lifetime bytes served (egress) for this upload's
+	// files, accumulated on every response that streams file bytes — including
+	// mid-range GETs that are not download events — exactly like DownloadCount
+	// mirrors download events. See server/metadata/stats_download.go for the
+	// recording paths and server/ARCHITECTURE.md "Download Counting Policy" for
+	// the full accounting rules. Symmetric with DownloadCount for sanitization,
+	// sorting, and display; not folded into usage_stats on migration backfill
+	// or import (see server/metadata/upload.go CreateUpload) to avoid
+	// double-counting against the usage/rollup byte paths.
+	DownloadedBytes int64 `json:"downloadedBytes" gorm:"index:idx_upload_downloaded_bytes"`
+
 	CreatedAt time.Time      `json:"createdAt"`
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index:idx_upload_deleted_at"`
 	ExpireAt  *time.Time     `json:"expireAt" gorm:"index:idx_upload_expire_at"`
@@ -106,12 +120,19 @@ func (upload *Upload) Sanitize(config *Configuration) {
 
 	if !upload.IsAdmin {
 		upload.UploadToken = ""
+		upload.DownloadCount = 0
+		upload.DownloadedBytes = 0
+		upload.LastDownloadedAt = nil
 	}
 
 	upload.DownloadDomain = config.DownloadDomain // kept for backward compatibility
 	upload.DownloadURL = config.DownloadURL       // new: includes Path
 	for _, file := range upload.Files {
 		file.Sanitize()
+		if !upload.IsAdmin {
+			file.DownloadCount = 0
+			file.LastDownloadedAt = nil
+		}
 	}
 }
 
