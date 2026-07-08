@@ -409,3 +409,81 @@ func TestHealth(t *testing.T) {
 	Health(ctx, rr, req)
 	context.TestOK(t, rr)
 }
+
+func TestIsUploadSort(t *testing.T) {
+	require.True(t, isUploadSort(""))
+	require.True(t, isUploadSort("date"))
+	require.True(t, isUploadSort("size"))
+	require.True(t, isUploadSort("downloads"))
+	require.True(t, isUploadSort("downloadedBytes"))
+	require.False(t, isUploadSort("lifetimeSize"))
+	require.False(t, isUploadSort("wat"))
+}
+
+func TestParseTrendingWindow(t *testing.T) {
+	for _, path := range []string{
+		"/stats/trending/uploads",
+		"/stats/trending/uploads?window=all",
+		"/stats/trending/uploads?window=1d",
+		"/stats/trending/uploads?window=7d",
+		"/stats/trending/uploads?window=30d",
+	} {
+		req, err := http.NewRequest("GET", path, bytes.NewBuffer([]byte{}))
+		require.NoError(t, err, "unable to create new request")
+		_, err = parseTrendingWindow(req)
+		require.NoError(t, err)
+	}
+
+	req, err := http.NewRequest("GET", "/stats/trending/uploads?window=bad", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+	_, err = parseTrendingWindow(req)
+	require.Error(t, err)
+}
+
+func TestParseTrendingLimit(t *testing.T) {
+	req, err := http.NewRequest("GET", "/stats/trending/uploads", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+	limit, err := parseTrendingLimit(req)
+	require.NoError(t, err)
+	require.Equal(t, 20, limit)
+
+	req, err = http.NewRequest("GET", "/stats/trending/uploads?limit=5", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+	limit, err = parseTrendingLimit(req)
+	require.NoError(t, err)
+	require.Equal(t, 5, limit)
+
+	req, err = http.NewRequest("GET", "/stats/trending/uploads?limit=101", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+	limit, err = parseTrendingLimit(req)
+	require.NoError(t, err)
+	require.Equal(t, 100, limit)
+
+	req, err = http.NewRequest("GET", "/stats/trending/uploads?limit=0", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+	_, err = parseTrendingLimit(req)
+	require.Error(t, err)
+
+	req, err = http.NewRequest("GET", "/stats/trending/uploads?limit=wat", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+	_, err = parseTrendingLimit(req)
+	require.Error(t, err)
+}
+
+func TestParseTrendingSort(t *testing.T) {
+	for _, path := range []string{
+		"/stats/trending/uploads",
+		"/stats/trending/uploads?sort=downloads",
+		"/stats/trending/uploads?sort=downloadedBytes",
+	} {
+		req, err := http.NewRequest("GET", path, bytes.NewBuffer([]byte{}))
+		require.NoError(t, err, "unable to create new request")
+		_, err = parseTrendingSort(req)
+		require.NoError(t, err)
+	}
+
+	req, err := http.NewRequest("GET", "/stats/trending/uploads?sort=bad", bytes.NewBuffer([]byte{}))
+	require.NoError(t, err, "unable to create new request")
+	_, err = parseTrendingSort(req)
+	require.Error(t, err)
+}

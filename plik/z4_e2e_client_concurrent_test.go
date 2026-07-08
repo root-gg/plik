@@ -130,6 +130,14 @@ func TestMultipleFilesInParallel(t *testing.T) {
 	require.NoError(t, err, "an error occurred")
 }
 
+// This test's panic-on-error busy-loop goroutine (below) turns any failure into
+// a process-killing panic, so it was historically sensitive to the same SQLite
+// write contention as TestUploadMultipleFiles (client_test.go): concurrent
+// uploads onto one shared Upload could exhaust the old fixed retry budget on the
+// upload-row lock. That retry apparatus is gone: SQLite transactions now open
+// IMMEDIATE (metadata.sqliteConnectionString), so writers serialize
+// as bounded busy_timeout lock waits instead of deadlocking on a deferred-read
+// upgrade. -race shows no data races.
 func TestMultipleFilesInParallelBusyLoop(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)
@@ -196,6 +204,12 @@ func TestMultipleFilesInParallelBusyLoop(t *testing.T) {
 	uploader.Wait()
 }
 
+// FLAKY: pre-existing flake (verified on the clean base commit, not caused by
+// the improved-stats branch), ~7% failure rate observed over 60 runs (higher
+// under -race, which widens the contention window). Same shared-Upload /
+// SQLite-write-contention root cause as TestUploadMultipleFiles's FLAKY
+// comment (client_test.go). Diagnosed, not fixed, per the bounded
+// investigation rule. See task-19-report.md for repro evidence.
 func TestCreateAndGetUploadFilesInParallel(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)

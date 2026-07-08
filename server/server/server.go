@@ -464,6 +464,8 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 	router.Handle("/me/uploads", authenticatedChain.Append(middleware.Paginate).Then(handlers.GetUserUploads)).Methods("GET")
 	router.Handle("/me/uploads", authenticatedChain.Then(handlers.RemoveUserUploads)).Methods("DELETE")
 	router.Handle("/me/stats", authenticatedChain.Then(handlers.GetUserStatistics)).Methods("GET")
+	router.Handle("/me/stats/activity/daily", authenticatedChain.Then(handlers.GetUserActivityDaily)).Methods("GET")
+	router.Handle("/me/stats/trending/uploads", authenticatedChain.Then(handlers.GetUserTrendingUploads)).Methods("GET")
 
 	router.Handle("/user/{userID}", userChain.Then(handlers.UserInfo)).Methods("GET")
 	router.Handle("/user/{userID}", userChain.Then(handlers.UpdateUser)).Methods("POST")
@@ -471,6 +473,9 @@ func (ps *PlikServer) getHTTPHandler() (handler http.Handler) {
 
 	router.Handle("/user", adminChain.Then(handlers.CreateUser)).Methods("POST")
 	router.Handle("/stats", adminChain.Then(handlers.GetServerStatistics)).Methods("GET")
+	router.Handle("/stats/activity/daily", adminChain.Then(handlers.GetServerActivityDaily)).Methods("GET")
+	router.Handle("/stats/trending/uploads", adminChain.Then(handlers.GetTrendingUploads)).Methods("GET")
+	router.Handle("/stats/trending/files", adminChain.Then(handlers.GetTrendingFiles)).Methods("GET")
 	router.Handle("/users/search", adminChain.Then(handlers.SearchUsers)).Methods("GET")
 	router.Handle("/users", adminChain.Append(middleware.Paginate).Then(handlers.GetUsers)).Methods("GET")
 	router.Handle("/uploads", adminChain.Append(middleware.Paginate).Then(handlers.GetUploads)).Methods("GET")

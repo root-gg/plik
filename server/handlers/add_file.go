@@ -22,6 +22,21 @@ type preprocessOutputReturn struct {
 	err      error
 }
 
+// recordUploadedBytesBestEffort records the wire bytes received (ingress) for an
+// upload whose transfer failed before the fused completion transaction (a stream
+// error, aborted transfer, or backend write failure). Stats availability must not
+// block or fail an upload, so a recording failure is logged and swallowed
+// (single-shot, best-effort). A zero/negative count is a no-op.
+func recordUploadedBytesBestEffort(ctx *context.Context, upload *common.Upload, bytes int64) {
+	if bytes <= 0 {
+		return
+	}
+	err := ctx.GetMetadataBackend().RecordUploadedBytes(upload, bytes)
+	if err != nil {
+		ctx.GetLogger().Warningf("unable to record upload statistics : %s", err)
+	}
+}
+
 // AddFile add a file to an existing upload.
 func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
 	log := ctx.GetLogger()
@@ -125,13 +140,23 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		return
 	}
 
+	// Count the wire bytes actually received from the client (ingress). Wrapping
+	// the multipart "file" part — which already strips framing — means the count
+	// is exactly the file content bytes flowing to the preprocessor and backend,
+	// excluding multipart framing overhead. On success the fused completion
+	// transaction records file.Size (equal to this count for a fully consumed
+	// stream); on a failure before completion we record this partial count
+	// best-effort (single-shot) so partial/aborted transfers are still
+	// counted as ingress.
+	countingFileReader := newCountingReader(fileReader)
+
 	// Pipe file data from the request body to a preprocessing goroutine
 	//  - Guess content type
 	//  - Compute/Limit upload size
 	//  - Compute md5sum
 	preprocessReader, preprocessWriter := io.Pipe()
 	preprocessOutputCh := make(chan preprocessOutputReturn)
-	go preprocessor(ctx, fileReader, preprocessWriter, preprocessOutputCh)
+	go preprocessor(ctx, countingFileReader, preprocessWriter, preprocessOutputCh)
 
 	// Reset file.Size — the pre-populated value from createUpload is unreliable
 	// (e.g. wrong for E2EE uploads where encryption changes the size).
@@ -156,6 +181,11 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	err = backend.AddFile(file, preprocessReader)
 	if err != nil {
 		ctx.InternalServerError("unable to save file", err)
+		// Best-effort ingress recording of the partial bytes read before the
+		// backend failed (single-shot, never fails the request). The fused
+		// completion transaction never runs on this path, so there is no double
+		// count.
+		recordUploadedBytesBestEffort(ctx, upload, countingFileReader.bytesRead())
 		if upload.Stream {
 			// Stream uploads store nothing on disk — skip purge and reset to
 			// FileMissing so the frontend can retry with the same file ID.
@@ -174,6 +204,10 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 	if preprocessOutput.err != nil {
 		// TODO : file status is left to common.FileUploading we should set it to some common.FileUploadError
 		// TODO : or we can set it back to common.FileMissing if we are sure data backends will handle that
+		// Stream error / aborted transfer / size-limit: record the partial ingress
+		// bytes best-effort (single-shot). The fused completion transaction
+		// never runs on this path, so there is no double count.
+		recordUploadedBytesBestEffort(ctx, upload, countingFileReader.bytesRead())
 		handleHTTPError(ctx, preprocessOutput.err)
 		cleanup()
 		return

@@ -130,6 +130,67 @@ func TestAddStreamFileWithID(t *testing.T) {
 	require.Equal(t, int64(len(content)), fileResult.Size, "invalid file size")
 }
 
+// TestAddFileRecordsUploadedBytes pins the SUCCESS-path wire-byte ingress: a
+// completed AddFile records exactly the file's wire bytes into the lifetime
+// uploaded_bytes counter and today's upload rollup.
+func TestAddFileRecordsUploadedBytes(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	upload := &common.Upload{IsAdmin: true}
+	file := upload.NewFile()
+	file.Name = "file"
+	createTestUpload(t, ctx, upload)
+
+	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(content)))
+	require.NoError(t, err, "unable get multipart form data")
+
+	req := getUploadRequest(t, upload, file, reader, contentType)
+	rr := ctx.NewRecorder(req)
+	AddFile(ctx, rr, req)
+	context.TestOK(t, rr)
+
+	// Lifetime uploaded_bytes counter (server scope) reflects the wire bytes.
+	stats, err := ctx.GetMetadataBackend().GetServerStatistics()
+	require.NoError(t, err)
+	require.Equal(t, int64(len(content)), stats.Usage.Uploads.Bytes, "server uploaded_bytes counter")
+
+	// Today's upload rollup carries the same wire bytes.
+	series, err := ctx.GetMetadataBackend().GetServerActivityStatsDaily(1)
+	require.NoError(t, err)
+	require.Len(t, series, 1)
+	require.Equal(t, int64(len(content)), series[0].UploadedBytes, "today's rollup uploaded bytes")
+}
+
+// TestAddFilePartialUploadedBytesOnSizeLimit pins the FAILURE-path best-effort
+// recording: a transfer aborted by the size limit still records the partial
+// wire bytes read off the client, and the request fails without a completed file.
+func TestAddFilePartialUploadedBytesOnSizeLimit(t *testing.T) {
+	config := common.NewConfiguration()
+	config.MaxFileSize = 4 // below len(content) so the preprocessor aborts mid-stream
+	ctx := newTestingContext(config)
+
+	upload := &common.Upload{IsAdmin: true}
+	file := upload.NewFile()
+	file.Name = "file"
+	createTestUpload(t, ctx, upload)
+
+	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(content)))
+	require.NoError(t, err, "unable get multipart form data")
+
+	req := getUploadRequest(t, upload, file, reader, contentType)
+	rr := ctx.NewRecorder(req)
+	AddFile(ctx, rr, req)
+	context.TestBadRequest(t, rr, "file too big")
+
+	// The partial wire bytes read before the abort were recorded best-effort.
+	stats, err := ctx.GetMetadataBackend().GetServerStatistics()
+	require.NoError(t, err)
+	require.Equal(t, int64(len(content)), stats.Usage.Uploads.Bytes, "partial wire bytes recorded on abort")
+
+	// No completed file: the upload's current file count stays zero.
+	require.Equal(t, 0, stats.Files, "aborted upload must not complete a file")
+}
+
 func TestAddFileWithoutID(t *testing.T) {
 	ctx := newTestingContext(common.NewConfiguration())
 
@@ -663,6 +724,38 @@ func TestAddFileMaxUserSizeOK(t *testing.T) {
 
 func TestAddFileMaxUserSizeKO(t *testing.T) {
 	testAddFileMaxUserSize(t, false)
+}
+
+func TestAddFileOverQuotaCompletedTransferCountsEverStats(t *testing.T) {
+	ctx := newTestingContext(common.NewConfiguration())
+
+	user := common.NewUser(common.ProviderLocal, "quota-ever")
+	user.MaxUserSize = int64(len(content) - 1)
+	err := ctx.GetMetadataBackend().CreateUser(user)
+	require.NoError(t, err)
+	ctx.SetUser(user)
+
+	upload := &common.Upload{IsAdmin: true, User: user.ID}
+	file := upload.NewFile()
+	file.Name = "file"
+	createTestUpload(t, ctx, upload)
+
+	reader, contentType, err := getMultipartFormData(file.Name, bytes.NewBuffer([]byte(content)))
+	require.NoError(t, err, "unable get multipart form data")
+
+	req := getUploadRequest(t, upload, file, reader, contentType)
+	rr := ctx.NewRecorder(req)
+	AddFile(ctx, rr, req)
+	context.TestBadRequest(t, rr, "maximum user upload size reached")
+
+	stats, err := ctx.GetMetadataBackend().GetUserStatistics(user.ID, nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, stats.Uploads)
+	require.Equal(t, 0, stats.Files)
+	require.Equal(t, int64(0), stats.TotalSize)
+	require.Equal(t, 1, stats.Usage.Lifetime.Uploads)
+	require.Equal(t, 1, stats.Usage.Lifetime.Files)
+	require.Equal(t, int64(len(content)), stats.Usage.Lifetime.TotalSize)
 }
 
 func TestAddFileE2EEMimeType(t *testing.T) {
