@@ -18,6 +18,15 @@ const (
 	metadataTypeUser
 	metadataTypeToken
 	metadataTypeSetting
+	metadataTypeDownloadStatsDaily
+	metadataTypeUploadStatsDaily
+	// metadataTypeUsageStatsTombstone carries the ("__deleted__","") usage row.
+	// It is appended last so its numeric value stays stable and old exports that
+	// predate it simply lack the record. It is the only usage_stats row exported
+	// as a record: user/token/anonymous rows are rebuilt from imported metadata,
+	// but a deleted user's uploads are gone, so its folded counters have no other
+	// rebuild source.
+	metadataTypeUsageStatsTombstone
 )
 
 type object struct {
@@ -49,6 +58,9 @@ func newExporter(path string) (e *exporter, err error) {
 	gob.Register(&common.User{})
 	gob.Register(&common.Token{})
 	gob.Register(&common.Setting{})
+	gob.Register(&common.DownloadStatsDaily{})
+	gob.Register(&common.UploadStatsDaily{})
+	gob.Register(&common.UsageStats{})
 	e.encoder = gob.NewEncoder(e.compressor)
 
 	return e, nil
@@ -76,6 +88,21 @@ func (e *exporter) addToken(token *common.Token) (err error) {
 
 func (e *exporter) addSetting(setting *common.Setting) (err error) {
 	obj := &object{Type: metadataTypeSetting, Object: setting}
+	return e.encoder.Encode(obj)
+}
+
+func (e *exporter) addDownloadStatsDaily(stats *common.DownloadStatsDaily) (err error) {
+	obj := &object{Type: metadataTypeDownloadStatsDaily, Object: stats}
+	return e.encoder.Encode(obj)
+}
+
+func (e *exporter) addUploadStatsDaily(stats *common.UploadStatsDaily) (err error) {
+	obj := &object{Type: metadataTypeUploadStatsDaily, Object: stats}
+	return e.encoder.Encode(obj)
+}
+
+func (e *exporter) addUsageStatsTombstone(stats *common.UsageStats) (err error) {
+	obj := &object{Type: metadataTypeUsageStatsTombstone, Object: stats}
 	return e.encoder.Encode(obj)
 }
 
@@ -155,6 +182,40 @@ func (b *Backend) Export(path string) (err error) {
 		return err
 	}
 	b.log.Infof("exported %d settings", count)
+
+	count = 0
+	err = b.ForEachDownloadStatsDaily(func(stats *common.DownloadStatsDaily) error {
+		count++
+		return e.addDownloadStatsDaily(stats)
+	})
+	if err != nil {
+		return err
+	}
+	b.log.Infof("exported %d daily download stats", count)
+
+	count = 0
+	err = b.ForEachUploadStatsDaily(func(stats *common.UploadStatsDaily) error {
+		count++
+		return e.addUploadStatsDaily(stats)
+	})
+	if err != nil {
+		return err
+	}
+	b.log.Infof("exported %d daily upload stats", count)
+
+	// The deleted-user tombstone is the only usage_stats row not rebuildable from
+	// imported metadata, so it is exported as its own record.
+	tombstone, err := b.GetDeletedUsageTombstone()
+	if err != nil {
+		return err
+	}
+	if tombstone != nil {
+		err = e.addUsageStatsTombstone(tombstone)
+		if err != nil {
+			return err
+		}
+		b.log.Infof("exported deleted-user usage tombstone")
+	}
 
 	return nil
 }

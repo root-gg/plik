@@ -41,7 +41,7 @@ const FileDeleted = "deleted"
 // File object
 type File struct {
 	ID       string `json:"id"`
-	UploadID string `json:"-" gorm:"size:256;constraint:OnUpdate:RESTRICT,OnDelete:RESTRICT;"`
+	UploadID string `json:"-" gorm:"size:256;index:idx_file_upload_id;constraint:OnUpdate:RESTRICT,OnDelete:RESTRICT;"`
 	Name     string `json:"fileName"`
 
 	Status string `json:"status"`
@@ -53,6 +53,9 @@ type File struct {
 	Reference string `json:"reference"`
 
 	BackendDetails string `json:"-"`
+
+	DownloadCount    int64      `json:"downloadCount"`
+	LastDownloadedAt *time.Time `json:"lastDownloadedAt,omitempty"`
 
 	CreatedAt time.Time `json:"createdAt"`
 }

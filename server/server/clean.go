@@ -102,7 +102,27 @@ func (ps *PlikServer) Clean() {
 	stats.OrphanFilesCleaned = files
 	stats.OrphanTokensCleaned = tokens
 
-	// 5 - clean expired CLI auth sessions
+	// 5 - prune old daily download rollups
+	downloadStatsDaily, err := ps.metadataBackend.DeleteExpiredDownloadStatsDaily()
+	if downloadStatsDaily > 0 {
+		log.Infof("cleaned %d old daily download stats rows", downloadStatsDaily)
+	}
+	if err != nil {
+		log.Warning(err.Error())
+	}
+	stats.DownloadStatsDailyCleaned = downloadStatsDaily
+
+	// 5b - prune old daily upload rollups (same today+30 retention)
+	uploadStatsDaily, err := ps.metadataBackend.DeleteExpiredUploadStatsDaily()
+	if uploadStatsDaily > 0 {
+		log.Infof("cleaned %d old daily upload stats rows", uploadStatsDaily)
+	}
+	if err != nil {
+		log.Warning(err.Error())
+	}
+	stats.UploadStatsDailyCleaned = uploadStatsDaily
+
+	// 6 - clean expired CLI auth sessions
 	cliSessions, err := ps.metadataBackend.DeleteExpiredCLIAuthSessions()
 	if cliSessions > 0 {
 		log.Infof("cleaned %d expired CLI auth sessions", cliSessions)

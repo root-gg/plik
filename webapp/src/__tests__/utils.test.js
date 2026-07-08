@@ -3,6 +3,7 @@ import {
     humanReadableSize,
     humanDuration,
     formatDate,
+    formatCount,
     ttlToSeconds,
     secondsToTTL,
     generateRef,
@@ -45,8 +46,8 @@ describe('humanReadableSize', () => {
         expect(humanReadableSize(500)).toBe('500 B')
     })
 
-    it('formats kilobytes', () => {
-        expect(humanReadableSize(1500)).toBe('1.50 kB')
+    it('formats kilobytes with uppercase KB (matches the distribution bucket labels\' casing)', () => {
+        expect(humanReadableSize(1500)).toBe('1.50 KB')
     })
 
     it('formats megabytes', () => {
@@ -113,6 +114,46 @@ describe('formatDate', () => {
         // Just check it contains expected parts
         expect(result).toContain('2024')
         expect(result).toContain('Jun')
+    })
+
+    it('defaults to the active vue-i18n locale (i18n.js starts at "en")', () => {
+        // No locale arg -> getLocale(); the app's i18n singleton starts at
+        // 'en' and nothing in this test file switches it.
+        expect(formatDate('2024-06-15T12:30:00Z')).toBe(formatDate('2024-06-15T12:30:00Z', 'en'))
+    })
+
+    it('threads an explicit locale override (French month names)', () => {
+        const iso = '2024-06-15T12:30:00Z'
+        const result = formatDate(iso, 'fr')
+        const reference = new Date(iso).toLocaleDateString('fr', {
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+        })
+        expect(result).toBe(reference)
+        expect(result).not.toBe(formatDate(iso, 'en'))
+    })
+})
+
+// ── formatCount ──
+
+describe('formatCount', () => {
+    it('returns "0" for non-finite input', () => {
+        expect(formatCount(null)).toBe('0')
+        expect(formatCount(undefined)).toBe('0')
+        expect(formatCount(NaN)).toBe('0')
+    })
+
+    it('groups thousands using the default (active i18n) locale', () => {
+        expect(formatCount(1234567)).toBe((1234567).toLocaleString('en'))
+    })
+
+    it('threads an explicit locale override (French grouping)', () => {
+        const result = formatCount(3946, 'fr')
+        const reference = (3946).toLocaleString('fr')
+        // Assert via the reference, not a hardcoded space character — French
+        // grouping may use a narrow no-break space (U+202F) depending on the
+        // ICU data, not a plain space.
+        expect(result).toBe(reference)
+        expect(result).not.toBe(formatCount(3946, 'en'))
     })
 })
 

@@ -1,18 +1,55 @@
 // Utility functions
 
+import { getLocale } from './i18n.js'
+
 /**
- * Format bytes into human-readable size string
+ * Format bytes into human-readable size string.
+ * Uses uppercase "KB" (not SI-lowercase "kB") to match the distribution
+ * bucket labels (statsPanel.fileSize*, e.g. "< 1 MB") — one consistent casing
+ * app-wide rather than a value formatter that disagrees with adjacent labels.
  */
 export function humanReadableSize(bytes) {
     if (bytes === 0) return '0 B'
     if (!bytes) return ''
 
-    const units = ['B', 'kB', 'MB', 'GB', 'TB']
+    const units = ['B', 'KB', 'MB', 'GB', 'TB']
     const k = 1000
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     const size = (bytes / Math.pow(k, i)).toFixed(i > 0 ? 2 : 0)
 
     return `${size} ${units[i]}`
+}
+
+/**
+ * Human-readable size that never renders empty: falls back to "0 B" when
+ * `bytes` is null/undefined/NaN (humanReadableSize itself returns '' there,
+ * which some header fields deliberately keep — this wrapper is for the many
+ * call sites that instead want an explicit zero).
+ */
+export function formatSizeOrZero(bytes) {
+    return humanReadableSize(bytes) || '0 B'
+}
+
+/**
+ * Format a count (integer) with locale-aware thousands grouping.
+ * Guards against null/undefined/NaN so callers never render "NaN".
+ * `locale` defaults to the active vue-i18n locale (getLocale()) so grouping
+ * follows the app's language picker instead of the browser's own locale;
+ * pass an explicit locale to override (used by tests).
+ */
+export function formatCount(value, locale) {
+    const n = Number(value)
+    if (!Number.isFinite(n)) return '0'
+    return n.toLocaleString(locale || getLocale())
+}
+
+/**
+ * Proportional percentage of a value against a total, clamped to [0, 100].
+ * Returns 0 when the total is missing or non-positive (e.g. empty datasets).
+ */
+export function ratioPercent(value, total) {
+    if (!total || total <= 0) return 0
+    return Math.min(100, Math.round((value || 0) * 100 / total))
 }
 
 /**
@@ -34,12 +71,15 @@ export function humanDuration(seconds) {
 }
 
 /**
- * Format a date for display
+ * Format a date for display.
+ * `locale` defaults to the active vue-i18n locale (getLocale()) so month
+ * names etc. follow the app's language picker instead of the browser's own
+ * locale; pass an explicit locale to override (used by tests).
  */
-export function formatDate(dateStr) {
+export function formatDate(dateStr, locale) {
     if (!dateStr) return ''
     const d = new Date(dateStr)
-    return d.toLocaleDateString(undefined, {
+    return d.toLocaleDateString(locale || getLocale(), {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
@@ -84,6 +124,29 @@ export function generateRef() {
  */
 export function encodeBasicAuth(login, password) {
     return btoa(`${login}:${password}`)
+}
+
+/**
+ * Return the first value from a Vue Router query param.
+ */
+export function firstQueryValue(value) {
+    return Array.isArray(value) ? value[0] : value
+}
+
+/**
+ * Parse list sort query values, falling back to date for missing/unknown sorts.
+ */
+export function sortFromQuery(value, allowed) {
+    const sort = firstQueryValue(value)
+    return allowed.includes(sort) ? sort : 'date'
+}
+
+/**
+ * Parse list order query values. Descending is the default list order.
+ */
+export function orderFromQuery(value) {
+    const order = firstQueryValue(value)
+    return order === 'asc' ? 'asc' : 'desc'
 }
 
 // ── Quota & unit conversion helpers ──

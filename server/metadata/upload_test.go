@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
 	"gorm.io/gorm"
 
 	"github.com/stretchr/testify/require"
@@ -478,32 +479,255 @@ func TestBackend_GetUploadsSortedBySize_Token(t *testing.T) {
 	require.Nil(t, cursor.After, "invalid non nil after cursor")
 }
 
+// uploadSortFamily parameterizes the two upload sort methods that differ by
+// exactly one seeded column (GetUploadsSortedByDownloads /
+// GetUploadsSortedByDownloadedBytes), so their identical test shapes —
+// pagination, zero-value ascending ordering, file preloading, user/token
+// filtering, and the desc tie-breaker rule — run once per family via
+// TestBackend_GetUploadsSortedByColumn instead of being hand-duplicated.
+type uploadSortFamily struct {
+	name   string
+	sortBy func(b *Backend, filters UploadFilters, withFiles bool, pagingQuery *common.PagingQuery) ([]*common.Upload, *paginator.Cursor, error)
+	seed   func(upload *common.Upload, value int64)
+	value  func(upload *common.Upload) int64
+}
+
+var uploadSortFamilies = []uploadSortFamily{
+	{
+		name: "Downloads",
+		sortBy: func(b *Backend, filters UploadFilters, withFiles bool, pagingQuery *common.PagingQuery) ([]*common.Upload, *paginator.Cursor, error) {
+			return b.GetUploadsSortedByDownloads(filters, withFiles, pagingQuery)
+		},
+		seed:  func(upload *common.Upload, value int64) { upload.DownloadCount = value },
+		value: func(upload *common.Upload) int64 { return upload.DownloadCount },
+	},
+	{
+		name: "DownloadedBytes",
+		sortBy: func(b *Backend, filters UploadFilters, withFiles bool, pagingQuery *common.PagingQuery) ([]*common.Upload, *paginator.Cursor, error) {
+			return b.GetUploadsSortedByDownloadedBytes(filters, withFiles, pagingQuery)
+		},
+		seed:  func(upload *common.Upload, value int64) { upload.DownloadedBytes = value },
+		value: func(upload *common.Upload) int64 { return upload.DownloadedBytes },
+	},
+}
+
+// TestBackend_GetUploadsSortedByColumn table-drives the two upload sort
+// families, which differ by exactly one paginator Rule. Both families
+// exercise the same five behaviors: basic + cursor pagination, zero-value
+// ascending ordering, file preloading, user/token filtering, and the desc
+// tie-breaker rule (CreatedAt, then ID). The tie-breaker case previously
+// existed only for the DownloadedBytes copy; both families now cover it.
+func TestBackend_GetUploadsSortedByColumn(t *testing.T) {
+	for _, family := range uploadSortFamilies {
+		t.Run(family.name, func(t *testing.T) {
+			t.Run("Paginated", func(t *testing.T) {
+				b := newTestMetadataBackend()
+				defer shutdownTestMetadataBackend(b)
+
+				for i := 1; i <= 100; i++ {
+					upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
+					family.seed(upload, int64(i))
+					createUpload(t, b, upload)
+				}
+
+				limit := 10
+				uploads, cursor, err := family.sortBy(b, UploadFilters{}, false, common.NewPagingQuery().WithLimit(limit))
+				require.NoError(t, err, "get upload error")
+				require.Len(t, uploads, limit, "invalid upload count")
+				require.NotNil(t, cursor, "invalid nil cursor")
+				require.Nil(t, cursor.Before, "invalid non nil before cursor")
+				require.NotNil(t, cursor.After, "invalid nil after cursor")
+
+				for i := range limit {
+					require.Equal(t, fmt.Sprintf("%d", 100-i), uploads[i].Comments, "invalid upload sequence")
+				}
+
+				//  Test forward cursor
+				uploads, cursor, err = family.sortBy(b, UploadFilters{}, false, common.NewPagingQuery().WithLimit(limit).WithAfterCursor(*cursor.After))
+				require.NoError(t, err, "get upload error")
+				require.Len(t, uploads, limit, "invalid upload count")
+				require.NotNil(t, cursor, "invalid nil cursor")
+				require.NotNil(t, cursor.Before, "invalid nil before cursor")
+				require.NotNil(t, cursor.After, "invalid nil after cursor")
+
+				for i := range limit {
+					require.Equal(t, fmt.Sprintf("%d", 100-limit-i), uploads[i].Comments, "invalid upload sequence")
+				}
+
+				//  Test backward cursor
+				uploads, cursor, err = family.sortBy(b, UploadFilters{}, false, common.NewPagingQuery().WithLimit(limit).WithBeforeCursor(*cursor.Before))
+				require.NoError(t, err, "get upload error")
+				require.Len(t, uploads, limit, "invalid upload count")
+				require.NotNil(t, cursor, "invalid nil cursor")
+				require.Nil(t, cursor.Before, "invalid non nil before cursor")
+				require.NotNil(t, cursor.After, "invalid nil after cursor")
+
+				for i := range limit {
+					require.Equal(t, fmt.Sprintf("%d", 100-i), uploads[i].Comments, "invalid upload sequence")
+				}
+			})
+
+			t.Run("AscAndZero", func(t *testing.T) {
+				b := newTestMetadataBackend()
+				defer shutdownTestMetadataBackend(b)
+
+				values := []int64{3, 0, 2, 0, 1}
+				for i, value := range values {
+					upload := &common.Upload{Comments: fmt.Sprintf("%d", i+1)}
+					family.seed(upload, value)
+					createUpload(t, b, upload)
+				}
+
+				uploads, _, err := family.sortBy(b, UploadFilters{}, false, common.NewPagingQuery().WithLimit(10).WithOrder("asc"))
+				require.NoError(t, err, "get upload error")
+				require.Len(t, uploads, len(values), "uploads without a seeded value should still appear")
+				require.Equal(t, int64(0), family.value(uploads[0]))
+				require.Equal(t, int64(0), family.value(uploads[1]))
+				require.Equal(t, int64(3), family.value(uploads[len(uploads)-1]))
+			})
+
+			t.Run("WithFiles", func(t *testing.T) {
+				b := newTestMetadataBackend()
+				defer shutdownTestMetadataBackend(b)
+
+				upload := &common.Upload{}
+				family.seed(upload, 1)
+				f := upload.NewFile()
+				f.Status = common.FileUploaded
+				createUpload(t, b, upload)
+
+				uploads, cursor, err := family.sortBy(b, UploadFilters{}, false, common.NewPagingQuery())
+				require.NoError(t, err, "get upload error")
+				require.Len(t, uploads, 1, "invalid upload count")
+				require.Len(t, uploads[0].Files, 0, "invalid file count")
+				require.Nil(t, cursor.After, "invalid non nil after cursor")
+				require.Nil(t, cursor.Before, "invalid non nil before cursor")
+
+				uploads, _, err = family.sortBy(b, UploadFilters{}, true, common.NewPagingQuery())
+				require.NoError(t, err, "get upload error")
+				require.Len(t, uploads, 1, "invalid upload count")
+				require.Len(t, uploads[0].Files, 1, "invalid file count")
+			})
+
+			t.Run("UserAndToken", func(t *testing.T) {
+				b := newTestMetadataBackend()
+				defer shutdownTestMetadataBackend(b)
+
+				user := &common.User{ID: "user"}
+				token := &common.Token{Token: "token"}
+
+				for i := 1; i <= 100; i++ {
+					upload := &common.Upload{Comments: fmt.Sprintf("%d", i)}
+					family.seed(upload, int64(i))
+					if i%10 == 0 {
+						upload.User = user.ID
+					}
+					if i%20 == 0 {
+						upload.Token = token.Token
+					}
+					createUpload(t, b, upload)
+				}
+
+				limit := 10
+				uploads, cursor, err := family.sortBy(b, UploadFilters{User: user.ID}, false, common.NewPagingQuery().WithLimit(limit))
+				require.NoError(t, err, "get upload error")
+				require.Len(t, uploads, limit, "invalid upload count")
+				require.NotNil(t, cursor, "invalid nil cursor")
+
+				for i := range limit {
+					expected := 100 - i*10
+					require.Equal(t, fmt.Sprintf("%d", expected), uploads[i].Comments, "invalid upload sequence")
+				}
+				require.Nil(t, cursor.Before, "invalid non nil before cursor")
+				require.Nil(t, cursor.After, "invalid non nil after cursor")
+
+				uploads, cursor, err = family.sortBy(b, UploadFilters{Token: token.Token}, false, &common.PagingQuery{Limit: &limit})
+				require.NoError(t, err, "get upload error")
+				require.Len(t, uploads, 5, "invalid upload count")
+				require.NotNil(t, cursor, "invalid nil cursor")
+				require.Equal(t, "100", uploads[0].Comments, "invalid upload sequence")
+				require.Equal(t, "20", uploads[len(uploads)-1].Comments, "invalid upload sequence")
+				require.Nil(t, cursor.Before, "invalid non nil before cursor")
+				require.Nil(t, cursor.After, "invalid non nil after cursor")
+			})
+
+			// TieBreaker pins the deterministic tie-break rule for equal sort
+			// values: CreatedAt (newest first for desc), then ID. Previously
+			// only exercised for DownloadedBytes; both families now cover it.
+			t.Run("TieBreaker", func(t *testing.T) {
+				b := newTestMetadataBackend()
+				defer shutdownTestMetadataBackend(b)
+
+				base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+				older := &common.Upload{Comments: "older"}
+				family.seed(older, 500)
+				older.CreatedAt = base
+				createUpload(t, b, older)
+
+				newer := &common.Upload{Comments: "newer"}
+				family.seed(newer, 500)
+				newer.CreatedAt = base.Add(time.Hour)
+				createUpload(t, b, newer)
+
+				uploads, _, err := family.sortBy(b, UploadFilters{}, false, common.NewPagingQuery().WithLimit(10))
+				require.NoError(t, err, "get upload error")
+				require.Len(t, uploads, 2)
+				require.Equal(t, "newer", uploads[0].Comments, "equal values must break ties by newest CreatedAt first (desc)")
+				require.Equal(t, "older", uploads[1].Comments)
+			})
+		})
+	}
+}
+
 func TestBackend_DeleteExpiredUploads(t *testing.T) {
 	b := newTestMetadataBackend()
 	defer shutdownTestMetadataBackend(b)
 
-	upload1 := &common.Upload{}
-	createUpload(t, b, upload1)
+	// Each upload carries one uploaded file so cleanup must adjust current
+	// counters, not just row counts.
+	newUploadWithFile := func(size int64) *common.Upload {
+		u := &common.Upload{}
+		f := u.NewFile()
+		f.Size = size
+		f.Status = common.FileUploaded
+		createUpload(t, b, u)
+		return u
+	}
 
-	upload2 := &common.Upload{}
-	createUpload(t, b, upload2)
+	newUploadWithFile(1000) // never referenced again: only its presence among the retained uploads matters
 
+	upload2 := newUploadWithFile(2000)
 	deadline2 := time.Now().Add(time.Hour)
 	upload2.ExpireAt = &deadline2
-	err := b.db.Save(upload2).Error
+	err := b.UpdateUploadExpirationDate(upload2)
 	require.NoError(t, err, "update upload error")
 
-	upload3 := &common.Upload{}
-	createUpload(t, b, upload3)
-
+	upload3 := newUploadWithFile(4000)
 	deadline3 := time.Now().Add(-time.Hour)
 	upload3.ExpireAt = &deadline3
-	err = b.db.Save(upload3).Error
+	err = b.UpdateUploadExpirationDate(upload3)
 	require.NoError(t, err, "update upload error")
+
+	before, err := b.GetServerStatistics()
+	require.NoError(t, err, "get server stats error")
+	require.Equal(t, 3, before.Uploads, "current uploads before cleanup")
+	require.Equal(t, 3, before.Files, "current files before cleanup")
+	require.Equal(t, int64(7000), before.TotalSize, "current size before cleanup")
 
 	removed, err := b.RemoveExpiredUploads()
 	require.Nil(t, err, "delete expired upload error")
 	require.Equal(t, 1, removed, "removed expired upload count mismatch")
+
+	// Only the expired upload/file leaves current usage; the two retained uploads
+	// are untouched and lifetime counters never move.
+	after, err := b.GetServerStatistics()
+	require.NoError(t, err, "get server stats error")
+	require.Equal(t, 2, after.Uploads, "current uploads after cleanup")
+	require.Equal(t, 2, after.Files, "current files after cleanup")
+	require.Equal(t, int64(3000), after.TotalSize, "current size after cleanup")
+	require.Equal(t, 3, after.Usage.Lifetime.Uploads, "lifetime uploads unchanged")
+	require.Equal(t, 3, after.Usage.Lifetime.Files, "lifetime files unchanged")
+	require.Equal(t, int64(7000), after.Usage.Lifetime.TotalSize, "lifetime size unchanged")
 }
 
 func TestBackend_PurgeDeletedUploads(t *testing.T) {

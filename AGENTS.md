@@ -43,7 +43,7 @@ plik/
 ├── README.md               ← project README (concise)
 ├── Makefile                ← build orchestration
 ├── Dockerfile
-├── .agent/                 ← agentic workflows (/review-changes, /prepare-pr, /cut-release)
+├── .agents/                ← agentic workflows (/review-changes, /prepare-pr, /cut-release)
 ├── server/                 ← Go server (see server/ARCHITECTURE.md)
 │   ├── main.go             ← entry point
 │   ├── plikd.cfg           ← default config
@@ -139,7 +139,24 @@ make vuln                   # govulncheck (report only)
 - **Helm persistence**: the chart has two independent PVCs — `persistence` for uploaded files (`/home/plik/server/files`) and `dbPersistence` for the SQLite database (`/home/plik/server/db`). Both default to `emptyDir` when disabled. The default `MetadataBackendConfig.ConnectionString` is `/home/plik/server/db/plik.db`.
 - **Run tests before committing**: `make lint && make test`
 - **Keep ARCHITECTURE.md files in sync**: Each root folder has its own — update the one closest to your change
+- **Comment non-obvious policy and invariants**: Add concise comments for helpers that validate public API input, mutate persistent state, build complex SQL/GORM queries, encode security/privacy behavior, rely on concurrency assumptions, or implement statistics/business policy. Comments should explain accepted input domains, default behavior, return meaning, and why the rule exists when those details are not obvious from the name and surrounding call site. Prefer comments that explain why the rule exists over comments that restate the code.
+- **Comments must be self-contained and production-ready**: A comment (or test name) may only reference things that live in the repository. Never reference development-process artifacts — task or ticket numbers, decision IDs, plan/backlog/review documents, audit findings, agent briefs, or any uncommitted file — and never narrate how a decision was reached ("as decided during review", "per the maintainer"). State the technical rationale itself; when the long-form policy lives in a committed doc (e.g. an ARCHITECTURE.md section), point there by its actual heading.
+- **Test at the right layer**: E2E tests complement, but do not replace, focused backend tests for SQL/GORM queries, migrations/backfills, counter mutations, concurrency, and public API validation.
 - **Release process**: Before creating a GitHub release, update the version in `README.md` and move `charts/plik/CHANGELOG.md` entries from `[Unreleased]` to the new version heading
+
+## Agent Workflows
+
+Project workflows live in `.agents/workflows/`. Use them when the matching task comes up:
+
+| Workflow | Purpose |
+|----------|---------|
+| `plan.md` | Create an implementation plan before non-trivial features or refactors |
+| `review-changes.md` | Critically review local diffs before committing or preparing a PR |
+| `commit.md` | Commit or push changes with the mandatory user approval gate |
+| `prepare-pr.md` | Run review/pre-flight checks, commit, push, and draft a PR |
+| `cut-release.md` | Walk through the release checklist |
+| `add-language.md` | Add a new webapp locale end to end |
+| `review-language.md` | Review locale quality, placeholders, plurals, and semantic distinctions |
 
 ## Documentation
 
@@ -171,4 +188,3 @@ make docs                    # Build docs (builds client, injects help+plikrc, b
 | [releaser/ARCHITECTURE.md](releaser/ARCHITECTURE.md) | Release tooling: build pipeline, Docker stages, client/server compilation |
 | [charts/plik/ARCHITECTURE.md](charts/plik/ARCHITECTURE.md) | Helm chart: structure, config/secrets separation, persistence, versioning |
 | [.github/ARCHITECTURE.md](.github/ARCHITECTURE.md) | GitHub Actions workflows, CI/CD, Helm chart release flow |
-

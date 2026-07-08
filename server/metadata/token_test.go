@@ -57,10 +57,58 @@ func TestBackend_GetTokens(t *testing.T) {
 	}
 	createUser(t, b, user)
 
-	tokens, cursor, err := b.GetTokens(user.ID, common.NewPagingQuery().WithLimit(5))
+	tokens, cursor, err := b.GetTokens(user.ID, "", common.NewPagingQuery().WithLimit(5))
 	require.NoError(t, err, "get tokens error")
 	require.Len(t, tokens, 5, "invalid token count")
 	require.NotNil(t, cursor, "invalid nil cursor")
+}
+
+func TestBackend_GetTokens_StatsAndSortByUsageSize(t *testing.T) {
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	user := common.NewUser(common.ProviderLocal, "user")
+	currentToken := user.NewToken()
+	currentToken.Comment = "current"
+	lifetimeToken := user.NewToken()
+	lifetimeToken.Comment = "ever"
+	createUser(t, b, user)
+
+	currentUpload := common.NewUpload()
+	currentUpload.User = user.ID
+	currentUpload.Token = currentToken.Token
+	currentFile := currentUpload.NewFile()
+	currentFile.Status = common.FileUploaded
+	currentFile.Size = 100
+	createUpload(t, b, currentUpload)
+
+	lifetimeUpload := common.NewUpload()
+	lifetimeUpload.User = user.ID
+	lifetimeUpload.Token = lifetimeToken.Token
+	lifetimeFile := lifetimeUpload.NewFile()
+	lifetimeFile.Status = common.FileUploaded
+	lifetimeFile.Size = 500
+	createUpload(t, b, lifetimeUpload)
+	err := b.RemoveUpload(lifetimeUpload.ID)
+	require.NoError(t, err, "remove upload error")
+
+	tokens, _, err := b.GetTokens(user.ID, StatsSortSize, common.NewPagingQuery().WithLimit(10))
+	require.NoError(t, err, "get tokens by current size error")
+	require.Len(t, tokens, 2, "invalid token count")
+	require.Equal(t, currentToken.Token, tokens[0].Token, "invalid current-size sort order")
+	require.NotNil(t, tokens[0].Stats, "missing token stats")
+	require.NotNil(t, tokens[0].Stats.Usage, "missing token usage")
+	require.Equal(t, int64(100), tokens[0].Stats.Usage.Current.TotalSize, "invalid current token size")
+	require.NotNil(t, tokens[0].Stats.Usage.LastUploadAt, "missing token last upload date")
+
+	tokens, _, err = b.GetTokens(user.ID, StatsSortLifetimeSize, common.NewPagingQuery().WithLimit(10))
+	require.NoError(t, err, "get tokens by lifetime size error")
+	require.Len(t, tokens, 2, "invalid token count")
+	require.Equal(t, lifetimeToken.Token, tokens[0].Token, "invalid lifetime-size sort order")
+	require.NotNil(t, tokens[0].Stats, "missing token stats")
+	require.NotNil(t, tokens[0].Stats.Usage, "missing token usage")
+	require.Equal(t, int64(500), tokens[0].Stats.Usage.Lifetime.TotalSize, "invalid lifetime token size")
+	require.NotNil(t, tokens[0].Stats.Usage.LastUploadAt, "missing token last upload date")
 }
 
 func TestBackend_DeleteToken(t *testing.T) {

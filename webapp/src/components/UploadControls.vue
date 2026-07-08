@@ -22,6 +22,14 @@ const emit = defineEmits(['update:sort-by', 'update:sort-order', 'toggle-filter'
         <button @click="emit('update:sort-by', 'size')"
                 :class="sortBy === 'size' ? 'text-accent-400' : 'text-surface-500 hover:text-surface-300'"
                 class="transition-colors">{{ $t('uploadControls.size') }}</button>
+        <span class="text-surface-600">|</span>
+        <button @click="emit('update:sort-by', 'downloads')"
+                :class="sortBy === 'downloads' ? 'text-accent-400' : 'text-surface-500 hover:text-surface-300'"
+                class="transition-colors">{{ $t('uploadControls.downloads') }}</button>
+        <span class="text-surface-600">|</span>
+        <button @click="emit('update:sort-by', 'downloadedBytes')"
+                :class="sortBy === 'downloadedBytes' ? 'text-accent-400' : 'text-surface-500 hover:text-surface-300'"
+                class="transition-colors">{{ $t('uploadControls.downloadedData') }}</button>
       </div>
       <!-- Order -->
       <div class="flex items-center gap-2 text-surface-400">

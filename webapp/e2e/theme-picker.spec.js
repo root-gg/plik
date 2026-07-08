@@ -282,6 +282,22 @@ test.describe('Theme Picker — wildcard themes', () => {
     })
 })
 
+// FLAKY: pre-existing flake (verified on the clean base commit, not caused by
+// the improved-stats branch), ~25% failure rate observed over 20 runs
+// (`--repeat-each=20 --workers=1`), always the same failure: `html`'s
+// data-theme stays "nord" instead of "light", stable across the assertion's
+// full 5s auto-retry window (not a slow-to-settle value). Root cause is a
+// genuine app-code race in webapp/src/main.js's `Promise.all([loadConfig(),
+// loadSettings(), checkSession()])`: checkSession() -> syncThemeFromUser()
+// (webapp/src/authStore.js / webapp/src/settings.js) validates the user's DB
+// theme against settings.themes, which can still hold its unrestricted
+// module-level default (['*']) if /me resolves before /settings.json is
+// applied, so 'nord' passes validation and gets set permanently — nothing
+// re-validates it once settings.themes narrows afterward. This is a
+// product-code ordering bug, not a missing wait in this test (the assertion
+// below already uses Playwright's auto-retrying toHaveAttribute). Diagnosed,
+// not fixed, per the bounded investigation rule. See task-19-report.md for
+// repro evidence.
 test.describe('Theme Picker — stale DB theme', () => {
     test('user theme from DB is ignored when not in available themes list', async ({ authenticatedPage: page, withThemes }) => {
         // Set the user's theme to 'nord' via PATCH /me

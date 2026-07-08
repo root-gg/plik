@@ -31,7 +31,21 @@ type Token struct {
 
 	UserID string `json:"-" gorm:"size:256;constraint:OnUpdate:RESTRICT,OnDelete:RESTRICT;"`
 
+	// Stats wraps the canonical nested usage payload for this token in the same
+	// usage{} envelope as the server and user scopes, so a client always reads
+	// "...usage.current" / "...usage.lifetime" regardless of scope. The single
+	// canonical location for the token's last-upload timestamp is
+	// Stats.Usage.LastUploadAt (there is no separate token-level field).
+	Stats *TokenStats `json:"stats,omitempty" gorm:"-"`
+
 	CreatedAt time.Time `json:"createdAt"`
+}
+
+// TokenStats is the envelope wrapping a token's usage payload, matching the
+// shape of ServerStats.Usage and UserStats.Usage so the "usage.current" /
+// "usage.lifetime" suffix is identical across all three API scopes.
+type TokenStats struct {
+	Usage *UsageStatsResponse `json:"usage,omitempty"`
 }
 
 // NewToken create a new Token instance
