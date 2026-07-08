@@ -103,6 +103,23 @@ const canAddFiles = computed(() => props.upload.admin && !props.upload.stream)
 
       <!-- Upload options badges -->
       <UploadBadges :upload="upload" class="mt-2" />
+
+      <div v-if="upload.admin" class="mt-3 pt-3 border-t border-surface-700/50 grid grid-cols-2 gap-3">
+        <div>
+          <p class="text-xs text-surface-500 flex items-center gap-1">
+            {{ $t('downloadSidebar.downloads') }}
+            <span class="setting-help-wrap relative shrink-0" @click.prevent.stop>
+              <span class="setting-help" tabindex="0" role="button" aria-label="Help">?</span>
+              <span class="setting-tooltip setting-tooltip-left-anchor">{{ $t('common.downloadCountHelp') }}</span>
+            </span>
+          </p>
+          <p class="text-sm text-surface-200 tabular-nums">{{ upload.downloadCount || 0 }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-surface-500">{{ $t('downloadSidebar.lastDownload') }}</p>
+          <p class="text-sm text-surface-200">{{ upload.lastDownloadedAt ? formatDate(upload.lastDownloadedAt) : $t('common.never') }}</p>
+        </div>
+      </div>
     </div>
 
     <!-- Share -->

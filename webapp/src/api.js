@@ -126,6 +126,23 @@ export function getUserStatistics() {
     return apiCall(`${base}/me/stats`)
 }
 
+// Authenticated user's dense, oldest-first daily activity series (chart view):
+// [{ day, downloads, downloadedBytes, uploads, uploadedBytes }].
+export function getUserActivityDaily(days = 30) {
+    return apiCall(`${base}/me/stats/activity/daily?days=${days}`)
+}
+
+// Authenticated user's own trending uploads (self-scoped counterpart of
+// getTrendingUploads below) — same params/response shape, no files variant.
+export function getUserTrendingUploads({ window = '7d', sort, limit } = {}) {
+    const params = new URLSearchParams()
+    if (window) params.set('window', window)
+    if (sort) params.set('sort', sort)
+    if (limit) params.set('limit', String(limit))
+    const qs = params.toString()
+    return apiCall(`${base}/me/stats/trending/uploads${qs ? '?' + qs : ''}`)
+}
+
 export function updateUser(user) {
     return apiCall(`${base}/user/${encodeURIComponent(user.id)}`, 'POST', user)
 }
@@ -134,6 +151,29 @@ export function updateUser(user) {
 
 export function getServerStats() {
     return apiCall(`${base}/stats`)
+}
+
+// Server-wide dense, oldest-first daily activity series (admin chart view):
+// [{ day, downloads, downloadedBytes, uploads, uploadedBytes }].
+export function getServerActivityDaily(days = 30) {
+    return apiCall(`${base}/stats/activity/daily?days=${days}`)
+}
+
+export function getTrendingUploads({ window = '7d', sort, limit } = {}) {
+    const params = new URLSearchParams()
+    if (window) params.set('window', window)
+    if (sort) params.set('sort', sort)
+    if (limit) params.set('limit', String(limit))
+    const qs = params.toString()
+    return apiCall(`${base}/stats/trending/uploads${qs ? '?' + qs : ''}`)
+}
+
+export function getTrendingFiles({ window = '7d', limit } = {}) {
+    const params = new URLSearchParams()
+    if (window) params.set('window', window)
+    if (limit) params.set('limit', String(limit))
+    const qs = params.toString()
+    return apiCall(`${base}/stats/trending/files${qs ? '?' + qs : ''}`)
 }
 
 export function getAdminUsers({ provider, admin, sort, order, after, limit } = {}) {
@@ -210,8 +250,10 @@ export function deleteUserUploads(token) {
 
 // ── Tokens ──
 
-export function getUserTokens({ after, limit } = {}) {
+export function getUserTokens({ sort, order, after, limit } = {}) {
     const params = new URLSearchParams()
+    if (sort) params.set('sort', sort)
+    if (order) params.set('order', order)
     if (after) params.set('after', after)
     if (limit) params.set('limit', String(limit))
     const qs = params.toString()
