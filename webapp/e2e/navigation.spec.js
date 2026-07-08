@@ -58,7 +58,7 @@ test.describe('Home view tab routing', () => {
         await page.waitForLoadState('networkidle')
 
         // Click Uploads sidebar button
-        await page.getByRole('button', { name: 'Uploads', exact: true }).click()
+        await page.locator('aside').getByRole('button', { name: 'Uploads', exact: true }).click()
         await page.waitForURL(/home\/uploads/)
 
         // Click Tokens sidebar button
@@ -75,7 +75,7 @@ test.describe('Home view tab routing', () => {
         await page.waitForLoadState('networkidle')
 
         // Navigate: stats → uploads → tokens (creates history entries)
-        await page.getByRole('button', { name: 'Uploads', exact: true }).click()
+        await page.locator('aside').getByRole('button', { name: 'Uploads', exact: true }).click()
         await page.waitForURL(/home\/uploads/)
         await page.getByRole('button', { name: 'Tokens', exact: true }).click()
         await page.waitForURL(/home\/tokens/)
@@ -141,7 +141,7 @@ test.describe('Admin view tab routing', () => {
         await page.waitForURL(/admin\/users/)
 
         // Click Uploads sidebar button
-        await page.getByRole('button', { name: 'Uploads', exact: true }).click()
+        await page.locator('aside').getByRole('button', { name: 'Uploads', exact: true }).click()
         await page.waitForURL(/admin\/uploads/)
 
         // Click Stats sidebar button
@@ -167,7 +167,7 @@ test.describe('Admin view tab routing', () => {
         await page.waitForURL(/admin\/users/)
         await expect(page.getByPlaceholder(/Search users/)).toBeVisible({ timeout: 5_000 })
 
-        await page.getByRole('button', { name: 'Uploads', exact: true }).click()
+        await page.locator('aside').getByRole('button', { name: 'Uploads', exact: true }).click()
         await page.waitForURL(/admin\/uploads/)
 
         // Back: uploads → users
@@ -199,7 +199,7 @@ test.describe('Admin view tab routing', () => {
             .toHaveClass(/text-accent/, { timeout: 5_000 })
 
         // Navigate to uploads tab
-        await page.getByRole('button', { name: 'Uploads', exact: true }).click()
+        await page.locator('aside').getByRole('button', { name: 'Uploads', exact: true }).click()
         await page.waitForURL(/admin\/uploads/)
 
         // Back: should return to users with provider=local still in URL

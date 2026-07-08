@@ -50,7 +50,7 @@ async function apiDeleteUpload(page, uploadId) {
 async function goToAdminUploads(page) {
     await page.goto('/#/admin')
     await page.waitForLoadState('networkidle')
-    await page.getByRole('button', { name: 'Uploads', exact: true }).click()
+    await page.locator('aside').getByRole('button', { name: 'Uploads', exact: true }).click()
     await page.waitForLoadState('networkidle')
 }
 
@@ -328,6 +328,7 @@ test.describe('Sort controls', () => {
         // Sort and Order buttons should be visible
         await expect(main.getByRole('button', { name: 'Date' })).toBeVisible({ timeout: 5_000 })
         await expect(main.getByRole('button', { name: 'Size' })).toBeVisible()
+        await expect(main.getByRole('button', { name: 'Downloads' })).toBeVisible()
         await expect(main.getByRole('button', { name: 'Desc' })).toBeVisible()
         await expect(main.getByRole('button', { name: 'Asc' })).toBeVisible()
 
@@ -339,14 +340,27 @@ test.describe('Sort controls', () => {
         await page.waitForLoadState('networkidle')
         await expect(main.getByRole('button', { name: 'Size' })).toHaveClass(/text-accent-400/)
         expect(page.url()).toContain('sort=size')
+
+        // Click Downloads — should become active and persist in URL
+        await main.getByRole('button', { name: 'Downloads' }).click()
+        await page.waitForLoadState('networkidle')
+        await expect(main.getByRole('button', { name: 'Downloads' })).toHaveClass(/text-accent-400/)
+        expect(page.url()).toContain('sort=downloads')
     })
 
     test('home: sort buttons are visible and functional', async ({ authenticatedPage: page }) => {
         await goToHomeUploads(page)
         const main = page.locator('main')
+        const badTokenResponses = []
+        page.on('response', response => {
+            if (response.url().includes('/me/token') && response.status() >= 400) {
+                badTokenResponses.push(response.status())
+            }
+        })
 
         await expect(main.getByRole('button', { name: 'Date' })).toBeVisible({ timeout: 5_000 })
         await expect(main.getByRole('button', { name: 'Size' })).toBeVisible()
+        await expect(main.getByRole('button', { name: 'Downloads' })).toBeVisible()
         await expect(main.getByRole('button', { name: 'Desc' })).toBeVisible()
         await expect(main.getByRole('button', { name: 'Asc' })).toBeVisible()
 
@@ -356,9 +370,16 @@ test.describe('Sort controls', () => {
         await expect(main.getByRole('button', { name: 'Size' })).toHaveClass(/text-accent-400/)
         expect(page.url()).toContain('sort=size')
 
+        // Click Downloads
+        await main.getByRole('button', { name: 'Downloads' }).click()
+        await page.waitForLoadState('networkidle')
+        await expect(main.getByRole('button', { name: 'Downloads' })).toHaveClass(/text-accent-400/)
+        expect(page.url()).toContain('sort=downloads')
+
         // Reload — sort should persist
         await page.reload({ waitUntil: 'networkidle' })
-        await expect(main.getByRole('button', { name: 'Size' })).toHaveClass(/text-accent-400/, { timeout: 5_000 })
+        await expect(main.getByRole('button', { name: 'Downloads' })).toHaveClass(/text-accent-400/, { timeout: 5_000 })
+        expect(badTokenResponses).toEqual([])
     })
 
 })
@@ -368,12 +389,12 @@ test.describe('Sort controls', () => {
 test.describe('Direct URL with combined filters', () => {
     test('admin: navigating to URL with sort + badge filters applies all state', async ({ authenticatedPage: page }) => {
         // Navigate directly with multiple params — simulates paste-in-new-tab
-        await page.goto('/#/admin/uploads?sort=size&oneShot=true&removable=true')
+        await page.goto('/#/admin/uploads?sort=downloads&oneShot=true&removable=true')
         await page.waitForLoadState('networkidle')
         const main = page.locator('main')
 
-        // Sort should be "Size"
-        await expect(main.getByRole('button', { name: 'Size' })).toHaveClass(/text-accent-400/, { timeout: 5_000 })
+        // Sort should be "Downloads"
+        await expect(main.getByRole('button', { name: 'Downloads' })).toHaveClass(/text-accent-400/, { timeout: 5_000 })
         await expect(main.getByRole('button', { name: 'Date' })).not.toHaveClass(/text-accent-400/)
 
         // Badge filters should be active
@@ -386,12 +407,19 @@ test.describe('Direct URL with combined filters', () => {
     })
 
     test('home: navigating to URL with sort + badge filters applies all state', async ({ authenticatedPage: page }) => {
-        await page.goto('/#/home/uploads?sort=size&stream=true&password=true')
+        const badTokenResponses = []
+        page.on('response', response => {
+            if (response.url().includes('/me/token') && response.status() >= 400) {
+                badTokenResponses.push(response.status())
+            }
+        })
+
+        await page.goto('/#/home/uploads?sort=downloads&stream=true&password=true')
         await page.waitForLoadState('networkidle')
         const main = page.locator('main')
 
-        // Sort should be "Size"
-        await expect(main.getByRole('button', { name: 'Size' })).toHaveClass(/text-accent-400/, { timeout: 5_000 })
+        // Sort should be "Downloads"
+        await expect(main.getByRole('button', { name: 'Downloads' })).toHaveClass(/text-accent-400/, { timeout: 5_000 })
         await expect(main.getByRole('button', { name: 'Date' })).not.toHaveClass(/text-accent-400/)
 
         // Badge filters should be active
@@ -401,5 +429,6 @@ test.describe('Direct URL with combined filters', () => {
         // Other filters should NOT be active
         await expect(main.getByRole('button', { name: 'one-shot' })).not.toHaveClass(/ring-1/)
         await expect(main.getByRole('button', { name: 'removable' })).not.toHaveClass(/ring-1/)
+        expect(badTokenResponses).toEqual([])
     })
 })

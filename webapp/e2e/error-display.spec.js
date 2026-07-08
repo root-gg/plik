@@ -52,7 +52,7 @@ test.describe('Error display components', () => {
             await page.waitForLoadState('networkidle')
 
             // Click Uploads tab to trigger the intercepted call
-            await page.getByRole('button', { name: 'Uploads', exact: true }).click()
+            await page.locator('aside').getByRole('button', { name: 'Uploads', exact: true }).click()
             await page.waitForLoadState('networkidle')
 
             // ErrorBanner should be visible
@@ -89,7 +89,7 @@ test.describe('Error display components', () => {
             await page.waitForLoadState('networkidle')
 
             // Click Uploads tab to trigger the intercepted call
-            await page.getByRole('button', { name: 'Uploads', exact: true }).click()
+            await page.locator('aside').getByRole('button', { name: 'Uploads', exact: true }).click()
             await page.waitForLoadState('networkidle')
 
             // ErrorBanner should be visible
