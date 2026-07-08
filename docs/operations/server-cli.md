@@ -154,7 +154,7 @@ plikd file delete --all
 
 ## Cleanup
 
-Remove expired uploads and purge deleted files from the data backend:
+Remove expired uploads, purge deleted files from the data backend, and prune old download statistics used for trends:
 
 ```bash
 plikd clean

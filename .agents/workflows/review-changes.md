@@ -54,6 +54,9 @@ For every modified file, evaluate against ALL of the following checklist:
 - [ ] Does the change follow existing patterns in the codebase?
 - [ ] Are naming conventions consistent (variables, functions, types)?
 - [ ] Does it match the code style of surrounding files?
+- [ ] Are non-obvious policy helpers commented? Check public API validators, persistent-state mutations, complex SQL/GORM queries, stats/business policy, security/privacy behavior, and concurrency assumptions.
+- [ ] Do comments explain intent, accepted inputs, defaults, return meaning, or invariants where those are not obvious from nearby code?
+- [ ] Are comments self-contained and production-ready? Flag any comment or test name that references development-process artifacts (task/ticket numbers, decision IDs, plan/backlog/review docs, audit findings, agent briefs, uncommitted files) or narrates how a decision was reached instead of stating the technical rationale. Doc pointers are fine only when they cite a committed file by its actual heading.
 
 #### Completeness
 - [ ] Are all necessary files modified (tests, docs, config)?
@@ -75,6 +78,8 @@ For every modified file, evaluate against ALL of the following checklist:
 - [ ] Are new behaviors covered by tests?
 - [ ] Do existing tests still pass with these changes?
 - [ ] Are test assertions meaningful (not just "no error")?
+- [ ] For large backend changes, compare package coverage before/after and identify new uncovered functions.
+- [ ] Are complex SQL/GORM queries, migrations/backfills, counter mutations, concurrency paths, and public API validation covered by focused backend tests? E2E coverage is useful but not a substitute for these.
 
 #### Documentation (`docs/`, README, `--help`)
 - [ ] Do user-facing docs reflect the new/changed behavior?
@@ -89,6 +94,7 @@ For every modified file, evaluate against ALL of the following checklist:
 - [ ] Are new/changed request/response fields documented with examples?
 - [ ] Are removed or renamed fields noted for backward compatibility?
 - [ ] Are new query parameters listed in the relevant filter table?
+- [ ] Treat HTTP API documentation drift as a critical review finding.
 
 #### CSS / Theming (if webapp styles were changed)
 - [ ] Do changes use design tokens (`surface-*`, `accent-*`) instead of hardcoded colors?
@@ -114,6 +120,7 @@ For every modified file, evaluate against ALL of the following checklist:
 - Verify the change aligns with documented patterns
 - Check if AGENTS.md needs updating
 - **If any HTTP handler, route, or API response struct was modified**: check `docs/reference/api.md` and flag any drift as a 🔴 Critical issue
+- **If stats, counters, migrations, or SQL/GORM queries changed**: verify direct backend tests exist for the new logic and flag E2E-only coverage as a review issue
 
 ### 4. Lint and build
 

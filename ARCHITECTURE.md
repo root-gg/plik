@@ -250,12 +250,13 @@ When processing a request, limits are resolved via the custom `Context`:
 |--------|------|---------|-------------|
 | GET | `/me` | `UserInfo` | Current user info |
 | DELETE | `/me` | `DeleteAccount` | Delete own account |
-| GET | `/me/token` | `GetUserTokens` | List tokens (paginated) |
+| GET | `/me/token` | `GetUserTokens` | List tokens (paginated, sortable by `sort` (`date`/`size`/`lifetimeSize`), strict `400` on unknown sort) |
 | POST | `/me/token` | `CreateToken` | Create upload token |
 | DELETE | `/me/token/{token}` | `RevokeToken` | Revoke token |
-| GET | `/me/uploads` | `GetUserUploads` | List uploads (paginated, sortable by `sort` (`date`/`size`) and `order` (`desc`/`asc`), filterable by `token` and badge settings: `oneShot`, `removable`, `stream`, `extendTTL`, `password`, `e2ee`) |
+| GET | `/me/uploads` | `GetUserUploads` | List uploads (paginated, sortable by `sort` (`date`/`size`/`downloads`) and `order` (`desc`/`asc`), filterable by `token` and badge settings: `oneShot`, `removable`, `stream`, `extendTTL`, `password`, `e2ee`) |
 | DELETE | `/me/uploads` | `RemoveUserUploads` | Remove all uploads |
-| GET | `/me/stats` | `GetUserStatistics` | User stats |
+| GET | `/me/stats` | `GetUserStatistics` | Counter-backed user stats: legacy flat `uploads`/`files`/`totalSize` plus a nested `usage` object (current + lifetime counters, stats-tracking start timestamp, download windows); `token` scopes `usage` to the current API token (no download windows) |
+| GET | `/me/stats/downloads/daily` | `GetUserDownloadsDaily` | Current user's dense daily download series (`days` 1–31, default 30, strict 400); bare oldest-first array of `{day, downloads, bytes}` |
 
 ### User Management Endpoints (authenticated — session cookie required)
 
@@ -270,10 +271,13 @@ When processing a request, limits are resolved via the custom `Context`:
 | Method | Path | Handler | Description |
 |--------|------|---------|-------------|
 | POST | `/user` | `CreateUser` | Create user |
-| GET | `/stats` | `GetServerStatistics` | Server stats |
-| GET | `/users` | `GetUsers` | List users (paginated, filterable by `provider` and `admin` status) |
+| GET | `/stats` | `GetServerStatistics` | Counter-backed server stats: legacy flat totals (`users`, `uploads`, `anonymousUploads`, `files`, `totalSize`, `anonymousTotalSize`), top-level `lifetimeUsers`, and nested `usage`/`anonymousUsage` objects (current + lifetime counters, downloads, feature usage; download windows on server `usage` only) |
+| GET | `/stats/downloads/daily` | `GetServerDownloadsDaily` | Server-wide dense daily download series (`days` 1–31, default 30, strict 400); bare oldest-first array of `{day, downloads, bytes}` |
+| GET | `/stats/trending/uploads` | `GetTrendingUploads` | Trending uploads (`window=all\|1d\|7d\|30d`, `limit`) |
+| GET | `/stats/trending/files` | `GetTrendingFiles` | Trending files (`window=all\|1d\|7d\|30d`, `limit`) |
+| GET | `/users` | `GetUsers` | List users (paginated, sortable by `sort` (`date`/`size`/`lifetimeSize`), filterable by `provider` and `admin` status) |
 | GET | `/users/search` | `SearchUsers` | Search users by login/name/email (LIKE query, `q`, `limit`, `provider`, `admin`) |
-| GET | `/uploads` | `GetUploads` | List all uploads (paginated, filterable by `user`, `token`, `sort`, badge settings: `oneShot`, `removable`, `stream`, `extendTTL`, `password`, `e2ee`) |
+| GET | `/uploads` | `GetUploads` | List all uploads (paginated, sortable by `sort` (`date`/`size`/`downloads`), filterable by `user`, `token`, and badge settings: `oneShot`, `removable`, `stream`, `extendTTL`, `password`, `e2ee`) |
 
 ---
 
@@ -421,7 +425,20 @@ GORM-based with auto-migrations via gormigrate.
 | `tokens` | `Token` | Upload tokens, FK to users |
 | `settings` | `Setting` | Server settings (e.g., auth signing key) |
 | `cli_auth_sessions` | `CLIAuthSession` | Ephemeral CLI device auth sessions (auto-cleaned) |
+| `usage_stats` | `UsageStats` | Flat scoped current/lifetime counters keyed by `(user_id, token)`: `("", "")` for server, `("__anonymous__", "")` for anonymous usage, `(userID, "")` for users, and `(ownerUserID, token)` for API tokens |
+| `download_stats_daily` | `DownloadStatsDaily` | Daily download rollups keyed by day/entity type/entity ID for trending windows; cleanup keeps today plus 30 previous UTC-day buckets |
 | `migrations` | (gormigrate) | Schema migration history |
+
+### Stats Model
+
+Plik's stats system is database-backed so several server instances can safely share one metadata database. Counters are updated in the same metadata transactions that create uploads, complete files, remove retained data, and record counted downloads. The detailed implementation contract lives in [server/ARCHITECTURE.md](server/ARCHITECTURE.md#stats-architecture); the system-level invariants are:
+
+- **Current stats** describe retained state now: active uploads, uploaded files, retained size, current feature usage, current TTL distribution, and current file-size distribution.
+- **Lifetime stats** describe events since tracking started: lifetime uploads, lifetime files, lifetime size, lifetime feature usage, lifetime TTL distribution, and lifetime file-size distribution.
+- **StartedAt** is the "Stats since ..." timestamp. Migration-created rows start at migration/backfill time because already purged metadata cannot be reconstructed.
+- **Anonymous usage** is tracked through the synthetic `("__anonymous__", "")` usage row instead of a real user.
+- **Downloads** are logical intent events, not bytes. Full-file `GET` requests count, start-range `GET` requests count, non-start ranges and malformed ranges do not. Direct file download stats are recorded after auth/status/backend-open/range-policy checks and before streaming completes; archive download stats are recorded after a successful archive close.
+- **Trending and server download windows** use upload/file download counts and daily rollups for `1d`, `7d`, and `30d` UTC-day windows. Trending is admin-only. Cleanup keeps today plus 30 previous UTC-day rollup buckets, one extra bucket beyond the 30-day display window.
 
 ---
 
