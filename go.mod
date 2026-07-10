@@ -31,7 +31,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/xhit/go-str2duration/v2 v2.1.0
-	golang.org/x/crypto v0.51.0
+	golang.org/x/crypto v0.52.0
 	golang.org/x/oauth2 v0.36.0
 	google.golang.org/api v0.273.0
 	gorm.io/driver/mysql v1.6.0
