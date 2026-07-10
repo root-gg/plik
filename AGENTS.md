@@ -113,6 +113,9 @@ make vuln                   # govulncheck (report only)
 | `webapp/src/components/UploadControls.vue` | Shared sort/order/badge-filter control bar used by AdminView and HomeView |
 | `server/common/feature_flags.go` | Feature flag types (`disabled`/`enabled`/`default`/`forced`) |
 | `server/server/server.go` | `ensureDefaultAdmin()` — idempotent bootstrap of `DefaultAdminLogin`/`DefaultAdminPassword` on startup |
+| `server/cmd/migrate.go` | `plikd migrate` cobra command — orchestrates backend-to-backend migration |
+| `server/metadata/migrator.go` | `Migrate(src, dst, opts)` — streams all metadata from one backend to another |
+| `server/data/migrator.go` | `MigrateFiles(src, dst, meta, opts)` — parallel file blob copy worker pool |
 
 ## Conventions
 

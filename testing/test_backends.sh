@@ -7,6 +7,7 @@ source ./utils.sh
 check_docker_connectivity
 
 BACKENDS=(
+    migrate
     mariadb
     mysql
     postgres

@@ -35,6 +35,7 @@ The server binary `plikd` uses [cobra](https://github.com/spf13/cobra) for CLI m
 | `clean.go` | `plikd clean` | Run metadata cleanup |
 | `import.go` | `plikd import [input-file]` | Import metadata from gob + Snappy binary |
 | `export.go` | `plikd export [output-file]` | Export metadata to gob + Snappy binary |
+| `migrate.go` | `plikd migrate --to <cfg>` | Live backend-to-backend migration (metadata + data) |
 
 Config loading order: `--config` flag → `PLIKD_CONFIG` env → `./plikd.cfg` → `/etc/plikd.cfg`.
 
@@ -143,6 +144,7 @@ Uses GORM with gormigrate for schema management across SQLite3, PostgreSQL, and 
 | `stats.go` | Aggregate statistics queries |
 | `exporter.go` | gob + Snappy export of all metadata |
 | `importer.go` | gob + Snappy import |
+| `migrator.go` | Live metadata migration: `Migrate(src, dst, opts)` — streams all records using `ForEach*`/`Create*`, supports `--ignore-errors` |
 
 ### Import / Export
 
@@ -151,9 +153,18 @@ The `plikd export` and `plikd import` commands dump and restore all metadata (us
 - **Format**: Go [gob](https://pkg.go.dev/encoding/gob) encoding compressed with [Snappy](https://github.com/golang/snappy). Architecture-independent (portable across `amd64`/`arm64`), streaming (constant memory), Go-specific (not human-readable).
 - **Export order**: users → tokens → uploads (including soft-deleted) → files → settings. CLI auth sessions are intentionally excluded (ephemeral).
 - **Import**: decodes sequentially, calls `Create*` on the metadata backend. Supports `--ignore-errors` to skip problematic records.
-- **Use cases**: backend migration (e.g. SQLite → PostgreSQL), backups, disaster recovery.
+- **Use cases**: backend backups, disaster recovery.
 
 > **Note**: Only metadata is exported — file data in the data backend must be migrated separately.
+
+### Live Migration (`plikd migrate`)
+
+The `plikd migrate --to <target.cfg>` command performs a **direct, live backend-to-backend migration** of both metadata and file data. No intermediate files are created.
+
+- **Metadata** (`metadata/migrator.go`): Streaming `ForEach*` + `Create*` pipeline, same migration order as export/import. CLI auth sessions are excluded (ephemeral).
+- **File data** (`data/migrator.go`): Parallel worker pool (`--workers`, default: 4) reading from `src.GetFile()` and writing to `dst.AddFile()`. Copies files with status `uploaded` or `removed` (both still exist in storage); skips `missing`, `uploading`, `deleted`.
+- **Dry-run**: Lists every individual item that would be migrated, writes nothing.
+- **Target config**: Full `plikd.cfg` via `--to`; only the backend fields need to differ from the source config.
 
 ### Migration Dump Tests
 
