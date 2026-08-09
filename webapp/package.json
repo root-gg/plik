@@ -17,7 +17,7 @@
     "@tailwindcss/vite": "^4.1.18",
     "age-encryption": "^0.3.0",
     "codemirror": "^6.0.2",
-    "dompurify": "^3.4.11",
+    "dompurify": "^3.4.13",
     "highlight.js": "^11.11.1",
     "markdown-it": "^14.2.0",
     "marked": "^17.0.1",
