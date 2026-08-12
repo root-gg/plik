@@ -27,28 +27,30 @@ PLIKD_DATA_BACKEND_CONFIG='{"Directory":"/var/files"}' ./plikd
 
 ## Server Settings
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `ListenPort` | `8080` | HTTP server port |
-| `ListenAddress` | `0.0.0.0` | HTTP server bind address |
-| `MetricsPort` | `0` | Prometheus metrics port (0 = disabled) |
-| `Path` | `""` | HTTP root path prefix |
-| `SslEnabled` | `false` | Enable TLS |
-| `SslCert` / `SslKey` | — | TLS certificate and key paths |
-| `TlsVersion` | `tlsv10` | Minimum TLS version |
-| `NoWebInterface` | `false` | Disable web UI |
-| `PlikDomain` | `""` | Public webapp URL (e.g., `https://plik.example.com`). **Domain only — no path.** Used for OAuth redirects and CORS. Does **not** restrict downloads on its own — set `DownloadDomain` for that |
-| `DownloadDomain` | `""` | Enforce download domain (e.g., `https://dl.plik.example.com`). **Domain only — no path.** UI/API blocking and CORS require `PlikDomain` too |
-| `DownloadDomainAlias` | `[]` | Additional accepted download hosts |
-| `AssumeHTTPS` | `false` | Enable HSTS + Secure cookies (auto-enabled from `SslEnabled` or HTTPS `PlikDomain`) |
-| `SessionTimeout` | `365d` | Authentication session duration |
-| `AbuseContact` | `""` | Abuse contact email shown in footer. `settings.json` `"footer"` takes precedence when set |
-| `WebappDirectory` | `../webapp/dist` | Web UI static files directory |
-| `ClientsDirectory` | `../clients` | CLI client binaries directory |
-| `ChangelogDirectory` | `../changelog` | Release changelog directory |
-| `SourceIpHeader` | `""` | Header for real IP behind proxy (e.g., `X-Forwarded-For`) |
-| `UploadWhitelist` | `[]` | Restrict uploads to IP ranges (CIDR) |
-| `EnableArchiveCompression` | `true` | Enable zip compression for archive downloads. Set to `false` to use `zip.Store` (no compression) to prevent CPU exhaustion on public instances. See [Security — Archive Compression](/guide/security#archive-compression) |
+| Parameter | Default          | Description                                                                                                                                                                                                               |
+|-----------|------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `ListenPort` | `8080`           | HTTP server port                                                                                                                                                                                                          |
+| `ListenAddress` | `0.0.0.0`        | HTTP server bind address                                                                                                                                                                                                  |
+| `MetricsPort` | `0`              | Prometheus metrics port (0 = disabled)                                                                                                                                                                                    |
+| `Path` | `""`             | HTTP root path prefix                                                                                                                                                                                                     |
+| `SslEnabled` | `false`          | Enable TLS                                                                                                                                                                                                                |
+| `SslCert` / `SslKey` | —                | TLS certificate and key paths                                                                                                                                                                                             |
+| `TlsVersion` | `tlsv10`         | Minimum TLS version                                                                                                                                                                                                       |
+| `NoWebInterface` | `false`          | Disable web UI                                                                                                                                                                                                            |
+| `PlikDomain` | `""`             | Public webapp URL (e.g., `https://plik.example.com`). **Domain only — no path.** Used for OAuth redirects and CORS. Does **not** restrict downloads on its own — set `DownloadDomain` for that                            |
+| `DownloadDomain` | `""`             | Enforce download domain (e.g., `https://dl.plik.example.com`). **Domain only — no path.** UI/API blocking and CORS require `PlikDomain` too                                                                               |
+| `DownloadDomainAlias` | `[]`             | Additional accepted download hosts                                                                                                                                                                                        |
+| `AssumeHTTPS` | `false`          | Enable HSTS + Secure cookies (auto-enabled from `SslEnabled` or HTTPS `PlikDomain`)                                                                                                                                       |
+| `SessionTimeout` | `365d`           | Authentication session duration                                                                                                                                                                                           |
+| `AbuseContact` | `""`             | Abuse contact email shown in footer. `settings.json` `"footer"` takes precedence when set                                                                                                                                 |
+| `WebappDirectory` | `../webapp/dist` | Web UI static files directory                                                                                                                                                                                             |
+| `ClientsDirectory` | `../clients`     | CLI client binaries directory                                                                                                                                                                                             |
+| `ChangelogDirectory` | `../changelog`   | Release changelog directory                                                                                                                                                                                               |
+| `SourceIpHeader` | `""`             | Header for real IP behind proxy (e.g., `X-Forwarded-For`)                                                                                                                                                                 |
+| `UploadWhitelist` | `[]`             | Restrict uploads to IP ranges (CIDR)                                                                                                                                                                                      |
+| `EnableArchiveCompression` | `true`           | Enable zip compression for archive downloads. Set to `false` to use `zip.Store` (no compression) to prevent CPU exhaustion on public instances. See [Security — Archive Compression](/guide/security#archive-compression) |
+| `UploadIDLength` | `16`             | Length of ID that will be used to uniquely identify uploads.                                                                                                                                                              |
+| `UploadIDinB32` | `false`          | Whether to use lowercase Crockford Base32 for ease of manual copying Upload IDs. If false, uses Base62 instead                                                                                                            |
 
 ## Limits
 

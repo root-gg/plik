@@ -102,7 +102,7 @@ func testCreateUploadMaxUserSize(t *testing.T, ok bool) {
 
 	ctx.SetUser(user)
 
-	upload := common.NewUpload()
+	upload := common.NewUpload(ctx.GetConfig().UploadIDinB32, ctx.GetConfig().UploadIDLength)
 	upload.User = user.ID
 	f := upload.NewFile()
 	f.Size = 1024
