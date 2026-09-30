@@ -19,7 +19,7 @@
     "codemirror": "^6.0.2",
     "dompurify": "^3.4.13",
     "highlight.js": "^11.11.1",
-    "markdown-it": "^14.2.0",
+    "markdown-it": "^14.3.1",
     "marked": "^17.0.1",
     "mermaid": "^11.15.0",
     "tailwindcss": "^4.1.18",
