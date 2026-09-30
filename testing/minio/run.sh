@@ -11,7 +11,7 @@ source ../utils.sh
 check_docker_connectivity
 
 DOCKER_VERSION=${DOCKER_VERSION-latest}
-DOCKER_IMAGE="minio/minio:$DOCKER_VERSION"
+DOCKER_IMAGE="chainguard/minio:$DOCKER_VERSION"
 DOCKER_NAME="plik.minio"
 DOCKER_PORT=2604
 
