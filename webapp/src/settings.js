@@ -29,6 +29,7 @@ export const BUILTIN_LANGUAGES = [
     { name: 'fr', label: 'Français', flag: 'flags/fr.svg' },
     { name: 'hi', label: 'हिन्दी', flag: 'flags/hi.svg' },
     { name: 'it', label: 'Italiano', flag: 'flags/it.svg' },
+    { name: 'ja', label: '日本語', flag: 'flags/ja.svg' },
     { name: 'nl', label: 'Nederlands', flag: 'flags/nl.svg' },
     { name: 'pl', label: 'Polski', flag: 'flags/pl.svg' },
     { name: 'pt', label: 'Português', flag: 'flags/pt.svg' },
