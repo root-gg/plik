@@ -288,7 +288,7 @@ func TestSearchUsersNotAdmin(t *testing.T) {
 }
 
 func createTestUploads(t *testing.T, ctx *context.Context) {
-	upload1 := common.NewUpload()
+	upload1 := common.NewUpload(ctx.GetConfig().UploadIDinB32, ctx.GetConfig().UploadIDLength)
 	upload1.Comments = "1"
 	f1 := upload1.NewFile()
 	f1.Status = common.FileUploaded
@@ -296,7 +296,7 @@ func createTestUploads(t *testing.T, ctx *context.Context) {
 	err := ctx.GetMetadataBackend().CreateUpload(upload1)
 	require.NoError(t, err, "unable to create upload1")
 
-	upload2 := common.NewUpload()
+	upload2 := common.NewUpload(ctx.GetConfig().UploadIDinB32, ctx.GetConfig().UploadIDLength)
 	upload2.Comments = "2"
 	f2 := upload2.NewFile()
 	f2.Status = common.FileUploaded
@@ -305,7 +305,7 @@ func createTestUploads(t *testing.T, ctx *context.Context) {
 	err = ctx.GetMetadataBackend().CreateUpload(upload2)
 	require.NoError(t, err, "unable to create upload2")
 
-	upload3 := common.NewUpload()
+	upload3 := common.NewUpload(ctx.GetConfig().UploadIDinB32, ctx.GetConfig().UploadIDLength)
 	upload3.Comments = "3"
 	f3 := upload3.NewFile()
 	f3.Status = common.FileUploaded
