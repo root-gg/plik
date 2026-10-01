@@ -17,6 +17,8 @@ Want to hear about new releases only ? Telegram channel : **https://t.me/plik_ro
 
 Plik is a scalable & friendly temporary file upload system — like WeTransfer, self-hosted.
 
+https://github.com/user-attachments/assets/9185798a-ab1a-41db-843b-4ef8833f4e41
+
 ### Features
 
 - 🖥️ Modern Vue 3 web interface with i18n (12 languages) and light, dark, custom themes
