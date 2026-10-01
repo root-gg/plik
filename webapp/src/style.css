@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Self-hosted Inter (variable, all subsets) so the webapp never fetches fonts from a CDN */
+@import "@fontsource-variable/inter";
 
 /* ── Custom Design Tokens ── */
 @theme {
@@ -33,7 +35,7 @@
 @layer base {
   body {
     @apply bg-surface-950 text-surface-200 antialiased;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter Variable', system-ui, -apple-system, sans-serif;
     overflow-x: hidden;
   }
 
