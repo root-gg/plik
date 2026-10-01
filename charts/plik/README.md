@@ -85,6 +85,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions around config vs. se
 | dbPersistence.enabled | bool | `false` | Enable persistent storage for the SQLite database |
 | dbPersistence.path | string | `"/home/plik/server/db"` | Mount path for the database inside the container |
 | dbPersistence.size | string | `"1Gi"` | PVC storage size |
+| extraObjects | object | `{}` | Extra Kubernetes manifests to deploy alongside the chart. Accepts dict (recommended), list, or string. See ARCHITECTURE.md. |
 | fullnameOverride | string | `""` | Override the full release name |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | image.repository | string | `"rootgg/plik"` | Docker image repository |

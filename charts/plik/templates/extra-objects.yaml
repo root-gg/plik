@@ -1,0 +1,58 @@
+{{- /*
+extra-objects.yaml — Renders arbitrary extra Kubernetes manifests supplied by the user.
+
+extraObjects supports three forms:
+
+  Form 1 — dict (recommended for multi-file values override):
+    Helm deep-merges dicts across -f files, so each file can add its own named
+    key without overwriting keys from other files. Dict values are rendered via tpl.
+
+    extraObjects:
+      my-secret:
+        apiVersion: v1
+        kind: Secret
+        ...
+
+  Form 2 — list:
+    Convenient for a single values file. A second -f file replaces the entire list.
+    Each item is rendered via tpl.
+
+    extraObjects:
+      - apiVersion: v1
+        kind: ConfigMap
+        ...
+
+  Form 3 — string:
+    Same last-file-wins behaviour as a list. The whole string is rendered via tpl
+    first, then parsed as YAML — useful for inline Go template expressions.
+
+    extraObjects: |
+      - apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: {{ include "plik.fullname" . }}-extra
+        ...
+*/ -}}
+{{- if .Values.extraObjects }}
+{{- if kindIs "string" .Values.extraObjects }}
+{{- /* Form 3: string — render the whole block with tpl, then parse as YAML array */}}
+{{- range (tpl .Values.extraObjects $ | fromYamlArray) }}
+---
+{{ toYaml . }}
+{{- end }}
+{{- else if kindIs "map" .Values.extraObjects }}
+{{- /* Form 1: dict — iterate over values; keys are used only as labels for merging */}}
+{{- range $key, $obj := .Values.extraObjects }}
+---
+{{ tpl (toYaml $obj) $ }}
+{{- end }}
+{{- else }}
+{{- /* Form 2: list */}}
+{{- range .Values.extraObjects }}
+---
+{{ tpl (toYaml .) $ }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+
