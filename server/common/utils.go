@@ -54,6 +54,28 @@ func GenerateRandomID(length int) string {
 	return string(result)
 }
 
+// Base32Charset is similar to Crockford's Base32 specification to avoid similar-looking characters.
+const Base32Charset = "0123456789abcdefghjkmnpqrstvwxyz"
+
+// GenerateB32ID generates a random upload ID of the specified length
+// It uses crypto/rand.Read but without rejection sampling since 256 is already completely divisible by 32
+func GenerateB32ID(length int) string {
+	if length == 0 {
+		return ""
+	}
+
+	result := make([]byte, length)
+
+	if _, err := rand.Read(result); err != nil {
+		panic(fmt.Sprintf("failed to generate upload ID: %s", err))
+	}
+	for i := range length {
+		result[i] = Base32Charset[result[i]%32]
+	}
+
+	return string(result)
+}
+
 // IsPlikWebapp checks if the request comes from the Plik web application
 func IsPlikWebapp(req *http.Request) bool {
 	return req.Header.Get("X-ClientApp") == "web_client"
