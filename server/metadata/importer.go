@@ -42,6 +42,9 @@ func newImporter(path string) (i *importer, err error) {
 	gob.Register(&common.User{})
 	gob.Register(&common.Token{})
 	gob.Register(&common.Setting{})
+	gob.Register(&common.DownloadStatsDaily{})
+	gob.Register(&common.UploadStatsDaily{})
+	gob.Register(&common.UsageStats{})
 	i.decoder = gob.NewDecoder(i.decompressor)
 
 	return i, nil
@@ -60,8 +63,8 @@ func (b *Backend) Import(path string, options *ImportOptions) (err error) {
 
 	defer func() { _ = i.close() }()
 
-	var uploads, files, users, tokens, settings int
-	var uploadErrors, fileErrors, userErrors, tokenErrors, settingErrors int
+	var uploads, files, users, tokens, settings, dailyStats, dailyUploadStats, tombstones int
+	var uploadErrors, fileErrors, userErrors, tokenErrors, settingErrors, dailyStatsErrors, dailyUploadStatsErrors, tombstoneErrors int
 
 	for {
 		obj := &object{}
@@ -134,6 +137,42 @@ func (b *Backend) Import(path string, options *ImportOptions) (err error) {
 			} else {
 				settings++
 			}
+		case metadataTypeDownloadStatsDaily:
+			err = b.CreateDownloadStatsDaily(obj.Object.(*common.DownloadStatsDaily))
+			if err != nil {
+				utils.Dump(obj)
+				fmt.Printf("Unable to load daily download stats : %s\n", err)
+				if !options.IgnoreErrors {
+					return err
+				}
+				dailyStatsErrors++
+			} else {
+				dailyStats++
+			}
+		case metadataTypeUploadStatsDaily:
+			err = b.CreateUploadStatsDaily(obj.Object.(*common.UploadStatsDaily))
+			if err != nil {
+				utils.Dump(obj)
+				fmt.Printf("Unable to load daily upload stats : %s\n", err)
+				if !options.IgnoreErrors {
+					return err
+				}
+				dailyUploadStatsErrors++
+			} else {
+				dailyUploadStats++
+			}
+		case metadataTypeUsageStatsTombstone:
+			err = b.ImportDeletedUsageTombstone(obj.Object.(*common.UsageStats))
+			if err != nil {
+				utils.Dump(obj)
+				fmt.Printf("Unable to load deleted-user usage tombstone : %s\n", err)
+				if !options.IgnoreErrors {
+					return err
+				}
+				tombstoneErrors++
+			} else {
+				tombstones++
+			}
 		default:
 			return fmt.Errorf("invalid object type")
 		}
@@ -144,6 +183,9 @@ func (b *Backend) Import(path string, options *ImportOptions) (err error) {
 	fmt.Printf("imported %d out of %d users\n", users, users+userErrors)
 	fmt.Printf("imported %d out of %d tokens\n", tokens, tokens+tokenErrors)
 	fmt.Printf("imported %d out of %d settings\n", settings, settings+settingErrors)
+	fmt.Printf("imported %d out of %d daily download stats\n", dailyStats, dailyStats+dailyStatsErrors)
+	fmt.Printf("imported %d out of %d daily upload stats\n", dailyUploadStats, dailyUploadStats+dailyUploadStatsErrors)
+	fmt.Printf("imported %d out of %d deleted-user usage tombstones\n", tombstones, tombstones+tombstoneErrors)
 
 	return nil
 }

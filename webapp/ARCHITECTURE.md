@@ -66,8 +66,8 @@ Filter/sort state is appended as query parameters (e.g. `/#/admin/users?provider
 | Param | Values | Default | Tab | Notes |
 |-------|--------|---------|-----|-------|
 | `user` | user ID | — | uploads | Filter uploads by user |
-| `sort` | `date`, `size` | `date` | uploads/users | Sort field |
-| `order` | `desc`, `asc` | `desc` | uploads/users | Sort direction |
+| `sort` | `date`, `size`, `downloads`, `everSize` | `date` | uploads/users/tokens | Uploads support `downloads`; users/tokens support `everSize` |
+| `order` | `desc`, `asc` | `desc` | uploads/users/tokens | Sort direction |
 | `provider` | `local`, `google`, `github`, `ovh`, `oidc` | — | users | Filter by auth provider |
 | `admin` | `true`, `false` | — | users | Filter by admin role |
 
@@ -554,15 +554,34 @@ App.vue
 │   ├── CopyButton         — clipboard copy for tokens
 │   ├── EditUserModal      — shared edit-user modal (quotas, name, email, password)
 │   ├── UploadControls     — sort/order/badge filters with active-filters slot
+│   ├── SortBar            — shared label + option sort control (tokens tab)
 │   └── UploadCard         — shared upload card (files with status badges, tokens, actions)
 ├── AdminView.vue          — admin panel (stats/users/uploads)
 │   ├── ErrorBanner        — inline dismissible error banner
 │   ├── EditUserModal      — shared edit-user modal (quotas always shown)
+│   ├── StatsUsagePanel    — shared current/lifetime stats dashboard (see below)
+│   ├── SortBar            — shared label + option sort control (users tab)
 │   ├── UploadControls     — sort/order/badge filters with active-filters slot
 │   └── UploadCard         — shared upload card (with user column)
 ├── ClientsView.vue        — CLI client downloads (from embedded build info)
 └── CLIAuthView.vue        — CLI device auth approval (displays code, approves session)
 ```
+
+### Shared stats dashboard components
+
+Extracted so the current/lifetime stats dashboard is defined once and reused per scope (admin server scope and the Home stats tab's user scope):
+
+| Component | Purpose |
+|-----------|---------|
+| `StatTile` | Label + big humanized value. Counts via `formatCount()` (`toLocaleString`), sizes via `humanReadableSize()`; `tabular-nums` preserved. `bordered`/`valueClass` props cover both the plain usage tiles and the accented downloads tiles. |
+| `DistributionCard` | Titled card of `{label, value}` rows with proportional bars. Data-driven (`title`, `items`, `total`); a single `barClass` prop/token colours every bar (no per-card hues) so re-theming is one line; `total=0` renders empty bars without dividing by zero. |
+| `SortBar` | A label + pipe-separated option buttons as a single-choice control; emits `update:modelValue`. Two instances compose a `Sort: … Order: …` bar. |
+| `StatsUsagePanel` | Composite. Given the canonical `usage` object it renders the current/lifetime tile columns, one merged **Activity** card, and the six side-by-side distribution cards (feature / TTL / file-size). The Activity card has a 4-metric segmented selector — Downloads / Uploads / Downloaded data / Uploaded data — that drives BOTH the window tiles (Today / 7 days / 30 days / **Lifetime**) and the `ActivityChart` for the selected metric. Count-metric windows come from the `usage` object (`downloads`/`uploads` today/last7Days/last30Days + total); byte-metric windows are summed from `dailySeries` (Lifetime from `usage.*.bytes`), so a null series leaves byte windows at 0 while Lifetime still renders. Scope-specific bits are props/slots: `currentTiles`/`lifetimeTiles`, `showActivity` (scopes without windows/series), a `#storage` slot (admin-only), and `dailySeries` (the 30-day activity series; `null`/empty omits the chart but keeps the tiles). The "since {date}" is printed once, in the lifetime column title. |
+| `ActivityChart` | Presentational 30-day activity column chart. It is **controlled** by the panel: the measure is a `metric` prop (`downloads` \| `uploads` \| `downloadedBytes` \| `uploadedBytes`) — the segmented selector lives on the Activity card, not inside the chart. Props: `series` (`[{day, downloads, downloadedBytes, uploads, uploadedBytes}]`) and `metric`. Bars use a single accent token, axis/tooltip text use `surface-*` ink, gridlines a recessive surface token; y-axis starts at 0 with ~3 gridlines, x-axis labels every 7th UTC day, values humanized per metric — counts (`1.2k`) for download/upload metrics, byte sizes (`1.5 MB`) for the `*Bytes` metrics. Per-column hover shows a day+value tooltip (edge-flipped so it never clips); all-zero data draws the axis + a quiet empty-state line; the grow-in animation respects `prefers-reduced-motion`. Pure scale/tick/label helpers live in `chart-utils.js` (unit-tested), including `isByteMetric()` which classifies the four metric keys. |
+
+> `StatsUsagePanel` owns the `statsPanel.*` i18n namespace (period titles, the Activity metric-selector labels, window-tile labels, distribution labels, and the `ActivityChart` empty/aria strings). Distribution bar colours are intentionally a single accent token; per-category tinting is a possible future refinement.
+>
+> `ActivityChart` is a hand-rolled SVG in a Vue SFC with **no charting dependency** — a bar chart this small needs only `<rect>`/`<path>` plus a handful of pure geometry helpers, so adding a library (and its bundle/theming/maintenance cost) would not pay for itself; theme reactivity comes for free from the `--color-*` tokens the SVG references.
 
 ---
 
@@ -585,11 +604,13 @@ Reactive singleton holding `auth.user` (set on login, cleared on logout). Checke
 
 Sidebar + main content layout (same pattern as download view).
 
-**Sidebar**: user avatar, login/provider, name, email, admin badge, stats (uploads/files/size). Buttons: Upload files, Uploads, Tokens, Sign out, Edit account, Delete uploads, Delete account.
+**Sidebar**: user avatar, login/provider, name, email, admin badge. Nav buttons: Stats, Uploads, Tokens (Tokens hidden when the `api_tokens` feature is disabled). Account actions: Sign out, Edit account (local provider only), Delete uploads (uploads tab only), Delete account (when the `delete_account` feature is enabled).
 
-**Uploads tab**: paginated user uploads via `GET /me/uploads`. Supports token-based filtering. Each upload shows files, date, size, with clickable token labels.
+**Uploads tab**: paginated user uploads via `GET /me/uploads`. Sorts by date, current size, or lifetime downloads. Supports token-based filtering. Each upload shows files, date, size, with clickable token labels.
 
-**Tokens tab**: list/create/revoke tokens via `GET|POST|DELETE /me/token`. Token comment displayed above UUID. Click token to filter uploads by it.
+**Stats tab**: user config card, then the shared `StatsUsagePanel` (the same panel Admin uses, scoped to `GET /me/stats`'s `usage` object) — current/lifetime tiles (uploads/files/size), the merged **Activity** card (4-metric selector driving Today/7 days/30 days/Lifetime tiles + the daily chart), and the six side-by-side feature/TTL/file-size distribution cards. No `#storage` slot (that split is server-scope-only). A user-specific quota progress bar (usage against this user's own `maxUserSize`) renders below the panel, outside it, since the panel has no per-user-quota concept.
+
+**Tokens tab**: list/create/revoke tokens via `GET|POST|DELETE /me/token`. Token comment displayed above UUID. Click token to filter uploads by it. Token rows have caret details with current/lifetime stats and can sort by creation date, current size, or lifetime size. Token values are not written into the URL; token sort/order query params are safe.
 
 **Edit Account modal**: name, email, password (local only). Admin users additionally see maxFileSize, maxUserSize, maxTTL, admin toggle. Saves via `POST /user/{id}`.
 
@@ -601,15 +622,75 @@ Admin-only page. Redirects non-admins to `/` on mount.
 
 **Sidebar**: server version/build info (release + mint badges), nav buttons (Stats, Uploads, Users), Create User button.
 
-**Stats tab**: server config (maxFileSize, maxUserSize, defaultTTL, maxTTL) + server statistics (users, uploads, files, totalSize, anonymous counts).
+**Stats tab**: server config plus current/lifetime statistics, `Stats since`, download window totals, storage split bars, feature usage bars, TTL distribution bars, file-size distribution bars, and admin-only upload/file trending windows.
 
-**Users tab**: paginated user list via `GET /users`. Each row shows login, provider, name, email, quotas, admin badge. Actions: Impersonate (👤), Edit (opens modal with full quota controls), Delete (with confirmation). Delete disabled for self. Impersonate disabled for self.
+**Users tab**: paginated user list via `GET /users`. Sorts by creation date, current size, or lifetime size. Each row shows login, provider, name, email, quotas, admin badge, and usage stats. Actions: Impersonate (👤), Edit (opens modal with full quota controls), Delete (with confirmation). Delete disabled for self. Impersonate disabled for self.
 
-**Uploads tab**: paginated all-uploads via `GET /uploads`. Sort by date/size, order asc/desc. Filter by user/token (clickable links in each row). Each row shows upload ID (link), dates, user, token, files with sizes, Remove button.
+**Uploads tab**: paginated all-uploads via `GET /uploads`. Sort by date, current size, or lifetime downloads, order asc/desc. Filter by user/token (clickable links in each row). Each row shows upload ID (link), dates, user, token, files with sizes, Remove button.
 
 **Create User modal**: provider (select), login, password (local only), name, email, quotas (maxFileSize, maxUserSize, maxTTL), admin toggle. Creates via `POST /user`.
 
 **Edit User modal**: same as HomeView edit but with full admin quota controls always visible.
+
+### Stats UI
+
+The webapp consumes the server's counter-backed stats APIs. The frontend does not compute durable stats from upload lists; upload lists are paginated and incomplete, so they are only used for row/card display. Current/lifetime totals, token usage, server aggregates, and trending all come from explicit stats fields returned by the backend.
+
+#### Download View Stats
+
+`DownloadView` shows file-level and upload-level download stats only when the viewer is an upload admin. Admin access comes from either the per-upload `UploadToken` or an authenticated owner/admin session, as decided by the server and exposed through `upload.admin`.
+
+- `FileRow` caret details show `downloadCount` and `lastDownloadedAt` for each file when `upload.admin === true`.
+- `DownloadSidebar` shows upload-level `downloadCount` and `lastDownloadedAt` when `upload.admin === true`.
+- If `lastDownloadedAt` is absent, the UI renders the last-download value as `Never`.
+- Non-admin viewers must not receive or display download stats. The server sanitizes these fields, and the UI keeps the conditional rendering aligned with `upload.admin`.
+
+#### Home Stats
+
+The Home stats tab uses `GET /me/stats` for the authenticated user's current and lifetime usage, rendered through the shared `StatsUsagePanel` (the same panel Admin uses, scoped to this user):
+
+- current uploads/files/size and lifetime uploads/files/size tiles (parent-supplied, both periods reuse the plain "Uploads"/"Files"/"Total Size" labels — the section header above each column disambiguates the period)
+- the merged Activity card: a 4-metric selector (Downloads / Uploads / Downloaded data / Uploaded data) driving the Today/7 days/30 days/Lifetime window tiles and the daily chart, all for the user's own daily activity series (`GET /me/stats/activity/daily`) plus the `usage.downloads`/`usage.uploads` lifetime totals and count windows
+- the six side-by-side distribution cards: current/lifetime × feature usage, TTL distribution, file-size distribution
+- "Lifetime Usage (since {date})" from `usage.startedAt`, printed once in the lifetime column title
+- a user-specific quota/progress bar (usage against this user's own `maxUserSize`) below the panel — not part of the shared panel, which has no per-user-quota concept and no `#storage` slot usage on Home (that slot is server-scope-only)
+
+A fresh user with all-zero usage renders the same structure with empty (0%) distribution bars and "0"/"0 B" tiles — the panel's `total=0` handling (no divide-by-zero) makes the empty state look intentional rather than broken.
+
+The Tokens tab uses `GET /me/token` rows with nested `stats` and `lastUploadAt`. Token details are hidden behind a caret and include current/lifetime uploads, files, size, last upload date, and `Stats since`. Token values are never written into URLs; only safe query parameters such as `sort` and `order` are synced.
+
+User upload lists use `GET /me/uploads` and can sort by:
+
+| Sort | Meaning |
+|------|---------|
+| `date` | Upload creation date |
+| `size` | Current retained upload size |
+| `downloads` | Lifetime upload-level download count |
+
+Token lists can sort by `date`, current retained `size`, and lifetime `everSize`.
+
+#### Admin Stats
+
+The Admin stats tab combines `GET /stats` with the admin-only trending endpoints:
+
+- current and lifetime server totals
+- `Stats since` from server `startedAt`
+- counted download events for today, 7 days, 30 days, and all time
+- authenticated vs anonymous storage split
+- current and lifetime upload feature usage bars
+- current and lifetime TTL distribution bars
+- current and lifetime file-size distribution bars
+- trending uploads/files for `all`, `1d`, `7d`, and `30d`
+
+Download windows use UTC-day semantics from the backend: today means the current UTC day, 7 days includes today plus the previous 6 UTC days, and 30 days includes today plus the previous 29 UTC days. Trending rows link to the upload when possible and show user information with a user-filter link when a user ID is available. Trending is intentionally admin-only because it exposes activity patterns and user/upload identifiers.
+
+Admin user lists use `GET /users` and can sort by creation date, current retained size, or lifetime size. Admin upload lists use `GET /uploads` and can sort by creation date, current retained size, or lifetime upload-level downloads.
+
+#### Privacy and Safety
+
+- Do not derive or expose stats from raw API token values.
+- Keep download stats gated by `upload.admin`. A regular shared-link viewer should not learn how popular an upload or file is.
+- Treat `downloadCount` as logical events, not bytes transferred. Range/media behavior is handled by the backend counting policy.
 
 ### Impersonation
 
@@ -649,12 +730,13 @@ Allows an admin to "become" another user to browse their uploads, test their quo
 | `/me`                 | DELETE | Delete account                 | Session    |
 | `/me/uploads`         | GET    | User uploads (paginated)       | Session    |
 | `/me/uploads`         | DELETE | Delete all user uploads        | Session    |
-| `/me/token`           | GET    | List tokens                    | Session    |
+| `/me/token`           | GET    | List tokens with stats         | Session    |
 | `/me/token`           | POST   | Create token                   | Session    |
 | `/me/token/{token}`   | DELETE | Revoke token                   | Session    |
 | `/user/{id}`          | POST   | Update user                    | Session    |
 | `/stats`              | GET    | Server statistics              | Admin only |
-| `/users`              | GET    | List all users (paginated)     | Admin only |
+| `/stats/trending/*`   | GET    | Trending upload/file stats     | Admin only |
+| `/users`              | GET    | List all users with stats      | Admin only |
 | `/user`               | POST   | Create user                    | Admin only |
 | `/user/{id}`          | DELETE | Delete user                    | Admin only |
 | `/uploads`            | GET    | All uploads (paginated, filterable) | Admin only |
@@ -1095,4 +1177,3 @@ Provides streaming encryption/decryption using the `age-encryption` npm package:
 - **🔐 Encrypted badge**: Shown in upload info when `upload.e2ee` is truthy — displays "End-to-End Encrypted with Age" where Age is a link to [age-encryption.org](https://age-encryption.org)
 - **Passphrase display**: Read-only display in Share section with edit (pencil) button and copy button, always shown for E2EE uploads. Edit button opens the passphrase modal to change the passphrase (overlay dismiss is allowed when editing since a passphrase already exists)
 - **Include passphrase in link toggle**: Off by default — appends `#key=<passphrase>` to the share URL when enabled
-

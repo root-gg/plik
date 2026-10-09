@@ -12,7 +12,30 @@ import (
 
 // CreateUpload create a new upload in DB
 func (b *Backend) CreateUpload(upload *common.Upload) (err error) {
-	return b.db.Create(upload).Error
+	return b.db.Transaction(func(tx *gorm.DB) error {
+		err := tx.Create(upload).Error
+		if err != nil {
+			return err
+		}
+
+		lastUploadAt := upload.CreatedAt
+		if lastUploadAt.IsZero() {
+			lastUploadAt = time.Now()
+		}
+		delta := uploadCreationDelta(upload, lastUploadAt)
+
+		// Record the upload creation in its UTC day's rollup bucket. Canonical lock
+		// order (see stats_download.go): rollups are written before the usage rows
+		// below. On import this regenerates the day's Uploads count (bytes stay 0 —
+		// the wire-byte path is not replayed); CreateUploadStatsDaily then restores
+		// the authoritative row.
+		err = b.recordDailyUploads(tx, statsDay(*delta.lastUploadAt), upload.User, upload.Token, 1, 0)
+		if err != nil {
+			return err
+		}
+
+		return b.applyUsageDelta(tx, upload.User, upload.Token, delta)
+	})
 }
 
 // UpdateUploadExpirationDate updates an upload expiration date in DB
@@ -90,6 +113,18 @@ func (b *Backend) CountUploads(filters UploadFilters) (count int64, err error) {
 	err = stmt.Count(&count).Error
 	return count, err
 }
+
+// Upload-list sort values shared by GET /uploads (server/handlers/admin.go)
+// and GET /me/uploads (server/handlers/me.go). isUploadSort
+// (server/handlers/misc.go) validates against these before the handlers'
+// shared dispatch helper (getUploadsSorted) picks the matching sorted-fetch
+// method below; the empty value is the default date ordering (GetUploads).
+const (
+	UploadSortDate            = "date"
+	UploadSortSize            = "size"
+	UploadSortDownloads       = "downloads"
+	UploadSortDownloadedBytes = "downloadedBytes"
+)
 
 // GetUploads return uploads from DB
 // set withFiles to also fetch the files
@@ -189,18 +224,56 @@ func (b *Backend) GetUploadsSortedBySize(filters UploadFilters, withFiles bool, 
 	}
 
 	// Reorder to match the pagination sort order
-	byID := make(map[string]*common.Upload, len(uploads))
-	for _, u := range uploads {
-		byID[u.ID] = u
-	}
-	uploads = uploads[:0]
-	for _, ref := range refs {
-		if u, ok := byID[ref.ID]; ok {
-			uploads = append(uploads, u)
-		}
-	}
+	uploads = reorderByRefs(ids, uploads, func(u *common.Upload) string { return u.ID })
 
 	return uploads, &c, nil
+}
+
+// getUploadsSortedByColumn is the shared body of GetUploadsSortedByDownloads
+// and GetUploadsSortedByDownloadedBytes, which differ by exactly one paginator
+// Rule: the primary sort column. key is the Go-side paginator key (matching the
+// field named by sqlColumn) and sqlColumn is its table-qualified SQL
+// representation.
+func (b *Backend) getUploadsSortedByColumn(filters UploadFilters, withFiles bool, pagingQuery *common.PagingQuery, key string, sqlColumn string) (uploads []*common.Upload, cursor *paginator.Cursor, err error) {
+	if pagingQuery == nil {
+		return nil, nil, fmt.Errorf("missing paging query")
+	}
+
+	stmt := b.db.Model(&common.Upload{})
+	stmt = applyUploadFilters(stmt, filters)
+
+	if withFiles {
+		stmt = stmt.Preload("Files")
+	}
+
+	p := pagingQuery.Paginator()
+	p.SetRules(
+		paginator.Rule{Key: key, SQLRepr: sqlColumn},
+		paginator.Rule{Key: "CreatedAt", SQLRepr: "uploads.created_at"},
+		paginator.Rule{Key: "ID", SQLRepr: "uploads.id"},
+	)
+
+	result, c, err := p.Paginate(stmt, &uploads)
+	if err != nil {
+		return nil, nil, err
+	}
+	if result.Error != nil {
+		return nil, nil, result.Error
+	}
+
+	return uploads, &c, err
+}
+
+// GetUploadsSortedByDownloads return uploads from DB sorted by lifetime download count.
+// set withFiles to also fetch the files.
+func (b *Backend) GetUploadsSortedByDownloads(filters UploadFilters, withFiles bool, pagingQuery *common.PagingQuery) (uploads []*common.Upload, cursor *paginator.Cursor, err error) {
+	return b.getUploadsSortedByColumn(filters, withFiles, pagingQuery, "DownloadCount", "uploads.download_count")
+}
+
+// GetUploadsSortedByDownloadedBytes return uploads from DB sorted by lifetime
+// bytes served (downloaded_bytes). set withFiles to also fetch the files.
+func (b *Backend) GetUploadsSortedByDownloadedBytes(filters UploadFilters, withFiles bool, pagingQuery *common.PagingQuery) (uploads []*common.Upload, cursor *paginator.Cursor, err error) {
+	return b.getUploadsSortedByColumn(filters, withFiles, pagingQuery, "DownloadedBytes", "uploads.downloaded_bytes")
 }
 
 // RemoveUpload soft delete upload ( just set upload.DeletedAt field ) and remove all files.
@@ -208,14 +281,52 @@ func (b *Backend) GetUploadsSortedBySize(filters UploadFilters, withFiles bool, 
 // until all the files are deleted from the data backend and DeleteRemovedUploads purges them.
 func (b *Backend) RemoveUpload(uploadID string) (err error) {
 	err = b.db.Transaction(func(tx *gorm.DB) (err error) {
+		// Canonical lock order (see stats_download.go): take the parent upload
+		// row's write lock first, before reading or transitioning its file rows.
+		// While we hold it no concurrent transition/download can change this
+		// upload's file rows, so the decrement deltas derived from the aggregate
+		// reads below match exactly the files this transaction moves out of the
+		// uploaded state — no double decrement, no leaked increment.
+		upload, err := b.lockUploadRow(tx, uploadID)
+		if err != nil {
+			return err
+		}
+		if upload == nil || upload.DeletedAt.Valid {
+			// Never existed or already removed: nothing to do (idempotent).
+			return nil
+		}
+
+		var uploadIDs = []string{uploadID}
+		files, size, err := uploadedFileStatsForUploads(tx, uploadIDs)
+		if err != nil {
+			return err
+		}
+		var delta usageDelta
+		err = addFileSizeStatsForUploads(tx, &delta, uploadIDs, []string{common.FileUploaded}, -1, 0)
+		if err != nil {
+			return err
+		}
+
 		err = b.removeUploadFiles(tx, uploadID)
 		if err != nil {
 			return fmt.Errorf("unable to delete upload files : %s", err)
 		}
 
-		err = tx.Delete(&common.Upload{ID: uploadID}).Error
-		if err != nil {
-			return fmt.Errorf("unable to (soft) delete upload : %s", err)
+		result := tx.Delete(&common.Upload{ID: uploadID})
+		if result.Error != nil {
+			return fmt.Errorf("unable to (soft) delete upload : %s", result.Error)
+		}
+
+		if result.RowsAffected == 1 {
+			addUploadFeatureUsage(&delta, upload, -1, 0)
+			addUploadTTLUsage(&delta, upload, -1, 0)
+			delta.currentUploads = -1
+			delta.currentFiles = -files
+			delta.currentSize = -size
+			err = b.applyUsageDelta(tx, upload.User, upload.Token, delta)
+			if err != nil {
+				return fmt.Errorf("unable to update usage stats : %s", err)
+			}
 		}
 
 		return nil
@@ -282,6 +393,16 @@ func (b *Backend) DeleteRemovedUploads() (removed int, err error) {
 
 		// One transaction per upload
 		err = b.db.Transaction(func(tx *gorm.DB) (err error) {
+
+			// Canonical lock order (see stats_download.go): lock the parent upload
+			// row before reading, transitioning, or deleting its file rows. This
+			// purge path deletes file rows before the upload row, so without the
+			// lock it would acquire file/upload row locks in the reverse of the
+			// canonical order and could AB-BA deadlock with a concurrent file
+			// transition (e.g. removed -> deleted) on the same upload.
+			if _, err = b.lockUploadRow(tx, upload.ID); err != nil {
+				return err
+			}
 
 			// Ensure all files have been deleted from the data backend
 			var count int64

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { humanReadableSize, isViewableFile as checkIsViewableFile } from '../utils.js'
+import { humanReadableSize, formatDate, isViewableFile as checkIsViewableFile } from '../utils.js'
 import { getFileURL } from '../api.js'
 import CopyButton from './CopyButton.vue'
 
@@ -12,6 +12,7 @@ const props = defineProps({
   isStream: { type: Boolean, default: false },
   isOneShot: { type: Boolean, default: false },
   isE2ee: { type: Boolean, default: false },
+  showDownloadStats: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['remove', 'update-name', 'show-qr', 'view', 'cancel', 'retry', 'decrypt-download'])
@@ -316,17 +317,31 @@ function fileUrl() {
     <!-- Expanded file details -->
     <div v-if="showDetails && mode === 'download'"
          class="w-full mt-2 pt-2 border-t border-surface-700/50 text-xs text-surface-400 space-y-1 animate-fade-in">
-      <div v-if="file.fileType" class="flex gap-2">
-        <span class="text-surface-500 w-14">{{ $t('fileRow.type') }}</span>
-        <span class="text-surface-300">{{ file.fileType }}</span>
+      <div v-if="file.fileType" class="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2">
+        <span class="text-surface-500">{{ $t('fileRow.type') }}</span>
+        <span class="text-surface-300 truncate">{{ file.fileType }}</span>
       </div>
-      <div v-if="file.fileMd5" class="flex gap-2">
-        <span class="text-surface-500 w-14">{{ $t('fileRow.md5') }}</span>
-        <span class="text-surface-300 font-mono">{{ file.fileMd5 }}</span>
+      <div v-if="file.fileMd5" class="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2">
+        <span class="text-surface-500">{{ $t('fileRow.md5') }}</span>
+        <span class="text-surface-300 font-mono truncate">{{ file.fileMd5 }}</span>
       </div>
-      <div v-if="file.createdAt" class="flex gap-2">
-        <span class="text-surface-500 w-14">{{ $t('fileRow.created') }}</span>
+      <div v-if="file.createdAt" class="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2">
+        <span class="text-surface-500">{{ $t('fileRow.created') }}</span>
         <span class="text-surface-300">{{ new Date(file.createdAt).toLocaleString() }}</span>
+      </div>
+      <div v-if="showDownloadStats" class="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2">
+        <span class="text-surface-500">{{ $t('fileRow.downloads') }}</span>
+        <span class="text-surface-300 tabular-nums flex items-center gap-1">
+          {{ file.downloadCount || 0 }}
+          <span class="setting-help-wrap relative shrink-0" @click.prevent.stop>
+            <span class="setting-help" tabindex="0" role="button" aria-label="Help">?</span>
+            <span class="setting-tooltip setting-tooltip-left-anchor">{{ $t('common.downloadCountHelp') }}</span>
+          </span>
+        </span>
+      </div>
+      <div v-if="showDownloadStats" class="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2">
+        <span class="text-surface-500">{{ $t('fileRow.lastDownload') }}</span>
+        <span class="text-surface-300">{{ file.lastDownloadedAt ? formatDate(file.lastDownloadedAt) : $t('common.never') }}</span>
       </div>
     </div>
   </div>

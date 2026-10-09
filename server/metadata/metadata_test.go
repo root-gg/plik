@@ -16,7 +16,15 @@ import (
 )
 
 // Default config
-var metadataBackendConfig = &Config{Driver: "sqlite3", ConnectionString: "/tmp/plik.test.db", EraseFirst: true, Debug: false}
+//
+// The SQLite test DSN carries an explicit _busy_timeout so that the concurrent
+// stats tests (best-effort download recording and the removal/completion race
+// suites) wait briefly for the single WAL writer instead of failing fast as
+// SQLITE_BUSY. sqliteConnectionString adds the same default (and _txlock) to
+// any DSN that lacks them, so every backend opened here also exercises the
+// production DSN path; spelling the timeout out keeps the test contract
+// explicit rather than inherited.
+var metadataBackendConfig = &Config{Driver: "sqlite3", ConnectionString: "/tmp/plik.test.db?_busy_timeout=5000", EraseFirst: true, Debug: false}
 
 func TestMain(m *testing.M) {
 
@@ -36,6 +44,33 @@ func TestMain(m *testing.M) {
 	// Run tests
 	code := m.Run()
 	os.Exit(code)
+}
+
+// The SQLite DSN builder guards two invariants that only show up under
+// concurrent production load, so they are pinned here at the string level:
+// transactions must open IMMEDIATE (write lock at BEGIN, preventing the
+// deferred-read upgrade deadlock) and a busy database must wait rather than
+// error. Operator-supplied parameters always win — the builder only fills
+// gaps — so an explicit override can never be clobbered by an upgrade.
+func TestSqliteConnectionString(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"bare path gains both defaults", "plik.db", "plik.db?_txlock=immediate&_busy_timeout=5000"},
+		{"unrelated params preserved", "plik.db?cache=shared", "plik.db?cache=shared&_txlock=immediate&_busy_timeout=5000"},
+		{"operator txlock override wins", "plik.db?_txlock=deferred", "plik.db?_txlock=deferred&_busy_timeout=5000"},
+		{"operator busy_timeout override wins", "plik.db?_busy_timeout=10000", "plik.db?_busy_timeout=10000&_txlock=immediate"},
+		{"both overridden: DSN untouched", "plik.db?_txlock=deferred&_busy_timeout=1", "plik.db?_txlock=deferred&_busy_timeout=1"},
+		{"in-memory DSN gains both defaults", ":memory:", ":memory:?_txlock=immediate&_busy_timeout=5000"},
+		{"trailing ? treated as no params", "plik.db?", "plik.db?_txlock=immediate&_busy_timeout=5000"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, sqliteConnectionString(tc.in))
+		})
+	}
 }
 
 func newTestMetadataBackend() *Backend {

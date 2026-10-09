@@ -103,17 +103,17 @@ func TestBackend_GetUsers(t *testing.T) {
 		createUser(t, b, user)
 	}
 
-	users, cursor, err := b.GetUsers("", nil, false, common.NewPagingQuery().WithLimit(100))
+	users, cursor, err := b.GetUsers("", nil, false, "", common.NewPagingQuery().WithLimit(100))
 	require.NoError(t, err, "get user error")
 	require.NotNil(t, cursor, "invalid nil cursor")
 	require.Len(t, users, 10, "invalid user length")
 
-	users, cursor, err = b.GetUsers(common.ProviderGoogle, nil, false, common.NewPagingQuery().WithLimit(100))
+	users, cursor, err = b.GetUsers(common.ProviderGoogle, nil, false, "", common.NewPagingQuery().WithLimit(100))
 	require.NoError(t, err, "get user error")
 	require.NotNil(t, cursor, "invalid nil cursor")
 	require.Len(t, users, 5, "invalid user length")
 
-	users, cursor, err = b.GetUsers("", nil, false, nil)
+	users, cursor, err = b.GetUsers("", nil, false, "", nil)
 	require.Error(t, err, "get user error expected")
 }
 
@@ -134,7 +134,7 @@ func TestBackend_GetUsers_AdminFilter(t *testing.T) {
 
 	// Filter admins only
 	adminTrue := true
-	users, _, err := b.GetUsers("", &adminTrue, false, common.NewPagingQuery().WithLimit(100))
+	users, _, err := b.GetUsers("", &adminTrue, false, "", common.NewPagingQuery().WithLimit(100))
 	require.NoError(t, err, "get admin users error")
 	require.Len(t, users, 3, "invalid admin user count")
 	for _, u := range users {
@@ -143,7 +143,7 @@ func TestBackend_GetUsers_AdminFilter(t *testing.T) {
 
 	// Filter non-admins only
 	adminFalse := false
-	users, _, err = b.GetUsers("", &adminFalse, false, common.NewPagingQuery().WithLimit(100))
+	users, _, err = b.GetUsers("", &adminFalse, false, "", common.NewPagingQuery().WithLimit(100))
 	require.NoError(t, err, "get non-admin users error")
 	require.Len(t, users, 5, "invalid non-admin user count")
 	for _, u := range users {
@@ -151,9 +151,93 @@ func TestBackend_GetUsers_AdminFilter(t *testing.T) {
 	}
 
 	// No filter (nil) returns all
-	users, _, err = b.GetUsers("", nil, false, common.NewPagingQuery().WithLimit(100))
+	users, _, err = b.GetUsers("", nil, false, "", common.NewPagingQuery().WithLimit(100))
 	require.NoError(t, err, "get all users error")
 	require.Len(t, users, 8, "invalid total user count")
+}
+
+func TestBackend_GetUsers_SortByUsageSize(t *testing.T) {
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	currentUser := common.NewUser(common.ProviderLocal, "current_size")
+	createUser(t, b, currentUser)
+	lifetimeUser := common.NewUser(common.ProviderLocal, "lifetime_size")
+	createUser(t, b, lifetimeUser)
+
+	currentUpload := common.NewUpload()
+	currentUpload.User = currentUser.ID
+	currentFile := currentUpload.NewFile()
+	currentFile.Status = common.FileUploaded
+	currentFile.Size = 100
+	createUpload(t, b, currentUpload)
+
+	lifetimeUpload := common.NewUpload()
+	lifetimeUpload.User = lifetimeUser.ID
+	lifetimeFile := lifetimeUpload.NewFile()
+	lifetimeFile.Status = common.FileUploaded
+	lifetimeFile.Size = 500
+	createUpload(t, b, lifetimeUpload)
+	err := b.RemoveUpload(lifetimeUpload.ID)
+	require.NoError(t, err, "remove upload error")
+
+	users, _, err := b.GetUsers("", nil, false, StatsSortSize, common.NewPagingQuery().WithLimit(10))
+	require.NoError(t, err, "get users by current size error")
+	require.Len(t, users, 2, "invalid user count")
+	require.Equal(t, currentUser.ID, users[0].ID, "invalid current-size sort order")
+	require.NotNil(t, users[0].Stats, "missing user stats")
+	require.Equal(t, int64(100), users[0].Stats.TotalSize, "invalid user current size")
+
+	users, _, err = b.GetUsers("", nil, false, StatsSortLifetimeSize, common.NewPagingQuery().WithLimit(10))
+	require.NoError(t, err, "get users by lifetime size error")
+	require.Len(t, users, 2, "invalid user count")
+	require.Equal(t, lifetimeUser.ID, users[0].ID, "invalid lifetime-size sort order")
+	require.NotNil(t, users[0].Stats, "missing user stats")
+	require.Equal(t, int64(500), users[0].Stats.Usage.Lifetime.TotalSize, "invalid user lifetime size")
+}
+
+// TestBackend_GetUsers_SortByDownloadedBytes mirrors
+// TestBackend_GetUsers_SortByUsageSize for sort=downloadedBytes: it must order
+// users by their usage_stats.downloaded_bytes (via the same join pattern as
+// current/lifetime size), populated here through a real RecordFileDownload so
+// the join reads the same column the live download path writes.
+func TestBackend_GetUsers_SortByDownloadedBytes(t *testing.T) {
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	heavyUser := common.NewUser(common.ProviderLocal, "heavy_downloader")
+	createUser(t, b, heavyUser)
+	lightUser := common.NewUser(common.ProviderLocal, "light_downloader")
+	createUser(t, b, lightUser)
+	idleUser := common.NewUser(common.ProviderLocal, "idle_downloader")
+	createUser(t, b, idleUser)
+
+	heavyUpload := &common.Upload{User: heavyUser.ID}
+	heavyFile := heavyUpload.NewFile()
+	heavyFile.Status = common.FileUploaded
+	heavyFile.Size = 5000
+	createUpload(t, b, heavyUpload)
+	require.NoError(t, b.RecordFileDownload(heavyUpload, heavyFile, 5000, true))
+
+	lightUpload := &common.Upload{User: lightUser.ID}
+	lightFile := lightUpload.NewFile()
+	lightFile.Status = common.FileUploaded
+	lightFile.Size = 100
+	createUpload(t, b, lightUpload)
+	require.NoError(t, b.RecordFileDownload(lightUpload, lightFile, 100, true))
+
+	users, _, err := b.GetUsers("", nil, false, StatsSortDownloadedBytes, common.NewPagingQuery().WithLimit(10))
+	require.NoError(t, err, "get users by downloaded bytes error")
+	require.Len(t, users, 3, "invalid user count")
+	require.Equal(t, heavyUser.ID, users[0].ID, "invalid downloaded-bytes sort order")
+	require.NotNil(t, users[0].Stats, "missing user stats")
+	require.Equal(t, int64(5000), users[0].Stats.Usage.Downloads.Bytes, "invalid user downloaded bytes")
+	require.Equal(t, lightUser.ID, users[1].ID, "invalid downloaded-bytes sort order")
+
+	// idleUser never downloaded anything. CreateUser seeds every user with its
+	// own usage_stats row (so there is no missing-row edge here); downloaded_bytes
+	// on that row simply stays at its default 0.
+	require.Equal(t, idleUser.ID, users[2].ID, "idle user with zero downloaded bytes must sort last (desc)")
 }
 
 func TestBackend_SearchUsers(t *testing.T) {

@@ -7,18 +7,23 @@ import { config } from '../config.js'
 import ErrorBanner from '../components/ErrorBanner.vue'
 import UploadControls from '../components/UploadControls.vue'
 import {
-    getServerStats, getAdminUsers, getAdminUploads, searchUsers,
+    getServerStats, getServerActivityDaily, getAdminUsers, getAdminUploads, searchUsers,
     createUser as apiCreateUser, deleteUser as apiDeleteUser,
-    updateUser, removeUpload, getVersion
+    updateUser, removeUpload, getVersion, getTrendingUploads, getTrendingFiles
 } from '../api.js'
 import {
-    humanReadableSize, quotaLabel, ttlLabel,
+    humanReadableSize, formatSizeOrZero, quotaLabel, ttlLabel,
     buildEditForm, buildEditPayload,
     clampQuota, filterQuotaInput, defaultSizeHint, defaultTTLHint, TTL_UNITS,
+    sortFromQuery, orderFromQuery, ratioPercent,
 } from '../utils.js'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import EditUserModal from '../components/EditUserModal.vue'
 import UploadCard from '../components/UploadCard.vue'
+import StatsUsagePanel from '../components/StatsUsagePanel.vue'
+import SortBar from '../components/SortBar.vue'
+import TrendingPanel from '../components/TrendingPanel.vue'
+import { useTrending } from '../composables/useTrending.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -32,7 +37,16 @@ const version = ref(null)
 
 // ── Stats ──
 const stats = ref(null)
+const dailySeries = ref(null)
 const statsLoading = ref(false)
+const {
+    trendingWindow, trendingSort, trendingUploads, trendingFiles, trendingLoading,
+    loadTrending, changeTrendingWindow, changeTrendingSort, openUpload,
+} = useTrending(router, {
+    fetchUploads: getTrendingUploads,
+    fetchFiles: getTrendingFiles,
+    onError: () => { error.value = $t('adminView.failedToLoadTrending') },
+})
 
 // ── Users ──
 const users = ref([])
@@ -41,7 +55,7 @@ const usersTotal = ref(null)
 const usersLoading = ref(false)
 const usersProviderFilter = ref('')
 const usersAdminFilter = ref('')   // '' | 'true' | 'false'
-const usersSortBy = ref('date')    // 'date' | 'size'
+const usersSortBy = ref('date')    // 'date' | 'size' | 'lifetimeSize'
 const usersSortOrder = ref('desc') // 'desc' | 'asc'
 
 // ── User search ──
@@ -57,7 +71,7 @@ const uploadsTotal = ref(null)
 const uploadsLoading = ref(false)
 const uploadsUserFilter = ref('')
 const uploadsTokenFilter = ref('')
-const uploadsSortBy = ref('date') // 'date' | 'size'
+const uploadsSortBy = ref('date') // 'date' | 'size' | 'downloads'
 const uploadsSortOrder = ref('desc') // 'desc' | 'asc'
 
 // Badge filters — false = no filter, true = only matching
@@ -70,6 +84,8 @@ const badgeFilters = ref({
     e2ee: false,
 })
 const BADGE_FILTER_KEYS = ['oneShot', 'removable', 'stream', 'extendTTL', 'password', 'e2ee']
+const USER_SORT_KEYS = ['date', 'size', 'lifetimeSize', 'downloadedBytes']
+const UPLOAD_SORT_KEYS = ['date', 'size', 'downloads', 'downloadedBytes']
 
 // ── Create user modal ──
 const showCreateUser = ref(false)
@@ -98,12 +114,51 @@ async function loadStats() {
     statsLoading.value = true
     try {
         stats.value = await getServerStats()
+        // Daily chart series is best-effort: a failure hides only the chart and
+        // must not blank the rest of the dashboard (dailySeries stays null).
+        try {
+            dailySeries.value = await getServerActivityDaily(30)
+        } catch (e) {
+            dailySeries.value = null
+        }
+        await loadTrending()
     } catch (err) {
         error.value = $t('adminView.failedToLoadStats')
     } finally {
         statsLoading.value = false
     }
 }
+
+const authenticatedSize = computed(() => Math.max(0, (stats.value?.totalSize || 0) - (stats.value?.anonymousTotalSize || 0)))
+const lifetimeAuthenticatedSize = computed(() => Math.max(0, (stats.value?.usage?.lifetime?.totalSize || 0) - (stats.value?.anonymousUsage?.lifetime?.totalSize || 0)))
+
+// Top counters for the stats panel. Server scope carries a Users tile from the
+// top-level stats fields (not present in the canonical `usage` object), so the
+// tiles are supplied explicitly rather than derived inside the panel.
+const currentTiles = computed(() => [
+    { label: $t('adminView.usersLabel'), value: stats.value?.users, format: 'count' },
+    { label: $t('adminView.uploadsLabel'), value: stats.value?.uploads, format: 'count' },
+    { label: $t('adminView.files'), value: stats.value?.files, format: 'count' },
+    { label: $t('adminView.totalSize'), value: stats.value?.totalSize, format: 'size' },
+])
+const lifetimeTiles = computed(() => [
+    { label: $t('adminView.lifetimeUsers'), value: stats.value?.lifetimeUsers, format: 'count' },
+    { label: $t('adminView.lifetimeUploads'), value: stats.value?.usage?.lifetime?.uploads, format: 'count' },
+    { label: $t('adminView.lifetimeFiles'), value: stats.value?.usage?.lifetime?.files, format: 'count' },
+    { label: $t('adminView.lifetimeTotalSize'), value: stats.value?.usage?.lifetime?.totalSize, format: 'size' },
+])
+
+// Sort-bar option lists (shared SortBar component)
+const userSortOptions = computed(() => [
+    { value: 'date', label: $t('adminView.date') },
+    { value: 'size', label: $t('adminView.currentSize') },
+    { value: 'lifetimeSize', label: $t('adminView.lifetimeSize') },
+    { value: 'downloadedBytes', label: $t('adminView.downloadedData') },
+])
+const orderOptions = computed(() => [
+    { value: 'desc', label: $t('adminView.desc') },
+    { value: 'asc', label: $t('adminView.asc') },
+])
 
 // ── Users API ──
 async function loadUsers(more = false) {
@@ -132,44 +187,40 @@ async function loadUsers(more = false) {
     }
 }
 
-function changeUsersProviderFilter(val) {
-    usersProviderFilter.value = val
+// Shared list-reload dance for the Users tab's filter/sort setters below:
+// clear the loaded page + cursor, sync the URL (guarded so the query watcher
+// doesn't also fire), and refetch page one.
+function reloadUsers() {
     users.value = []
     usersCursor.value = null
     internalNav = true
     router.replace({ query: currentUsersQuery() })
         .finally(() => nextTick(() => { internalNav = false }))
     loadUsers()
+}
+
+function changeUsersProviderFilter(val) {
+    if (val === usersProviderFilter.value) return
+    usersProviderFilter.value = val
+    reloadUsers()
 }
 
 function changeUsersAdminFilter(val) {
+    if (val === usersAdminFilter.value) return
     usersAdminFilter.value = val
-    users.value = []
-    usersCursor.value = null
-    internalNav = true
-    router.replace({ query: currentUsersQuery() })
-        .finally(() => nextTick(() => { internalNav = false }))
-    loadUsers()
+    reloadUsers()
 }
 
 function changeUsersSortBy(val) {
+    if (val === usersSortBy.value) return
     usersSortBy.value = val
-    users.value = []
-    usersCursor.value = null
-    internalNav = true
-    router.replace({ query: currentUsersQuery() })
-        .finally(() => nextTick(() => { internalNav = false }))
-    loadUsers()
+    reloadUsers()
 }
 
 function changeUsersSortOrder(val) {
+    if (val === usersSortOrder.value) return
     usersSortOrder.value = val
-    users.value = []
-    usersCursor.value = null
-    internalNav = true
-    router.replace({ query: currentUsersQuery() })
-        .finally(() => nextTick(() => { internalNav = false }))
-    loadUsers()
+    reloadUsers()
 }
 
 // ── User search ──
@@ -258,6 +309,8 @@ async function viewUserInUsersTab(userId) {
             internalNav = true
             router.push('/admin/users')
                 .finally(() => nextTick(() => { internalNav = false }))
+        } else {
+            error.value = $t('adminView.failedToFindUser')
         }
     } catch {
         error.value = $t('adminView.failedToFindUser')
@@ -293,8 +346,8 @@ function clearTokenFilter() {
     loadUploads()
 }
 
-function changeSortBy(val) {
-    uploadsSortBy.value = val
+// Same reload dance as reloadUsers() above, scoped to the Uploads tab.
+function reloadUploads() {
     uploads.value = []
     uploadsCursor.value = null
     internalNav = true
@@ -303,14 +356,16 @@ function changeSortBy(val) {
     loadUploads()
 }
 
+function changeSortBy(val) {
+    if (val === uploadsSortBy.value) return
+    uploadsSortBy.value = val
+    reloadUploads()
+}
+
 function changeSortOrder(val) {
+    if (val === uploadsSortOrder.value) return
     uploadsSortOrder.value = val
-    uploads.value = []
-    uploadsCursor.value = null
-    internalNav = true
-    router.replace({ query: currentUploadsQuery() })
-        .finally(() => nextTick(() => { internalNav = false }))
-    loadUploads()
+    reloadUploads()
 }
 
 function toggleBadgeFilter(key) {
@@ -413,8 +468,6 @@ function showUploadsView() {
     router.push('/admin/uploads')
 }
 
-// ── Route helpers ──
-
 // Build query params from current users tab filter state (omits defaults)
 function currentUsersQuery() {
     return {
@@ -447,22 +500,28 @@ let internalNav = false
 // Tab changes (path-based) — triggers on back/forward between tabs
 watch(display, (tab, prevTab) => {
     if (tab === prevTab || internalNav) return
+    // Suppress the query watcher for this same navigation: switching tabs also
+    // clears the previous tab's filter query params, which would otherwise make
+    // the query watcher fire a second, redundant load. This watcher owns the
+    // per-tab fetch, so guard the query watcher out for one tick.
+    internalNav = true
+    nextTick(() => { internalNav = false })
     if (tab === 'stats') {
         loadStats()
     } else if (tab === 'users') {
         // Sync filters from query params (e.g. back/forward within users tab)
         usersProviderFilter.value = route.query.provider || ''
         usersAdminFilter.value = route.query.admin || ''
-        usersSortBy.value = route.query.sort || 'date'
-        usersSortOrder.value = route.query.order || 'desc'
+        usersSortBy.value = sortFromQuery(route.query.sort, USER_SORT_KEYS)
+        usersSortOrder.value = orderFromQuery(route.query.order)
         users.value = []
         usersCursor.value = null
         loadUsers()
     } else if (tab === 'uploads') {
         uploadsUserFilter.value = route.query.user || ''
         uploadsTokenFilter.value = ''  // never from URL
-        uploadsSortBy.value = route.query.sort || 'date'
-        uploadsSortOrder.value = route.query.order || 'desc'
+        uploadsSortBy.value = sortFromQuery(route.query.sort, UPLOAD_SORT_KEYS)
+        uploadsSortOrder.value = orderFromQuery(route.query.order)
         for (const key of BADGE_FILTER_KEYS) {
             badgeFilters.value[key] = route.query[key] === 'true'
         }
@@ -486,8 +545,8 @@ watch(() => route.query, (query, oldQuery) => {
         if (changed) {
             usersProviderFilter.value = query.provider || ''
             usersAdminFilter.value = query.admin || ''
-            usersSortBy.value = query.sort || 'date'
-            usersSortOrder.value = query.order || 'desc'
+            usersSortBy.value = sortFromQuery(query.sort, USER_SORT_KEYS)
+            usersSortOrder.value = orderFromQuery(query.order)
             users.value = []
             usersCursor.value = null
             loadUsers()
@@ -500,8 +559,8 @@ watch(() => route.query, (query, oldQuery) => {
         if (changed) {
             uploadsUserFilter.value = query.user || ''
             uploadsTokenFilter.value = ''  // never from URL
-            uploadsSortBy.value = query.sort || 'date'
-            uploadsSortOrder.value = query.order || 'desc'
+            uploadsSortBy.value = sortFromQuery(query.sort, UPLOAD_SORT_KEYS)
+            uploadsSortOrder.value = orderFromQuery(query.order)
             for (const key of BADGE_FILTER_KEYS) {
                 badgeFilters.value[key] = query[key] === 'true'
             }
@@ -530,13 +589,13 @@ onMounted(async () => {
     if (tab === 'users') {
         usersProviderFilter.value = route.query.provider || ''
         usersAdminFilter.value = route.query.admin || ''
-        usersSortBy.value = route.query.sort || 'date'
-        usersSortOrder.value = route.query.order || 'desc'
+        usersSortBy.value = sortFromQuery(route.query.sort, USER_SORT_KEYS)
+        usersSortOrder.value = orderFromQuery(route.query.order)
         loadUsers()
     } else if (tab === 'uploads') {
         uploadsUserFilter.value = route.query.user || ''
-        uploadsSortBy.value = route.query.sort || 'date'
-        uploadsSortOrder.value = route.query.order || 'desc'
+        uploadsSortBy.value = sortFromQuery(route.query.sort, UPLOAD_SORT_KEYS)
+        uploadsSortOrder.value = orderFromQuery(route.query.order)
         // Restore badge filters from URL
         for (const key of BADGE_FILTER_KEYS) {
             badgeFilters.value[key] = route.query[key] === 'true'
@@ -663,36 +722,72 @@ onMounted(async () => {
               </div>
             </div>
 
-            <!-- Server Stats -->
-            <div class="glass-card p-5">
-              <h3 class="text-sm text-surface-400 uppercase tracking-wider mb-4">{{ $t('adminView.serverStatistics') }}</h3>
-              <div class="grid grid-cols-2 sm:grid-cols-3 gap-6 text-center">
-                <div>
-                  <p class="text-2xl font-bold text-surface-200">{{ stats.users }}</p>
-                  <p class="text-xs text-surface-500">{{ $t('adminView.usersLabel') }}</p>
+            <!-- Server Stats + downloads + distributions (shared panel) -->
+            <StatsUsagePanel
+              :usage="stats.usage"
+              :title="$t('adminView.serverStatistics')"
+              :current-tiles="currentTiles"
+              :lifetime-tiles="lifetimeTiles"
+              :daily-series="dailySeries">
+              <template #storage>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div class="rounded-lg border border-surface-700/50 p-4 space-y-3">
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="text-surface-500">{{ $t('adminView.storageSplit') }}</span>
+                      <span class="text-surface-300">{{ humanReadableSize(stats.totalSize) }}</span>
+                    </div>
+                    <div class="h-2 rounded-full bg-surface-800 overflow-hidden flex">
+                      <div class="bg-accent-400" :style="{ width: ratioPercent(authenticatedSize, stats.totalSize) + '%' }" />
+                      <div class="bg-accent-600" :style="{ width: ratioPercent(stats.anonymousTotalSize, stats.totalSize) + '%' }" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <p class="text-surface-500">{{ $t('adminView.authenticated') }}</p>
+                        <p class="text-surface-200">{{ formatSizeOrZero(authenticatedSize) }}</p>
+                      </div>
+                      <div>
+                        <p class="text-surface-500">{{ $t('adminView.anonymous') }}</p>
+                        <p class="text-surface-200">{{ formatSizeOrZero(stats.anonymousTotalSize) }}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-surface-700/50 p-4 space-y-3">
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="text-surface-500">{{ $t('adminView.lifetimeStorageSplit') }}</span>
+                      <span class="text-surface-300">{{ humanReadableSize(stats.usage?.lifetime?.totalSize) }}</span>
+                    </div>
+                    <div class="h-2 rounded-full bg-surface-800 overflow-hidden flex">
+                      <div class="bg-accent-400" :style="{ width: ratioPercent(lifetimeAuthenticatedSize, stats.usage?.lifetime?.totalSize) + '%' }" />
+                      <div class="bg-accent-600" :style="{ width: ratioPercent(stats.anonymousUsage?.lifetime?.totalSize, stats.usage?.lifetime?.totalSize) + '%' }" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <p class="text-surface-500">{{ $t('adminView.authenticated') }}</p>
+                        <p class="text-surface-200">{{ formatSizeOrZero(lifetimeAuthenticatedSize) }}</p>
+                      </div>
+                      <div>
+                        <p class="text-surface-500">{{ $t('adminView.anonymous') }}</p>
+                        <p class="text-surface-200">{{ formatSizeOrZero(stats.anonymousUsage?.lifetime?.totalSize) }}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p class="text-2xl font-bold text-surface-200">{{ stats.uploads }}</p>
-                  <p class="text-xs text-surface-500">{{ $t('adminView.uploadsLabel') }}</p>
-                </div>
-                <div>
-                  <p class="text-2xl font-bold text-surface-200">{{ stats.anonymousUploads }}</p>
-                  <p class="text-xs text-surface-500">{{ $t('adminView.anonymousUploads') }}</p>
-                </div>
-                <div>
-                  <p class="text-2xl font-bold text-surface-200">{{ stats.files }}</p>
-                  <p class="text-xs text-surface-500">{{ $t('adminView.files') }}</p>
-                </div>
-                <div>
-                  <p class="text-2xl font-bold text-surface-200">{{ humanReadableSize(stats.totalSize) }}</p>
-                  <p class="text-xs text-surface-500">{{ $t('adminView.totalSize') }}</p>
-                </div>
-                <div>
-                  <p class="text-2xl font-bold text-surface-200">{{ humanReadableSize(stats.anonymousTotalSize) }}</p>
-                  <p class="text-xs text-surface-500">{{ $t('adminView.anonymousSize') }}</p>
-                </div>
-              </div>
-            </div>
+              </template>
+            </StatsUsagePanel>
+
+            <!-- Trending -->
+            <TrendingPanel
+              :window="trendingWindow"
+              :sort="trendingSort"
+              :uploads="trendingUploads"
+              :files="trendingFiles"
+              :loading="trendingLoading"
+              mode="admin"
+              @update:window="changeTrendingWindow"
+              @update:sort="changeTrendingSort"
+              @open-upload="openUpload"
+              @view-user="viewUserInUsersTab" />
           </div>
         </template>
 
@@ -729,24 +824,10 @@ onMounted(async () => {
           <!-- Sort / filter controls -->
           <div class="glass-card p-3 mb-4 space-y-2 text-sm">
             <div class="flex flex-wrap items-center gap-4">
-              <!-- Sort by -->
-              <div class="flex items-center gap-2 text-surface-400">
-                <span>{{ $t('adminView.sort') }}</span>
-                <button @click="changeUsersSortBy('date')"
-                        :class="usersSortBy === 'date' ? 'text-accent-400' : 'text-surface-500 hover:text-surface-300'"
-                        class="transition-colors">{{ $t('adminView.date') }}</button>
-              </div>
-              <!-- Order -->
-              <div class="flex items-center gap-2 text-surface-400">
-                <span>{{ $t('adminView.order') }}</span>
-                <button @click="changeUsersSortOrder('desc')"
-                        :class="usersSortOrder === 'desc' ? 'text-accent-400' : 'text-surface-500 hover:text-surface-300'"
-                        class="transition-colors">{{ $t('adminView.desc') }}</button>
-                <span class="text-surface-600">|</span>
-                <button @click="changeUsersSortOrder('asc')"
-                        :class="usersSortOrder === 'asc' ? 'text-accent-400' : 'text-surface-500 hover:text-surface-300'"
-                        class="transition-colors">{{ $t('adminView.asc') }}</button>
-              </div>
+              <SortBar :label="$t('adminView.sort')" :options="userSortOptions"
+                       :model-value="usersSortBy" @update:model-value="changeUsersSortBy" />
+              <SortBar :label="$t('adminView.order')" :options="orderOptions"
+                       :model-value="usersSortOrder" @update:model-value="changeUsersSortOrder" />
             </div>
 
             <!-- Provider filter -->
@@ -811,6 +892,25 @@ onMounted(async () => {
                 <div class="sm:w-1/4 text-sm space-y-1">
                   <p v-if="user.name" class="text-surface-300">{{ user.name }}</p>
                   <p v-if="user.email" class="text-surface-400">{{ user.email }}</p>
+                  <div v-if="user.stats" class="grid grid-cols-3 gap-2 pt-1 text-xs">
+                    <!-- Reserve a fixed 2-line label height (min-h-8 = 2 x the text-xs
+                         line-height) so a wrapping label ("Downloaded data" is the
+                         one most likely to wrap on desktop-width columns) doesn't push its
+                         value a line lower than "Current Size"/"Lifetime Size" — locale-proof,
+                         since translated labels wrap at different widths. -->
+                    <div>
+                      <p class="text-surface-500 min-h-8">{{ $t('adminView.currentSize') }}</p>
+                      <p class="text-surface-300">{{ formatSizeOrZero(user.stats.totalSize) }}</p>
+                    </div>
+                    <div>
+                      <p class="text-surface-500 min-h-8">{{ $t('adminView.lifetimeSize') }}</p>
+                      <p class="text-surface-300">{{ formatSizeOrZero(user.stats.usage?.lifetime?.totalSize) }}</p>
+                    </div>
+                    <div>
+                      <p class="text-surface-500 min-h-8">{{ $t('adminView.downloadedData') }}</p>
+                      <p class="text-surface-300">{{ formatSizeOrZero(user.stats.usage?.downloads?.bytes) }}</p>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Quotas -->

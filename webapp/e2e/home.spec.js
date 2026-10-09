@@ -18,7 +18,7 @@ test.describe('Home view', () => {
         await page.waitForLoadState('networkidle')
 
         // Click Uploads sidebar nav button
-        await page.getByRole('button', { name: 'Uploads', exact: true }).click()
+        await page.locator('aside').getByRole('button', { name: 'Uploads', exact: true }).click()
         await page.waitForLoadState('networkidle')
 
         // Should show at least one upload card with the file name
@@ -232,14 +232,16 @@ test.describe('User statistics panel', () => {
         await expect(statsPanel).toBeVisible({ timeout: 5_000 })
 
         // Check labels
-        await expect(statsPanel.getByText('Uploads', { exact: true })).toBeVisible()
-        await expect(statsPanel.getByText('Files', { exact: true })).toBeVisible()
-        await expect(statsPanel.getByText('Total Size', { exact: true })).toBeVisible()
+        await expect(statsPanel.getByText('Current Usage', { exact: true })).toBeVisible()
+        await expect(statsPanel.getByText(/^Lifetime Usage \(since /)).toBeVisible()
+        await expect(statsPanel.getByText('Uploads', { exact: true })).toHaveCount(2)
+        await expect(statsPanel.getByText('Files', { exact: true })).toHaveCount(2)
+        await expect(statsPanel.getByText('Total Size', { exact: true })).toHaveCount(2)
 
         // Check that stat values are present and not NaN
         const values = statsPanel.locator('.text-2xl.font-bold')
         const count = await values.count()
-        expect(count).toBe(3)
+        expect(count).toBeGreaterThanOrEqual(6)
 
         for (let i = 0; i < count; i++) {
             const text = await values.nth(i).textContent()

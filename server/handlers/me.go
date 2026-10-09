@@ -8,7 +8,7 @@ import (
 	"regexp"
 
 	"github.com/gorilla/mux"
-	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
+
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
 )
@@ -107,9 +107,14 @@ func GetUserTokens(ctx *context.Context, resp http.ResponseWriter, req *http.Req
 	}
 
 	pagingQuery := ctx.GetPagingQuery()
+	sort := req.URL.Query().Get("sort")
+	if !isUsageStatsSort(sort) {
+		ctx.BadRequest("invalid sort")
+		return
+	}
 
 	// Get user tokens
-	tokens, cursor, err := ctx.GetMetadataBackend().GetTokens(user.ID, pagingQuery)
+	tokens, cursor, err := ctx.GetMetadataBackend().GetTokens(user.ID, sort, pagingQuery)
 	if err != nil {
 		ctx.InternalServerError("unable to get user tokens", err)
 		return
@@ -129,26 +134,19 @@ func GetUserUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Re
 
 	pagingQuery := ctx.GetPagingQuery()
 	sort := req.URL.Query().Get("sort")
+	if !isUploadSort(sort) {
+		ctx.BadRequest("invalid sort")
+		return
+	}
 
 	filters := parseBadgeFilters(req)
 	filters.User = user.ID
 	filters.Token = tokenStr
 
-	var uploads []*common.Upload
-	var cursor *paginator.Cursor
-
-	if sort == "size" {
-		uploads, cursor, err = ctx.GetMetadataBackend().GetUploadsSortedBySize(filters, true, pagingQuery)
-		if err != nil {
-			ctx.InternalServerError("unable to get user uploads : %s", err)
-			return
-		}
-	} else {
-		uploads, cursor, err = ctx.GetMetadataBackend().GetUploads(filters, true, pagingQuery)
-		if err != nil {
-			ctx.InternalServerError("unable to get user uploads : %s", err)
-			return
-		}
+	uploads, cursor, err := getUploadsSorted(ctx, sort, filters, pagingQuery)
+	if err != nil {
+		ctx.InternalServerError("unable to get user uploads : %s", err)
+		return
 	}
 
 	total, err := ctx.GetMetadataBackend().CountUploads(filters)
@@ -199,6 +197,76 @@ func GetUserStatistics(ctx *context.Context, resp http.ResponseWriter, req *http
 	}
 
 	common.WriteJSONResponse(resp, stats)
+}
+
+// GetUserActivityDaily returns the authenticated user's daily activity series
+// (downloads, downloaded bytes, uploads, uploaded bytes) for the last N UTC days
+// (oldest first, dense, zero-filled).
+func GetUserActivityDaily(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	user := ctx.GetUser()
+	if user == nil {
+		ctx.Unauthorized("missing user, please login first")
+		return
+	}
+
+	days, err := parseActivityDailyDays(req)
+	if err != nil {
+		ctx.BadRequest("%s", err)
+		return
+	}
+
+	points, err := ctx.GetMetadataBackend().GetUserActivityStatsDaily(user.ID, days)
+	if err != nil {
+		ctx.InternalServerError("unable to get user activity stats", err)
+		return
+	}
+
+	if points == nil {
+		points = []*common.ActivityDailyPoint{}
+	}
+
+	common.WriteJSONResponse(resp, points)
+}
+
+// GetUserTrendingUploads returns the authenticated user's own upload trending
+// statistics — the self-scoped counterpart of admin.go's GetTrendingUploads,
+// sharing the same window/limit/sort parsing (misc.go) and response shape
+// ([]common.TrendingItem). There is no user-scoped trending FILES endpoint,
+// since file-grain byte trending is out of scope.
+func GetUserTrendingUploads(ctx *context.Context, resp http.ResponseWriter, req *http.Request) {
+	user := ctx.GetUser()
+	if user == nil {
+		ctx.Unauthorized("missing user, please login first")
+		return
+	}
+
+	limit, err := parseTrendingLimit(req)
+	if err != nil {
+		ctx.BadRequest("%s", err)
+		return
+	}
+	window, err := parseTrendingWindow(req)
+	if err != nil {
+		ctx.BadRequest("%s", err)
+		return
+	}
+	sort, err := parseTrendingSort(req)
+	if err != nil {
+		ctx.BadRequest("%s", err)
+		return
+	}
+
+	items, err := ctx.GetMetadataBackend().GetUserTrendingUploads(user.ID, window, sort, limit)
+	if err != nil {
+		ctx.InternalServerError("unable to get user trending uploads", err)
+		return
+	}
+
+	if items == nil {
+		items = []*common.TrendingItem{}
+	}
+
+	common.WriteJSONResponse(resp, items)
 }
 
 // DeleteAccount remove a user account

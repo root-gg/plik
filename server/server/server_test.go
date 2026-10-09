@@ -211,6 +211,21 @@ func TestClean(t *testing.T) {
 	err = ps.dataBackend.AddFile(file, bytes.NewBufferString(content))
 	require.NoError(t, err, "unable to save file")
 
+	today := time.Now().UTC()
+	today = time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, time.UTC)
+	require.NoError(t, ps.metadataBackend.CreateDownloadStatsDaily(&common.DownloadStatsDaily{
+		Day:        today.AddDate(0, 0, -31),
+		EntityType: common.DownloadStatsEntityUpload,
+		EntityID:   "old-rollup",
+		Downloads:  1,
+	}))
+	require.NoError(t, ps.metadataBackend.CreateDownloadStatsDaily(&common.DownloadStatsDaily{
+		Day:        today.AddDate(0, 0, -30),
+		EntityType: common.DownloadStatsEntityUpload,
+		EntityID:   "retained-rollup",
+		Downloads:  1,
+	}))
+
 	ps.Clean()
 
 	u, err := ps.metadataBackend.GetUpload(upload.ID)
@@ -219,6 +234,15 @@ func TestClean(t *testing.T) {
 
 	err = getTestFile(t, ps, file, content)
 	require.Error(t, err, "missing get file error")
+
+	rollups := map[string]bool{}
+	err = ps.metadataBackend.ForEachDownloadStatsDaily(func(stats *common.DownloadStatsDaily) error {
+		rollups[stats.EntityID] = true
+		return nil
+	})
+	require.NoError(t, err)
+	require.False(t, rollups["old-rollup"])
+	require.True(t, rollups["retained-rollup"])
 }
 
 func TestCleanUploadingFiles(t *testing.T) {

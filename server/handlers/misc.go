@@ -10,6 +10,7 @@ import (
 
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/qr"
+	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
 
 	"github.com/root-gg/plik/server/common"
 	"github.com/root-gg/plik/server/context"
@@ -150,6 +151,36 @@ func handleHTTPError(ctx *context.Context, err error) {
 	}
 }
 
+// isUploadSort validates the public upload-list "sort" query parameter shared
+// by GET /uploads and GET /me/uploads. An empty value is accepted because both
+// handlers treat it as the default date ordering.
+func isUploadSort(sort string) bool {
+	switch sort {
+	case "", metadata.UploadSortDate, metadata.UploadSortSize, metadata.UploadSortDownloads, metadata.UploadSortDownloadedBytes:
+		return true
+	default:
+		return false
+	}
+}
+
+// getUploadsSorted dispatches GET /uploads (admin.go) and GET /me/uploads
+// (me.go) to the metadata sorted-fetch method matching sort, which the caller
+// must already have validated with isUploadSort. Collapses what used to be two
+// hand-duplicated four-way switches (one per handler) into one.
+func getUploadsSorted(ctx *context.Context, sort string, filters metadata.UploadFilters, pagingQuery *common.PagingQuery) ([]*common.Upload, *paginator.Cursor, error) {
+	backend := ctx.GetMetadataBackend()
+	switch sort {
+	case metadata.UploadSortSize:
+		return backend.GetUploadsSortedBySize(filters, true, pagingQuery)
+	case metadata.UploadSortDownloads:
+		return backend.GetUploadsSortedByDownloads(filters, true, pagingQuery)
+	case metadata.UploadSortDownloadedBytes:
+		return backend.GetUploadsSortedByDownloadedBytes(filters, true, pagingQuery)
+	default:
+		return backend.GetUploads(filters, true, pagingQuery)
+	}
+}
+
 // parseBoolFilter returns a *bool from a query parameter.
 // Returns nil if the parameter is absent, enabling optional boolean filtering.
 func parseBoolFilter(req *http.Request, key string) *bool {
@@ -170,5 +201,56 @@ func parseBadgeFilters(req *http.Request) metadata.UploadFilters {
 		ExtendTTL: parseBoolFilter(req, "extendTTL"),
 		Password:  parseBoolFilter(req, "password"),
 		E2EE:      parseBoolFilter(req, "e2ee"),
+	}
+}
+
+// parseTrendingWindow validates the public trending "window" query parameter,
+// shared by GET /stats/trending/uploads, GET /stats/trending/files
+// (admin.go), and GET /me/stats/trending/uploads (me.go). That keeps client
+// input errors separate from database/query failures returned by the backend.
+func parseTrendingWindow(req *http.Request) (string, error) {
+	window := req.URL.Query().Get("window")
+	switch window {
+	case "", "all", "1d", "7d", "30d":
+		return window, nil
+	default:
+		return "", common.NewHTTPError("invalid trending window", nil, http.StatusBadRequest)
+	}
+}
+
+// parseTrendingLimit validates the trending "limit" query parameter, shared
+// by the same three endpoints as parseTrendingWindow. Missing limit defaults
+// to 20, values above 100 are clamped, and non-positive values are rejected
+// so callers cannot request empty or unbounded result sets.
+func parseTrendingLimit(req *http.Request) (int, error) {
+	limit := 20
+	if limitStr := req.URL.Query().Get("limit"); limitStr != "" {
+		parsed, err := strconv.Atoi(limitStr)
+		if err != nil {
+			return 0, common.NewHTTPError("invalid limit", nil, http.StatusBadRequest)
+		}
+		limit = parsed
+	}
+	if limit <= 0 {
+		return 0, common.NewHTTPError("limit must be positive", nil, http.StatusBadRequest)
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	return limit, nil
+}
+
+// parseTrendingSort validates the public trending-uploads "sort" query
+// parameter, shared by GET /stats/trending/uploads (admin.go) and GET
+// /me/stats/trending/uploads (me.go). There is no equivalent for trending
+// FILES — file-grain byte trending is out of scope, so that endpoint has
+// no sort param at all.
+func parseTrendingSort(req *http.Request) (string, error) {
+	sort := req.URL.Query().Get("sort")
+	switch sort {
+	case "", metadata.TrendingSortDownloads, metadata.TrendingSortDownloadedBytes:
+		return sort, nil
+	default:
+		return "", common.NewHTTPError("invalid trending sort", nil, http.StatusBadRequest)
 	}
 }

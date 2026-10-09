@@ -223,6 +223,57 @@ func TestLoadExports(t *testing.T) {
 	}
 }
 
+// TestBackend_ImportWithoutTombstoneMatchesPlainSum imports one of the
+// pre-stats-migration export fixtures in dumps/export — captured
+// before usage_stats (and its tombstone record) existed, so none of them carry
+// a metadataTypeUsageStatsTombstone object at all. TestLoadExports above
+// already imports these and asserts only NoError; this pins the substantive
+// property that actually matters: importing a tombstone-less export must not
+// silently lose any lifetime totals. Every upload/file row is replayed live
+// through CreateUpload/CreateFile, which is the only rebuild source for
+// lifetime counters here (nothing was ever deleted in this fixture, so the
+// tombstone's absence costs nothing) — so the freshly imported backend's
+// server lifetime totals must equal a plain SQL sum over its own
+// uploads/files tables, computed by the same rule CreateUpload's delta uses:
+// every upload contributes 1 lifetime upload regardless of (soft-)deleted
+// state, and a file counts toward lifetime files/size only once it reached a
+// terminal "hit the data backend" status (uploaded/removed/deleted).
+func TestBackend_ImportWithoutTombstoneMatchesPlainSum(t *testing.T) {
+	path := "dumps/export/0010-user-language.dump"
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Skipf("missing pre-stats export fixture %s", path)
+	}
+
+	b := newTestMetadataBackend()
+	defer shutdownTestMetadataBackend(b)
+
+	tombstone, err := b.GetDeletedUsageTombstone()
+	require.NoError(t, err)
+	require.NotNil(t, tombstone, "a freshly initialized backend always seeds its own tombstone")
+
+	err = b.Import(path, &ImportOptions{})
+	require.NoError(t, err, "unable to import pre-stats-migration export")
+
+	var wantUploads int64
+	err = b.db.Unscoped().Model(&common.Upload{}).Count(&wantUploads).Error
+	require.NoError(t, err)
+	require.Positive(t, wantUploads, "fixture must contain at least one upload")
+
+	var wantFiles int64
+	var wantSize int64
+	err = b.db.Model(&common.File{}).
+		Where("status IN ?", []string{common.FileUploaded, common.FileRemoved, common.FileDeleted}).
+		Select("count(*), coalesce(sum(size), 0)").
+		Row().Scan(&wantFiles, &wantSize)
+	require.NoError(t, err)
+
+	stats, err := b.GetServerStatistics()
+	require.NoError(t, err)
+	require.Equal(t, wantUploads, stats.Usage.Uploads.Total, "server lifetime uploads must equal a plain sum over the imported uploads table")
+	require.Equal(t, int(wantFiles), stats.Usage.Lifetime.Files, "server lifetime files must equal a plain sum over the imported files table")
+	require.Equal(t, wantSize, stats.Usage.Lifetime.TotalSize, "server lifetime size must equal a plain sum over the imported files table")
+}
+
 // Generate a PGSql dump from the testing/test-backends.sh docker image
 func PgSQLDump(metadataBackendConfig *Config) (dump string, err error) {
 	fmt.Println("Generate postgresql dump")
@@ -346,7 +397,17 @@ func MySQLDump(metadataBackendConfig *Config, dbType string) (dump string, err e
 func Sqlite3Dump(metadataBackendConfig *Config) (dump string, err error) {
 	fmt.Println("Generate sqlite3 dump")
 
-	cmd := exec.Command("sqlite3", metadataBackendConfig.ConnectionString, ".dump")
+	// The Go sqlite3 driver DSN may carry a file: prefix and query parameters
+	// (e.g. ?_busy_timeout=5000). The sqlite3 CLI does not parse DSNs: it
+	// would treat the whole string as a literal filename and dump a freshly
+	// created empty database instead of the real one. Reduce the DSN to the
+	// bare file path first.
+	path := strings.TrimPrefix(metadataBackendConfig.ConnectionString, "file:")
+	if idx := strings.IndexByte(path, '?'); idx >= 0 {
+		path = path[:idx]
+	}
+
+	cmd := exec.Command("sqlite3", path, ".dump")
 	fmt.Println(cmd.String())
 
 	out, err := cmd.Output()

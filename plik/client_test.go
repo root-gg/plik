@@ -237,6 +237,16 @@ func TestUploadFiles(t *testing.T) {
 	}
 }
 
+// This uploads ~30 files onto one shared Upload concurrently; each file status
+// write takes server/metadata's canonical upload-row lock (lockUploadRow) before
+// touching the file row. It was historically flaky (~17% over 60 runs) because
+// a fixed transaction-retry budget could exhaust under SQLite write contention
+// and surface a 500 ("database is locked"). That retry apparatus is gone:
+// SQLite transactions are instead opened with the write lock held
+// from BEGIN (_txlock=immediate, see metadata.sqliteConnectionString) plus a
+// busy_timeout, so concurrent writers serialize as bounded lock waits rather than
+// racing to upgrade a deferred read into a writer and deadlocking. The retry
+// budget that used to lose that race is gone. -race shows no data races.
 func TestUploadMultipleFiles(t *testing.T) {
 	ps, pc := newPlikServerAndClient()
 	defer shutdown(ps)

@@ -3,6 +3,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-gormigrate/gormigrate/v2"
@@ -60,7 +61,7 @@ func NewBackend(config *Config, log *logger.Logger) (b *Backend, err error) {
 	var dial gorm.Dialector
 	switch config.Driver {
 	case "sqlite3":
-		dial = sqlite.Open(config.ConnectionString)
+		dial = sqlite.Open(sqliteConnectionString(config.ConnectionString))
 	case "postgres":
 		dial = postgres.Open(config.ConnectionString)
 	case "mysql":
@@ -138,7 +139,18 @@ func NewBackend(config *Config, log *logger.Logger) (b *Backend, err error) {
 
 	// For testing
 	if config.EraseFirst {
-		err = b.db.Migrator().DropTable("files", "uploads", "tokens", "users", "settings", "cli_auth_sessions", "migrations")
+		err = b.db.Migrator().DropTable(
+			"download_stats_daily",
+			"upload_stats_daily",
+			"usage_stats",
+			"files",
+			"uploads",
+			"tokens",
+			"users",
+			"settings",
+			"cli_auth_sessions",
+			"migrations",
+		)
 		if err != nil {
 			return nil, fmt.Errorf("unable to drop tables : %s", err)
 		}
@@ -164,6 +176,50 @@ func NewBackend(config *Config, log *logger.Logger) (b *Backend, err error) {
 	return b, err
 }
 
+// sqliteConnectionString ensures the SQLite DSN opens transactions with the
+// write lock held from BEGIN (`_txlock=immediate`) and waits on a busy database
+// instead of erroring (`_busy_timeout`). Both are load-bearing because fused
+// metadata+counter transactions are never retried on contention: several writers
+// (RemoveUpload, UpdateFile/UpdateFileStatus) start by reading the parent upload
+// row (lockUploadRow skips FOR UPDATE on SQLite) and then write. Under the
+// default deferred BEGIN two such transactions can each hold a read snapshot and
+// then deadlock trying to upgrade to a writer — SQLITE_BUSY that no busy_timeout
+// can resolve. Beginning IMMEDIATE makes each transaction acquire the single WAL
+// write lock up front, so writers serialize as ordered lock waits (bounded by
+// busy_timeout) instead of deadlocking — the same "prevent, don't retry"
+// guarantee the canonical lock order gives on PostgreSQL/MySQL. Existing
+// parameters are preserved and never overridden.
+func sqliteConnectionString(cs string) string {
+	const defaultBusyTimeout = "5000"
+
+	// Split off any existing query string so we only add missing parameters.
+	base, query, hasQuery := strings.Cut(cs, "?")
+	existing := map[string]bool{}
+	if hasQuery {
+		for param := range strings.SplitSeq(query, "&") {
+			if key, _, ok := strings.Cut(param, "="); ok {
+				existing[strings.TrimSpace(key)] = true
+			}
+		}
+	}
+
+	var params []string
+	if query != "" {
+		params = append(params, query)
+	}
+	if !existing["_txlock"] {
+		params = append(params, "_txlock=immediate")
+	}
+	if !existing["_busy_timeout"] {
+		params = append(params, "_busy_timeout="+defaultBusyTimeout)
+	}
+
+	if len(params) == 0 {
+		return base
+	}
+	return base + "?" + strings.Join(params, "&")
+}
+
 // Initialize the metadata backend.
 //   - Create or update the database schema if needed
 func (b *Backend) initializeSchema() (err error) {
@@ -181,6 +237,9 @@ func (b *Backend) initializeSchema() (err error) {
 				&common.Token{},
 				&common.Setting{},
 				&common.CLIAuthSession{},
+				&common.UsageStats{},
+				&common.DownloadStatsDaily{},
+				&common.UploadStatsDaily{},
 			)
 
 			return err
@@ -189,6 +248,12 @@ func (b *Backend) initializeSchema() (err error) {
 
 	if err = m.Migrate(); err != nil {
 		return fmt.Errorf("could not migrate: %v", err)
+	}
+
+	if b.db.Migrator().HasTable(&common.UsageStats{}) {
+		if err = b.ensureBaseUsageStatsRows(b.db); err != nil {
+			return fmt.Errorf("could not initialize usage stats rows: %v", err)
+		}
 	}
 
 	return nil
@@ -282,4 +347,26 @@ func (b *Backend) GetMetricsCollectors() []prometheus.Collector {
 		return b.dbStats.Collectors()
 	}
 	return nil
+}
+
+// reorderByRefs restores hydrated items into the order given by refs, a slice
+// of keys taken from a first-phase query that did the sorting/pagination
+// (cursor paginators sort on joined/computed columns but still need to return
+// full models, so callers page a lightweight ref slice, hydrate full rows by
+// key with a second query, then call this to put them back in the ref order).
+// A ref whose key is missing from items — hydrate did not return it, e.g. a
+// row removed between the two phases — is silently dropped.
+func reorderByRefs[K comparable, T any](refs []K, items []T, key func(T) K) []T {
+	byKey := make(map[K]T, len(items))
+	for _, item := range items {
+		byKey[key(item)] = item
+	}
+
+	ordered := items[:0]
+	for _, ref := range refs {
+		if item, ok := byKey[ref]; ok {
+			ordered = append(ordered, item)
+		}
+	}
+	return ordered
 }

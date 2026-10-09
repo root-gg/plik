@@ -1,15 +1,21 @@
 <script setup>
+import { computed } from 'vue'
 import { humanReadableSize, getUploadUrl, formatDate } from '../utils.js'
 import { getFileURL } from '../api.js'
 import UploadBadges from './UploadBadges.vue'
 
-defineProps({
+const props = defineProps({
     upload: { type: Object, required: true },
     tokenLabel: { type: String, default: '' },  // pre-formatted token label
     showUser: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['delete', 'filter-token', 'filter-user'])
+
+// Total size is the sum of this upload's own files, computed client-side —
+// the API does not (and should not) ship a redundant precomputed field for
+// data already present in upload.files.
+const totalSize = computed(() => (props.upload.files || []).reduce((sum, file) => sum + (file.fileSize || 0), 0))
 </script>
 
 <template>
@@ -23,6 +29,18 @@ const emit = defineEmits(['delete', 'filter-token', 'filter-user'])
         </a>
         <p class="text-surface-500">{{ $t('uploadCard.uploaded') }} {{ formatDate(upload.createdAt) }}</p>
         <p class="text-surface-500">{{ $t('uploadCard.expires') }} {{ upload.expireAt ? formatDate(upload.expireAt) : $t('common.never') }}</p>
+        <p class="text-surface-500">
+          {{ $t('uploadCard.totalSize') }} <span class="text-surface-300 tabular-nums">{{ humanReadableSize(totalSize) }}</span>
+        </p>
+        <p v-if="upload.downloadCount !== undefined" class="text-surface-500">
+          {{ $t('uploadCard.downloads') }} <span class="text-surface-300 tabular-nums">{{ upload.downloadCount || 0 }}</span>
+        </p>
+        <p v-if="upload.downloadedBytes !== undefined" class="text-surface-500">
+          {{ $t('uploadCard.downloadedData') }} <span class="text-surface-300 tabular-nums">{{ humanReadableSize(upload.downloadedBytes) }}</span>
+        </p>
+        <p v-if="upload.downloadCount !== undefined" class="text-surface-500">
+          {{ $t('uploadCard.lastDownload') }} {{ upload.lastDownloadedAt ? formatDate(upload.lastDownloadedAt) : $t('common.never') }}
+        </p>
         <UploadBadges :upload="upload" size="sm" class="mt-1" />
         <p v-if="showUser && upload.user" class="text-surface-500">
           {{ $t('uploadCard.user') }}

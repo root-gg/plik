@@ -118,11 +118,14 @@ async function viewFile(file) {
   viewingLoading.value = false
   viewingError.value = null
   mediaCurrentTime.value = 0 // reset so shareAtTimeUrl doesn't show stale time
+  mediaPreviewCounted = false // new view — allow one media-load stats refresh
 
   // Sync file ID to URL
   syncViewerToUrl()
 
-  // Media files render directly from the server URL — no content fetch needed
+  // Media files render directly from the server URL — no content fetch needed;
+  // the browser's own GET is the counted download. The counter refresh
+  // happens when the element reports the content arrived (onMediaPreviewLoaded).
   if (isImageFile(file) || isVideoFile(file) || isAudioFile(file)) {
     nextTick(() => {
       document.getElementById('file-viewer-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -144,6 +147,10 @@ async function viewFile(file) {
     const buf = await resp.arrayBuffer()
     const text = new TextDecoder(encoding).decode(buf)
     viewingContent.value = text
+    // This request just counted as a download — refresh the counters
+    // shown in the sidebar/file rows. Fire-and-forget: it must not delay or
+    // block the viewer from rendering.
+    refreshDownloadStats()
   } catch (err) {
     viewingError.value = err.message || $t('downloadView.failedToLoadUpload')
   } finally {
@@ -187,6 +194,20 @@ function onMediaTimeUpdate(event) {
   mediaCurrentTime.value = event.target.currentTime
 }
 
+// Counter refresh for media previews (img/video/audio). Unlike the text
+// path there is no fetch promise to await — the browser issues the GET itself
+// — so hook the element's load event instead (@load on <img>, loadedmetadata
+// on <video>/<audio>, which is guaranteed to fire with preload="metadata").
+// Media elements can emit further load-ish events within one view (seeks
+// trigger range requests, metadata can re-fire), so refresh at most once per
+// view; viewFile() resets the guard for each new view.
+let mediaPreviewCounted = false
+function onMediaPreviewLoaded() {
+  if (mediaPreviewCounted) return
+  mediaPreviewCounted = true
+  refreshDownloadStats()
+}
+
 // Seek media to initial time once metadata is loaded
 function onMediaLoadedMetadata(event) {
   if (initialMediaTime.value != null && initialMediaTime.value > 0) {
@@ -201,6 +222,8 @@ function onMediaLoadedMetadata(event) {
       event.target.muted = false
     }).catch(() => {})
   }
+  // The metadata GET that fired this event was counted server-side
+  onMediaPreviewLoaded()
 }
 
 // Build a shareable URL with file= and t= for current media position
@@ -303,6 +326,35 @@ async function fetchUpload() {
       : (err.message || $t('downloadView.failedToLoadUpload'))
   } finally {
     loading.value = false
+  }
+}
+
+// Previews count as downloads. The initial fetchUpload() (on mount, or at
+// the end of the upload pool) can resolve before the server has recorded a
+// just-triggered preview's download, so the sidebar/file-row counters go
+// stale until *something* refetches. Call this right after a preview's
+// content request resolves — server-side recording happens synchronously
+// within that request, so by the time it resolves the count is already
+// incremented and this refetch reads the up-to-date value.
+// A full fetchUpload() would flash the page-level loading spinner and is
+// overkill for a counter refresh, so this only patches the download fields
+// in place, leaving viewer/pending-upload state untouched.
+async function refreshDownloadStats() {
+  if (!upload.value) return
+  try {
+    const fresh = await getUpload(props.id, uploadToken.value)
+    if (!upload.value || fresh.id !== upload.value.id) return
+    upload.value.downloadCount = fresh.downloadCount
+    upload.value.lastDownloadedAt = fresh.lastDownloadedAt
+    for (const freshFile of fresh.files || []) {
+      const localFile = upload.value.files?.find(f => f.id === freshFile.id)
+      if (localFile) {
+        localFile.downloadCount = freshFile.downloadCount
+        localFile.lastDownloadedAt = freshFile.lastDownloadedAt
+      }
+    }
+  } catch {
+    // Best-effort — leave the counters as they were rather than surface an error.
   }
 }
 
@@ -911,7 +963,8 @@ watch(activeFiles, (files) => {
             <div v-else-if="isViewingImage" class="p-4 flex items-center justify-center bg-surface-900/50">
               <img :src="viewingImageUrl"
                    :alt="viewingFile.fileName"
-                   class="max-w-full max-h-[70vh] object-contain rounded" />
+                   class="max-w-full max-h-[70vh] object-contain rounded"
+                   @load="onMediaPreviewLoaded" />
             </div>
             <div v-else-if="isViewingVideo" class="p-4 flex items-center justify-center bg-surface-900/50">
               <video
@@ -969,6 +1022,7 @@ watch(activeFiles, (files) => {
                      :is-stream="upload.stream"
                      :is-one-shot="upload.oneShot"
                      :is-e2ee="isE2EE"
+                     :show-download-stats="isAdmin"
                      @remove="deleteFile"
                      @show-qr="openQrFile"
                      @view="viewFile"

@@ -20,6 +20,16 @@ func TestUploadNewFile(t *testing.T) {
 	require.NotZero(t, len(upload.Files), "invalid file count")
 }
 
+// TestUploadJSONShape pins that the upload object's JSON keys include
+// downloadedBytes alongside downloadCount, so a future accidental field
+// removal fails a test instead of silently shrinking the API response.
+func TestUploadJSONShape(t *testing.T) {
+	upload := &Upload{}
+	keys := jsonKeys(t, upload)
+	require.Contains(t, keys, "downloadCount", "upload JSON must expose downloadCount")
+	require.Contains(t, keys, "downloadedBytes", "upload JSON must expose downloadedBytes")
+}
+
 func TestUploadSanitize(t *testing.T) {
 	upload := &Upload{}
 	upload.NewFile()
@@ -29,6 +39,12 @@ func TestUploadSanitize(t *testing.T) {
 	upload.UploadToken = "token"
 	upload.Token = "token"
 	upload.User = "user"
+	upload.DownloadCount = 12
+	upload.DownloadedBytes = 4096
+	now := time.Now()
+	upload.LastDownloadedAt = &now
+	upload.Files[0].DownloadCount = 3
+	upload.Files[0].LastDownloadedAt = &now
 
 	config := NewConfiguration()
 	config.DownloadDomain = "download.domain"
@@ -40,6 +56,11 @@ func TestUploadSanitize(t *testing.T) {
 	require.Zero(t, upload.UploadToken, "invalid sanitized upload")
 	require.Zero(t, upload.Token, "invalid sanitized upload")
 	require.Zero(t, upload.UploadToken, "invalid sanitized upload")
+	require.Zero(t, upload.DownloadCount, "invalid sanitized upload download count")
+	require.Zero(t, upload.DownloadedBytes, "invalid sanitized upload downloaded bytes")
+	require.Nil(t, upload.LastDownloadedAt, "invalid sanitized upload last download")
+	require.Zero(t, upload.Files[0].DownloadCount, "invalid sanitized file download count")
+	require.Nil(t, upload.Files[0].LastDownloadedAt, "invalid sanitized file last download")
 	require.Equal(t, config.DownloadDomain, upload.DownloadDomain, "invalid download domain")
 }
 
@@ -47,11 +68,20 @@ func TestUploadSanitizeAdmin(t *testing.T) {
 	upload := &Upload{}
 	upload.NewFile()
 	upload.UploadToken = "token"
+	upload.DownloadCount = 12
+	upload.DownloadedBytes = 4096
+	now := time.Now()
+	upload.LastDownloadedAt = &now
+	upload.Files[0].DownloadCount = 3
+	upload.Files[0].LastDownloadedAt = &now
 	upload.IsAdmin = true
 
 	upload.Sanitize(NewConfiguration())
 
 	require.Equal(t, "token", upload.UploadToken, "invalid sanitized upload")
+	require.Equal(t, int64(12), upload.DownloadCount, "invalid sanitized upload download count")
+	require.Equal(t, int64(4096), upload.DownloadedBytes, "invalid sanitized upload downloaded bytes")
+	require.Equal(t, int64(3), upload.Files[0].DownloadCount, "invalid sanitized file download count")
 }
 
 func TestUpload_GetFile(t *testing.T) {

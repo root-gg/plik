@@ -15,7 +15,7 @@ test.describe('Admin view', () => {
         await page.waitForLoadState('networkidle')
 
         // Click Uploads sidebar nav button
-        await page.getByRole('button', { name: 'Uploads', exact: true }).click()
+        await page.locator('aside').getByRole('button', { name: 'Uploads', exact: true }).click()
         await page.waitForLoadState('networkidle')
 
         // Should show upload list (may be empty with "No uploads" or have entries)
@@ -177,8 +177,15 @@ test.describe('Admin server statistics', () => {
         const statsPanel = page.locator('.glass-card').filter({ hasText: 'Server Statistics' })
         await expect(statsPanel).toBeVisible({ timeout: 5_000 })
 
-        for (const label of ['Users', 'Uploads', 'Anonymous Uploads', 'Files', 'Total Size', 'Anonymous Size']) {
+        for (const label of ['Current Usage', 'Users', 'Uploads', 'Files', 'Total Size', 'Lifetime Users', 'Lifetime Uploads', 'Lifetime Files', 'Lifetime Size']) {
             await expect(statsPanel.getByText(label, { exact: true })).toBeVisible()
+        }
+        await expect(statsPanel.getByText(/^Lifetime Usage \(since /)).toBeVisible()
+
+        const activityPanel = page.locator('.glass-card').filter({ hasText: 'Activity' }).filter({ hasText: 'Lifetime' })
+        await expect(activityPanel).toBeVisible()
+        for (const label of ['Today', '7 days', '30 days', 'Lifetime']) {
+            await expect(activityPanel.getByText(label, { exact: true })).toBeVisible()
         }
     })
 
@@ -189,13 +196,22 @@ test.describe('Admin server statistics', () => {
         const statsPanel = page.locator('.glass-card').filter({ hasText: 'Server Statistics' })
         await expect(statsPanel).toBeVisible({ timeout: 5_000 })
 
-        // Check that the bold stat values exist and aren't NaN
+        // Check that the bold stat values exist and aren't NaN.
         const values = statsPanel.locator('.text-2xl.font-bold')
         const count = await values.count()
-        expect(count).toBe(6)
+        expect(count).toBeGreaterThanOrEqual(8)
 
         for (let i = 0; i < count; i++) {
             const text = await values.nth(i).textContent()
+            expect(text).toBeTruthy()
+            expect(text).not.toBe('NaN')
+        }
+
+        const activityPanel = page.locator('.glass-card').filter({ hasText: 'Activity' }).filter({ hasText: 'Lifetime' })
+        const windowValues = activityPanel.locator('.text-2xl.font-bold')
+        await expect(windowValues).toHaveCount(4)
+        for (let i = 0; i < 4; i++) {
+            const text = await windowValues.nth(i).textContent()
             expect(text).toBeTruthy()
             expect(text).not.toBe('NaN')
         }
@@ -450,9 +466,8 @@ test.describe('Admin result counts', () => {
 
     test('uploads view shows result count', async ({ authenticatedPage: page }) => {
         await page.goto('/#/admin')
-        await page.getByRole('button', { name: 'Uploads', exact: true }).click()
+        await page.locator('aside').getByRole('button', { name: 'Uploads', exact: true }).click()
         const mainContent = page.locator('main')
         await expect(mainContent.getByText(/Showing \d+ of \d+ uploads/)).toBeVisible({ timeout: 5_000 })
     })
 })
-
