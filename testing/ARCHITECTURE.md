@@ -10,6 +10,7 @@
 testing/
 ├── test_backends.sh    ← orchestrator: runs all or specific backend tests
 ├── utils.sh            ← shared helpers (docker, server start/stop, test assertions)
+├── migrate/            ← plikd migrate e2e test (no Docker required)
 ├── mariadb/            ← MariaDB metadata backend test
 ├── mysql/              ← MySQL metadata backend test
 ├── postgres/           ← PostgreSQL metadata backend test
@@ -63,6 +64,7 @@ PLIKD_CONFIG=$PWD/testing/minio/plikd.cfg go test ./server/data/s3/... -v -race
 
 | Backend | Tests | Type |
 |---------|-------|------|
+| Migrate | fakedb → migrate → verify record counts, dry-run, idempotent re-run | CLI / Metadata |
 | MariaDB | Metadata CRUD, migrations | Metadata |
 | MySQL | Metadata CRUD, migrations | Metadata |
 | PostgreSQL | Metadata CRUD, migrations | Metadata |
