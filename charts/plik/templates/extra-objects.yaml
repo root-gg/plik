@@ -43,8 +43,10 @@ extraObjects supports three forms:
 {{- else if kindIs "map" .Values.extraObjects }}
 {{- /* Form 1: dict — iterate over values; keys are used only as labels for merging */}}
 {{- range $key, $obj := .Values.extraObjects }}
+{{- if $obj }}
 ---
 {{ tpl (toYaml $obj) $ }}
+{{- end }}
 {{- end }}
 {{- else }}
 {{- /* Form 2: list */}}
@@ -54,5 +56,3 @@ extraObjects supports three forms:
 {{- end }}
 {{- end }}
 {{- end }}
-
-
