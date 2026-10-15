@@ -12,6 +12,11 @@ on:
       head_repo:
         required: true
         type: string
+      head_sha:
+        description: Commit to build (defaults to the tip of head_ref)
+        required: false
+        type: string
+        default: ""
     secrets:
       DOCKERHUB_USERNAME:
         required: true
@@ -21,12 +26,17 @@ on:
 jobs:
   docker-build:
     name: Docker Build & Push
+    # One build at a time per PR, whatever the trigger (comment or label), so
+    # the immutable tag below is always copied from the image just pushed.
+    concurrency:
+      group: docker-build-pr-${{ inputs.pr_number }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.head_ref }}
+          ref: ${{ inputs.head_sha || inputs.head_ref }}
           repository: ${{ inputs.head_repo }}
 
       - name: Fetch tags
@@ -57,3 +67,12 @@ jobs:
           RELEASE: "false"
           PUSH_TO_DOCKER_HUB: "true"
         run: make release-and-push-to-docker-hub
+
+      # Immutable tag for PR previews (k3s ResourceSet): pr-<N>-<sha7>.
+      # --short=7: git would print 8+ characters on this repository.
+      - name: Tag immutable preview image
+        run: |
+          SHA7=$(git rev-parse --short=7 HEAD)
+          docker buildx imagetools create \
+            -t "rootgg/plik:pr-${{ inputs.pr_number }}-${SHA7}" \
+            "rootgg/plik:pr-${{ inputs.pr_number }}"
