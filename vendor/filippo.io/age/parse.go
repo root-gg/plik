@@ -24,7 +24,8 @@ import (
 func ParseIdentities(f io.Reader) ([]Identity, error) {
 	const privateKeySizeLimit = 1 << 24 // 16 MiB
 	var ids []Identity
-	scanner := bufio.NewScanner(io.LimitReader(f, privateKeySizeLimit))
+	lr := &io.LimitedReader{R: f, N: privateKeySizeLimit + 1}
+	scanner := bufio.NewScanner(lr)
 	var n int
 	for scanner.Scan() {
 		n++
@@ -44,6 +45,9 @@ func ParseIdentities(f io.Reader) ([]Identity, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("failed to read identities file: %v", err)
 	}
+	if lr.N == 0 {
+		return nil, fmt.Errorf("identities file is too long")
+	}
 	if len(ids) == 0 {
 		return nil, fmt.Errorf("no identities found")
 	}
@@ -57,7 +61,9 @@ func parseIdentity(arg string) (Identity, error) {
 	case strings.HasPrefix(arg, "AGE-SECRET-KEY-PQ-1"):
 		return ParseHybridIdentity(arg)
 	default:
-		return nil, fmt.Errorf("unknown identity type: %q", arg)
+		// Don't include arg in the error: it may contain private key material,
+		// and callers print these errors.
+		return nil, fmt.Errorf("unknown identity type")
 	}
 }
 
@@ -74,7 +80,8 @@ func parseIdentity(arg string) (Identity, error) {
 func ParseRecipients(f io.Reader) ([]Recipient, error) {
 	const recipientFileSizeLimit = 1 << 24 // 16 MiB
 	var recs []Recipient
-	scanner := bufio.NewScanner(io.LimitReader(f, recipientFileSizeLimit))
+	lr := &io.LimitedReader{R: f, N: recipientFileSizeLimit + 1}
+	scanner := bufio.NewScanner(lr)
 	var n int
 	for scanner.Scan() {
 		n++
@@ -94,6 +101,9 @@ func ParseRecipients(f io.Reader) ([]Recipient, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("failed to read recipients file: %v", err)
 	}
+	if lr.N == 0 {
+		return nil, fmt.Errorf("recipients file is too long")
+	}
 	if len(recs) == 0 {
 		return nil, fmt.Errorf("no recipients found")
 	}
@@ -107,6 +117,8 @@ func parseRecipient(arg string) (Recipient, error) {
 	case strings.HasPrefix(arg, "age1"):
 		return ParseX25519Recipient(arg)
 	default:
-		return nil, fmt.Errorf("unknown recipient type: %q", arg)
+		// It might be a private key from an identities file accidentally used
+		// as a recipients file, so don't include arg in the error.
+		return nil, fmt.Errorf("unknown recipient type")
 	}
 }

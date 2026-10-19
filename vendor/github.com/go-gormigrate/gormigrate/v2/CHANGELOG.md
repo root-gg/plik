@@ -69,7 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed and written tests for transaction handling
   ([#34](https://github.com/go-gormigrate/gormigrate/pull/34), [#10](https://github.com/go-gormigrate/gormigrate/issues/10)).
-  Enabling transation is recommend, but only supported for databases that
+  Enabling transaction is recommended, but only supported for databases that
   support DDL transactions (PostgreSQL, Microsoft SQL Server and SQLite).
 
 ## [1.4.0] - 2019-02-03

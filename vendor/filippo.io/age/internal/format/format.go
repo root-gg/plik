@@ -76,6 +76,7 @@ func (w *WrappedBase64Encoder) writeWrapped(p []byte) (int, error) {
 	if w.buf.Len() != 0 {
 		panic("age: internal error: non-empty WrappedBase64Encoder.buf")
 	}
+	total := len(p)
 	for len(p) > 0 {
 		toWrite := min(ColumnsPerLine-(w.written%ColumnsPerLine), len(p))
 		n, _ := w.buf.Write(p[:toWrite])
@@ -91,7 +92,7 @@ func (w *WrappedBase64Encoder) writeWrapped(p []byte) (int, error) {
 		// are not recoverable anyway.
 		return 0, err
 	}
-	return len(p), nil
+	return total, nil
 }
 
 // LastLineIsEmpty returns whether the last output line was empty, either
@@ -108,10 +109,21 @@ var stanzaPrefix = []byte("->")
 var footerPrefix = []byte("---")
 
 func (r *Stanza) Marshal(w io.Writer) error {
+	if !isValidString(r.Type) {
+		return fmt.Errorf("invalid stanza type: %q", r.Type)
+	}
+	for _, a := range r.Args {
+		if !isValidString(a) {
+			return fmt.Errorf("invalid stanza argument: %q", a)
+		}
+	}
 	if _, err := w.Write(stanzaPrefix); err != nil {
 		return err
 	}
-	for _, a := range append([]string{r.Type}, r.Args...) {
+	if _, err := io.WriteString(w, " "+r.Type); err != nil {
+		return err
+	}
+	for _, a := range r.Args {
 		if _, err := io.WriteString(w, " "+a); err != nil {
 			return err
 		}
@@ -131,6 +143,9 @@ func (r *Stanza) Marshal(w io.Writer) error {
 }
 
 func (h *Header) MarshalWithoutMAC(w io.Writer) error {
+	if len(h.Recipients) == 0 {
+		return errors.New("no recipient stanzas")
+	}
 	if _, err := io.WriteString(w, intro); err != nil {
 		return err
 	}
@@ -153,7 +168,9 @@ func (h *Header) Marshal(w io.Writer) error {
 }
 
 type StanzaReader struct {
-	r   *bufio.Reader
+	r interface {
+		ReadBytes(delim byte) ([]byte, error)
+	}
 	err error
 }
 
@@ -180,11 +197,6 @@ func (r *StanzaReader) ReadStanza() (s *Stanza, err error) {
 	prefix, args := splitArgs(line)
 	if prefix != string(stanzaPrefix) || len(args) < 1 {
 		return nil, fmt.Errorf("malformed stanza: %q", line)
-	}
-	for _, a := range args {
-		if !isValidString(a) {
-			return nil, fmt.Errorf("malformed stanza: %q", line)
-		}
 	}
 	s.Type = args[0]
 	s.Args = args[1:]
@@ -217,6 +229,44 @@ type ParseError struct {
 	err error
 }
 
+const (
+	maxHeaderBytes      = 2 << 20
+	maxRecipientStanzas = 1024
+	maxStanzaArgs       = 128
+)
+
+type headerReader struct {
+	r *bufio.Reader
+	n int
+}
+
+func (r *headerReader) ReadBytes(delim byte) ([]byte, error) {
+	var line []byte
+	for {
+		frag, err := r.r.ReadSlice(delim)
+		if len(frag) > maxHeaderBytes-r.n {
+			return nil, errorf("header exceeds 2 MiB")
+		}
+		r.n += len(frag)
+		line = append(line, frag...)
+		if err != bufio.ErrBufferFull {
+			return line, err
+		}
+	}
+}
+
+func (r *headerReader) ReadString(delim byte) (string, error) {
+	line, err := r.ReadBytes(delim)
+	return string(line), err
+}
+
+func (r *headerReader) Peek(n int) ([]byte, error) {
+	if r.n+n > maxHeaderBytes {
+		return nil, errorf("header exceeds 2 MiB")
+	}
+	return r.r.Peek(n)
+}
+
 func (e *ParseError) Error() string {
 	return "parsing age header: " + e.err.Error()
 }
@@ -229,31 +279,62 @@ func errorf(format string, a ...any) error {
 	return &ParseError{fmt.Errorf(format, a...)}
 }
 
+// describeIntro returns a quoted description of a bad intro line, or an empty
+// string if the line contains recognizable private key material.
+func describeIntro(line string) string {
+	for _, prefix := range []string{"AGE-SECRET-KEY-", "AGE-PLUGIN-"} {
+		if strings.HasPrefix(line, prefix) {
+			return ""
+		}
+	}
+	// Preserve enough context to diagnose a mangled intro without echoing an
+	// arbitrarily long first line.
+	return fmt.Sprintf("%q", line[:min(len(line), len(intro))])
+}
+
 // Parse returns the header and a Reader that begins at the start of the
 // payload.
 func Parse(input io.Reader) (*Header, io.Reader, error) {
 	h := &Header{}
 	rr := bufio.NewReader(input)
+	hr := &headerReader{r: rr}
 
-	line, err := rr.ReadString('\n')
+	line, err := hr.ReadString('\n')
 	if err == io.EOF {
-		return nil, nil, errorf("file is empty")
+		if len(line) == 0 {
+			return nil, nil, errorf("file is empty")
+		}
+		if description := describeIntro(line); description != "" {
+			return nil, nil, errorf("unexpected EOF reading intro: %s", description)
+		}
+		return nil, nil, errorf("unexpected EOF reading intro, expected %q", intro)
 	} else if err != nil {
+		// headerReader errors are already ParseErrors; don't nest the prefix.
+		if _, ok := err.(*ParseError); ok {
+			return nil, nil, err
+		}
 		return nil, nil, errorf("failed to read intro: %w", err)
 	}
 	if line != intro {
-		return nil, nil, errorf("unexpected intro: %q", line)
+		if description := describeIntro(line); description != "" {
+			return nil, nil, errorf("unexpected intro: %s", description)
+		}
+		return nil, nil, errorf("unexpected intro, expected %q", intro)
 	}
 
-	sr := NewStanzaReader(rr)
+	sr := &StanzaReader{r: hr}
 	for {
-		peek, err := rr.Peek(len(footerPrefix))
+		peek, err := hr.Peek(len(footerPrefix))
 		if err != nil {
+			// headerReader errors are already ParseErrors; don't nest the prefix.
+			if _, ok := err.(*ParseError); ok {
+				return nil, nil, err
+			}
 			return nil, nil, errorf("failed to read header: %w", err)
 		}
 
 		if bytes.Equal(peek, footerPrefix) {
-			line, err := rr.ReadBytes('\n')
+			line, err := hr.ReadBytes('\n')
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to read header: %w", err)
 			}
@@ -268,12 +349,18 @@ func Parse(input io.Reader) (*Header, io.Reader, error) {
 			}
 			break
 		}
+		if len(h.Recipients) == maxRecipientStanzas {
+			return nil, nil, errorf("header contains more than %d recipient stanzas", maxRecipientStanzas)
+		}
 
 		s, err := sr.ReadStanza()
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to parse header: %w", err)
 		}
 		h.Recipients = append(h.Recipients, s)
+	}
+	if len(h.Recipients) == 0 {
+		return nil, nil, errorf("no recipient stanzas")
 	}
 
 	// If input is a bufio.Reader, rr might be equal to input because
@@ -293,8 +380,19 @@ func Parse(input io.Reader) (*Header, io.Reader, error) {
 
 func splitArgs(line []byte) (string, []string) {
 	l := strings.TrimSuffix(string(line), "\n")
-	parts := strings.Split(l, " ")
-	return parts[0], parts[1:]
+	prefix, rest, ok := strings.Cut(l, " ")
+	if !ok {
+		return l, nil
+	}
+
+	var args []string
+	for arg := range strings.SplitSeq(rest, " ") {
+		if !isValidString(arg) || len(args) > maxStanzaArgs {
+			return l, nil
+		}
+		args = append(args, arg)
+	}
+	return prefix, args
 }
 
 func isValidString(s string) bool {
