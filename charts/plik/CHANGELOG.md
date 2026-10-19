@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - New `serviceAccount.automount` value to control `automountServiceAccountToken` on the ServiceAccount (default: `false`)
+- New `extraObjects` value to deploy arbitrary extra Kubernetes manifests alongside the chart (e.g. ExternalSecrets, NetworkPolicies, RBAC rules). Supports three forms: **dict** (recommended — Helm deep-merges dicts across multiple `-f` files, so each file can add its own key independently), **list** (single values file), or **string** (supports inline Go template expressions). All forms support `tpl`.
 
 ## [1.4.2]
 

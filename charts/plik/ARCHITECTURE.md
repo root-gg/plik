@@ -23,6 +23,7 @@ charts/plik/
     ├── service.yaml            ← ClusterIP service on port 8080
     ├── ingress.yaml            ← Optional Ingress resource
     ├── pvc.yaml                ← PVC for file/db data (when persistence/dbPersistence enabled)
+    ├── extra-objects.yaml      ← Renders arbitrary extra Kubernetes manifests (extraObjects)
     └── NOTES.txt               ← Post-install instructions
 ```
 
@@ -56,3 +57,18 @@ Both default to `emptyDir` when disabled. For `StatefulSet` mode, volumes use `v
 ### Versioning
 
 Chart `version` and `appVersion` in `Chart.yaml` use `__VERSION__` placeholders, replaced at release time by `releaser/helm_release.sh` to match the app release tag.
+
+### extraObjects — deploying supplementary resources
+
+`extraObjects` allows users to deploy arbitrary Kubernetes manifests alongside the chart (e.g. ExternalSecrets, NetworkPolicies, RBAC rules). It supports three forms to accommodate different values file strategies:
+
+| Form | Value type | Multi-file merge | tpl support | When to use |
+|------|-----------|-----------------|-------------|-------------|
+| **Dict** | `extraObjects: {key: {...}}` | ✅ Helm deep-merges dicts | ✅ Yes | **Recommended** — each `-f` file adds its own named key independently |
+| **List** | `extraObjects: [...]` | ❌ Last file wins | ✅ Yes | Single values file |
+| **String** | `extraObjects: \|` | ❌ Last file wins | ✅ Yes (whole block evaluated first) | Inline Go template expressions |
+
+The dict form is the default (`extraObjects: {}`) because Helm performs a deep merge on maps across multiple `-f` files, whereas lists and strings are always fully replaced by the last file. Each dict key is an arbitrary label used only to allow merging — only the value (the manifest) is rendered.
+
+All forms pass manifests through `tpl` before rendering, so Go template helpers such as `{{ include "plik.fullname" . }}` and `{{ .Release.Name }}` work in all cases.
+
