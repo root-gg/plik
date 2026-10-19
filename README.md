@@ -49,9 +49,9 @@ https://github.com/user-attachments/assets/9185798a-ab1a-41db-843b-4ef8833f4e41
 docker run -p 8080:8080 rootgg/plik
 
 # From release
-wget https://github.com/root-gg/plik/releases/download/1.4.2/plik-server-1.4.2-linux-amd64.tar.gz
-tar xzvf plik-server-1.4.2-linux-amd64.tar.gz
-cd plik-server-1.4.2-linux-amd64/server && ./plikd
+wget https://github.com/root-gg/plik/releases/download/1.4.3/plik-server-1.4.3-linux-amd64.tar.gz
+tar xzvf plik-server-1.4.3-linux-amd64.tar.gz
+cd plik-server-1.4.3-linux-amd64/server && ./plikd
 
 # Debian / Ubuntu
 curl -fsSL https://root-gg.github.io/plik/apt/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/plik.gpg
