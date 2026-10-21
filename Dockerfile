@@ -70,7 +70,7 @@ FROM scratch AS plik-release-archive
 COPY --from=plik-builder --chown=1000:1000 /go/src/github.com/root-gg/plik/plik-server-*.tar.gz /
 
 ##################################################################################
-FROM alpine:3.23 AS plik-image
+FROM alpine:3.24 AS plik-image
 
 RUN apk add --no-cache ca-certificates
 
