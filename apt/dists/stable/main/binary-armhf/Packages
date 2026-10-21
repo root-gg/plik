@@ -1,0 +1,36 @@
+Package: plik-client
+Version: 1.4.3
+Architecture: armhf
+Maintainer: Mathieu Bodjikian <mathieu@bodjikian.fr>
+Installed-Size: 15104
+Conflicts: plik-client
+Filename: pool/main/plik-client_1.4.3_armhf.deb
+Size: 6016108
+MD5sum: c18b1eaf994be0b245f8f18ee3505371
+SHA1: 6b9571b0096c5331e922926eb710c455cc0f8144
+SHA256: 6fa9c17381650be45bc7674fd3c346184abe74984fe3ffbb44df1cff7119810b
+Section: utils
+Priority: optional
+Homepage: https://github.com/root-gg/plik
+Description: Plik CLI client - Command-line file upload tool.
+ Upload files to a Plik server from the terminal.
+
+Package: plik-server
+Version: 1.4.3
+Architecture: armhf
+Maintainer: Mathieu Bodjikian <mathieu@bodjikian.fr>
+Installed-Size: 233959
+Depends: ca-certificates
+Conflicts: plik-server
+Filename: pool/main/plik-server_1.4.3_armhf.deb
+Size: 91879868
+MD5sum: 38f60b7400879b22ed96f90735ed2a82
+SHA1: 30c021466fc8f54025f447eb4f19ca2340209489
+SHA256: a5c004a951e7558a47dd3eb9f01956c78a234459a9772525401a1f6837b1ab45
+Section: web
+Priority: optional
+Homepage: https://github.com/root-gg/plik
+Description: Plik server - Temporary file upload system.
+ Self-hosted file sharing platform with multi-backend support,
+ web interface, CLI client, and optional authentication.
+

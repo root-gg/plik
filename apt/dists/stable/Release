@@ -1,0 +1,26 @@
+Origin: root-gg
+Label: Plik
+Suite: stable
+Codename: stable
+Architectures: amd64 arm64 armhf i386 
+Components: main
+Description: Plik APT repository
+Date: Wed, 21 Oct 2026 19:28:29 +0000
+MD5Sum:
+ 71cf5f5a08c28e50032d14c7a2ac68eb 1222 main/binary-armhf/Packages
+ 3856bfa97a8ca2c9b2590a64410d62c7 660 main/binary-armhf/Packages.gz
+ 19bd7fa153755c62a3cb1ff88fc02d9f 1222 main/binary-amd64/Packages
+ 6321cc0273b44a06c532a119f87e4709 663 main/binary-amd64/Packages.gz
+ 257b155ed87f212cbfcf1fa5f78994e5 1218 main/binary-i386/Packages
+ 105707aec71f6a0e76ecdb243f9fb331 659 main/binary-i386/Packages.gz
+ 11489bffd778e820b7829eca53d6c09f 1222 main/binary-arm64/Packages
+ 55454474b675a376f6456c2c0ff55578 662 main/binary-arm64/Packages.gz
+SHA256:
+ 720072b895f5331646c6f27443f7723322fba84d57c7b2a59b9bb52e47915f55 1222 main/binary-armhf/Packages
+ a633545f1afbbb138946de2302562a7fe1fee91c99b8d52db4f5716bf314eac2 660 main/binary-armhf/Packages.gz
+ db7203634b67b706db8b1d170dba78bd6e4d16d9dbc141f0abead16a511f1d06 1222 main/binary-amd64/Packages
+ 865899d3e9f85ad8f5be32532b66d085cfe7777209b28e0d9650a0cb248d91dc 663 main/binary-amd64/Packages.gz
+ aa961c8f2eb6e94acab3cdc27f1eea934ac80f7830c3ac198672cbba93c5da6d 1218 main/binary-i386/Packages
+ 411a171de91dc7962a2c59cd06cd06b69d606f6070154cccdd194ae5605cc831 659 main/binary-i386/Packages.gz
+ 4969c86091c4971d1b3c8d74c2cf783e9bf78e358407edf1f9b7ab7e88a47ab5 1222 main/binary-arm64/Packages
+ 8fa06f79e110b22e12e377f8e1df2994e0bb6236598c1fd9576307bad8e06194 662 main/binary-arm64/Packages.gz
