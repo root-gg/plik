@@ -3,6 +3,7 @@
 // The file uses JSONC (JSON with comments) — single-line // comments are stripped before parsing.
 
 import { reactive, ref } from 'vue'
+import { getVersion } from './api.js'
 
 // All built-in themes with display metadata
 const BUILTIN_THEMES = [
@@ -111,6 +112,22 @@ function injectJS(src) {
  * before setting the data-theme attribute (prevents unstyled flash).
  */
 const loadedThemes = new Set()
+
+// Server version, fetched once. Appended to theme CSS URLs so browsers
+// re-download the stylesheets after a server upgrade instead of reusing a cached copy.
+let versionPromise = null
+
+export function themeHref(name, version) {
+    const href = `themes/${name}.css`
+    return version ? `${href}?v=${encodeURIComponent(version)}` : href
+}
+
+function getServerVersion() {
+    if (!versionPromise) {
+        versionPromise = getVersion().then(v => v?.version).catch(() => '')
+    }
+    return versionPromise
+}
 let autoListener = null
 
 export async function applyTheme(value) {
@@ -130,7 +147,7 @@ export async function applyTheme(value) {
         // "dark" is the compiled-in default — no external CSS needed.
         // All other themes (including "light") load from themes/{name}.css.
         if (name !== 'dark') {
-            const href = `themes/${name}.css`
+            const href = themeHref(name, await getServerVersion())
             if (!loadedThemes.has(href)) {
                 await injectCSS(href)
                 loadedThemes.add(href)
