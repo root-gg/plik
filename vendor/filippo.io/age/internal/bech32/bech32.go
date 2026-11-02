@@ -154,13 +154,20 @@ func Decode(s string) (hrp string, data []byte, err error) {
 			return "", nil, fmt.Errorf("invalid character human-readable part: s[%d]=%d", p, c)
 		}
 	}
-	s = strings.ToLower(s)
 	for p, c := range s[pos+1:] {
+		// Fold ASCII explicitly. Unicode case folding can turn a non-ASCII
+		// rune into a shorter valid charset member.
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
 		d := strings.IndexRune(charset, c)
 		if d == -1 {
 			return "", nil, fmt.Errorf("invalid character data part: s[%d]=%v", p, c)
 		}
 		data = append(data, byte(d))
+	}
+	if len(data) < 6 {
+		return "", nil, fmt.Errorf("data part too short")
 	}
 	if !verifyChecksum(hrp, data) {
 		return "", nil, fmt.Errorf("invalid checksum")

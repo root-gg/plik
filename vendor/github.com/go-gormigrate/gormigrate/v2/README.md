@@ -20,15 +20,19 @@ proper schema versioning and migration rollback support.
 
 ## Supported databases
 
-It supports any of the [databases Gorm supports](https://gorm.io/docs/connecting_to_the_database.html):
+Gormigrate is expected to support any of the
+[databases Gorm supports](https://gorm.io/docs/connecting_to_the_database.html).
 
-- MySQL
-- MariaDB
-- PostgreSQL
-- SQLite
-- Microsoft SQL Server
-- TiDB
-- Clickhouse
+The integration tests cover the following databases:
+
+| Database             | Version tested          |
+| -------------------- | ----------------------- |
+| PostgreSQL           | 18                      |
+| MySQL                | 9                       |
+| MariaDB              | 12                      |
+| Microsoft SQL Server | 2025                    |
+| SQLite (CGo)         | via `mattn/go-sqlite3`  |
+| SQLite (pure Go)     | via `glebarez/sqlite`   |
 
 ## Usage
 
@@ -57,7 +61,7 @@ func main() {
 		// create `users` table
 		ID: "201608301400",
 		Migrate: func(tx *gorm.DB) error {
-			// it's a good pratice to copy the struct inside the function,
+			// it's a good practice to copy the struct inside the function,
 			// so side effects are prevented if the original struct changes during the time
 			type user struct {
 				ID   uuid.UUID `gorm:"type:uuid;primaryKey;uniqueIndex"`
@@ -82,7 +86,7 @@ func main() {
 			type user struct {
 				Age int
 			}
-			return db.Migrator().DropColumn(&user{}, "Age")
+			return tx.Migrator().DropColumn(&user{}, "Age")
 		},
 	}, {
 		// create `organizations` table where users belong to
@@ -105,7 +109,7 @@ func main() {
 			type user struct {
 				OrganizationID uuid.UUID `gorm:"type:uuid"`
 			}
-			if err := db.Migrator().DropColumn(&user{}, "OrganizationID"); err != nil {
+			if err := tx.Migrator().DropColumn(&user{}, "OrganizationID"); err != nil {
 				return err
 			}
 			return tx.Migrator().DropTable("organizations")
@@ -194,8 +198,8 @@ if you plan to scale.
 Be aware that Gormigrate has no builtin lock mechanism, so if you're running
 it automatically and have a distributed setup (i.e. more than one executable
 running at the same time), you might want to use a
-[distributed lock/mutex mechanism](https://redis.io/topics/distlock) to
-prevent race conditions while running migrations.
+[distributed lock/mutex mechanism](https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/)
+to prevent race conditions while running migrations.
 
 ## Contributing
 

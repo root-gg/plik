@@ -63,13 +63,16 @@ func NewRSARecipient(pk ssh.PublicKey) (*RSARecipient, error) {
 	} else {
 		return nil, errors.New("pk does not implement ssh.CryptoPublicKey")
 	}
-	if r.pubKey.Size() < 2048/8 {
+	if r.pubKey.N.BitLen() < 2048 {
 		return nil, errors.New("RSA key size is too small")
 	}
 	return r, nil
 }
 
 func (r *RSARecipient) Wrap(fileKey []byte) ([]*age.Stanza, error) {
+	if r.pubKey.N.BitLen() < 2048 {
+		return nil, errors.New("RSA key size is too small")
+	}
 	l := &age.Stanza{
 		Type: "ssh-rsa",
 		Args: []string{sshFingerprint(r.sshKey)},
@@ -129,7 +132,9 @@ func (i *RSAIdentity) unwrap(block *age.Stanza) ([]byte, error) {
 	fileKey, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, i.k,
 		block.Body, []byte(oaepLabel))
 	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt file key: %v", err)
+		// The fingerprint is only a short hint, and might collide with the
+		// fingerprint of a different recipient.
+		return nil, age.ErrIncorrectIdentity
 	}
 	return fileKey, nil
 }
@@ -344,7 +349,9 @@ func (i *Ed25519Identity) unwrap(block *age.Stanza) ([]byte, error) {
 
 	fileKey, err := aeadDecrypt(wrappingKey, block.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt file key: %v", err)
+		// The fingerprint is only a short hint, and might collide with the
+		// fingerprint of a different recipient.
+		return nil, age.ErrIncorrectIdentity
 	}
 	return fileKey, nil
 }

@@ -4,10 +4,11 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/rootgg/plik.svg)](https://hub.docker.com/r/rootgg/plik)
 [![GoDoc](https://godoc.org/github.com/root-gg/plik?status.svg)](https://godoc.org/github.com/root-gg/plik)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](http://opensource.org/licenses/MIT)
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R0O329MH3Z)
 
 Want to access the documentation? **https://root-gg.github.io/plik**
 
-Want to see a live demo ? **https://plik.root.gg**
+Want to see a live demo ? **https://plik.bodji.net**
 
 Want to chat with us ? Telegram group : **https://t.me/plik_rootgg**
 
@@ -49,9 +50,9 @@ https://github.com/user-attachments/assets/9185798a-ab1a-41db-843b-4ef8833f4e41
 docker run -p 8080:8080 rootgg/plik
 
 # From release
-wget https://github.com/root-gg/plik/releases/download/1.4.2/plik-server-1.4.2-linux-amd64.tar.gz
-tar xzvf plik-server-1.4.2-linux-amd64.tar.gz
-cd plik-server-1.4.2-linux-amd64/server && ./plikd
+wget https://github.com/root-gg/plik/releases/download/1.4.3/plik-server-1.4.3-linux-amd64.tar.gz
+tar xzvf plik-server-1.4.3-linux-amd64.tar.gz
+cd plik-server-1.4.3-linux-amd64/server && ./plikd
 
 # Debian / Ubuntu
 curl -fsSL https://root-gg.github.io/plik/apt/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/plik.gpg
