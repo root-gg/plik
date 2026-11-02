@@ -4,10 +4,11 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/rootgg/plik.svg)](https://hub.docker.com/r/rootgg/plik)
 [![GoDoc](https://godoc.org/github.com/root-gg/plik?status.svg)](https://godoc.org/github.com/root-gg/plik)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](http://opensource.org/licenses/MIT)
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R0O329MH3Z)
 
 Want to access the documentation? **https://root-gg.github.io/plik**
 
-Want to see a live demo ? **https://plik.root.gg**
+Want to see a live demo ? **https://plik.bodji.net**
 
 Want to chat with us ? Telegram group : **https://t.me/plik_rootgg**
 
