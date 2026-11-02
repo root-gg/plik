@@ -109,16 +109,17 @@ func (i *EncryptedSSHIdentity) Unwrap(stanzas []*age.Stanza) (fileKey []byte, er
 	var pubKey interface {
 		Equal(x crypto.PublicKey) bool
 	}
+	var decrypted age.Identity
 	switch k := k.(type) {
 	case *ed25519.PrivateKey:
-		i.decrypted, err = NewEd25519Identity(*k)
+		decrypted, err = NewEd25519Identity(*k)
 		pubKey = k.Public().(ed25519.PublicKey)
 	// ParseRawPrivateKey returns inconsistent types. See Issue 429.
 	case ed25519.PrivateKey:
-		i.decrypted, err = NewEd25519Identity(k)
+		decrypted, err = NewEd25519Identity(k)
 		pubKey = k.Public().(ed25519.PublicKey)
 	case *rsa.PrivateKey:
-		i.decrypted, err = NewRSAIdentity(k)
+		decrypted, err = NewRSAIdentity(k)
 		pubKey = &k.PublicKey
 	default:
 		return nil, fmt.Errorf("unexpected SSH key type: %T", k)
@@ -131,5 +132,6 @@ func (i *EncryptedSSHIdentity) Unwrap(stanzas []*age.Stanza) (fileKey []byte, er
 		return nil, fmt.Errorf("mismatched private and public SSH key")
 	}
 
+	i.decrypted = decrypted
 	return i.decrypted.Unwrap(stanzas)
 }

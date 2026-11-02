@@ -130,7 +130,7 @@ func encryptHdr(fileKey []byte, recipients ...Recipient) (*format.Header, error)
 		sort.Strings(l)
 		if i == 0 {
 			labels = l
-		} else if !slicesEqual(labels, l) {
+		} else if !slices.Equal(labels, l) {
 			return nil, incompatibleLabelsError(labels, l)
 		}
 		for _, s := range stanzas {
@@ -206,18 +206,6 @@ func wrapWithLabels(r Recipient, fileKey []byte) (s []*Stanza, labels []string, 
 	}
 	s, err = r.Wrap(fileKey)
 	return
-}
-
-func slicesEqual(s1, s2 []string) bool {
-	if len(s1) != len(s2) {
-		return false
-	}
-	for i := range s1 {
-		if s1[i] != s2[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func incompatibleLabelsError(l1, l2 []string) error {
@@ -333,6 +321,8 @@ func decryptHdr(hdr *format.Header, identities ...Identity) ([]byte, error) {
 	if len(identities) == 0 {
 		return nil, errors.New("no identities specified")
 	}
+	// Don't sort the caller's slice in place.
+	identities = slices.Clone(identities)
 	slices.SortStableFunc(identities, func(a, b Identity) int {
 		var aIsNative, bIsNative bool
 		switch a.(type) {

@@ -43,7 +43,7 @@ type Options struct {
 type Migration struct {
 	// ID is the migration identifier. Usually a timestamp like "201601021504".
 	ID string
-	// Migrate is a function that will br executed while running this migration.
+	// Migrate is a function that will be executed while running this migration.
 	Migrate MigrateFunc
 	// Rollback will be executed on rollback. Can be nil.
 	Rollback RollbackFunc
@@ -77,7 +77,7 @@ func (e *DuplicatedIDError) Error() string {
 }
 
 var (
-	// DefaultOptions can be used if you don't want to think about options.
+	// DefaultOptions can be used if you don't want to think about options
 	DefaultOptions = &Options{
 		TableName:                 "migrations",
 		IDColumnName:              "id",
@@ -90,10 +90,10 @@ var (
 	// that has no rollback function.
 	ErrRollbackImpossible = errors.New("gormigrate: It's impossible to rollback this migration")
 
-	// ErrNoMigrationDefined is returned when no migration is defined.
+	// ErrNoMigrationDefined is returned when no migration is defined
 	ErrNoMigrationDefined = errors.New("gormigrate: No migration defined")
 
-	// ErrMissingID is returned when the ID od migration is equal to ""
+	// ErrMissingID is returned when the ID of migration is equal to ""
 	ErrMissingID = errors.New("gormigrate: Missing ID in migration")
 
 	// ErrNoRunMigration is returned when any run migration was found while
@@ -108,7 +108,7 @@ var (
 	ErrUnknownPastMigration = errors.New("gormigrate: Found migration in DB that does not exist in code")
 )
 
-// New returns a new Gormigrate.
+// New returns a new Gormigrate value
 func New(db *gorm.DB, options *Options, migrations []*Migration) *Gormigrate {
 	if options == nil {
 		options = DefaultOptions
