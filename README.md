@@ -8,7 +8,7 @@
 
 Want to access the documentation? **https://root-gg.github.io/plik**
 
-Want to see a live demo ? **https://plik.root.gg**
+Want to see a live demo ? **https://plik.bodji.net**
 
 Want to chat with us ? Telegram group : **https://t.me/plik_rootgg**
 
