@@ -8,7 +8,14 @@ import (
 )
 
 func TestNewUpload(t *testing.T) {
-	upload := NewUpload()
+	upload := NewUpload(false, 16)
+	require.NotNil(t, upload)
+	require.NotZero(t, upload.ID, "missing upload id")
+	require.NotZero(t, upload.UploadToken, "missing upload token")
+}
+
+func TestNewUploadB32(t *testing.T) {
+	upload := NewUpload(true, 16)
 	require.NotNil(t, upload)
 	require.NotZero(t, upload.ID, "missing upload id")
 	require.NotZero(t, upload.UploadToken, "missing upload token")

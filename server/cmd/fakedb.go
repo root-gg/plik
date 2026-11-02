@@ -161,7 +161,7 @@ func fakedb(cmd *cobra.Command, args []string) {
 		}
 
 		for u := range fakedbUploads {
-			upload := common.NewUpload()
+			upload := common.NewUpload(false, 16)
 			upload.User = user.ID
 			if len(user.Tokens) > 0 && rand.Intn(2) == 0 {
 				upload.Token = user.Tokens[rand.Intn(len(user.Tokens))].Token
@@ -202,7 +202,7 @@ func fakedb(cmd *cobra.Command, args []string) {
 
 	// Create anonymous uploads (no user, no token)
 	for i := range fakedbAnonUploads {
-		upload := common.NewUpload()
+		upload := common.NewUpload(false, 16)
 		upload.Comments = fmt.Sprintf("anonymous upload %d", i)
 		upload.RemoteIP = fmt.Sprintf("192.168.%d.%d", rand.Intn(256), rand.Intn(256))
 		ttl := []int{0, 3600, 86400, 604800}[rand.Intn(4)]

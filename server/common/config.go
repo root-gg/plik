@@ -72,6 +72,9 @@ type Configuration struct {
 	SourceIPHeader  string   `json:"-"`
 	UploadWhitelist []string `json:"-"`
 
+	UploadIDLength int  `json:"uploadIDLength"`
+	UploadIDinB32  bool `json:"uploadIDinB32"`
+
 	// Feature Flags
 	FeatureAuthentication string `json:"feature_authentication"`
 	FeatureLocalLogin     string `json:"feature_local_login"`
@@ -156,6 +159,9 @@ func NewConfiguration() (config *Configuration) {
 
 	config.DefaultTTL = 2592000 // 30 days
 	config.MaxTTL = 2592000     // 30 days
+
+	config.UploadIDLength = 16
+	config.UploadIDinB32 = false
 
 	// Deprecated feature flags default values to ensure backward compatibility <1.3.6
 	// New FeatureFlags default values are defined in feature_flags.go initialization functions
