@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- Secure-by-default pod and container security contexts, compliant with the Kubernetes "restricted" Pod Security Standard: `runAsNonRoot`, UID/GID `1000` (the image's `plik` user), `fsGroup: 1000`, `RuntimeDefault` seccomp profile, `readOnlyRootFilesystem: true`, `allowPrivilegeEscalation: false`, all capabilities dropped. A writable `/tmp` `emptyDir` is mounted. If you previously overrode `podSecurityContext` / `securityContext`, your keys are now merged with these defaults — set a key to `null` to remove it
+
+### Added
+- Optional `NetworkPolicy` (`networkPolicy.enabled`, default `false`) restricting ingress to the http port (and `plikd.MetricsPort` when set), with configurable `ingressFrom` peers and optional `egress` rules
+- `persistence.emptyDirSizeLimit` / `dbPersistence.emptyDirSizeLimit` to cap the `emptyDir` volumes used when persistence is disabled
+- New `startupProbe` (TCP, up to 5 minutes by default) so slow starts such as long metadata migrations are not killed by the liveness probe
+
+### Changed
+- Liveness and readiness probes are now distinct: liveness is a TCP check, readiness is an HTTP GET on `/health` (instead of `/` for both). Probe timings are configurable via `livenessProbe`, `readinessProbe` and `startupProbe` (each with an `enabled` toggle)
+
+### Fixed
+- Probes now honor `plikd.Path` (previously `GET /` returned 404 when a path prefix was configured, so the pod never became ready) and use HTTPS when `plikd.SslEnabled` is true
+
+### Removed
+- Unused `autoscaling.*` values — no HorizontalPodAutoscaler template existed, and running several replicas is unsafe with the default SQLite metadata backend / `file` data backend
+
 ## [1.4.3]
 
 ### Fixed
