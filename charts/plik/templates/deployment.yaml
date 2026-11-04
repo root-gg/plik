@@ -5,9 +5,7 @@ metadata:
   labels:
     {{- include "plik.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
-  {{- end }}
   {{- if eq .Values.kind "StatefulSet" }}
   serviceName: {{ include "plik.fullname" . }}
   {{- end }}
@@ -28,26 +26,42 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "plik.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
       securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
+          {{- with .Values.securityContext }}
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
               containerPort: 8080
               protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /
+          {{- if .Values.startupProbe.enabled }}
+          startupProbe:
+            tcpSocket:
               port: http
+            {{- toYaml (omit .Values.startupProbe "enabled") | nindent 12 }}
+          {{- end }}
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+            tcpSocket:
+              port: http
+            {{- toYaml (omit .Values.livenessProbe "enabled") | nindent 12 }}
+          {{- end }}
+          {{- if .Values.readinessProbe.enabled }}
           readinessProbe:
             httpGet:
-              path: /
+              path: {{ trimSuffix "/" (.Values.plikd.Path | default "") }}/health
               port: http
+              scheme: {{ ternary "HTTPS" "HTTP" (.Values.plikd.SslEnabled | default false) }}
+            {{- toYaml (omit .Values.readinessProbe "enabled") | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
@@ -58,6 +72,8 @@ spec:
               mountPath: {{ .Values.persistence.path }}
             - name: db
               mountPath: {{ .Values.dbPersistence.path }}
+            - name: tmp
+              mountPath: /tmp
           envFrom:
             - secretRef:
                 name: {{ include "plik.secretName" . }}
@@ -78,20 +94,32 @@ spec:
         - name: config
           configMap:
             name: {{ include "plik.fullname" . }}
+        - name: tmp
+          emptyDir: {}
         {{- if eq .Values.kind "Deployment" }}
         - name: data
           {{- if .Values.persistence.enabled }}
           persistentVolumeClaim:
             claimName: {{ include "plik.fullname" . }}
           {{- else }}
+          {{- with .Values.persistence.emptyDirSizeLimit }}
+          emptyDir:
+            sizeLimit: {{ . }}
+          {{- else }}
           emptyDir: {}
+          {{- end }}
           {{- end }}
         - name: db
           {{- if .Values.dbPersistence.enabled }}
           persistentVolumeClaim:
             claimName: {{ include "plik.fullname" . }}-db
           {{- else }}
+          {{- with .Values.dbPersistence.emptyDirSizeLimit }}
+          emptyDir:
+            sizeLimit: {{ . }}
+          {{- else }}
           emptyDir: {}
+          {{- end }}
           {{- end }}
         {{- end }}
   {{- if eq .Values.kind "StatefulSet" }}
