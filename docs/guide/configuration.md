@@ -46,6 +46,7 @@ PLIKD_DATA_BACKEND_CONFIG='{"Directory":"/var/files"}' ./plikd
 | `WebappDirectory` | `../webapp/dist` | Web UI static files directory |
 | `ClientsDirectory` | `../clients` | CLI client binaries directory |
 | `ChangelogDirectory` | `../changelog` | Release changelog directory |
+| `ChunkDirectory` | `/tmp/plik-chunks` | Staging directory for resumable uploads until they complete. Put it on persistent storage to resume uploads after a restart |
 | `SourceIpHeader` | `""` | Header for real IP behind proxy (e.g., `X-Forwarded-For`) |
 | `UploadWhitelist` | `[]` | Restrict uploads to IP ranges (CIDR) |
 | `EnableArchiveCompression` | `true` | Enable zip compression for archive downloads. Set to `false` to use `zip.Store` (no compression) to prevent CPU exhaustion on public instances. See [Security — Archive Compression](/guide/security#archive-compression) |

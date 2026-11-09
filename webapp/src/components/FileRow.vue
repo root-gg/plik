@@ -165,6 +165,7 @@ function fileUrl() {
               <div class="progress-fill" :style="{ width: (file.progress || 0) + '%' }" />
             </div>
             <span class="text-xs text-surface-400 mt-0.5">{{ file.progress || 0 }}%</span>
+            <span v-if="file.error" class="text-xs text-warning-500 ml-2">{{ file.error }}</span>
           </div>
 
           <!-- Upload complete indicator -->

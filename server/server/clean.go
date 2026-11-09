@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/handlers"
 )
 
 /*
@@ -106,6 +107,15 @@ func (ps *PlikServer) Clean() {
 	cliSessions, err := ps.metadataBackend.DeleteExpiredCLIAuthSessions()
 	if cliSessions > 0 {
 		log.Infof("cleaned %d expired CLI auth sessions", cliSessions)
+	}
+	if err != nil {
+		log.Warning(err.Error())
+	}
+
+	// 6 - delete the staged chunks of abandoned chunked uploads
+	chunks, err := handlers.PurgeStaleChunks(ps.config.ChunkDirectory, ps.metadataBackend)
+	if chunks > 0 {
+		log.Infof("purged %d staged chunked uploads", chunks)
 	}
 	if err != nil {
 		log.Warning(err.Error())

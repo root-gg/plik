@@ -1,3 +1,16 @@
+{{- $chunks := .Values.chunkPersistence -}}
+{{- $multipleReplicas := or (gt (int .Values.replicaCount) 1) (and .Values.autoscaling.enabled (gt (int .Values.autoscaling.maxReplicas) 1)) -}}
+{{- if and $multipleReplicas (not (or $chunks.enabled $chunks.existingClaim)) -}}
+{{- fail "Multiple replicas require chunkPersistence.enabled or chunkPersistence.existingClaim with shared storage supporting cross-host file locks" -}}
+{{- end -}}
+{{- if and $multipleReplicas $chunks.enabled (not $chunks.existingClaim) (not (has "ReadWriteMany" $chunks.accessModes)) -}}
+{{- fail "Multiple replicas require ReadWriteMany in chunkPersistence.accessModes" -}}
+{{- end -}}
+{{- $mountPath := clean $chunks.path -}}
+{{- $chunkPath := clean .Values.plikd.ChunkDirectory -}}
+{{- if not (or (eq $chunkPath $mountPath) (hasPrefix (printf "%s/" (trimSuffix "/" $mountPath)) $chunkPath)) -}}
+{{- fail "plikd.ChunkDirectory must be within chunkPersistence.path" -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: {{ .Values.kind }}
 metadata:
@@ -58,6 +71,8 @@ spec:
               mountPath: {{ .Values.persistence.path }}
             - name: db
               mountPath: {{ .Values.dbPersistence.path }}
+            - name: chunks
+              mountPath: {{ $chunks.path | quote }}
           envFrom:
             - secretRef:
                 name: {{ include "plik.secretName" . }}
@@ -78,6 +93,13 @@ spec:
         - name: config
           configMap:
             name: {{ include "plik.fullname" . }}
+        - name: chunks
+          {{- if or $chunks.enabled $chunks.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ $chunks.existingClaim | default (printf "%s-chunks" (include "plik.fullname" .)) | quote }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
         {{- if eq .Values.kind "Deployment" }}
         - name: data
           {{- if .Values.persistence.enabled }}

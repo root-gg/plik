@@ -15,6 +15,24 @@ spec:
   storageClassName: {{ .Values.persistence.storageClassName }}
   {{- end }}
 {{- end }}
+{{- if and .Values.chunkPersistence.enabled (not .Values.chunkPersistence.existingClaim) }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "plik.fullname" . }}-chunks
+  labels:
+    {{- include "plik.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.chunkPersistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.chunkPersistence.size }}
+  {{- if .Values.chunkPersistence.storageClassName }}
+  storageClassName: {{ .Values.chunkPersistence.storageClassName }}
+  {{- end }}
+{{- end }}
 {{- if and .Values.dbPersistence.enabled (eq .Values.kind "Deployment") }}
 ---
 apiVersion: v1

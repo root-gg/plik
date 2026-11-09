@@ -44,6 +44,11 @@ persistence:
 dbPersistence:
   enabled: true
 
+chunkPersistence:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+
 ingress:
   enabled: true
   className: nginx
@@ -68,6 +73,8 @@ plikd:
 helm install plik plik/plik -f custom-values.yaml
 ```
 
+Resumable uploads use `chunkPersistence` for staging; enable it or supply an `existingClaim` to preserve progress across pod replacement. Multiple replicas require shared `ReadWriteMany` storage with cross-host file locking. Keep `plikd.ChunkDirectory` within `chunkPersistence.path`.
+
 ## Architecture
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions around config vs. secrets separation, persistence, and workload kind.
@@ -81,6 +88,11 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions around config vs. se
 | autoscaling.maxReplicas | int | `100` | Maximum number of replicas |
 | autoscaling.minReplicas | int | `1` | Minimum number of replicas |
 | autoscaling.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage |
+| chunkPersistence.accessModes | list | `["ReadWriteMany"]` | PVC access modes (ReadWriteMany is required for multiple replicas) |
+| chunkPersistence.enabled | bool | `false` | Enable a shared PVC for resumable upload staging |
+| chunkPersistence.existingClaim | string | `""` | Existing shared PVC for resumable upload staging |
+| chunkPersistence.path | string | `"/home/plik/server/chunks"` | Mount path for resumable upload staging |
+| chunkPersistence.size | string | `"10Gi"` | PVC storage size |
 | dbPersistence.accessModes | list | `["ReadWriteOnce"]` | PVC access modes |
 | dbPersistence.enabled | bool | `false` | Enable persistent storage for the SQLite database |
 | dbPersistence.path | string | `"/home/plik/server/db"` | Mount path for the database inside the container |
@@ -107,6 +119,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for design decisions around config vs. se
 | plikd.AbuseContact | string | `""` | Abuse contact email displayed in the footer |
 | plikd.AssumeHTTPS | bool | `false` | Enable HSTS and Secure cookies (auto-enabled when SslEnabled=true or PlikDomain starts with https://) |
 | plikd.ChangelogDirectory | string | `"../changelog"` | Path to the changelog directory |
+| plikd.ChunkDirectory | string | `"/home/plik/server/chunks"` | Staging directory for resumable uploads until they complete. Must be within chunkPersistence.path. Enable chunkPersistence to resume across pod replacement. |
 | plikd.ClientsDirectory | string | `"../clients"` | Path to the pre-built CLI clients directory |
 | plikd.DataBackend | string | `"file"` | Data backend type (`file`, `gcs`, `s3`, `swift`) |
 | plikd.DataBackendConfig | object | `{"Directory":"files"}` | Non-sensitive data backend configuration. Keys depend on the backend type. See [data backends](https://github.com/root-gg/plik#data-backends). |

@@ -22,7 +22,7 @@ charts/plik/
     ├── deployment.yaml         ← Deployment or StatefulSet (controlled by .Values.kind)
     ├── service.yaml            ← ClusterIP service on port 8080
     ├── ingress.yaml            ← Optional Ingress resource
-    ├── pvc.yaml                ← PVC for file/db data (when persistence/dbPersistence enabled)
+    ├── pvc.yaml                ← PVCs for file data, metadata and resumable upload staging
     ├── extra-objects.yaml      ← Renders arbitrary extra Kubernetes manifests (extraObjects)
     └── NOTES.txt               ← Post-install instructions
 ```
@@ -48,11 +48,9 @@ Set `secrets.existingSecret: "my-secret-name"` to skip Secret creation and refer
 
 ### Persistence
 
-Two independent PVCs:
-- `persistence` — uploaded file data at `/home/plik/server/files`
-- `dbPersistence` — SQLite database at `/home/plik/server/db`
+`persistence` stores uploaded files and `dbPersistence` stores the SQLite database. Deployments use independent PVCs when enabled and `emptyDir` otherwise; StatefulSets use `volumeClaimTemplates` for these volumes.
 
-Both default to `emptyDir` when disabled. For `StatefulSet` mode, volumes use `volumeClaimTemplates`.
+`chunkPersistence` stores resumable upload staging at `/home/plik/server/chunks`, with `plikd.ChunkDirectory` within its mount path. It uses one shared PVC for either workload kind when enabled, an `existingClaim` when supplied, and `emptyDir` otherwise. Multiple replicas require shared storage with `ReadWriteMany` access and cross-host file locking, including compatible filesystem mount options.
 
 ### Versioning
 

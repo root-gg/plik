@@ -26,6 +26,10 @@ Authentication: session cookie or `X-PlikToken` header.
 | `DELETE` | `/file/{uploadID}/{fileID}/{filename}` | Remove file |
 | `GET` | `/file/{uploadID}/{fileID}/{filename}` | Download file |
 | `HEAD` | `/file/{uploadID}/{fileID}/{filename}` | File metadata |
+| `POST` | `/resumable/{uploadID}/{filename}` | Add file as a resumable upload |
+| `HEAD` | `/resumable/{uploadID}/{fileID}/{filename}` | Resumable upload offset |
+| `PATCH` | `/resumable/{uploadID}/{fileID}/{filename}` | Append to a resumable upload |
+| `DELETE` | `/resumable/{uploadID}/{fileID}/{filename}` | Cancel a resumable upload |
 | `POST` | `/stream/{uploadID}/{fileID}/{filename}` | Stream upload |
 | `DELETE` | `/stream/{uploadID}/{fileID}/{filename}` | Cancel stream upload |
 | `GET`, `HEAD` | `/stream/{uploadID}/{fileID}/{filename}` | Stream download |
@@ -85,6 +89,27 @@ Response:
 ### Add File (POST /file/{uploadID})
 
 Send as `multipart/form-data` with `file` field. The `X-UploadToken` header is required (returned from upload creation).
+
+### Resumable Upload (/resumable/{uploadID}/{fileID}/{filename})
+
+Uploads a file in pieces, so an interrupted upload resumes instead of starting over. The protocol follows the IETF [Resumable Uploads for HTTP](https://datatracker.ietf.org/doc/draft-ietf-httpbis-resumable-upload/) draft (`draft-ietf-httpbis-resumable-upload-15`). A file declared at upload creation is the upload resource; `POST /resumable/{uploadID}/{filename}` adds a file to an upload and creates its upload resource.
+
+| Request | Response |
+|---------|----------|
+| `POST /resumable/{uploadID}/{filename}` with `Upload-Complete`, optional `Upload-Length` and `?reference=` | `201` with `Location` (the upload resource) and `Upload-Offset`. The content is the beginning of the file, or the whole file with `Upload-Complete: ?1` (`200` with the file JSON). A creation with the reference of a file of the upload returns that file instead of adding another one |
+| `HEAD` | `204` with `Upload-Offset` (bytes received), `Upload-Complete` (`?1` once the file is uploaded) and `Upload-Limit: max-size=<MaxFileSize>` |
+| `PATCH` with `Content-Type: application/partial-upload`, `Upload-Offset` and `Upload-Complete: ?0` | `204` with the new `Upload-Offset` |
+| `PATCH` with `Upload-Complete: ?1` (the content ends the file, it can be empty) | `200` with the file JSON, like `POST /file`, and `Upload-Complete: ?1` |
+| `PATCH` at another offset than the server's | `409` with `Upload-Offset` and a `mismatching-upload-offset` problem (`expected-offset`, `provided-offset`) |
+| `DELETE` | Cancels the upload, like removing the file |
+
+```bash
+curl -X PATCH -H "X-UploadToken: $TOKEN" -H "Content-Type: application/partial-upload" \
+  -H "Upload-Offset: 0" -H "Upload-Complete: ?0" \
+  --data-binary @part0 "$PLIK/resumable/$UPLOAD/$FILE/video.mp4"
+```
+
+Error responses carry `Upload-Complete: ?1` when the server processed the whole file and resuming cannot help, for example when the user quota is exceeded. Appended data is staged in the server's `ChunkDirectory` until the upload completes, then the file is saved to the data backend. Staged data is deleted after a day without appends. Replicas receiving requests for the same resumable upload share `ChunkDirectory` on storage supporting file locks across hosts. NFS mounts require close-to-open consistency and `lookupcache=positive`. Not available for stream uploads.
 
 ### Download File
 

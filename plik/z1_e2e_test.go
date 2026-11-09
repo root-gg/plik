@@ -1,20 +1,32 @@
 package plik
 
 import (
+	"bufio"
 	"bytes"
+	"context"
+	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/root-gg/plik/server/common"
+	"github.com/root-gg/plik/server/data"
+	fileBackend "github.com/root-gg/plik/server/data/file"
+	"github.com/root-gg/plik/server/server"
 )
 
 func TestUploadFileTwice(t *testing.T) {
@@ -519,4 +531,236 @@ func TestEmptyFileStream(t *testing.T) {
 	_, err = pc.downloadFile(upload.Metadata(), file.Metadata())
 	require.Error(t, err, "missing error")
 	require.Contains(t, err.Error(), fmt.Sprintf("file %s (%s) is not available : deleted", file.Name, file.metadata.ID), "invalid error")
+}
+
+func TestResumableUpload(t *testing.T) {
+	ps, pc := newPlikServerAndClient()
+	defer shutdown(ps)
+
+	err := startWithClient(ps, pc)
+	require.NoError(t, err, "unable to start plik server")
+
+	// The file is either declared at upload creation or added to the upload by an upload creation request
+	for _, added := range []bool{false, true} {
+		t.Run(fmt.Sprintf("added=%t", added), func(t *testing.T) {
+			data := make([]byte, 5<<20)
+			_, err := rand.Read(data)
+			require.NoError(t, err, "unable to generate file content")
+
+			upload := pc.NewUpload()
+			if !added {
+				upload.AddFileFromReader("filename", bytes.NewReader(data))
+			}
+			err = upload.Create()
+			require.NoError(t, err, "unable to create upload")
+
+			var file *common.File
+			if !added {
+				file = upload.Files()[0].Metadata()
+			}
+
+			var URL string
+			request := func(method string, offset int, body io.Reader, length int) (*http.Response, error) {
+				req, err := pc.uploadRequest(upload.Metadata(), method, URL, body)
+				require.NoError(t, err, "unable to create request")
+				if method == "PATCH" {
+					req.Header.Set("Content-Type", "application/partial-upload")
+					req.Header.Set("Upload-Offset", strconv.Itoa(offset))
+				}
+				req.Header.Set("Upload-Complete", "?0")
+				if offset+length == len(data) {
+					req.Header.Set("Upload-Complete", "?1")
+				}
+				req.ContentLength = int64(length)
+				return pc.HTTPClient.Do(req)
+			}
+
+			// Appends are larger than the 1 MiB limit of API request bodies
+			chunk := 2 << 20
+			if added {
+				URL = pc.URL + "/resumable/" + upload.ID() + "/filename?reference=ref"
+				resp, err := request("POST", 0, bytes.NewReader(data[:chunk]), chunk)
+				require.NoError(t, err, "unable to create file")
+				_ = resp.Body.Close()
+				require.Equal(t, http.StatusCreated, resp.StatusCode, "invalid HTTP response status %s", resp.Status)
+				URL = pc.URL + resp.Header.Get("Location")
+				file = &common.File{ID: strings.Split(URL, "/")[5], Name: "filename"}
+			} else {
+				URL = pc.URL + "/resumable/" + upload.ID() + "/" + file.ID + "/" + file.Name
+				resp, err := request("PATCH", 0, bytes.NewReader(data[:chunk]), chunk)
+				require.NoError(t, err, "unable to append")
+				_ = resp.Body.Close()
+				require.Equal(t, http.StatusNoContent, resp.StatusCode, "invalid HTTP response status %s", resp.Status)
+			}
+
+			// The connection drops in the middle of the second append
+			_, err = request("PATCH", chunk, io.MultiReader(bytes.NewReader(data[chunk:chunk+chunk/2]), iotest.ErrReader(errors.New("connection lost"))), chunk)
+			require.Error(t, err, "interrupted append should fail")
+
+			// The client asks where to resume
+			resp, err := request("HEAD", 0, nil, 0)
+			require.NoError(t, err, "unable to get upload offset")
+			require.Equal(t, http.StatusNoContent, resp.StatusCode, "invalid HTTP response status %s", resp.Status)
+			offset, err := strconv.Atoi(resp.Header.Get("Upload-Offset"))
+			require.NoError(t, err, "invalid upload offset")
+			require.Equal(t, chunk, offset, "interrupted append should not be staged")
+
+			for offset < len(data) {
+				length := min(chunk, len(data)-offset)
+				resp, err = request("PATCH", offset, bytes.NewReader(data[offset:offset+length]), length)
+				require.NoError(t, err, "unable to append")
+				_ = resp.Body.Close()
+				offset += length
+				if offset < len(data) {
+					require.Equal(t, http.StatusNoContent, resp.StatusCode, "invalid HTTP response status %s", resp.Status)
+				}
+			}
+			require.Equal(t, http.StatusOK, resp.StatusCode, "invalid HTTP response status %s", resp.Status)
+			require.Equal(t, "?1", resp.Header.Get("Upload-Complete"), "upload should be complete")
+
+			reader, err := pc.downloadFile(upload.Metadata(), file)
+			require.NoError(t, err, "unable to download file")
+			downloaded, err := io.ReadAll(reader)
+			require.NoError(t, err, "unable to read file")
+			require.True(t, bytes.Equal(data, downloaded), "downloaded file differs from the uploaded file")
+		})
+	}
+}
+
+type resumableReplicaBackend struct {
+	data.Backend
+	saving chan struct{}
+	resume <-chan struct{}
+}
+
+func (b *resumableReplicaBackend) AddFile(file *common.File, reader io.Reader) error {
+	close(b.saving)
+	<-b.resume
+	return b.Backend.AddFile(file, reader)
+}
+
+func TestResumableUploadAcrossReplicas(t *testing.T) {
+	directory := os.Getenv("PLIK_RESUMABLE_REPLICA_DIRECTORY")
+	child := directory != ""
+	if !child {
+		directory = t.TempDir()
+	}
+	config := common.NewConfiguration()
+	config.ListenAddress, config.ListenPort = "127.0.0.1", 0
+	config.AutoClean(false)
+	config.LogOutput = io.Discard
+	config.ChunkDirectory = filepath.Join(directory, "chunks")
+	config.MetadataBackendConfig = map[string]any{"Driver": "sqlite3", "ConnectionString": filepath.Join(directory, "metadata.db")}
+	require.NoError(t, config.Initialize())
+	ps := server.NewPlikServer(config)
+	t.Cleanup(func() { _ = ps.ShutdownNow() })
+	backend := fileBackend.NewBackend(&fileBackend.Config{Directory: filepath.Join(directory, "files")})
+	gate, resume := context.WithCancel(context.Background())
+	t.Cleanup(resume)
+	gated := &resumableReplicaBackend{Backend: backend, saving: make(chan struct{}), resume: gate.Done()}
+	if child {
+		ps.WithDataBackend(backend)
+	} else {
+		ps.WithDataBackend(gated)
+	}
+	require.NoError(t, ps.Start())
+	if child {
+		fmt.Println(ps.GetConfig().ListenPort)
+		_, _ = io.Copy(io.Discard, os.Stdin)
+		return
+	}
+
+	executable, err := os.Executable()
+	require.NoError(t, err)
+	command := exec.Command(executable, "-test.run=^TestResumableUploadAcrossReplicas$")
+	for _, value := range os.Environ() {
+		name, _, _ := strings.Cut(value, "=")
+		if name != "PLIKD_CONFIG" && name != "data_backend" && name != "data_backend_config" {
+			command.Env = append(command.Env, value)
+		}
+	}
+	command.Env = append(command.Env, "PLIK_RESUMABLE_REPLICA_DIRECTORY="+directory)
+	command.Stderr = os.Stderr
+	input, err := command.StdinPipe()
+	require.NoError(t, err)
+	output, err := command.StdoutPipe()
+	require.NoError(t, err)
+	require.NoError(t, command.Start())
+	t.Cleanup(func() {
+		_ = input.Close()
+		_ = command.Process.Kill()
+		_ = command.Wait()
+	})
+	port := make(chan string, 1)
+	go func() {
+		scanner := bufio.NewScanner(output)
+		if scanner.Scan() {
+			port <- scanner.Text()
+		}
+	}()
+	var replica *Client
+	select {
+	case value := <-port:
+		replica = NewClient("http://127.0.0.1:" + value)
+	case <-time.After(10 * time.Second):
+		t.Fatal("replica did not start")
+	}
+	pc := NewClient(config.GetServerURL().String())
+	pc.HTTPClient.Timeout, replica.HTTPClient.Timeout = 10*time.Second, 10*time.Second
+	upload := pc.NewUpload()
+	file := upload.AddFileFromReader("filename", strings.NewReader("hello world"))
+	require.NoError(t, upload.Create())
+	path := "/resumable/" + upload.ID() + "/" + file.Metadata().ID + "/filename"
+	request := func(client *Client, method string, offset int, complete, body string) *http.Request {
+		req, err := client.uploadRequest(upload.Metadata(), method, client.URL+path, strings.NewReader(body))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/partial-upload")
+		req.Header.Set("Upload-Offset", strconv.Itoa(offset))
+		req.Header.Set("Upload-Complete", complete)
+		return req
+	}
+	resp, err := replica.HTTPClient.Do(request(replica, "PATCH", 0, "?0", "hello "))
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	completion := request(pc, "PATCH", 6, "?1", "world")
+	completed := make(chan error, 1)
+	go func() {
+		resp, err := pc.HTTPClient.Do(completion)
+		if err == nil {
+			_ = resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				err = fmt.Errorf("completion returned %s", resp.Status)
+			}
+		}
+		completed <- err
+	}()
+	select {
+	case <-gated.saving:
+	case <-time.After(10 * time.Second):
+		t.Fatal("upload did not reach the data backend")
+	}
+
+	// A different process must wait while the completing append saves the staged bytes.
+	deadline, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	resp, err = replica.HTTPClient.Do(request(replica, "PATCH", 11, "?0", "unexpected").WithContext(deadline))
+	if resp != nil {
+		_ = resp.Body.Close()
+	}
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	resume()
+	require.NoError(t, <-completed)
+	resp, err = replica.HTTPClient.Do(request(replica, "HEAD", 0, "?0", ""))
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+	require.Equal(t, "11", resp.Header.Get("Upload-Offset"))
+	require.Equal(t, "?1", resp.Header.Get("Upload-Complete"))
+	reader, err := replica.downloadFile(upload.Metadata(), file.Metadata())
+	require.NoError(t, err)
+	defer reader.Close()
+	downloaded, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	require.Equal(t, "hello world", string(downloaded))
 }

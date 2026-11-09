@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -66,6 +67,7 @@ type Configuration struct {
 	WebappDirectory     string   `json:"-"`
 	ClientsDirectory    string   `json:"-"`
 	ChangelogDirectory  string   `json:"-"`
+	ChunkDirectory      string   `json:"-"`
 
 	EnableArchiveCompression bool `json:"-"`
 
@@ -175,6 +177,7 @@ func NewConfiguration() (config *Configuration) {
 	config.WebappDirectory = "../webapp/dist"
 	config.ClientsDirectory = "../clients"
 	config.ChangelogDirectory = "../changelog"
+	config.ChunkDirectory = filepath.Join(os.TempDir(), "plik-chunks")
 
 	config.LogOutput = os.Stdout
 	config.clean = true

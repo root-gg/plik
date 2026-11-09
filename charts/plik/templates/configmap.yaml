@@ -32,6 +32,7 @@ data:
     WebappDirectory     = {{ .Values.plikd.WebappDirectory | quote }}
     ClientsDirectory    = {{ .Values.plikd.ClientsDirectory | quote }}
     ChangelogDirectory  = {{ .Values.plikd.ChangelogDirectory | quote }}
+    ChunkDirectory      = {{ .Values.plikd.ChunkDirectory | quote }}
     SourceIpHeader      = {{ .Values.plikd.SourceIpHeader | quote }}
     UploadWhitelist     = {{ .Values.plikd.UploadWhitelist | toJson }}
 
