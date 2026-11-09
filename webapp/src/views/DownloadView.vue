@@ -381,7 +381,7 @@ function removePendingFile(file) {
 
 async function cancelFileUpload(file) {
   if (file.abort) {
-    file.abort()
+    await file.abort()
   }
   pendingFiles.value = pendingFiles.value.filter(f => f.reference !== file.reference)
 
@@ -408,11 +408,7 @@ async function cancelFileUpload(file) {
 async function cancelAllUploads() {
   uploadsCancelled = true
   const filesToClean = [...pendingFiles.value]
-  for (const file of filesToClean) {
-    if (file.abort) {
-      file.abort()
-    }
-  }
+  await Promise.allSettled(filesToClean.filter(file => file.abort).map(file => file.abort()))
   pendingFiles.value = []
   isAddingFiles.value = false
 
@@ -457,10 +453,15 @@ function uploadFileEntry(fileEntry) {
 
   const { promise, abort } = uploadFile(
     { id: props.id, stream: isStream, uploadToken: uploadToken.value },
-    { id: fileEntry.id, fileName: fileEntry.fileName, file: fileEntry.file },
-    (progress) => { fileEntry.progress = progress },
+    fileEntry,
+    (progress) => {
+      fileEntry.progress = progress
+      fileEntry.error = null
+    },
     activeBasicAuth,
     isStream ? () => setServerFileStatus(fileEntry.id, 'uploading') : undefined,
+    // Shown under the progress bar until the upload resumes
+    (err) => { fileEntry.error = err.message },
   )
 
   fileEntry.abort = abort
@@ -485,8 +486,8 @@ function uploadFileEntry(fileEntry) {
     pendingFiles.value = pendingFiles.value.filter(f => {
       if (f.status !== 'error' || !f.id) return true
       const serverFile = upload.value?.files?.find(sf => sf.id === f.id)
-      // Keep if server says missing (retryable) or file not found (keep error visible)
-      return !serverFile || serverFile.status === 'missing'
+      // Keep if the server still takes the file (missing, or uploading for a resumable upload) or does not have it (keep error visible)
+      return !serverFile || serverFile.status === 'missing' || (serverFile.status === 'uploading' && !upload.value.stream)
     })
   })
 }

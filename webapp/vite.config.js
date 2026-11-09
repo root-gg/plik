@@ -20,6 +20,7 @@ export default defineConfig({
       '/health': 'http://localhost:8080',
       '/upload': 'http://localhost:8080',
       '/file': 'http://localhost:8080',
+      '/resumable': 'http://localhost:8080',
       '/stream': 'http://localhost:8080',
       '/archive': 'http://localhost:8080',
       '/qrcode': 'http://localhost:8080',

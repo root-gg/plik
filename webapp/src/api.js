@@ -248,14 +248,20 @@ export function removeUpload(id, uploadToken) {
 
 /**
  * Upload a file using XMLHttpRequest (for progress tracking)
+ * Non-stream files are sent as resumable uploads, in chunks that are retried and resumed when the connection drops.
  * @param {Object} upload - The upload object { id, stream, uploadToken }
- * @param {Object} fileEntry - { id, fileName, file (File object) }
+ * @param {Object} fileEntry - { id, fileName, file (File object), reference }, a resumable upload sets the id of a new file
  * @param {Function} onProgress - callback(percent)
  * @param {string} basicAuth - optional base64 auth string
  * @param {Function} onStart - optional callback fired when upload connection opens (loadstart)
+ * @param {Function} onRetry - optional callback(error) fired when a resumable upload waits to retry after an error
  * @returns {{ promise: Promise<Object>, abort: Function }} - promise resolves to file metadata, abort cancels the upload
  */
-export function uploadFile(upload, fileEntry, onProgress, basicAuth, onStart) {
+export function uploadFile(upload, fileEntry, onProgress, basicAuth, onStart, onRetry) {
+    if (!upload.stream && fileEntry.file.size > 0) {
+        return uploadFileResumable(upload, fileEntry, onProgress, basicAuth, onRetry)
+    }
+
     const mode = upload.stream ? 'stream' : 'file'
     let url
     if (fileEntry.id) {
@@ -265,14 +271,137 @@ export function uploadFile(upload, fileEntry, onProgress, basicAuth, onStart) {
         url = `${base}/${mode}/${upload.id}`
     }
 
+    // Send the file as form data
+    const formData = new FormData()
+    formData.append('file', fileEntry.file, fileEntry.fileName)
+
+    const request = sendUploadRequest('POST', url, upload, basicAuth, formData, {
+        onProgress: onProgress && ((loaded, total) => onProgress(Math.round((loaded / total) * 100))),
+        onStart,
+    })
+
+    const promise = request.promise.then((xhr) => {
+        try {
+            return JSON.parse(xhr.responseText)
+        } catch {
+            return null
+        }
+    })
+
+    return { promise, abort: () => request.xhr.abort() }
+}
+
+// Chunks are sized to take about CHUNK_SECONDS at the measured upload speed: short enough to stay
+// within reverse proxy request timeouts (60 s in Traefik) when the bandwidth drops, and to lose
+// little work when a chunk fails. MAX_CHUNK_SIZE stays under the 100 MB request limit of Cloudflare.
+const CHUNK_SECONDS = 10
+const MIN_CHUNK_SIZE = 256 * 1024
+const MAX_CHUNK_SIZE = 64 * 1024 * 1024
+const CHUNK_TIMEOUT = 60_000
+const MAX_CHUNK_RETRIES = 10
+
+/**
+ * Upload a file as a resumable upload (IETF draft-ietf-httpbis-resumable-upload): add a file that has no ID yet to
+ * the upload (upload creation), append chunks with PATCH and, after a failure, resume from the offset that HEAD returns
+ * @returns {{ promise: Promise<Object>, abort: Function }} - abort also cancels the upload on the server
+ */
+function uploadFileResumable(upload, fileEntry, onProgress, basicAuth, onRetry) {
+    const file = fileEntry.file
+    const url = () => `${base}/resumable/${upload.id}/${fileEntry.id}/${encodeURIComponent(fileEntry.fileName)}`
+    let request = null
+    let cancelSleep = null
+
+    const sleep = (ms) => new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, ms)
+        cancelSleep = () => {
+            clearTimeout(timer)
+            reject({ status: 0, message: t('api.uploadCancelled'), cancelled: true })
+        }
+    })
+
+    const send = (method, target, body = null, headers = {}, onSent = undefined) => {
+        request = sendUploadRequest(method, target, upload, basicAuth, body, { headers, timeout: CHUNK_TIMEOUT, onProgress: onSent })
+        return request.promise
+    }
+
+    const promise = (async () => {
+        let chunkSize = MIN_CHUNK_SIZE
+        let retries = 0
+        for (;;) {
+            try {
+                if (!fileEntry.id) {
+                    // The reference makes the server return the same file if the creation is retried
+                    const creation = `${base}/resumable/${upload.id}/${encodeURIComponent(fileEntry.fileName)}?reference=${encodeURIComponent(fileEntry.reference)}`
+                    const created = await send('POST', creation, null, { 'Upload-Complete': '?0', 'Upload-Length': String(file.size) })
+                    fileEntry.id = created.getResponseHeader('Location').split('/').at(-2)
+                }
+                const head = await send('HEAD', url())
+                let offset = Number(head.getResponseHeader('Upload-Offset'))
+                onProgress?.(Math.round((offset / file.size) * 100))
+                for (;;) {
+                    // The last append completes the upload, even without content when the server already has every byte
+                    const end = Math.min(offset + chunkSize, file.size)
+                    const complete = end === file.size
+                    const started = Date.now()
+                    const xhr = await send('PATCH', url(), file.slice(offset, end), {
+                        'Content-Type': 'application/partial-upload',
+                        'Upload-Offset': String(offset),
+                        'Upload-Complete': complete ? '?1' : '?0',
+                    }, onProgress && ((loaded) => onProgress(Math.round(((offset + loaded) / file.size) * 100))))
+                    if (complete) return JSON.parse(xhr.responseText)
+                    const seconds = (Date.now() - started) / 1000
+                    chunkSize = Math.min(MAX_CHUNK_SIZE, Math.max(MIN_CHUNK_SIZE, Math.round(((end - offset) / seconds) * CHUNK_SECONDS)))
+                    offset = end
+                    retries = 0
+                }
+            } catch (err) {
+                // Retry unless the server has processed the file (Upload-Complete: ?1)
+                const retryable = err.status === 0 || (err.xhr.getResponseHeader('Upload-Complete') !== '?1'
+                    && (err.status === 409 || err.status === 413 || err.status === 429 || err.status >= 500))
+                if (err.cancelled || !retryable || retries >= MAX_CHUNK_RETRIES) throw err
+                onRetry?.(err)
+            }
+            chunkSize = MIN_CHUNK_SIZE
+            await sleep(Math.min(1000 * 2 ** retries, 30_000))
+            retries++
+        }
+    })()
+
+    const abort = () => {
+        request.xhr.abort()
+        cancelSleep?.()
+        if (fileEntry.id) {
+            return sendUploadRequest('DELETE', url(), upload, basicAuth, null).promise
+                .catch((err) => console.warn('Failed to cancel upload:', err))
+        }
+    }
+
+    return { promise, abort }
+}
+
+/**
+ * Send a file upload request with XMLHttpRequest, which reports upload progress unlike fetch()
+ * @param {string} method - HTTP method
+ * @param {string} url - request URL
+ * @param {Object} upload - The upload object { uploadToken }
+ * @param {string} basicAuth - optional base64 auth string
+ * @param {Blob|FormData|null} body - request body
+ * @param {Object} options - { headers, timeout (ms), onProgress(loaded, total), onStart }
+ * @returns {{ promise: Promise<XMLHttpRequest>, xhr: XMLHttpRequest }} - promise resolves to the request once it succeeds
+ */
+function sendUploadRequest(method, url, upload, basicAuth, body, { headers = {}, timeout = 0, onProgress, onStart } = {}) {
     const xhr = new XMLHttpRequest()
-    xhr.open('POST', url)
+    xhr.open(method, url)
+    xhr.timeout = timeout
 
     if (upload.uploadToken) {
         xhr.setRequestHeader('X-UploadToken', upload.uploadToken)
     }
     if (basicAuth) {
         xhr.setRequestHeader('Authorization', 'Basic ' + basicAuth)
+    }
+    for (const [name, value] of Object.entries(headers)) {
+        xhr.setRequestHeader(name, value)
     }
 
     // XSRF token for mutating request
@@ -282,7 +411,7 @@ export function uploadFile(upload, fileEntry, onProgress, basicAuth, onStart) {
     const promise = new Promise((resolve, reject) => {
         xhr.upload.addEventListener('progress', (e) => {
             if (e.lengthComputable && onProgress) {
-                onProgress(Math.round((e.loaded / e.total) * 100))
+                onProgress(e.loaded, e.total)
             }
         })
 
@@ -292,11 +421,7 @@ export function uploadFile(upload, fileEntry, onProgress, basicAuth, onStart) {
 
         xhr.addEventListener('load', () => {
             if (xhr.status >= 200 && xhr.status < 300) {
-                try {
-                    resolve(JSON.parse(xhr.responseText))
-                } catch {
-                    resolve(null)
-                }
+                resolve(xhr)
             } else {
                 let message = t('api.uploadFailed', { status: xhr.status })
                 try {
@@ -306,25 +431,22 @@ export function uploadFile(upload, fileEntry, onProgress, basicAuth, onStart) {
                     // Server returns plain text errors (not JSON)
                     if (xhr.responseText) message = xhr.responseText
                 }
-                reject({ status: xhr.status, message })
+                reject({ status: xhr.status, message, xhr })
             }
         })
 
-        xhr.addEventListener('error', () => {
-            reject({ status: 0, message: t('api.uploadConnectionLost') })
-        })
+        const connectionLost = () => reject({ status: 0, message: t('api.uploadConnectionLost'), xhr })
+        xhr.addEventListener('error', connectionLost)
+        xhr.addEventListener('timeout', connectionLost)
 
         xhr.addEventListener('abort', () => {
             reject({ status: 0, message: t('api.uploadCancelled'), cancelled: true })
         })
     })
 
-    // Send the file as form data
-    const formData = new FormData()
-    formData.append('file', fileEntry.file, fileEntry.fileName)
-    xhr.send(formData)
+    xhr.send(body)
 
-    return { promise, abort: () => xhr.abort() }
+    return { promise, xhr }
 }
 
 export function removeFile(upload, file) {

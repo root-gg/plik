@@ -222,6 +222,10 @@ When processing a request, limits are resolved via the custom `Context`:
 | POST | `/file/{uploadID}/{fileID}/{filename}` | `AddFile` | Token | Add file with known ID (stream mode) |
 | DELETE | `/file/{uploadID}/{fileID}/{filename}` | `RemoveFile` | Token | Remove file |
 | HEAD/GET | `/file/{uploadID}/{fileID}/{filename}` | `GetFile` | Token | Download file (supports HTTP range requests) |
+| POST | `/resumable/{uploadID}/{filename}` | `AddResumableFile` | Token | Add file as a resumable upload (IETF resumable upload draft) |
+| HEAD | `/resumable/{uploadID}/{fileID}/{filename}` | `GetFileOffset` | Token | Resumable upload offset |
+| PATCH | `/resumable/{uploadID}/{fileID}/{filename}` | `AppendFile` | Token | Append to a resumable upload |
+| DELETE | `/resumable/{uploadID}/{fileID}/{filename}` | `RemoveFile` | Token | Cancel a resumable upload |
 | POST | `/stream/{uploadID}/{fileID}/{filename}` | `AddFile` | Token | Stream upload |
 | HEAD/GET | `/stream/{uploadID}/{fileID}/{filename}` | `GetFile` | Token | Stream download |
 | HEAD/GET | `/archive/{uploadID}/{filename}` | `GetArchive` | Token | Download as zip |

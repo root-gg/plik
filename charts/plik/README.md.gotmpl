@@ -44,6 +44,11 @@ persistence:
 dbPersistence:
   enabled: true
 
+chunkPersistence:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+
 ingress:
   enabled: true
   className: nginx
@@ -67,6 +72,8 @@ plikd:
 ```bash
 helm install plik plik/plik -f custom-values.yaml
 ```
+
+Resumable uploads use `chunkPersistence` for staging; enable it or supply an `existingClaim` to preserve progress across pod replacement. Multiple replicas require shared `ReadWriteMany` storage with cross-host file locking. Keep `plikd.ChunkDirectory` within `chunkPersistence.path`.
 
 ## Architecture
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- New `ChunkDirectory` config option and `chunkPersistence` volume for resumable upload staging (default: `/home/plik/server/chunks`)
+- Require shared resumable upload staging for multiple replicas
+
 ## [1.4.3]
 
 ### Fixed

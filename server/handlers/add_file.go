@@ -125,6 +125,14 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		return
 	}
 
+	saveFile(ctx, resp, upload, file, fileReader)
+}
+
+// saveFile stores the data of an uploading file in the data backend, updates the file
+// metadata and writes it to the response.
+func saveFile(ctx *context.Context, resp http.ResponseWriter, upload *common.Upload, file *common.File, fileReader io.Reader) {
+	log := ctx.GetLogger()
+
 	// Pipe file data from the request body to a preprocessing goroutine
 	//  - Guess content type
 	//  - Compute/Limit upload size
@@ -153,7 +161,7 @@ func AddFile(ctx *context.Context, resp http.ResponseWriter, req *http.Request) 
 		}
 	}
 
-	err = backend.AddFile(file, preprocessReader)
+	err := backend.AddFile(file, preprocessReader)
 	if err != nil {
 		ctx.InternalServerError("unable to save file", err)
 		if upload.Stream {

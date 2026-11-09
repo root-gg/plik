@@ -27,6 +27,7 @@ func LimitBody(ctx *context.Context, next http.Handler) http.Handler {
 		// Skip file upload paths (they have stream-based size limiting)
 		if req.URL.Path == "/" ||
 			strings.HasPrefix(req.URL.Path, "/file/") ||
+			strings.HasPrefix(req.URL.Path, "/resumable/") ||
 			strings.HasPrefix(req.URL.Path, "/stream/") {
 			next.ServeHTTP(resp, req)
 			return

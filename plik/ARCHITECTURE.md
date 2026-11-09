@@ -101,7 +101,7 @@ Each test gets its own server instance with its own router/middleware stack, but
 
 | File | Focus | Key Scenarios |
 |------|-------|---------------|
-| `z1_e2e_test.go` | Core upload/download flows | Upload twice (error), download during upload (status transitions), OneShot (delete after download), Removable, Stream mode, TTL expiration, Quick upload (curl-style multipart), forbidden options sanitization |
+| `z1_e2e_test.go` | Core upload/download flows | Upload twice (error), download during upload (status transitions), OneShot (delete after download), Removable, Stream mode, TTL expiration, Quick upload (curl-style multipart), forbidden options sanitization, resumable upload of a declared and an added file resumed after an interrupted append |
 | `z2_e2e_config_test.go` | Server config enforcement | Path prefix, MaxFileSize, MaxFilePerUpload, AnonymousUpload disabled, DefaultTTL, TTL limits, Password/OneShot/Removable disabled, DownloadDomain + aliases, UploadWhitelist, SourceIpHeader, `DownloadURL` metadata (= `DownloadDomain + Path`), path-aware file URL construction, domain path stripping |
 | `z3_e2e_authentication_test.go` | Auth flows & token isolation | CLI token auth, multi-token isolation (user can't control uploads from different token), admin token isolation (admin tokens don't grant extra power — by design, to limit impact of token leak), password-protected uploads |
 | `z4_e2e_client_concurrent_test.go` | Concurrency & race conditions | Multiple uploads in parallel, multiple files per upload in parallel, busy-loop upload (continuous `Upload()` calls with concurrent file adds), parallel download of same file, parallel create + get |

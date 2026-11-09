@@ -208,7 +208,7 @@ Each middleware is a function that takes a `context.Context` and optionally call
 | `block_bot_download.go` | `BlockBotDownload` | Block messaging app link preview bots from downloading one-shot/streaming files (returns 406) |
 | `user.go` | `User` | Resolve `{userID}` → load user (admin or self) |
 | `cors.go` | `CORSPreflight` | Short-circuits OPTIONS preflight requests with CORS headers (runs before Upload/File middleware) |
-| `limit_body.go` | `LimitBody` | Wraps request body with `http.MaxBytesReader` (1 MiB) to reject oversized payloads on JSON API endpoints. In `stdChain` — auto-skips GET/HEAD/DELETE/OPTIONS and file upload paths (`/`, `/file/*`, `/stream/*`) which have their own stream-based size limiting. |
+| `limit_body.go` | `LimitBody` | Wraps request body with `http.MaxBytesReader` (1 MiB) to reject oversized payloads on JSON API endpoints. In `stdChain` — auto-skips GET/HEAD/DELETE/OPTIONS and file upload paths (`/`, `/file/*`, `/resumable/*`, `/stream/*`) which have their own stream-based size limiting. |
 | `download_domain.go` | `RestrictDownloadDomain` | Router-level middleware: blocks non-file routes on the download domain when PlikDomain is also set (redirects to PlikDomain) |
 
 ---
@@ -221,6 +221,7 @@ Each handler file contains one or more `http.Handler` functions.
 |------|----------|-------------|
 | `create_upload.go` | `CreateUpload` | Create upload with options, validate config/quotas |
 | `add_file.go` | `AddFile` | Upload file to existing upload (multipart). Detects content type via [`gabriel-vasile/mimetype`](https://github.com/gabriel-vasile/mimetype) magic-number sniffing (200+ formats). E2EE uploads are forced to `application/octet-stream` via age-header detection. On stream upload error, resets file to `missing` (retryable); on regular upload error, purges partial data and leaves file in `uploading` (not retryable). |
+| `append_file.go` | `AddResumableFile`, `GetFileOffset`, `AppendFile`, `PurgeStaleChunks` | Resumable uploads following the IETF Resumable Uploads for HTTP draft (`draft-ietf-httpbis-resumable-upload-15`) on `/resumable/{uploadID}/{fileID}/{filename}`. Files declared at upload creation have one; `POST /resumable/{uploadID}/{filename}` (upload creation) adds a file with the same checks as `AddFile` and answers with its `Location`, and a creation with the `reference` of an existing file of the upload returns that file. `HEAD` returns `Upload-Offset`, `Upload-Complete` and `Upload-Limit: max-size`. `PATCH` (`application/partial-upload`, `Upload-Offset`, `Upload-Complete`) receives the content in a `.part` file, then under a per-file lock appends it to `{ChunkDirectory}/{fileID}` if `Upload-Offset` matches (else `409` with the `mismatching-upload-offset` problem). With `Upload-Complete: ?1` the staged file goes through the same path as `AddFile` while the lock is held, so every data backend works; a repeated completing append replays the file metadata. An interrupted append is discarded. Not available for stream uploads. The cleaning routine deletes staged files of files that are no longer uploading, and after a day without appends marks the file removed. Staging is local, so several plikd instances need sticky sessions or a shared `ChunkDirectory`. |
 | `get_upload.go` | `GetUpload` | Return upload metadata |
 | `get_file.go` | `GetFile` | Download file, handle OneShot, extend TTL, support HTTP range requests (via `http.ServeContent` for non-stream/non-oneshot). E2EE uploads: redirects webapp to download page, forces `application/octet-stream` |
 | `get_archive.go` | `GetArchive` | Download all files as zip. Compression method controlled by `EnableArchiveCompression` (default: `zip.Deflate`). Disable to prevent CPU exhaustion DoS on public instances. |
@@ -239,6 +240,8 @@ Each handler file contains one or more `http.Handler` functions.
 | `admin.go` | `GetServerStatistics`, `GetUploads` | Admin endpoints |
 
 ---
+
+Per-file filesystem locks coordinate staging across processes. Lock files stay beside staged data until the file is terminal, and the cleaning routine removes them.
 
 ## `server/` — HTTP Server Setup
 

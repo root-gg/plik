@@ -63,7 +63,7 @@ test.describe('E2EE', () => {
         // Listen for the file upload request to check body content
         let uploadedText = null
         page.on('request', async (request) => {
-            if (request.url().includes('/file/') && request.method() === 'POST') {
+            if (request.url().includes('/resumable/') && request.method() === 'PATCH') {
                 const body = request.postDataBuffer()
                 if (body) {
                     uploadedText = body.toString('utf-8')

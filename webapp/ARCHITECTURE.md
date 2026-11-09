@@ -282,8 +282,8 @@ Key design decisions:
 
 | Scenario                   | URL pattern                                  |
 |----------------------------|----------------------------------------------|
-| Initial upload (has fileId from `createUpload`) | `POST /file/:uploadId/:fileId/:fileName` |
-| Adding files to existing upload (no fileId)     | `POST /file/:uploadId`                   |
+| Initial upload (has fileId from `createUpload`) | `HEAD`/`PATCH /resumable/:uploadId/:fileId/:fileName` (`POST /file/...` for stream uploads and empty files) |
+| Adding files to existing upload (no fileId)     | `POST /resumable/:uploadId/:fileName`, then as above (`POST /file/:uploadId` for empty files) |
 
 The `api.js` `uploadFile` function picks the right pattern:
 ```js
@@ -293,6 +293,17 @@ if (fileEntry.id) {
     url = `${base}/${mode}/${upload.id}`
 }
 ```
+
+### Resumable uploads
+
+`uploadFileResumable` follows the IETF Resumable Uploads for HTTP draft, so a dropped connection costs one chunk instead of the whole file:
+
+- A file without an ID is first added to the upload by an upload creation request (`Upload-Complete: ?0`, no content) with the file's `reference`, so a retried creation returns the same file. It sets `fileEntry.id`, so a later Retry resumes that file instead of adding another one.
+- It gets the server's `Upload-Offset` with `HEAD` first, and again after every failure, then appends chunks with `PATCH` (`Content-Type: application/partial-upload`, `Upload-Offset`, `Upload-Complete`). The progress starts from that offset. The last append has `Upload-Complete: ?1`, and has no content when the server already has every byte.
+- While it waits to retry, `onRetry` shows the error under the progress bar. A file that failed for good stays in the pending list with a Retry button while the server still has it as `uploading`.
+- Network errors, timeouts (`CHUNK_TIMEOUT`), and `409`, `413`, `429` or `5xx` without `Upload-Complete: ?1` are retried with exponential backoff (1 s doubling to 30 s, `MAX_CHUNK_RETRIES`). Other errors fail the file, and the Retry button resumes it.
+- Chunk size adapts to the measured speed to take about `CHUNK_SECONDS`, between `MIN_CHUNK_SIZE` and `MAX_CHUNK_SIZE`, and drops back to the minimum after a failure.
+- `abort()` also sends `DELETE` to cancel the upload, since the server keeps staged chunks for resuming.
 
 ### Stream vs File mode
 

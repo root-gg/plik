@@ -144,6 +144,21 @@ dbPersistence:
   # -- Mount path for the database inside the container
   path: /home/plik/server/db
 
+chunkPersistence:
+  # -- Enable a shared PVC for resumable upload staging
+  enabled: false
+  # -- Existing shared PVC for resumable upload staging
+  existingClaim: ""
+  # -- Storage class name (uses cluster default if unset)
+  # storageClassName: default
+  # -- PVC access modes (ReadWriteMany is required for multiple replicas)
+  accessModes:
+    - ReadWriteMany
+  # -- PVC storage size
+  size: 10Gi
+  # -- Mount path for resumable upload staging
+  path: /home/plik/server/chunks
+
 # -- Plik server configuration. Values are rendered into the `plikd.cfg` config file.
 # See [server configuration reference](https://github.com/root-gg/plik/tree/master/server/plikd.cfg) for all options.
 # @default -- see sub-values
@@ -195,6 +210,9 @@ plikd:
   ClientsDirectory: "../clients"
   # -- Path to the changelog directory
   ChangelogDirectory: "../changelog"
+  # -- Staging directory for resumable uploads until they complete.
+  # Must be within chunkPersistence.path. Enable chunkPersistence to resume across pod replacement.
+  ChunkDirectory: "/home/plik/server/chunks"
   # -- HTTP header to use for source IP (e.g. `X-Forwarded-For`)
   SourceIpHeader: ""
   # -- IP whitelist for uploads (empty = allow all)

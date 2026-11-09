@@ -194,6 +194,9 @@ github.com/go-logr/stdr
 # github.com/go-sql-driver/mysql v1.8.1
 ## explicit; go 1.18
 github.com/go-sql-driver/mysql
+# github.com/gofrs/flock v0.13.2
+## explicit; go 1.26.0
+github.com/gofrs/flock
 # github.com/golang-jwt/jwt/v5 v5.3.1
 ## explicit; go 1.21
 github.com/golang-jwt/jwt/v5
