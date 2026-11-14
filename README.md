@@ -72,6 +72,10 @@ helm install plik plik/plik
 
 Open web interface at [http://127.0.0.1:8080](http://127.0.0.1:8080)
 
+### One-Click Deploy
+
+[![Deploy on RepoCloud](https://d16t0pc4846x52.cloudfront.net/deploylobe.svg)](https://repocloud.io/details/Plik/)
+
 ### Command Line Client
 
 ```bash
