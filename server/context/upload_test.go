@@ -725,7 +725,7 @@ func testUploadSize(t *testing.T, ok bool) {
 	defer setupNewMetadataBackend(ctx)()
 
 	// Create
-	upload := common.NewUpload()
+	upload := common.NewUpload(ctx.GetConfig().UploadIDinB32, ctx.GetConfig().UploadIDLength)
 	upload.User = ctx.user.ID
 	file := upload.NewFile()
 	file.Status = common.FileUploaded
@@ -768,7 +768,7 @@ func testUserTotalSize(t *testing.T, ok bool) {
 	defer setupNewMetadataBackend(ctx)()
 
 	// Create
-	upload := common.NewUpload()
+	upload := common.NewUpload(ctx.GetConfig().UploadIDinB32, ctx.GetConfig().UploadIDLength)
 	upload.User = ctx.user.ID
 	file := upload.NewFile()
 	file.Status = common.FileUploaded

@@ -48,17 +48,21 @@ func IsValidE2EEScheme(scheme string) bool {
 	return slices.Contains(validE2EESchemes, scheme)
 }
 
-// NewUpload creates a new upload object
-func NewUpload() (upload *Upload) {
+// NewUpload creates a new upload object and populates the ID and Upload Token
+func NewUpload(useB32 bool, len int) (upload *Upload) {
 	upload = &Upload{}
-	upload.GenerateID()
+	upload.GenerateID(len, useB32)
 	upload.GenerateUploadToken()
 	return upload
 }
 
-// GenerateID generate a new Upload ID and UploadToken
-func (upload *Upload) GenerateID() {
-	upload.ID = GenerateRandomID(16)
+// GenerateID generate a new Upload ID
+func (upload *Upload) GenerateID(len int, useB32 bool) {
+	if useB32 {
+		upload.ID = GenerateB32ID(len)
+	} else {
+		upload.ID = GenerateRandomID(len)
+	}
 }
 
 // GenerateUploadToken generate a new UploadToken
@@ -136,7 +140,7 @@ func (upload *Upload) IsExpired() bool {
 // InitializeForTests initialize upload for database insert without config checks and override for testing purpose
 func (upload *Upload) InitializeForTests() {
 	if upload.ID == "" {
-		upload.GenerateID()
+		upload.GenerateID(16, false)
 	}
 
 	upload.ExtendExpirationDate()
