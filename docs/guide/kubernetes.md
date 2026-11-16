@@ -118,6 +118,51 @@ The following environment variables are supported for secret injection:
 | `PLIKD_DATA_BACKEND_CONFIG` | `plikd.DataBackendConfig` (sensitive keys as JSON) |
 | `PLIKD_METADATA_BACKEND_CONFIG` | `plikd.MetadataBackendConfig` (sensitive keys as JSON) |
 
+## Security
+
+The chart is secure by default and complies with the Kubernetes [restricted Pod Security Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted):
+
+- runs as the non-root `plik` user (UID/GID `1000`) with `fsGroup: 1000` so PVCs are writable
+- read-only root filesystem (plikd only writes to the data/db volumes and `/tmp`)
+- no privilege escalation, all Linux capabilities dropped, `RuntimeDefault` seccomp profile
+
+Values you set under `podSecurityContext` / `securityContext` are merged with these defaults; set a key to `null` to remove it.
+
+### Network Policy
+
+An optional `NetworkPolicy` restricts ingress traffic to the Plik http port (and `plikd.MetricsPort` when enabled):
+
+```yaml
+networkPolicy:
+  enabled: true
+  ingressFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+```
+
+Egress is unrestricted unless you provide `networkPolicy.egress` rules. If you do, remember to allow DNS, the metadata database, the data backend and any OAuth provider.
+
+### Probes
+
+The readiness probe calls `GET <plikd.Path>/health` (over HTTPS when `plikd.SslEnabled` is true); the liveness and startup probes are TCP checks. Timings can be tuned via `readinessProbe`, `livenessProbe` and `startupProbe`.
+
+### Replicas
+
+Keep `replicaCount: 1` with the default SQLite metadata backend or the `file` data backend. Running several replicas requires a shared SQL database (PostgreSQL/MySQL) **and** a remote data backend (S3, GCS, Swift).
+
+### kube-score
+
+Remaining [kube-score](https://github.com/zegl/kube-score) findings on the default chart are deliberate:
+
+| Check | Why it is not enforced by default |
+|-------|-----------------------------------|
+| Image Pull Policy | `IfNotPresent` with a pinned tag is the standard choice; override with `image.pullPolicy: Always` if needed |
+| User/Group ID > 10000 | The image runs as UID/GID `1000`; changing it would break existing volume permissions. Override `podSecurityContext.runAsUser`/`runAsGroup`/`fsGroup` if your policy requires it |
+| Resources / Ephemeral Storage | Left to the operator (`resources`) as sizing depends on usage |
+| NetworkPolicy | Opt-in via `networkPolicy.enabled` since it requires a CNI that enforces it |
+| Deployment Replicas | See [Replicas](#replicas) |
+
 ## Service and Ingress
 
 The service is exposed via a `ClusterIP` by default. You can configure an `Ingress` in `values.yaml`.
